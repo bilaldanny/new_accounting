@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { EyeAlt, EyeClosed, LockKeyholeOpen, LoaderLinesAlt } from '@boxicons/vue';
 import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { store } from '@/routes/login';
@@ -76,7 +77,8 @@ const showPassword = ref(false);
                         class="input-group-text bg-transparent"
                         @click.prevent="showPassword = !showPassword"
                     >
-                        <i :class="showPassword ? 'bx bx-show' : 'bx bx-hide'"></i>
+                        <EyeAlt v-if="showPassword" size="sm" />
+                        <EyeClosed v-else size="sm" />
                     </a>
                 </div>
             </div>
@@ -102,7 +104,18 @@ const showPassword = ref(false);
                         class="btn btn-primary"
                         :disabled="processing"
                     >
-                        <i class="bx bxs-lock-open"></i>
+                        <LockKeyholeOpen 
+                            pack="filled" 
+                            size="sm" 
+                            class="d-inline-block BtnIcon"
+                            v-if="!processing"
+                        />
+                        <LoaderLinesAlt 
+                            pack="filled" 
+                            size="sm" 
+                            class="d-inline-block BtnIcon BtnIconLoading"
+                            v-if="processing"
+                        />
                         <span v-if="processing">Logging in...</span>
                         <span v-else>Log in</span>
                     </button>
@@ -111,3 +124,26 @@ const showPassword = ref(false);
         </Form>
     </div>
 </template>
+
+<style lang="css" scoped>
+.BtnIcon {
+    margin-right: 5px;
+    margin-top: -1%;
+}
+
+.BtnIconLoading {
+    animation: btn-icon-spin 0.75s linear infinite;
+    transform-origin: center;
+}
+
+@keyframes btn-icon-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+</style>
+

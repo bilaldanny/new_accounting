@@ -3,6 +3,7 @@ import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
+import AppFooter from '@/components/AppFooter.vue';
 import { Toaster } from '@/components/ui/sonner';
 import type { BreadcrumbItem } from '@/types';
 
@@ -16,12 +17,12 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <AppShell variant="sidebar">
-        <AppSidebar />
-        <AppContent variant="sidebar" class="overflow-x-hidden">
-            <AppSidebarHeader :breadcrumbs="breadcrumbs" />
-            <slot />
-        </AppContent>
+    <!--sidebar wrapper -->
+        <AppShell variant="sidebar">
+            <AppSidebar />
+            <AppSidebarHeader />
+            <AppFooter />
+        </AppShell>
         <Toaster />
-    </AppShell>
+    <!--end sidebar wrapper -->
 </template>

@@ -1,8 +1,8 @@
 $(function () {
 	"use strict";
 	/* perfect scrol bar */
-	new PerfectScrollbar('.header-message-list');
-	new PerfectScrollbar('.header-notifications-list');
+	// new PerfectScrollbar('.header-message-list');
+	// new PerfectScrollbar('.header-notifications-list');
 	// search bar
 	$(".mobile-search-icon").on("click", function () {
 		$(".search-bar").addClass("full-search-bar");
@@ -59,18 +59,18 @@ $(function () {
 		});
 	});
 	// === sidebar menu activation js
-	$(function () {
-		for (var i = window.location, o = $(".metismenu li a").filter(function () {
-			return this.href == i;
-		}).addClass("").parent().addClass("mm-active");;) {
-			if (!o.is("li")) break;
-			o = o.parent("").addClass("mm-show").parent("").addClass("mm-active");
-		}
-	});
-	// metismenu
-	$(function () {
-		$('#menu').metisMenu();
-	});
+	// $(function () {
+	// 	for (var i = window.location, o = $(".metismenu li a").filter(function () {
+	// 		return this.href == i;
+	// 	}).addClass("").parent().addClass("mm-active");;) {
+	// 		if (!o.is("li")) break;
+	// 		o = o.parent("").addClass("mm-show").parent("").addClass("mm-active");
+	// 	}
+	// });
+	// // metismenu
+	// $(function () {
+	// 	$('#menu').metisMenu();
+	// });
 	// chat toggle
 	$(".chat-toggle-btn").on("click", function () {
 		$(".chat-wrapper").toggleClass("chat-toggled");
