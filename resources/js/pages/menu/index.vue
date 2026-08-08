@@ -3,6 +3,7 @@
     import { onMounted, ref, watchEffect, defineAsyncComponent } from 'vue';
     import {dashboard} from '@/routes';
     import TopButtons from '@/components/topButtons.vue';
+    import TheFilter from '@/components/theFilter.vue';
     import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
     import debounce from '@/utils/debounce';
@@ -72,14 +73,14 @@
         }
 
         const stateRefMap = {
-    currentPage,
-    currentSearch,
-    currentStatus,
-    currentRecord,
-    currentUrl,
-} as const;
+            currentPage,
+            currentSearch,
+            currentStatus,
+            currentRecord,
+            currentUrl,
+        } as const;
 
-watchEffect(() => {
+        watchEffect(() => {
             ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
                 const val = stateRefMap[key as keyof typeof stateRefMap]?.value
                 if (val !== undefined && val !== null) {
@@ -97,6 +98,8 @@ watchEffect(() => {
     /* GetData */
     const getData = async () => {
         try {
+            state.loading = true;
+
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
@@ -166,49 +169,94 @@ watchEffect(() => {
 
     const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.menus, () => state);
 
+    const filterOpen = ref(false);
+
+    function clearSearch() {
+        state.search.status = 'all';
+        state.search.search = '';
+        state.search.show_record = 10;
+        state.search.page = 1;
+        getData();
+    }
+
 </script>
 
 <template>
     <Head :title="formatedText(props.routeName)" />
 
-    <div class="row">
-        <div class="col-xl-12">
-            <div class="card custom-card">
-                <div class="card-header justify-content-between">
-                    <div class="d-flex justify-content-end">
-                        <TopButtons
+    <!-- Line -->
+        <hr>
+    <!-- Line -->
+
+    <!-- Card -->
+        <div class="card">
+            <div class="card-header justify-content-end text-right">
+                <TopButtons
+                    :state="state"
+                    :filter-open="filterOpen"
+                    :getData="getData"
+                    :changeStatus="changeStatus"
+                    :deleteRecord="deleteRecord"
+                    :url="`${props.routeName?.split('.')[0]}`"
+                    @toggle-filter="filterOpen = !filterOpen"
+                />
+            </div>
+
+            <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
+                <div class="col-md-4">
+                    <label class="form-label" for="menu-filter-status">Status</label>
+                    <select
+                        id="menu-filter-status"
+                        class="form-select form-select-sm"
+                        v-model="state.search.status"
+                    >
+                        <option value="all">All</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="menu-filter-records">Show records</label>
+                    <select
+                        id="menu-filter-records"
+                        class="form-select form-select-sm"
+                        v-model="state.search.show_record"
+                    >
+                        <option :value="10">10</option>
+                        <option :value="25">25</option>
+                        <option :value="50">50</option>
+                        <option :value="100">100</option>
+                    </select>
+                </div>
+            </TheFilter>
+
+            <div class="card-body">
+                <div class="table-responsive">
+                    <div class="dataTables_wrapper dt-bootstrap5">
+                        <TheTable
+                            :columns="columns"
+                            :selectData="select_data"
                             :state="state"
+                            :checkAll="checkAll"
                             :getData="getData"
+                            :changeOrder="changeOrder"
                             :changeStatus="changeStatus"
-                            :deleteRecord="deleteRecord"
-                            :url="`${props.routeName?.split('.')[0]}`"
+                            :delete="deleteRecord"
+                            :duplicate="duplicate"
+                            :edit="EditModalOpen"
+                            actionType="modal"
+                            :apiUrl="props.routeName?.split('.')[0]"
+                            show-export
+                            :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                            :export-title="formatedText(props.routeName)"
+                            :export-all-rows="fetchAllRowsForExport"
+                            @update:state="onStateUpdate"
                         />
                     </div>
                 </div>
-                <div class="card-body">
-                    <TheTable
-                        :columns="columns"
-                        :selectData="select_data"
-                        :state="state"
-                        :checkAll="checkAll"
-                        :getData="getData"
-                        :changeOrder="changeOrder"
-                        :changeStatus="changeStatus"
-                        :delete="deleteRecord"
-                        :duplicate="duplicate"
-                        :edit="EditModalOpen"
-                        actionType="modal"
-                        :apiUrl="props.routeName?.split('.')[0]"
-                        show-export
-                        :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
-                        :export-title="formatedText(props.routeName)"
-                        :export-all-rows="fetchAllRowsForExport"
-                        @update:state="onStateUpdate"
-                    />
-                </div>
             </div>
         </div>
-    </div>
+    <!-- Card -->
 
     <AddModal
         :showLoader="state.modalLoading"

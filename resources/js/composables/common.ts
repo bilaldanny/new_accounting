@@ -412,12 +412,12 @@ export default function useCommons(){
                 if(state.search.page > state.records.last_page){
                     state.search.page = state.records.last_page;
                 }
-
-                state.loading = false;
             }catch (error) {
                 if(error.response?.data?.message !== 'Unauthenticated.'){
                     Notify(error.response?.data?.message || 'An error occurred', 'alert');
                 }
+            } finally {
+                state.loading = false;
             }
         }
     /* getData */

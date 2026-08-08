@@ -3,16 +3,16 @@ import { Head } from '@inertiajs/vue3';
 import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
 import { dashboard } from '@/routes';
 
-defineOptions({
-    layout: {
-        breadcrumbs: [
-            {
-                title: 'Dashboard',
-                href: dashboard(),
-            },
-        ],
-    },
-});
+// defineOptions({
+//     layout: {
+//         breadcrumbs: [
+//             {
+//                 title: 'Dashboard',
+//                 href: dashboard(),
+//             },
+//         ],
+//     },
+// });
 </script>
 
 <template>

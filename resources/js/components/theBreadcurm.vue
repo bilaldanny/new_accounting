@@ -16,7 +16,7 @@ import { Home } from '@boxicons/vue';
             <div class="ps-3">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0 p-0">
-                        <li>
+                        <li class="breadcrumb-item">
                             <Link :href="route('dashboard')">
                                 <Home size="sm" class="breadcrumb-home-icon" style="width:16.5px;height:24px;"/>
                             </Link>

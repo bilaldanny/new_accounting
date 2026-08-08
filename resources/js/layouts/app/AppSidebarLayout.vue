@@ -27,7 +27,7 @@ withDefaults(defineProps<Props>(), {
             <div class="page-wrapper">
                 <div class="page-content">
                     <!-- start Breadcurm -->
-                        <TheBreadcurm :breadcrumbs="breadcrumbs" :title="title"/>
+                        <TheBreadcurm :breadcrumbs="breadcrumbs" :title="title" v-if="$page.props.routeName !== 'dashboard'"/>
                     <!-- end Breadcurm -->
                     <slot />
                 </div>

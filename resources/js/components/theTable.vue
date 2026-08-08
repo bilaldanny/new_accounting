@@ -609,86 +609,96 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
 
 <template>
     <div class="table-responsive">
-        <div id="datatable-basic_wrapper" class="dataTables_wrapper dt-bootstrap4 dt-bootstrap5 no-footer">
+        <div class="dataTables_wrapper dt-bootstrap5">
             <div class="row">
                 <div class="col-sm-12 col-md-6">
-                    <div class="dataTables_length" id="datatable-basic_length">
-                        <label>Show
-                            <select class="form-select form-select-sm" v-model="localShowRecord">
+                    <!-- Show Record -->
+                    <div class="dataTables_length" id="example_length">
+                        <label>
+                            Show 
+                            <select 
+                                name="example_length" 
+                                aria-controls="example" 
+                                class="form-select form-select-sm" 
+                                v-model="localShowRecord"
+                            >
                                 <option v-for="item in tableData.selectData" :value="item" :key="String(item)">{{ item }}</option>
-                            </select> entries
+                            </select>
+                            entries
                         </label>
                     </div>
+                    <!-- Show Record -->
                 </div>
                 <div class="col-sm-12 col-md-6">
-                    <div id="datatable-basic_filter" class="dataTables_filter d-flex flex-wrap justify-content-md-end align-items-center gap-2">
-                        <div v-if="showExportToolbar" class="table-export-wrap">
-                            <div class="table-export-bar">
-                                <div class="btn-group table-export-group" role="group" aria-label="Export table data">
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm table-export-btn table-export-btn--excel"
-                                        title="Download Excel (.xlsx)"
-                                        :disabled="exportActionsDisabled"
-                                        @click="exportExcel"
-                                    >
-                                        <i class="mdi mdi-microsoft-excel table-export-btn__icon" aria-hidden="true"></i>
-                                        <span class="table-export-btn__label">Excel</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm table-export-btn table-export-btn--csv"
-                                        title="Download CSV"
-                                        :disabled="exportActionsDisabled"
-                                        @click="exportCsv"
-                                    >
-                                        <i class="mdi mdi-file-delimited table-export-btn__icon" aria-hidden="true"></i>
-                                        <span class="table-export-btn__label">CSV</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm table-export-btn table-export-btn--pdf"
-                                        title="Download PDF"
-                                        :disabled="exportActionsDisabled"
-                                        @click="exportPdf"
-                                    >
-                                        <i class="mdi mdi-file-pdf-box table-export-btn__icon" aria-hidden="true"></i>
-                                        <span class="table-export-btn__label">PDF</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm table-export-btn table-export-btn--copy"
-                                        title="Copy table to clipboard"
-                                        :disabled="exportActionsDisabled"
-                                        @click="exportCopyClipboard"
-                                    >
-                                        <i class="mdi mdi-content-copy table-export-btn__icon" aria-hidden="true"></i>
-                                        <span class="table-export-btn__label">Copy</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="table-export-meta">
-                                <span class="table-export-hint">{{ exportHint }}</span>
-                                <span v-if="exportError" class="table-export-error">{{ exportError }}</span>
+                    <div v-if="showExportToolbar" class="table-export-wrap">
+                        <div class="table-export-bar">
+                            <div class="btn-group table-export-group" role="group" aria-label="Export table data">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm table-export-btn table-export-btn--excel"
+                                    title="Download Excel (.xlsx)"
+                                    :disabled="exportActionsDisabled"
+                                    @click="exportExcel"
+                                >
+                                    <i class="mdi mdi-microsoft-excel table-export-btn__icon" aria-hidden="true"></i>
+                                    <span class="table-export-btn__label">Excel</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm table-export-btn table-export-btn--csv"
+                                    title="Download CSV"
+                                    :disabled="exportActionsDisabled"
+                                    @click="exportCsv"
+                                >
+                                    <i class="mdi mdi-file-delimited table-export-btn__icon" aria-hidden="true"></i>
+                                    <span class="table-export-btn__label">CSV</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm table-export-btn table-export-btn--pdf"
+                                    title="Download PDF"
+                                    :disabled="exportActionsDisabled"
+                                    @click="exportPdf"
+                                >
+                                    <i class="mdi mdi-file-pdf-box table-export-btn__icon" aria-hidden="true"></i>
+                                    <span class="table-export-btn__label">PDF</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm table-export-btn table-export-btn--copy"
+                                    title="Copy table to clipboard"
+                                    :disabled="exportActionsDisabled"
+                                    @click="exportCopyClipboard"
+                                >
+                                    <i class="mdi mdi-content-copy table-export-btn__icon" aria-hidden="true"></i>
+                                    <span class="table-export-btn__label">Copy</span>
+                                </button>
                             </div>
                         </div>
-                        <label class="mb-0">
+                        <div class="table-export-meta">
+                            <span class="table-export-hint">{{ exportHint }}</span>
+                            <span v-if="exportError" class="table-export-error">{{ exportError }}</span>
+                        </div>
+                    </div>
+                    <div id="example_filter" class="dataTables_filter">
+                        <label>
+                            Search:
                             <input
                                 type="search"
                                 class="form-control form-control-sm"
                                 placeholder="Search..."
                                 aria-controls="datatable-basic"
                                 v-model="localSearch"
-                            />
+                            >
                         </label>
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="col-sm-12">
-                    <table id="datatable-basic" class="table table-striped table-bordered dt-responsive nowrap dataTable no-footer dtr-inline" aria-describedby="datatable-basic_info">
+                    <table class="table table-striped table-bordered dataTable" style="width:100%">
                         <thead>
-                            <tr>
+                            <tr role="row">
                                 <th
                                     v-for="(item, index) in displayColumns"
                                     :key="item.key ?? `th-${index}`"
@@ -715,26 +725,35 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
 
                                     <div class="d-flex justify-content-between" v-else-if="item?.type === 'badge'">
                                         {{ item?.label }}
-                                        <button :id="`btnGroupDrop-${item?.key}-${index}`" type="button" class="btn btn-sm btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="mdi mdi-dots-vertical"></i></button>
-                                        <div class="dropdown-menu" :aria-labelledby="`btnGroupDrop-${item?.key}-${index}`" bis_skin_checked="1">
-                                            <template v-if="item?.show === 'retake_status'">
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'pending'" data-value="pending" @click="getStatus">Pending</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'approved'" data-value="approved" @click="getStatus">Approved</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'rejected'" data-value="rejected" @click="getStatus">Rejected</a>
-                                            </template>
-                                            <template v-else-if="item?.show === 'paid'">
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'paid'" data-value="paid" @click="getStatus">Paid</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'unpaid'" data-value="unpaid" @click="getStatus">Unpaid</a>
-                                            </template>
-                                            <template v-else>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== '1'" data-value="1" @click="getStatus">Active</a>
-                                                <a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== '0'" data-value="0" @click="getStatus">In Active</a>
-                                            </template>
-                                        </div>
+                                        <div class="dropdown">
+											<button 
+                                                class="btn btn-sm btn-secondary dropdown-toggle" 
+                                                type="button" 
+                                                data-bs-toggle="dropdown" 
+                                                aria-expanded="false"
+                                            >
+                                            </button>
+											<ul class="dropdown-menu" v-if="item?.show === 'retake_status'">
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'pending'" data-value="pending" @click="getStatus">Pending</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'approved'" data-value="approved" @click="getStatus">Approved</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'rejected'" data-value="rejected" @click="getStatus">Rejected</a></li>
+											</ul>
+
+                                            <ul class="dropdown-menu" v-else-if="item?.show === 'paid'">
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'paid'" data-value="paid" @click="getStatus">Paid</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'unpaid'" data-value="unpaid" @click="getStatus">Unpaid</a></li>
+											</ul>
+
+                                            <ul class="dropdown-menu" v-else>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== '1'" data-value="1" @click="getStatus">Active</a></li>
+												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== '0'" data-value="0" @click="getStatus">In Active</a></li>
+											</ul>
+										</div>
                                     </div>
+
                                     <span v-else>{{ item?.label }}</span>
                                 </th>
                             </tr>
@@ -753,389 +772,389 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                             <template
                                 v-else-if="tableData.state.records.data.length !== 0 && tableData.state?.loading === false"
                             >
-                            <tr
-                                v-for="(row, rowIndex) in tableData.state.records.data"
-                                :key="row.id != null ? row.id : `row-${rowIndex}`"
-                            >
-                                <td
-                                    v-for="(col, colIndex) in displayColumns"
-                                    :key="col.key ?? `cell-${colIndex}`"
+                                <tr
+                                    v-for="(row, rowIndex) in tableData.state.records.data"
+                                    :key="row.id != null ? row.id : `row-${rowIndex}`"
                                 >
-                                    <!-- Checkbox column -->
-                                    <div v-if="col.type === 'checkbox'" class="form-check">
-                                        <input class="form-check-input" type="checkbox" :value="row.id" :checked="tableData.state?.edit_ids.includes(row.id)" @click="tableData.checkAll?.(row.id)"/>
-                                    </div>
+                                    <td
+                                        v-for="(col, colIndex) in displayColumns"
+                                        :key="col.key ?? `cell-${colIndex}`"
+                                    >
+                                        <!-- Checkbox column -->
+                                        <div v-if="col.type === 'checkbox'" class="form-check">
+                                            <input class="form-check-input" type="checkbox" :value="row.id" :checked="tableData.state?.edit_ids.includes(row.id)" @click="tableData.checkAll?.(row.id)"/>
+                                        </div>
 
-                                    <!-- Count column -->
-                                    <span v-else-if="col.type === 'count'">
-                                        {{ rowIndex + 1 + ((tableData.state.records.current_page - 1) * tableData.state.search.show_record) }}
-                                    </span>
-
-                                    <!-- Certificate download (same as enrolled courses: parent uses useCertificateFileDownload) -->
-                                    <span v-else-if="col.type === 'certificate_download'">
-                                        <button
-                                            v-if="row.certificate_download_enabled !== false"
-                                            type="button"
-                                            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 text-nowrap"
-                                            :disabled="!tableData.certificateDownload || (tableData.certificateDownloadRowBusy?.(row) ?? false)"
-                                            @click="tableData.certificateDownload?.(row)"
-                                        >
-                                            <template v-if="tableData.certificateDownloadRowBusy?.(row)">
-                                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-                                                <span>Please wait</span>
-                                            </template>
-                                            <template v-else>
-                                                <i class="mdi mdi-download" aria-hidden="true" />
-                                                <span>Download</span>
-                                            </template>
-                                        </button>
-                                        <span
-                                            v-else
-                                            class="text-muted small"
-                                            title="Certificate is not available for this course/program."
-                                        >
-                                            Not available
+                                        <!-- Count column -->
+                                        <span v-else-if="col.type === 'count'">
+                                            {{ rowIndex + 1 + ((tableData.state.records.current_page - 1) * tableData.state.search.show_record) }}
                                         </span>
-                                    </span>
 
-                                    <!-- External / same-site link -->
-                                    <a
-                                        v-else-if="col.type === 'external_link' && col.external_link_variant === 'button'"
-                                        :href="formatExternalHref(row[col.data_column ?? col.key])"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="btn btn-sm btn-primary btn-wave waves-effect waves-light d-inline-flex align-items-center gap-1 text-nowrap"
-                                    >
-                                        <i class="mdi mdi-download" aria-hidden="true" />
-                                        <span>{{ col.external_link_label ?? 'Download' }}</span>
-                                    </a>
-                                    <a
-                                        v-else-if="col.type === 'external_link'"
-                                        :href="formatExternalHref(row[col.data_column ?? col.key])"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="text-primary text-break"
-                                    >
-                                        {{ col.external_link_label ?? row[col.data_column ?? col.key] ?? '-' }}
-                                    </a>
+                                        <!-- Certificate download (same as enrolled courses: parent uses useCertificateFileDownload) -->
+                                        <span v-else-if="col.type === 'certificate_download'">
+                                            <button
+                                                v-if="row.certificate_download_enabled !== false"
+                                                type="button"
+                                                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 text-nowrap"
+                                                :disabled="!tableData.certificateDownload || (tableData.certificateDownloadRowBusy?.(row) ?? false)"
+                                                @click="tableData.certificateDownload?.(row)"
+                                            >
+                                                <template v-if="tableData.certificateDownloadRowBusy?.(row)">
+                                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                                                    <span>Please wait</span>
+                                                </template>
+                                                <template v-else>
+                                                    <i class="mdi mdi-download" aria-hidden="true" />
+                                                    <span>Download</span>
+                                                </template>
+                                            </button>
+                                            <span
+                                                v-else
+                                                class="text-muted small"
+                                                title="Certificate is not available for this course/program."
+                                            >
+                                                Not available
+                                            </span>
+                                        </span>
 
-                                    <!-- badge -->
-                                    <span
-                                        :class="[
-                                            'badge cursor-pointer align-items-center d-inline-flex',
-                                            (row[col.key] === true)?'bg-success':'bg-danger'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'active'"
-                                        @click="!state.loadingIds.has(row.id) ? tableData.changeStatus?.([row.id], null) : ''"
-                                    >
-                                        {{ (row[col.key] === true)?'Active':'In Active' }}
-                                    </span>
+                                        <!-- External / same-site link -->
+                                        <a
+                                            v-else-if="col.type === 'external_link' && col.external_link_variant === 'button'"
+                                            :href="formatExternalHref(row[col.data_column ?? col.key])"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="btn btn-sm btn-primary btn-wave waves-effect waves-light d-inline-flex align-items-center gap-1 text-nowrap"
+                                        >
+                                            <i class="mdi mdi-download" aria-hidden="true" />
+                                            <span>{{ col.external_link_label ?? 'Download' }}</span>
+                                        </a>
+                                        <a
+                                            v-else-if="col.type === 'external_link'"
+                                            :href="formatExternalHref(row[col.data_column ?? col.key])"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="text-primary text-break"
+                                        >
+                                            {{ col.external_link_label ?? row[col.data_column ?? col.key] ?? '-' }}
+                                        </a>
 
-                                    <span
-                                        :class="[
-                                            'badge cursor-pointer align-items-center d-inline-flex',
-                                            (row[col.key] === true)?'bg-success':'bg-danger'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'paid'"
-                                    >
-                                        {{ (row[col.key] === true)?'Paid':'UnPaid' }}
-                                    </span>
+                                        <!-- badge -->
+                                        <span
+                                            :class="[
+                                                'badge cursor-pointer align-items-center d-inline-flex',
+                                                (row[col.key] === true)?'bg-success':'bg-danger'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'active'"
+                                            @click="!state.loadingIds.has(row.id) ? tableData.changeStatus?.([row.id], null) : ''"
+                                        >
+                                            {{ (row[col.key] === true)?'Active':'In Active' }}
+                                        </span>
 
-                                    <span
-                                        :class="[
-                                            'badge cursor-pointer align-items-center d-inline-flex',
-                                            (row[col.key] === true)?'bg-success':'bg-danger'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'yes'"
-                                    >
-                                        {{ (row[col.key] === true)?'Yes':'No' }}
-                                    </span>
+                                        <span
+                                            :class="[
+                                                'badge cursor-pointer align-items-center d-inline-flex',
+                                                (row[col.key] === true)?'bg-success':'bg-danger'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'paid'"
+                                        >
+                                            {{ (row[col.key] === true)?'Paid':'UnPaid' }}
+                                        </span>
 
-                                    <span
-                                        :class="[
-                                            'badge cursor-pointer align-items-center d-inline-flex text-capitalize',
-                                            (row[col.key] === 'approved')?'bg-success':'bg-danger'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'pending'"
-                                    >
-                                        {{ (row[col.key] === 'approved')?'Approved': row.status }}
-                                    </span>
+                                        <span
+                                            :class="[
+                                                'badge cursor-pointer align-items-center d-inline-flex',
+                                                (row[col.key] === true)?'bg-success':'bg-danger'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'yes'"
+                                        >
+                                            {{ (row[col.key] === true)?'Yes':'No' }}
+                                        </span>
 
-                                    <span
-                                        :class="[
-                                            'badge align-items-center d-inline-flex text-capitalize',
-                                            (row[col.key] === 'pending')?'bg-warning':(row[col.key] === 'approved')?'bg-success':'bg-danger'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'retake_status'"
-                                    >
-                                        {{ row[col.key] }}
-                                    </span>
-                                    
-                                    <span
-                                        :class="[
-                                            'badge align-items-center d-inline-flex text-capitalize',
-                                            (row[col.key] === 'active')?'bg-warning':(row[col.key] === 'converted')?'bg-success':'bg-danger'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'cart_status'"
-                                    >
-                                        {{ row[col.key] }}
-                                    </span>
+                                        <span
+                                            :class="[
+                                                'badge cursor-pointer align-items-center d-inline-flex text-capitalize',
+                                                (row[col.key] === 'approved')?'bg-success':'bg-danger'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'pending'"
+                                        >
+                                            {{ (row[col.key] === 'approved')?'Approved': row.status }}
+                                        </span>
 
-                                    <span
-                                        :class="[
-                                            'badge align-items-center d-inline-flex text-capitalize',
-                                            String(row[col.key]).toLowerCase() === 'pending'
-                                                ? 'bg-danger'
-                                                : String(row[col.key]).toLowerCase() === 'processing'
-                                                  ? 'bg-info'
-                                                  : String(row[col.key]).toLowerCase() === 'ready'
+                                        <span
+                                            :class="[
+                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                (row[col.key] === 'pending')?'bg-warning':(row[col.key] === 'approved')?'bg-success':'bg-danger'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'retake_status'"
+                                        >
+                                            {{ row[col.key] }}
+                                        </span>
+                                        
+                                        <span
+                                            :class="[
+                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                (row[col.key] === 'active')?'bg-warning':(row[col.key] === 'converted')?'bg-success':'bg-danger'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'cart_status'"
+                                        >
+                                            {{ row[col.key] }}
+                                        </span>
+
+                                        <span
+                                            :class="[
+                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                String(row[col.key]).toLowerCase() === 'pending'
+                                                    ? 'bg-danger'
+                                                    : String(row[col.key]).toLowerCase() === 'processing'
+                                                    ? 'bg-info'
+                                                    : String(row[col.key]).toLowerCase() === 'ready'
+                                                        ? 'bg-success'
+                                                        : String(row[col.key]).toLowerCase() === 'failed'
+                                                        ? 'bg-danger'
+                                                        : 'bg-secondary'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'scorm_status'"
+                                        >
+                                            {{ row[col.key] ?? '-' }}
+                                        </span>
+
+                                        <span
+                                            :class="[
+                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                String(row[col.key]).toLowerCase() === 'completed' ? 'bg-success' : 'bg-warning'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'progress_status'"
+                                        >
+                                            {{ row[col.key] }}
+                                        </span>
+
+                                        <span
+                                            :class="[
+                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                String(row[col.key]).toLowerCase() === 'passed'
                                                     ? 'bg-success'
                                                     : String(row[col.key]).toLowerCase() === 'failed'
-                                                      ? 'bg-danger'
-                                                      : 'bg-secondary'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'scorm_status'"
-                                    >
-                                        {{ row[col.key] ?? '-' }}
-                                    </span>
-
-                                    <span
-                                        :class="[
-                                            'badge align-items-center d-inline-flex text-capitalize',
-                                            String(row[col.key]).toLowerCase() === 'completed' ? 'bg-success' : 'bg-warning'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'progress_status'"
-                                    >
-                                        {{ row[col.key] }}
-                                    </span>
-
-                                    <span
-                                        :class="[
-                                            'badge align-items-center d-inline-flex text-capitalize',
-                                            String(row[col.key]).toLowerCase() === 'passed'
-                                                ? 'bg-success'
-                                                : String(row[col.key]).toLowerCase() === 'failed'
-                                                  ? 'bg-danger'
-                                                  : String(row[col.key]).toLowerCase() === 'pending'
-                                                    ? 'bg-warning'
-                                                    : String(row[col.key]).toLowerCase() === 'ongoing'
-                                                      ? 'bg-info'
-                                                      : 'bg-secondary'
-                                        ]"
-                                        v-else-if="col.type === 'badge' && col.show === 'exam_status'"
-                                    >
-                                        {{ row[col.key] }}
-                                    </span>
-
-                                    <!-- Action -->
-                                    <span v-else-if="col.type === 'action'">
-
-                                        <button id="btnGroupVerticalDrop1" type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                            Action <i class="mdi mdi-chevron-down"></i>
-                                        </button>
-                                        <div class="dropdown-menu" aria-labelledby="btnGroupVerticalDrop1" bis_skin_checked="1">
-
-                                            <!-- Edit -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#EditModal"
-                                                    href="javascript:void(0)"
-                                                    @click="tableData.edit?.(row.id)"
-                                                    v-if="col.actions?.includes('edit') && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/edit`)"
-                                                >
-                                                    <i class="mdi mdi-pencil-outline"></i> Edit
-                                                </a>
-
-                                                <Link
-                                                    class="dropdown-item"
-                                                    :href="`/${tableData.apiUrl}/${row.id}/edit`"
-                                                    v-else-if="col.actions?.includes('edit') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/edit`) && tableData.actionType === 'link'"
-                                                >
-                                                    <i class="mdi mdi-pencil-outline"></i> Edit
-                                                </Link>
-                                            <!-- Edit -->
-
-                                            <!-- View -->
-                                                <Link
-                                                    v-if="col.actions?.includes('view') && tableData.viewRoute && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/view`)"
-                                                    :href="tableData.viewRoute(row.id)"
-                                                    class="dropdown-item"
-                                                >
-                                                    <i class="mdi mdi-eye-outline"></i> View
-                                                </Link>
-                                                <a
-                                                    v-else-if="col.actions?.includes('view') && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/view`)"
-                                                    class="dropdown-item"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#ViewModal"
-                                                    href="javascript:void(0)"
-                                                    @click="tableData.view?.(row.id)"
-                                                >
-                                                    <i class="mdi mdi-eye-outline"></i> View
-                                                </a>
-                                            <!-- View -->
-
-                                            <!-- Duplicate -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    data-bs-toggle="tooltip"
-                                                    data-bs-placement="top"
-                                                    data-bs-title="Duplicate"
-                                                    v-if="col.actions?.includes('duplicate') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/add`)"
-                                                    @click="tableData.duplicate?.(row.id)"
-                                                >
-                                                    <i class="mdi mdi-content-copy"></i> Duplicate
-                                                </a>
-                                            <!-- Duplicate -->
-
-                                            <!-- Restore -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    data-bs-toggle="tooltip"
-                                                    data-bs-placement="top"
-                                                    data-bs-title="Restore"
-                                                    v-if="col.actions?.includes('restore') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/restore`)"
-                                                    @click="(!state.loadingIds.has(row.id))?tableData.restore?.([row.id]):''"
-                                                >
-                                                    <i class="mdi mdi-restore"></i> Restore
-                                                </a>
-                                            <!-- Restore -->
-
-                                            <!-- Delete -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    data-bs-toggle="tooltip"
-                                                    data-bs-placement="top"
-                                                    data-bs-title="Delete"
-                                                    v-if="col.actions?.includes('delete') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/delete`)"
-                                                    @click="(!state.loadingIds.has(row.id))?tableData.delete?.([row.id]):''"
-                                                >
-                                                    <i class="mdi mdi-delete-outline"></i> Delete
-                                                </a>
-                                            <!-- Delete -->
-
-                                            <!-- Permission -->
-                                                <Link
-                                                    :href="`${tableData.apiUrl}/${row.id}/permission`"
-                                                    class="dropdown-item"
-                                                    data-bs-toggle="tooltip"
-                                                    data-bs-placement="top"
-                                                    data-bs-title="Permission"
-                                                    v-if="col.actions?.includes('permission') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/permission`)"
-                                                >
-                                                    <i class="mdi mdi-lock-outline"></i> Permission
-                                                </Link>
-                                            <!-- Permission -->
-
-                                            <!-- Approve -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    href="javascript:void(0)"
-                                                    v-if="col.actions?.includes('approve') && row.status === 'pending' && tableData.approve"
-                                                    @click="tableData.approve?.(row.id)"
-                                                >
-                                                    <i class="mdi mdi-check-circle-outline"></i> Approve
-                                                </a>
-                                            <!-- Approve -->
-
-                                            <!-- Reject -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    href="javascript:void(0)"
-                                                    v-if="col.actions?.includes('reject') && row.status === 'pending' && tableData.reject"
-                                                    @click="tableData.reject?.(row.id)"
-                                                >
-                                                    <i class="mdi mdi-close-circle-outline"></i> Reject
-                                                </a>
-                                            <!-- Reject -->
-
-                                            <!-- Requeue -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    href="javascript:void(0)"
-                                                    v-if="col.actions?.includes('requeue') && String(row.status).toLowerCase() === 'failed' && tableData.requeue"
-                                                    @click="tableData.requeue?.(row.id)"
-                                                >
-                                                    <i class="mdi mdi-reload"></i> Requeue
-                                                </a>
-                                            <!-- Requeue -->
-
-                                            <!-- Invoice -->
-                                                <a
-                                                    class="dropdown-item"
-                                                    :class="{ disabled: tableData.invoiceDownloadingId === row.id }"
-                                                    href="javascript:void(0)"
-                                                    @click="tableData.invoiceDownloadingId !== row.id ? tableData.downloadInvoice?.(row.id) : undefined"
-                                                    v-if="col.actions?.includes('invoice') && canUseInvoiceAction(tableData.apiUrl)"
-                                                >
-                                                    <template v-if="tableData.invoiceDownloadingId === row.id">
-                                                        <span class="spinner-border spinner-border-sm me-1 align-middle" role="status" aria-hidden="true"></span>
-                                                        Downloading…
-                                                    </template>
-                                                    <template v-else>
-                                                        <i class="mdi mdi-file-pdf-box"></i> Invoice
-                                                    </template>
-                                                </a>
-                                            <!-- Invoice -->
-
-                                        </div>
-                                    </span>
-
-                                    <span v-else-if="col.type === 'multi_relation'" class="position-relative">
-                                        <!-- Button (trigger) -->
-                                         <button
-                                            class="btn btn-sm btn-link p-0"
-                                            :ref="el => (referenceRefs[row.id] = el)"
-                                            @click="toggle(row.id)"
+                                                    ? 'bg-danger'
+                                                    : String(row[col.key]).toLowerCase() === 'pending'
+                                                        ? 'bg-warning'
+                                                        : String(row[col.key]).toLowerCase() === 'ongoing'
+                                                        ? 'bg-info'
+                                                        : 'bg-secondary'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'exam_status'"
                                         >
-                                            <span class="mdi mdi-list-box" style="font-size: 30px;padding: 0px;line-height: 0.8;"></span>
-                                        </button>
+                                            {{ row[col.key] }}
+                                        </span>
 
-                                        <Teleport to="body">
-                                            <!-- Tooltip -->
-                                            <div
-                                                v-if="openRow === row.id"
-                                                :ref="el => (floatingRefs[row.id] = el)"
-                                                class="card text-start border-1"
-                                                :style="floatingStyles[row.id]"
-                                            >
-                                                <div class="card-body p-2">
-                                                    <ul class="mb-1 ps-3 pe-5">
-                                                        <li
-                                                        v-for="(course, idx) in row?.program_courses"
-                                                        :key="course?.course?.id ?? course?.id ?? `pc-${idx}`"
-                                                        >
-                                                            {{ course?.course?.title }}
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                                <!-- Arrow -->
-                                                <div
-                                                :ref="el => (arrowRefs[row.id] = el)"
-                                                class="tooltip-arrow"
-                                                :style="arrowStyles[row.id]"
-                                                ></div>
+                                        <!-- Action -->
+                                        <span v-else-if="col.type === 'action'">
+
+                                            <button id="btnGroupVerticalDrop1" type="button" class="btn btn-sm btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                Action
+                                            </button>
+                                            <div class="dropdown-menu" aria-labelledby="btnGroupVerticalDrop1" bis_skin_checked="1">
+
+                                                <!-- Edit -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#EditModal"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.edit?.(row.id)"
+                                                        v-if="col.actions?.includes('edit') && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/edit`)"
+                                                    >
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </a>
+
+                                                    <Link
+                                                        class="dropdown-item"
+                                                        :href="`/${tableData.apiUrl}/${row.id}/edit`"
+                                                        v-else-if="col.actions?.includes('edit') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/edit`) && tableData.actionType === 'link'"
+                                                    >
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </Link>
+                                                <!-- Edit -->
+
+                                                <!-- View -->
+                                                    <Link
+                                                        v-if="col.actions?.includes('view') && tableData.viewRoute && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/view`)"
+                                                        :href="tableData.viewRoute(row.id)"
+                                                        class="dropdown-item"
+                                                    >
+                                                        <i class="mdi mdi-eye-outline"></i> View
+                                                    </Link>
+                                                    <a
+                                                        v-else-if="col.actions?.includes('view') && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/view`)"
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#ViewModal"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.view?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-eye-outline"></i> View
+                                                    </a>
+                                                <!-- View -->
+
+                                                <!-- Duplicate -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        data-bs-title="Duplicate"
+                                                        v-if="col.actions?.includes('duplicate') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/add`)"
+                                                        @click="tableData.duplicate?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-content-copy"></i> Duplicate
+                                                    </a>
+                                                <!-- Duplicate -->
+
+                                                <!-- Restore -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        data-bs-title="Restore"
+                                                        v-if="col.actions?.includes('restore') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/restore`)"
+                                                        @click="(!state.loadingIds.has(row.id))?tableData.restore?.([row.id]):''"
+                                                    >
+                                                        <i class="mdi mdi-restore"></i> Restore
+                                                    </a>
+                                                <!-- Restore -->
+
+                                                <!-- Delete -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        data-bs-title="Delete"
+                                                        v-if="col.actions?.includes('delete') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/delete`)"
+                                                        @click="(!state.loadingIds.has(row.id))?tableData.delete?.([row.id]):''"
+                                                    >
+                                                        <i class="mdi mdi-delete-outline"></i> Delete
+                                                    </a>
+                                                <!-- Delete -->
+
+                                                <!-- Permission -->
+                                                    <Link
+                                                        :href="`${tableData.apiUrl}/${row.id}/permission`"
+                                                        class="dropdown-item"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="top"
+                                                        data-bs-title="Permission"
+                                                        v-if="col.actions?.includes('permission') && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/permission`)"
+                                                    >
+                                                        <i class="mdi mdi-lock-outline"></i> Permission
+                                                    </Link>
+                                                <!-- Permission -->
+
+                                                <!-- Approve -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        v-if="col.actions?.includes('approve') && row.status === 'pending' && tableData.approve"
+                                                        @click="tableData.approve?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-check-circle-outline"></i> Approve
+                                                    </a>
+                                                <!-- Approve -->
+
+                                                <!-- Reject -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        v-if="col.actions?.includes('reject') && row.status === 'pending' && tableData.reject"
+                                                        @click="tableData.reject?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-close-circle-outline"></i> Reject
+                                                    </a>
+                                                <!-- Reject -->
+
+                                                <!-- Requeue -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        v-if="col.actions?.includes('requeue') && String(row.status).toLowerCase() === 'failed' && tableData.requeue"
+                                                        @click="tableData.requeue?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-reload"></i> Requeue
+                                                    </a>
+                                                <!-- Requeue -->
+
+                                                <!-- Invoice -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        :class="{ disabled: tableData.invoiceDownloadingId === row.id }"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.invoiceDownloadingId !== row.id ? tableData.downloadInvoice?.(row.id) : undefined"
+                                                        v-if="col.actions?.includes('invoice') && canUseInvoiceAction(tableData.apiUrl)"
+                                                    >
+                                                        <template v-if="tableData.invoiceDownloadingId === row.id">
+                                                            <span class="spinner-border spinner-border-sm me-1 align-middle" role="status" aria-hidden="true"></span>
+                                                            Downloading…
+                                                        </template>
+                                                        <template v-else>
+                                                            <i class="mdi mdi-file-pdf-box"></i> Invoice
+                                                        </template>
+                                                    </a>
+                                                <!-- Invoice -->
+
                                             </div>
-                                        </Teleport>
-                                    </span>
+                                        </span>
 
-                                    <!-- Default data binding -->
-                                    <span v-else>
-                                        <a
-                                            v-if="col?.linkable && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${col.url}`)"
-                                            data-bs-toggle="modal"
-                                            :data-bs-target="col?.modal"
-                                            class="text-primary"
-                                            href="javascript:void(0)"
-                                            @click="tableData[col.type]?.(row.id)"
-                                        >
-                                            {{ defaultCellDisplay(row, col) }}
-                                        </a>
-                                        <span v-else>{{ defaultCellDisplay(row, col) }}</span>
-                                    </span>
-                                </td>
-                            </tr>
+                                        <span v-else-if="col.type === 'multi_relation'" class="position-relative">
+                                            <!-- Button (trigger) -->
+                                            <button
+                                                class="btn btn-sm btn-link p-0"
+                                                :ref="el => (referenceRefs[row.id] = el)"
+                                                @click="toggle(row.id)"
+                                            >
+                                                <span class="mdi mdi-list-box" style="font-size: 30px;padding: 0px;line-height: 0.8;"></span>
+                                            </button>
+
+                                            <Teleport to="body">
+                                                <!-- Tooltip -->
+                                                <div
+                                                    v-if="openRow === row.id"
+                                                    :ref="el => (floatingRefs[row.id] = el)"
+                                                    class="card text-start border-1"
+                                                    :style="floatingStyles[row.id]"
+                                                >
+                                                    <div class="card-body p-2">
+                                                        <ul class="mb-1 ps-3 pe-5">
+                                                            <li
+                                                            v-for="(course, idx) in row?.program_courses"
+                                                            :key="course?.course?.id ?? course?.id ?? `pc-${idx}`"
+                                                            >
+                                                                {{ course?.course?.title }}
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <!-- Arrow -->
+                                                    <div
+                                                    :ref="el => (arrowRefs[row.id] = el)"
+                                                    class="tooltip-arrow"
+                                                    :style="arrowStyles[row.id]"
+                                                    ></div>
+                                                </div>
+                                            </Teleport>
+                                        </span>
+
+                                        <!-- Default data binding -->
+                                        <span v-else>
+                                            <a
+                                                v-if="col?.linkable && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${col.url}`)"
+                                                data-bs-toggle="modal"
+                                                :data-bs-target="col?.modal"
+                                                class="text-primary"
+                                                href="javascript:void(0)"
+                                                @click="tableData[col.type]?.(row.id)"
+                                            >
+                                                {{ defaultCellDisplay(row, col) }}
+                                            </a>
+                                            <span v-else>{{ defaultCellDisplay(row, col) }}</span>
+                                        </span>
+                                    </td>
+                                </tr>
                             </template>
                         </tbody>
                     </table>
@@ -1143,13 +1162,12 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
             </div>
             <div class="row">
                 <div class="col-sm-12 col-md-5">
-                    <div class="dataTables_info" id="datatable-basic_info" role="status" aria-live="polite">
+                    <div class="dataTables_info" id="example_info" role="status" aria-live="polite">
                         Showing {{ tableData.state.records.from ?? 0 }} to {{ tableData.state.records.to ?? 0 }} of {{ tableData.state.records.total ?? 0 }} entries
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-7" v-if="showPaginationBar">
-
-                    <div class="dataTables_paginate paging_simple_numbers" id="datatable-basic_paginate">
+                    <div class="dataTables_paginate paging_simple_numbers" id="example_paginate">
                         <z-vue-pagination
                             :total-items="paginationTotalItems"
                             :items-per-page="paginationPageSize"
