@@ -719,7 +719,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                     colspan="1"
                                     @click="(item?.sorting !== 'disabled') ? tableData.changeOrder?.($event) : ''"
                                 >
-                                    <div class="form-check" v-if="item.type === 'checkbox'">
+                                    <div class="form-check form-check-table" v-if="item.type === 'checkbox'">
                                         <input class="form-check-input" type="checkbox" id="MainCheckbox" @change="checkAll()" v-model="state.selectAll">
                                     </div>
 
@@ -781,7 +781,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                         :key="col.key ?? `cell-${colIndex}`"
                                     >
                                         <!-- Checkbox column -->
-                                        <div v-if="col.type === 'checkbox'" class="form-check">
+                                        <div v-if="col.type === 'checkbox'" class="form-check form-check-table">
                                             <input class="form-check-input" type="checkbox" :value="row.id" :checked="tableData.state?.edit_ids.includes(row.id)" @click="tableData.checkAll?.(row.id)"/>
                                         </div>
 
@@ -1157,6 +1157,33 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                 </tr>
                             </template>
                         </tbody>
+                        <tfoot>
+                            <tr role="row">
+                                <th
+                                    v-for="(item, index) in displayColumns"
+                                    :key="item.key ?? `tfoot-${index}`"
+                                    :class="[
+                                        'sorting',
+                                        (tableData.sortBy === item.key)
+                                            ? (tableData.sortType === 'asc')
+                                                ? 'sorting_asc'
+                                                : 'sorting_desc'
+                                            : '',
+                                        (item?.sorting === 'disabled') ? 'sorting_disabled' : '',
+                                        'text-uppercase'
+                                    ]"
+                                    :data-colname="item?.key"
+                                    data-ordertype="asc"
+                                    tabindex="0"
+                                    rowspan="1"
+                                    colspan="1"
+                                    @click="(item?.sorting !== 'disabled') ? tableData.changeOrder?.($event) : ''"
+                                >
+
+                                    <span>{{ item?.label }}</span>
+                                </th>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -1198,6 +1225,29 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         transform: rotate(45deg);
         border: 1px solid rgba(0,0,0,.15);
         position: absolute;
+    }
+
+    :deep(.form-check-table) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    :deep(.form-check-table .form-check-input) {
+        margin: 0;
+        float: none;
+    }
+
+    :deep(.table tbody td:has(.form-check-table)) {
+        text-align: center;
+    }
+
+    :deep(.table thead th:has(.form-check-table)),
+    :deep(.table tfoot th:has(.form-check-table)) {
+        text-align: center;
     }
 
     /* —— Professional export toolbar —— */

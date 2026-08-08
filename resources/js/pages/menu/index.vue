@@ -11,9 +11,11 @@
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import './menu-management.scss';
 
     defineOptions({
         layout: {
+            title: 'Menu',
             breadcrumbs: [
                 {
                     title: 'Menu',
@@ -184,13 +186,9 @@
 <template>
     <Head :title="formatedText(props.routeName)" />
 
-    <!-- Line -->
-        <hr>
-    <!-- Line -->
-
-    <!-- Card -->
-        <div class="card">
-            <div class="card-header justify-content-end text-right">
+    <div class="menu-management-page">
+        <div class="menu-management-card">
+            <div class="menu-management-card__toolbar">
                 <TopButtons
                     :state="state"
                     :filter-open="filterOpen"
@@ -203,7 +201,7 @@
             </div>
 
             <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
-                <div class="col-md-4">
+                <div class="col-md-4 col-lg-3 menu-management-filter__field">
                     <label class="form-label" for="menu-filter-status">Status</label>
                     <select
                         id="menu-filter-status"
@@ -215,7 +213,7 @@
                         <option value="0">Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 col-lg-3 menu-management-filter__field">
                     <label class="form-label" for="menu-filter-records">Show records</label>
                     <select
                         id="menu-filter-records"
@@ -230,33 +228,35 @@
                 </div>
             </TheFilter>
 
-            <div class="card-body">
-                <div class="table-responsive">
-                    <div class="dataTables_wrapper dt-bootstrap5">
-                        <TheTable
-                            :columns="columns"
-                            :selectData="select_data"
-                            :state="state"
-                            :checkAll="checkAll"
-                            :getData="getData"
-                            :changeOrder="changeOrder"
-                            :changeStatus="changeStatus"
-                            :delete="deleteRecord"
-                            :duplicate="duplicate"
-                            :edit="EditModalOpen"
-                            actionType="modal"
-                            :apiUrl="props.routeName?.split('.')[0]"
-                            show-export
-                            :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
-                            :export-title="formatedText(props.routeName)"
-                            :export-all-rows="fetchAllRowsForExport"
-                            @update:state="onStateUpdate"
-                        />
+            <div class="menu-management-card__body">
+                <div class="menu-management-table">
+                    <div class="table-responsive">
+                        <div class="dataTables_wrapper dt-bootstrap5">
+                            <TheTable
+                                :columns="columns"
+                                :selectData="select_data"
+                                :state="state"
+                                :checkAll="checkAll"
+                                :getData="getData"
+                                :changeOrder="changeOrder"
+                                :changeStatus="changeStatus"
+                                :delete="deleteRecord"
+                                :duplicate="duplicate"
+                                :edit="EditModalOpen"
+                                actionType="modal"
+                                :apiUrl="props.routeName?.split('.')[0]"
+                                show-export
+                                :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                                :export-title="formatedText(props.routeName)"
+                                :export-all-rows="fetchAllRowsForExport"
+                                @update:state="onStateUpdate"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    <!-- Card -->
+    </div>
 
     <AddModal
         :showLoader="state.modalLoading"

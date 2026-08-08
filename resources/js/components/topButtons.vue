@@ -49,6 +49,7 @@ const { formatedText } = useCommons();
             :class="{ active: buttonProps.filterOpen }"
             aria-controls="filterCollapse"
             :aria-expanded="buttonProps.filterOpen ? 'true' : 'false'"
+            title="Filter"
             v-if="buttonProps.showFilter === true"
             @click="emit('toggleFilter')"
         >
@@ -59,6 +60,7 @@ const { formatedText } = useCommons();
             type="button"
             class="btn btn-sm btn-outline-dark top-btn top-btn-icon-only"
             id="SearchBtn"
+            title="Refresh"
             v-if="
                 !buttonProps.requireReloadPermission ||
                 (buttonProps.url &&
