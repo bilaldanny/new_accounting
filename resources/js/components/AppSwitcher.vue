@@ -1,9 +1,12 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { Cog } from '@boxicons/vue';
+</script>
 
 <template>
     <!--start switcher-->
 	<div class="switcher-wrapper">
-		<div class="switcher-btn"> <i class='bx bx-cog bx-spin'></i>
+		<div class="switcher-btn">
+			<Cog size="md" class="switcher-cog-icon" style="width:24.5px;height:40px;"/>
 		</div>
 		<div class="switcher-body">
 			<div class="d-flex align-items-center">
@@ -98,3 +101,27 @@
 	</div>
 	<!--end switcher-->
 </template>
+
+<style scoped>
+.switcher-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.switcher-cog-icon {
+	fill: currentColor;
+	animation: switcher-cog-spin 2s linear infinite;
+	transform-origin: center;
+}
+
+@keyframes switcher-cog-spin {
+	from {
+		transform: rotate(0deg);
+	}
+
+	to {
+		transform: rotate(360deg);
+	}
+}
+</style>

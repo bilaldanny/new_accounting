@@ -59,11 +59,7 @@
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">
-        <!-- wrapper -->
-	        <div class="wrapper">
-                <x-inertia::app />
-            </div>
-        <!-- end wrapper -->
+        <x-inertia::app />
 
         @if (! str_starts_with($page['component'] ?? '', 'auth/'))
             <!-- Bootstrap JS -->

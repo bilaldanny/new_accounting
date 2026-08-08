@@ -32,16 +32,17 @@
         return type ? (countsByType.value[type] ?? 0) : 0;
     };
 
+    let removeFinishListener: (() => void) | undefined;
+
     onMounted(() => {
         initMetisMenu();
         fetchCountsByType();
-    });
 
-    router.on('finish', () => {
-        initMetisMenu();
+        removeFinishListener = router.on('finish', initMetisMenu);
     });
 
     onBeforeUnmount(() => {
+        removeFinishListener?.();
         metisInstance?.dispose();
         metisInstance = null;
     });

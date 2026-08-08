@@ -3,6 +3,7 @@
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 use UniSharp\LaravelFilemanager\Lfm;
+use Inertia\Inertia;
 
 /* Setting Cookie */
 Route::post('set_cookie', function (Request $request) {
@@ -55,6 +56,66 @@ Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+
+    /* Menu */
+        Route::get('menu', function () {
+            return Inertia::render('menu/index');
+        })->name('menu');
+
+        Route::get('menu/trash',function(){
+            return Inertia::render('menu/trash');
+        })->name('menu.trash');
+    /* Menu */
+
+    /* Role */
+        Route::get('role', function () {
+            return Inertia::render('role/index');
+        })->name('role');
+
+        Route::get('role/trash',function(){
+            return Inertia::render('role/trash');
+        })->name('role.trash');
+
+        Route::get('/role/{id}/permission', function ($id) {
+            return Inertia::render('role/permission', ['id' => $id]);
+        })->name('role.permission');
+    /* Role */
+
+    /* User */
+        Route::get('user', function () {
+            return Inertia::render('user/index');
+        })->name('user');
+
+        Route::get('user/trash',function(){
+            return Inertia::render('user/trash');
+        })->name('user.trash');
+    /* User */
+    
+    /* Company */
+        Route::get('company', function () {
+            return Inertia::render('company/index');
+        })->name('company');
+
+        Route::get('company/trash',function(){
+            return Inertia::render('company/trash');
+        })->name('company.trash');
+    /* Company */
+
+    /* Branch */
+        Route::get('branch', function () {
+            return Inertia::render('branch/index');
+        })->name('branch');
+
+        Route::get('branch/trash',function(){
+            return Inertia::render('branch/trash');
+        })->name('branch.trash');
+    /* Branch */
+
+    /* Setting */
+        Route::get('setting', [SettingController::class, 'index'])->name('setting');
+        Route::get('email_template', [SettingController::class, 'email_template'])->name('email_template');
+        Route::post('email_setting/test-send', [SettingController::class, 'email_test_send'])->name('email_setting.test_send');
+    /* Setting */
 });
 
 Route::middleware(['auth'])->prefix('api')->group(function () {
@@ -62,6 +123,10 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         'counts_by_type' => [],
     ]));
 });
+
+Route::get('/403', function () {
+    return Inertia::render('errors/403');
+})->name('403');
 
 require __DIR__.'/settings.php';
 

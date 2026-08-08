@@ -1,0 +1,181 @@
+<script setup lang="ts">
+
+    import { onMounted, ref, watchEffect, defineAsyncComponent } from 'vue';
+    import {dashboard, menu} from '@/routes';
+    import TopButtons from '@/components/topButtons.vue';
+    import useCommons from '@/composables/common';
+    import { Head, usePage } from '@inertiajs/vue3';
+    import debounce from '@/utils/debounce';
+    import useMenus from '@/composables/menu';
+    import TheTable from '@/components/theTable.vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import { createTableExportAllRows } from '@/composables/tableExportList';
+
+    const { props } = usePage();
+
+    const {select_data, getSavedValue, formatedText} = useCommons();
+
+    defineOptions({
+        layout: {
+            breadcrumbs: [
+                {
+                    title: 'Dashboard',
+                    href: dashboard().url,
+                },
+                {
+                    title: 'Menu',
+                    href: menu().url,
+                },
+                {
+                    title: 'Trash',
+                    href: 'NULL',
+                },
+            ],
+        },
+    });
+
+    const {
+        state,
+        getTrashMenus,
+        changeStatus,
+        deleteRecord,
+        changeOrder,
+        checkAll,
+        perDeleteBulkRecord,
+        restoreBulkRecord,
+    } = useMenus(props);
+
+
+    const columns = [
+        { key: 'select', label: '', type: 'checkbox', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
+        { key: 'count', label: 'S.No', type: 'count', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
+        { key: 'name', label: 'Name', responsive: ['sm', 'md', 'lg'] },
+        { key: 'route_path', label: 'Route', responsive: ['md', 'lg'] },
+        { key: 'sort_order', label: 'Sort Order', responsive: ['lg'] },
+        { key: 'is_active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', show: 'active' },
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['restore', 'delete']},
+    ]
+
+    /* History State */
+        const currentUrl = ref('');
+        const oldcurrentUrl = ref((getSavedValue('currentUrl') || ''));
+        const currentPage = ref(getSavedValue('currentPage', (v) => parseInt(v, 10)) || 1);
+        const currentSearch = ref(getSavedValue('currentSearch') || '');
+        const currentStatus = ref(getSavedValue('currentStatus') || 'all');
+        const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
+        if(getSavedValue('currentUrl') === props.routeName){
+            currentUrl.value = (getSavedValue('currentUrl') || props.routeName);
+        }else{
+            currentUrl.value = props.routeName;
+        }
+
+        const stateRefMap = {
+    currentPage,
+    currentSearch,
+    currentStatus,
+    currentRecord,
+    currentUrl,
+} as const;
+
+watchEffect(() => {
+            ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
+                const val = stateRefMap[key as keyof typeof stateRefMap]?.value
+                if (val !== undefined && val !== null) {
+                localStorage.setItem(key, val)   // will also save empty string
+                }
+            })
+        })
+    /* History State */
+
+    /* Debounce */
+    const debouncedGetTrashMenus = debounce((params) => {
+        getTrashMenus(params);
+    }, 300);
+
+    /* GetData */
+    const getData = async () => {
+        try {
+            if(currentRecord.value !== state.search.show_record){
+                state.search.page = 1;
+            }
+            await debouncedGetTrashMenus({ ...state.search });
+            currentPage.value = state.search.page;
+            currentSearch.value = state.search.search;
+            currentStatus.value = state.search.status;
+            currentRecord.value = state.search.show_record;
+        } catch (error) {
+            console.error('Error fetching menus:', error);
+        }
+    };
+
+    /* OnMounted */
+    onMounted(() => {
+        if(oldcurrentUrl.value === props.routeName){
+            const savedValues = {
+                page: getSavedValue('currentPage', (v) => parseInt(v, 10)),
+                search: getSavedValue('currentSearch'),
+                status: getSavedValue('currentStatus'),
+                show_record: getSavedValue('currentRecord', (v) => parseInt(v, 10)),
+            };
+
+            Object.keys(savedValues).forEach((key) => {
+                if (savedValues[key] !== null) {
+                    state.search[key] = savedValues[key];
+                }
+            });
+        }
+
+        currentPage.value = state.search.page;
+        currentSearch.value = state.search.search;
+        currentStatus.value = state.search.status;
+        currentRecord.value = state.search.show_record;
+
+        debouncedGetTrashMenus({ ...state.search });
+    });
+
+    const fetchAllRowsForExport = createTableExportAllRows(`${API_ENDPOINTS.menus}/trash`, () => state);
+
+</script>
+
+<template>
+    <Head :title="formatedText(props.routeName)" />
+
+    <div class="row">
+            <div class="col-xl-12">
+                <div class="card custom-card">
+                    <div class="card-header justify-content-between">
+                        <div class="d-flex justify-content-end">
+                            <TopButtons
+                                :state="state"
+                                type="trash"
+                                :getData="getData"
+                                :changeStatus="changeStatus"
+                                :deleteRecord="deleteRecord"
+                                :show-filter="false"
+                                :url="`${props.routeName?.split('.')[0]}`"
+                            />
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <TheTable
+                            :columns="columns"
+                            :selectData="select_data"
+                            :state="state"
+                            :checkAll="checkAll"
+                            :getData="getData"
+                            :changeOrder="changeOrder"
+                            :changeStatus="changeStatus"
+                            :restore="restoreBulkRecord"
+                            :delete="perDeleteBulkRecord"
+                            actionType="modal"
+                            :apiUrl="props.routeName?.split('.')[0]"
+                            show-export
+                            :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                            :export-title="formatedText(props.routeName)"
+                            :export-all-rows="fetchAllRowsForExport"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+</template>

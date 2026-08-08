@@ -23,6 +23,8 @@
 // 1. Bootstrap (loads reboot, grid, utilities, components, etc.)
 @import "bootstrap/scss/bootstrap";
 
+@import "bootstrap-extended.scss";
+
 @import "custom_app.scss";
 
 @import "dark_theme.scss";

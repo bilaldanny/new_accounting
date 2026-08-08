@@ -67,7 +67,7 @@ $(function () {
 	// 		o = o.parent("").addClass("mm-show").parent("").addClass("mm-active");
 	// 	}
 	// });
-	// // metismenu
+	// metismenu
 	// $(function () {
 	// 	$('#menu').metisMenu();
 	// });

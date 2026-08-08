@@ -57,8 +57,8 @@ async function initializeClientLibraries(): Promise<void> {
     await import('../../public/vendor/laravel-filemanager/js/stand-alone-button.js');
 
     /* Bootstrap */
-    bootstrap = await import('bootstrap');
-    (window as any).bootstrap = bootstrap;
+        bootstrap = await import('bootstrap');
+        (window as any).bootstrap = bootstrap;
 
     /* Axios */
     const csrfToken =
