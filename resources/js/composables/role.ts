@@ -52,7 +52,7 @@ export default function useRoles(){
         status: 'all',
       },
       loading: false,
-      modalLoading: false,
+      modalLoading: true,
       edit_ids: [],
       selectAll: false,
       rolesdata: [],
@@ -110,25 +110,24 @@ export default function useRoles(){
     /* Get Trash Role Function */
 
     /* Fetch Data To Edit Form */
-        const getEditData = async (id: number) => {
-            try {
-                state.loading = true;
-                const response = await fetchWithRetry(window.axios.get, `/api/roles/${id}`);
-                formData.value = response.data;
-            } catch (error: unknown) {
-                if (window.axios.isAxiosError(error)) {
-                    // ✅ Safely access response
-                    if(error.response?.data?.message !== 'Unauthenticated.'){
-                        Notify(error.response?.data?.message || 'An error occurred', 'alert');
-                    }
-                } else {
-                    // 🔸 Non-Axios error
-                    Notify('Unexpected error occurred', 'alert');
+    const getEditData = async (id: number) => {
+        if (!id) {
+            return;
+        }
+
+        try {
+            const response = await fetchWithRetry(window.axios.get, `/api/roles/${id}`);
+            formData.value = response.data;
+        } catch (error: unknown) {
+            if (window.axios.isAxiosError(error)) {
+                if(error.response?.data?.message !== 'Unauthenticated.'){
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
                 }
-            } finally {
-                state.loading = false;
+            } else {
+                Notify('Unexpected error occurred', 'alert');
             }
         }
+    }
     /* Fetch Data To Edit Form */
 
     /* Restore Function */

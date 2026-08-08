@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RoleController;
@@ -45,6 +46,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('fetchpermissions', [PermissionController::class, 'fetch']);
     Route::post('permissions/statusupdate', [PermissionController::class, 'updatestatus']);
     /* Permission */
+
+    /* Department */
+    Route::get('departments/trash', [DepartmentController::class, 'trash']);
+    Route::resource('departments', DepartmentController::class);
+    Route::post('/departments/statusupdate', [DepartmentController::class, 'updatestatus']);
+    Route::post('/departments/duplicate', [DepartmentController::class, 'duplicate']);
+    Route::post('/departments/bulk_delete', [DepartmentController::class, 'bulk_delete']);
+    Route::post('departments/bulk_delete_per', [DepartmentController::class, 'bulk_delete_per']);
+    Route::post('departments/restore_records', [DepartmentController::class, 'restore_records']);
+    /* Department */
 
     /* User */
     Route::get('users/trash', [UserController::class, 'trash']);
