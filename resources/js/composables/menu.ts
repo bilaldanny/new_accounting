@@ -60,7 +60,7 @@ export default function useMenus(){
         status: 'all',
       },
       loading: false,
-      modalLoading: false,
+      modalLoading: true,
       edit_ids: [],
       selectAll: false,
       menusdata: [],
@@ -119,22 +119,21 @@ export default function useMenus(){
 
     /* Fetch Data To Edit Form */
         const getEditData = async (id: number) => {
+            if (!id) {
+                return;
+            }
+
             try {
-                state.loading = true;
                 const response = await fetchWithRetry(window.axios.get, `/api/menus/${id}`);
                 formData.value = response.data;
             } catch (error: unknown) {
                 if (window.axios.isAxiosError(error)) {
-                    // ✅ Safely access response
                     if(error.response?.data?.message !== 'Unauthenticated.'){
                         Notify(error.response?.data?.message || 'An error occurred', 'alert');
                     }
                 } else {
-                    // 🔸 Non-Axios error
                     Notify('Unexpected error occurred', 'alert');
                 }
-            } finally {
-                state.loading = false;
             }
         }
     /* Fetch Data To Edit Form */

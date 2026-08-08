@@ -27,10 +27,13 @@
 @import "bootstrap-extended.scss";
 
 @import "custom_app.scss";
+@import "admin-design-system.scss";
 
 @import "dark_theme.scss";
 @import "semi_dark.scss";
 @import "header_colors.scss";
+
+@import '@vueform/vueform/themes/bootstrap/scss/index.scss';
 
 // // 1. Fonts
 // @import "custom/fonts/fonts";

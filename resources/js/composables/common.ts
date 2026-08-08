@@ -1,9 +1,18 @@
 import { reactive, ref, nextTick, inject, getCurrentInstance } from "vue";
 import { toast } from 'vue-sonner';
 import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
+import { useNotificationStore } from '@/utils/vueNotification'
 
 /** Shared across all `useCommons()` callers — coalesces concurrent identical fetches. */
 const sharedFetchPromises = new Map<string, Promise<void>>();
+
+/** One reactive source for list data consumed across pages/components. */
+const sharedMenusdata = ref([]);
+const sharedPermissiondata = ref([]);
+const sharedRolesdata = ref([]);
+const sharedCountriesdata = ref([]);
+const sharedStatesdata = ref([]);
+const sharedCitiesdata = ref([]);
 
 type IsotopeInstance = {
     layout: () => void;
@@ -17,12 +26,12 @@ export default function useCommons(){
         options: Record<string, unknown>,
     ) => IsotopeInstance) | null = null;
     const select_data = ref([1,10,25,50,100]);
-    const menusdata = ref([]);
-    const permissiondata = ref([]);
-    const rolesdata = ref([]);
-    const countriesdata = ref([]);
-    const statesdata = ref([]);
-    const citiesdata = ref([]);
+    const menusdata = sharedMenusdata;
+    const permissiondata = sharedPermissiondata;
+    const rolesdata = sharedRolesdata;
+    const countriesdata = sharedCountriesdata;
+    const statesdata = sharedStatesdata;
+    const citiesdata = sharedCitiesdata;
     const loading = ref(false);
     const MAX_RETRIES = 1;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,25 +54,58 @@ export default function useCommons(){
         parent_id: 'all',
     })
 
+    const { setNotification } = useNotificationStore()
+
     /* Notify */
     const Notify = async (message: string, type = 'success') => {
-        toast.dismiss();
+        // toast.dismiss();
 
-        switch (type) {
-            case 'success':
-                toast.success(message);
-                break;
-            case 'alert':
-            case 'error':
-                toast.error(message);
-                break;
-            default:
-                toast(message);
-        }
+        // switch (type) {
+        //     case 'success':
+        //         toast.success(message);
+        //         break;
+        //     case 'alert':
+        //     case 'error':
+        //         toast.error(message);
+        //         break;
+        //     default:
+        //         toast(message);
+        // }
+
+        setNotification(
+			{
+			  "message": message,
+			  "type": type,
+			  "showIcon": true,
+			  "dismiss": {
+			    "manually": true,
+			    "automatically": true
+			  },
+			  "duration": 10000,
+			  "showDurationProgress": true,
+			  "appearance": "light"
+			}
+		);
+		if(type === 'success'){
+			var x = document.getElementById("success-audio")
+			x.play();
+		}
+		if(type === 'error'){
+			var x = document.getElementById("error-audio")
+			x.play();
+		}
+		if(type === 'warning'){
+			var x = document.getElementById("warning-audio")
+			x.play();
+		}
     };
 
     /* Get Saved Value */
     const getSavedValue = (key, parseFn = (v) => v, defaultValue = null) => {
+        if (typeof localStorage === 'undefined') {
+            return defaultValue;
+        }
+
         try {
             const savedValue = localStorage.getItem(key);
             return savedValue !== null ? parseFn(savedValue) : defaultValue;
@@ -86,27 +128,25 @@ export default function useCommons(){
 
     /* Fetch Menu */
     const fetchMenu = async () => {
-        loading.value = true;
-        try{
-            const response = await fetchWithRetry(axios.get, '/api/fetchmenus');
+        await runDeduped('api/fetchmenus', async () => {
+            loading.value = true;
+            try {
+                const response = await fetchWithRetry(axios.get, '/api/fetchmenus');
 
-            // Assign values to state
-            menusdata.value = response.data;
+                menusdata.value = response.data;
 
-            await nextTick(); // Wait until DOM updates
-            setTimeout(()=>{
-                relayoutTheGrid();
-            },200)
-
-            loading.value = false;
-            return;
-        }catch (error) {
-            if(error.response?.data?.message !== 'Unauthenticated.'){
-                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+                await nextTick();
+                setTimeout(() => {
+                    relayoutTheGrid();
+                }, 200);
+            } catch (error) {
+                if (error.response?.data?.message !== 'Unauthenticated.') {
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
+                }
+            } finally {
+                loading.value = false;
             }
-        }finally {
-            loading.value = false;
-        }
+        });
     };
 
     /* Permission Layout */

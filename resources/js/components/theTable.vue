@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import { Link, usePage } from '@inertiajs/vue3';
+import { DotsVerticalRounded } from '@boxicons/vue';
 import debounce from '@/utils/debounce';
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import { useFloating, offset, flip, shift, autoPlacement, autoUpdate, arrow, computePosition } from '@floating-ui/vue'
@@ -608,7 +609,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
 </script>
 
 <template>
-    <div class="table-responsive">
+    <div class="table-responsive modern-table">
         <div class="dataTables_wrapper dt-bootstrap5">
             <div class="row">
                 <div class="col-sm-12 col-md-6">
@@ -779,6 +780,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                     <td
                                         v-for="(col, colIndex) in displayColumns"
                                         :key="col.key ?? `cell-${colIndex}`"
+                                        :data-colname="col.key"
                                     >
                                         <!-- Checkbox column -->
                                         <div v-if="col.type === 'checkbox'" class="form-check form-check-table">
@@ -949,8 +951,8 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                         <!-- Action -->
                                         <span v-else-if="col.type === 'action'">
 
-                                            <button id="btnGroupVerticalDrop1" type="button" class="btn btn-sm btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                Action
+                                            <button id="btnGroupVerticalDrop1" type="button" class="btn btn-sm modern-action-btn dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Row actions" title="Actions">
+                                                <DotsVerticalRounded size="sm" class="modern-action-btn__icon" aria-hidden="true" />
                                             </button>
                                             <div class="dropdown-menu" aria-labelledby="btnGroupVerticalDrop1" bis_skin_checked="1">
 
@@ -960,7 +962,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#EditModal"
                                                         href="javascript:void(0)"
-                                                        @click="tableData.edit?.(row.id)"
+                                                        @click.capture="tableData.edit?.(row.id)"
                                                         v-if="col.actions?.includes('edit') && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/edit`)"
                                                     >
                                                         <i class="mdi mdi-pencil-outline"></i> Edit
@@ -1151,7 +1153,14 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                             >
                                                 {{ defaultCellDisplay(row, col) }}
                                             </a>
-                                            <span v-else>{{ defaultCellDisplay(row, col) }}</span>
+                                            <span
+                                                v-else
+                                                :class="{
+                                                    'modern-cell-code': col.type === 'code',
+                                                    'modern-cell-primary': col.type === 'primary',
+                                                    'modern-cell-secondary': col.type === 'secondary',
+                                                }"
+                                            >{{ defaultCellDisplay(row, col) }}</span>
                                         </span>
                                     </td>
                                 </tr>
@@ -1223,200 +1232,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         width: 12px;
         height: 12px;
         transform: rotate(45deg);
-        border: 1px solid rgba(0,0,0,.15);
+        border: 1px solid rgba(0, 0, 0, 0.15);
         position: absolute;
-    }
-
-    :deep(.form-check-table) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 0;
-        margin: 0;
-        padding: 0;
-    }
-
-    :deep(.form-check-table .form-check-input) {
-        margin: 0;
-        float: none;
-    }
-
-    :deep(.table tbody td:has(.form-check-table)) {
-        text-align: center;
-    }
-
-    :deep(.table thead th:has(.form-check-table)),
-    :deep(.table tfoot th:has(.form-check-table)) {
-        text-align: center;
-    }
-
-    /* —— Professional export toolbar —— */
-    .table-export-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.35rem;
-    }
-
-    .table-export-bar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem 0.75rem;
-    }
-
-    .table-export-kicker {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-size: 0.6875rem;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: #6c757d;
-        user-select: none;
-    }
-
-    .table-export-kicker .mdi {
-        font-size: 1rem;
-        opacity: 0.85;
-    }
-
-    .table-export-group {
-        border-radius: 0.5rem;
-        overflow: hidden;
-        box-shadow:
-            0 1px 2px rgba(15, 23, 42, 0.06),
-            0 0 0 1px rgba(15, 23, 42, 0.06);
-    }
-
-    .table-export-group > .table-export-btn {
-        margin-left: 0 !important;
-    }
-
-    .table-export-group .table-export-btn {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        padding: 0.4rem 0.85rem;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        line-height: 1.2;
-        border: none;
-        border-radius: 0;
-        transition:
-            background-color 0.15s ease,
-            color 0.15s ease,
-            box-shadow 0.15s ease;
-    }
-
-    .table-export-group .table-export-btn + .table-export-btn {
-        box-shadow: inset 1px 0 0 rgba(15, 23, 42, 0.08);
-    }
-
-    .table-export-btn__icon {
-        font-size: 1.05rem;
-        line-height: 1;
-    }
-
-    .table-export-btn__label {
-        white-space: nowrap;
-    }
-
-    @media (max-width: 575.98px) {
-        .table-export-btn__label {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
-
-        .table-export-group .table-export-btn {
-            padding: 0.45rem 0.65rem;
-        }
-    }
-
-    .table-export-btn--excel {
-        color: #0d4f2d;
-        background: linear-gradient(180deg, #f4fbf7 0%, #e8f5ee 100%);
-    }
-
-    .table-export-btn--excel:hover:not(:disabled) {
-        color: #053017;
-        background: linear-gradient(180deg, #dff3e6 0%, #ccebd8 100%);
-        z-index: 1;
-    }
-
-    .table-export-btn--csv {
-        color: #1e4d5c;
-        background: linear-gradient(180deg, #f5f9fb 0%, #e8f1f5 100%);
-    }
-
-    .table-export-btn--csv:hover:not(:disabled) {
-        color: #0f2d36;
-        background: linear-gradient(180deg, #dbeaf0 0%, #c5dde6 100%);
-        z-index: 1;
-    }
-
-    .table-export-btn--pdf {
-        color: #8b1e1e;
-        background: linear-gradient(180deg, #fdf6f6 0%, #f8eaea 100%);
-    }
-
-    .table-export-btn--pdf:hover:not(:disabled) {
-        color: #5c1010;
-        background: linear-gradient(180deg, #f5d8d8 0%, #ebc5c5 100%);
-        z-index: 1;
-    }
-
-    .table-export-btn--copy {
-        color: #3730a3;
-        background: linear-gradient(180deg, #f8f7ff 0%, #eeecf9 100%);
-    }
-
-    .table-export-btn--copy:hover:not(:disabled) {
-        color: #1e1b4b;
-        background: linear-gradient(180deg, #e0ddfa 0%, #d0c9f5 100%);
-        z-index: 1;
-    }
-
-    .table-export-btn:focus-visible {
-        z-index: 2;
-        outline: 2px solid #199683;
-        outline-offset: 2px;
-    }
-
-    .table-export-btn:disabled {
-        opacity: 0.52;
-        cursor: not-allowed;
-    }
-
-    .table-export-meta {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        align-items: baseline;
-        gap: 0.35rem 0.75rem;
-        max-width: 100%;
-        text-align: right;
-    }
-
-    .table-export-hint {
-        font-size: 0.6875rem;
-        color: #868e96;
-    }
-
-    .table-export-error {
-        font-size: 0.6875rem;
-        font-weight: 500;
-        color: #c92a2a;
     }
 </style>

@@ -1,4 +1,4 @@
-import { useNotificationStore } from '@dafcoe/vue-notification'
+import { useNotificationStore } from '@/utils/vueNotification'
 
 export function showAppNotification(message: string, type: 'success' | 'alert' = 'success'): void {
     const store = useNotificationStore()

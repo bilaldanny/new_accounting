@@ -43,6 +43,8 @@
         "@laravel/passkeys": "^0.2.0",
         "@lucide/vue": "^1.17.0",
         "@popperjs/core": "^2.11.8",
+        "@vueform/plugin-mask": "^1.0.7",
+        "@vueform/vueform": "^1.13.13",
         "@vueuse/core": "^12.8.2",
         "axios": "^1.19.0",
         "bootstrap": "^5.3.1",

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-    import { onMounted, ref, watchEffect, defineAsyncComponent } from 'vue';
+    import { onMounted, ref, watchEffect } from 'vue';
     import {dashboard} from '@/routes';
     import TopButtons from '@/components/topButtons.vue';
     import TheFilter from '@/components/theFilter.vue';
@@ -11,30 +11,28 @@
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
-    import './menu-management.scss';
+    import AddModal from './add.vue';
+    import EditModal from './edit.vue';
 
     defineOptions({
         layout: {
-            title: 'Menu',
+            title: 'Menu Management',
+            subtitle: 'Manage system menus and navigation',
             breadcrumbs: [
                 {
-                    title: 'Menu',
+                    title: 'Menu Management',
                     href: 'NULL',
                 },
             ],
         },
     });
 
-    /* Add & Edit Modals */
-        const AddModal = defineAsyncComponent(() => import('./add.vue'));
-        const EditModal = defineAsyncComponent(() => import('./edit.vue'));
-    /* Add & Edit Modals */
-
     const { props } = usePage();
 
     const form$ = ref(null)
 
     const edit_id = ref({ id: 0 });
+    let editFetchToken = 0;
 
     const {
         state,
@@ -54,9 +52,9 @@
     const columns = [
         { key: 'select', label: '', type: 'checkbox', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
         { key: 'count', label: 'S.No', type: 'count', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
-        { key: 'name', label: 'Name', responsive: ['sm', 'md', 'lg'] },
-        { key: 'route_path', label: 'Route', responsive: ['md', 'lg'] },
-        { key: 'sort_order', label: 'Sort Order', responsive: ['lg'] },
+        { key: 'name', label: 'Name', type: 'primary', responsive: ['sm', 'md', 'lg'] },
+        { key: 'route_path', label: 'Route', type: 'code', responsive: ['md', 'lg'] },
+        { key: 'sort_order', label: 'Sort Order', type: 'secondary', responsive: ['lg'] },
         { key: 'is_active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', show: 'active' },
         { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['edit', 'delete', 'duplicate']},
     ]
@@ -83,6 +81,10 @@
         } as const;
 
         watchEffect(() => {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
+
             ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
                 const val = stateRefMap[key as keyof typeof stateRefMap]?.value
                 if (val !== undefined && val !== null) {
@@ -115,9 +117,17 @@
         }
     };
 
-    /* Edit Modal */
-    const EditModalOpen = async (id) => {
+    /* Edit Modal — fetch on click so data loads even before Bootstrap show event fires */
+    const EditModalOpen = (id: number) => {
         edit_id.value.id = id;
+        state.modalLoading = true;
+        const token = ++editFetchToken;
+
+        Promise.all([fetchMenu(), getEditData(id)]).finally(() => {
+            if (token === editFetchToken) {
+                state.modalLoading = false;
+            }
+        });
     };
 
     /* OnMounted */
@@ -148,21 +158,17 @@
     const openAddModal = async () => {
         state.modalLoading = true;
         form$.value?.reset();
-        formData.value = { ...defaultFormData.value }
-        fetchMenu();
-        setTimeout(()=>{
-            state.modalLoading = false;
-        },1000)
+        formData.value = { ...defaultFormData.value };
+        await fetchMenu();
+        state.modalLoading = false;
+    };
+
+    function handleAddModalClose() {
+        state.modalLoading = true;
     }
 
-    const openEditModal = async () => {
+    function handleEditModalClose() {
         state.modalLoading = true;
-        fetchMenu();
-        getEditData(edit_id.value.id, form$);
-        form$.value?.reset();
-        setTimeout(()=>{
-            state.modalLoading = false;
-        },1000)
     }
 
     function onStateUpdate(newState) {
@@ -186,9 +192,9 @@
 <template>
     <Head :title="formatedText(props.routeName)" />
 
-    <div class="menu-management-page">
-        <div class="menu-management-card">
-            <div class="menu-management-card__toolbar">
+    <div class="admin-list-page">
+        <div class="admin-list-card">
+            <div class="admin-list-card__toolbar">
                 <TopButtons
                     :state="state"
                     :filter-open="filterOpen"
@@ -201,7 +207,7 @@
             </div>
 
             <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
-                <div class="col-md-4 col-lg-3 menu-management-filter__field">
+                <div class="col-md-4 col-lg-3 admin-filter-field">
                     <label class="form-label" for="menu-filter-status">Status</label>
                     <select
                         id="menu-filter-status"
@@ -213,7 +219,7 @@
                         <option value="0">Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-4 col-lg-3 menu-management-filter__field">
+                <div class="col-md-4 col-lg-3 admin-filter-field">
                     <label class="form-label" for="menu-filter-records">Show records</label>
                     <select
                         id="menu-filter-records"
@@ -228,31 +234,27 @@
                 </div>
             </TheFilter>
 
-            <div class="menu-management-card__body">
-                <div class="menu-management-table">
-                    <div class="table-responsive">
-                        <div class="dataTables_wrapper dt-bootstrap5">
-                            <TheTable
-                                :columns="columns"
-                                :selectData="select_data"
-                                :state="state"
-                                :checkAll="checkAll"
-                                :getData="getData"
-                                :changeOrder="changeOrder"
-                                :changeStatus="changeStatus"
-                                :delete="deleteRecord"
-                                :duplicate="duplicate"
-                                :edit="EditModalOpen"
-                                actionType="modal"
-                                :apiUrl="props.routeName?.split('.')[0]"
-                                show-export
-                                :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
-                                :export-title="formatedText(props.routeName)"
-                                :export-all-rows="fetchAllRowsForExport"
-                                @update:state="onStateUpdate"
-                            />
-                        </div>
-                    </div>
+            <div class="admin-list-card__body">
+                <div class="admin-list-table">
+                    <TheTable
+                        :columns="columns"
+                        :selectData="select_data"
+                        :state="state"
+                        :checkAll="checkAll"
+                        :getData="getData"
+                        :changeOrder="changeOrder"
+                        :changeStatus="changeStatus"
+                        :delete="deleteRecord"
+                        :duplicate="duplicate"
+                        :edit="EditModalOpen"
+                        actionType="modal"
+                        :apiUrl="props.routeName?.split('.')[0]"
+                        show-export
+                        :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                        :export-title="formatedText(props.routeName)"
+                        :export-all-rows="fetchAllRowsForExport"
+                        @update:state="onStateUpdate"
+                    />
                 </div>
             </div>
         </div>
@@ -264,6 +266,7 @@
         :formRef="form$"
         :endpoint="API_ENDPOINTS.menus"
         :onOpen="openAddModal"
+        :onClose="handleAddModalClose"
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"
     />
@@ -273,7 +276,7 @@
         :formData="formData"
         :formRef="form$"
         :endpoint="`${API_ENDPOINTS.menus}/${edit_id.id}`"
-        :onOpen="openEditModal"
+        :onClose="handleEditModalClose"
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"
     />

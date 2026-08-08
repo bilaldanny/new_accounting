@@ -3,7 +3,7 @@
     import ModalComponent from '@/components/ModalComponent.vue';
     import { usePage } from '@inertiajs/vue3';
     import TheForm from '@/components/theForm.vue';
-    import { ref } from 'vue';
+    import { ref, watch } from 'vue';
     import Fields from './Fields.vue';
 
     const {props} = usePage();
@@ -20,7 +20,14 @@
         error:{type: Function},
     });
 
-    const formRef = ref(null) // create the ref
+    const formRef = ref(null)
+    const isSaving = ref(false)
+
+    watch(() => modalProps.showLoader, (loading) => {
+        if (loading) {
+            isSaving.value = false;
+        }
+    });
 
     function submitFromParent() {
         if (formRef.value) {
@@ -42,10 +49,17 @@
 </script>
 
 <template>
-    <ModalComponent id="AddModal" :title="`Add ${props.routeName}`" :onOpen="modalProps.onOpen">
-        <Loader v-if="modalProps.showLoader"/>
+    <ModalComponent
+        id="AddModal"
+        :title="`Add ${props.routeName}`"
+        :onOpen="modalProps.onOpen"
+        :onClose="modalProps.onClose"
+        size="xl"
+    >
+        <Loader v-if="modalProps.showLoader" message="Preparing form…" />
         <TheForm
             v-if="!modalProps.showLoader"
+            v-model:submitting="isSaving"
             :onSubmit="modalProps.onSubmit"
             :formData="modalProps.formData"
             :success="modalProps.success"
@@ -61,11 +75,19 @@
             <button type="button" class="btn btn-light waves-effect" data-bs-dismiss="modal">Close</button>
 
             <button
-                type="submit"
-                class="btn btn-primary"
-                @click="$refs.formRef.submitForm()"
+                type="button"
+                class="btn btn-primary d-inline-flex align-items-center"
+                :disabled="modalProps.showLoader || isSaving"
+                :aria-busy="isSaving"
+                @click="formRef?.submitForm()"
             >
-                Save
+                <span
+                    v-if="isSaving"
+                    class="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                ></span>
+                {{ isSaving ? 'Saving…' : 'Save' }}
             </button>
         </template>
     </ModalComponent>

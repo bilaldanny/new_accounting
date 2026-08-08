@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
-    import { onMounted, ref, watchEffect, defineAsyncComponent } from 'vue';
-    import {dashboard, menu} from '@/routes';
+    import { onMounted, ref, watchEffect } from 'vue';
+    import { menu } from '@/routes';
     import TopButtons from '@/components/topButtons.vue';
     import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
@@ -17,13 +17,11 @@
 
     defineOptions({
         layout: {
+            title: 'Menu Trash',
+            subtitle: 'Restore or permanently delete removed menu items',
             breadcrumbs: [
                 {
-                    title: 'Dashboard',
-                    href: dashboard().url,
-                },
-                {
-                    title: 'Menu',
+                    title: 'Menu Management',
                     href: menu().url,
                 },
                 {
@@ -49,9 +47,9 @@
     const columns = [
         { key: 'select', label: '', type: 'checkbox', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
         { key: 'count', label: 'S.No', type: 'count', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
-        { key: 'name', label: 'Name', responsive: ['sm', 'md', 'lg'] },
-        { key: 'route_path', label: 'Route', responsive: ['md', 'lg'] },
-        { key: 'sort_order', label: 'Sort Order', responsive: ['lg'] },
+        { key: 'name', label: 'Name', type: 'primary', responsive: ['sm', 'md', 'lg'] },
+        { key: 'route_path', label: 'Route', type: 'code', responsive: ['md', 'lg'] },
+        { key: 'sort_order', label: 'Sort Order', type: 'secondary', responsive: ['lg'] },
         { key: 'is_active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', show: 'active' },
         { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['restore', 'delete']},
     ]
@@ -78,6 +76,10 @@
 } as const;
 
 watchEffect(() => {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
+
             ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
                 const val = stateRefMap[key as keyof typeof stateRefMap]?.value
                 if (val !== undefined && val !== null) {
@@ -140,42 +142,40 @@ watchEffect(() => {
 <template>
     <Head :title="formatedText(props.routeName)" />
 
-    <div class="row">
-            <div class="col-xl-12">
-                <div class="card custom-card">
-                    <div class="card-header justify-content-between">
-                        <div class="d-flex justify-content-end">
-                            <TopButtons
-                                :state="state"
-                                type="trash"
-                                :getData="getData"
-                                :changeStatus="changeStatus"
-                                :deleteRecord="deleteRecord"
-                                :show-filter="false"
-                                :url="`${props.routeName?.split('.')[0]}`"
-                            />
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <TheTable
-                            :columns="columns"
-                            :selectData="select_data"
-                            :state="state"
-                            :checkAll="checkAll"
-                            :getData="getData"
-                            :changeOrder="changeOrder"
-                            :changeStatus="changeStatus"
-                            :restore="restoreBulkRecord"
-                            :delete="perDeleteBulkRecord"
-                            actionType="modal"
-                            :apiUrl="props.routeName?.split('.')[0]"
-                            show-export
-                            :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
-                            :export-title="formatedText(props.routeName)"
-                            :export-all-rows="fetchAllRowsForExport"
-                        />
-                    </div>
+    <div class="admin-list-page">
+        <div class="admin-list-card">
+            <div class="admin-list-card__toolbar">
+                <TopButtons
+                    :state="state"
+                    type="trash"
+                    :getData="getData"
+                    :changeStatus="changeStatus"
+                    :deleteRecord="deleteRecord"
+                    :show-filter="false"
+                    :url="`${props.routeName?.split('.')[0]}`"
+                />
+            </div>
+            <div class="admin-list-card__body">
+                <div class="admin-list-table">
+                    <TheTable
+                        :columns="columns"
+                        :selectData="select_data"
+                        :state="state"
+                        :checkAll="checkAll"
+                        :getData="getData"
+                        :changeOrder="changeOrder"
+                        :changeStatus="changeStatus"
+                        :restore="restoreBulkRecord"
+                        :delete="perDeleteBulkRecord"
+                        actionType="modal"
+                        :apiUrl="props.routeName?.split('.')[0]"
+                        show-export
+                        :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                        :export-title="formatedText(props.routeName)"
+                        :export-all-rows="fetchAllRowsForExport"
+                    />
                 </div>
             </div>
         </div>
+    </div>
 </template>

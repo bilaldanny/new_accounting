@@ -70,7 +70,7 @@ function onPanelAfterLeave(el: Element): void {
         @leave="onPanelLeave"
         @after-leave="onPanelAfterLeave"
     >
-        <div v-if="open" :id="props.collapseId" class="the-filter-panel">
+        <div v-if="open" :id="props.collapseId" class="the-filter-panel modern-filter">
             <div class="the-filter-panel__body">
                 <div class="row g-3 align-items-end">
                     <slot />
@@ -110,27 +110,3 @@ function onPanelAfterLeave(el: Element): void {
     </Transition>
 </template>
 
-<style scoped>
-.the-filter-panel {
-    overflow: hidden;
-    border-top: 1px solid var(--bs-border-color, #dee2e6);
-    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
-}
-
-.the-filter-panel__header {
-    padding: 0.75rem 1.25rem;
-    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
-}
-
-.the-filter-panel__body {
-    padding: 1rem 1.25rem;
-}
-
-.the-filter-panel__footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem 1rem;
-    border-top: 1px solid var(--bs-border-color, #dee2e6);
-}
-</style>

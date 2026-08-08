@@ -1,0 +1,1180 @@
+/* ==========================================================================
+   Admin ERP Design System — universal list/table UI (visual only)
+   ========================================================================== */
+
+:root {
+    --app-primary: #6366f1;
+    --app-primary-hover: #4f46e5;
+    --app-primary-soft: #eef2ff;
+    --app-primary-border: #c7d2fe;
+
+    --app-success: #16a34a;
+    --app-success-soft: #ecfdf3;
+    --app-success-border: #bbf7d0;
+
+    --app-danger: #dc2626;
+    --app-danger-soft: #fef2f2;
+    --app-danger-border: #fecaca;
+
+    --app-warning: #d97706;
+    --app-warning-soft: #fffbeb;
+    --app-warning-border: #fde68a;
+
+    --app-info: #0369a1;
+    --app-info-soft: #eff6ff;
+    --app-info-border: #bfdbfe;
+
+    --app-text: #111827;
+    --app-text-secondary: #64748b;
+    --app-text-muted: #94a3b8;
+
+    --app-border: #e5e7eb;
+    --app-border-subtle: #f1f5f9;
+    --app-background: #f8fafc;
+    --app-card: #ffffff;
+
+    --app-radius-sm: 6px;
+    --app-radius-md: 8px;
+    --app-radius-lg: 12px;
+
+    --app-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 2px 10px rgba(15, 23, 42, 0.04);
+    --app-transition: 150ms ease;
+
+    --app-font:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --app-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* —— Page shell —— */
+.page-content {
+    background: var(--app-background);
+}
+
+.page-content:has(.admin-list-page) {
+    padding-bottom: 1.5rem;
+}
+
+/* —— Page header / breadcrumb —— */
+.modern-page-header {
+    font-family: var(--app-font);
+    margin-bottom: 1rem;
+}
+
+.modern-page-header__title {
+    margin: 0;
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--app-text);
+}
+
+.modern-page-header__subtitle {
+    margin: 0.35rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: var(--app-text-secondary);
+}
+
+.modern-page-header__breadcrumb {
+    margin-top: 0.75rem;
+}
+
+.modern-page-header__breadcrumb .breadcrumb {
+    margin: 0;
+    padding: 0;
+    font-size: 0.8125rem;
+    background: transparent;
+}
+
+.modern-page-header__breadcrumb .breadcrumb-item,
+.modern-page-header__breadcrumb .breadcrumb-item a {
+    color: var(--app-text-secondary);
+    transition: color var(--app-transition);
+}
+
+.modern-page-header__breadcrumb .breadcrumb-item a:hover {
+    color: var(--app-primary);
+}
+
+.modern-page-header__breadcrumb .breadcrumb-item.active {
+    color: var(--app-text);
+    font-weight: 500;
+}
+
+.modern-page-header__breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    color: var(--app-text-muted);
+}
+
+.modern-page-header__breadcrumb .breadcrumb-home-icon {
+    display: block;
+    fill: currentColor;
+}
+
+/* Legacy breadcrumb wrapper (fallback) */
+.page-breadcrumb.modern-page-header--legacy {
+    display: block;
+}
+
+/* —— List page card —— */
+.admin-list-page {
+    font-family: var(--app-font);
+    color: var(--app-text);
+}
+
+.admin-list-card {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-lg);
+    box-shadow: var(--app-shadow-card);
+    overflow: hidden;
+}
+
+.admin-list-card__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--app-border-subtle);
+    background: var(--app-card);
+}
+
+.admin-list-card__body {
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-list-table .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* —— Top action buttons —— */
+.admin-list-page .top-buttons .top-btn,
+.top-buttons.modern-toolbar .top-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    font-weight: 500;
+    border-radius: var(--app-radius-md);
+    transition: all var(--app-transition);
+}
+
+.admin-list-page .top-buttons .top-btn-icon-only,
+.top-buttons.modern-toolbar .top-btn-icon-only {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+}
+
+.admin-list-page .top-buttons .btn-outline-secondary.top-btn-icon-only,
+.top-buttons.modern-toolbar .btn-outline-secondary.top-btn-icon-only {
+    background: var(--app-primary-soft);
+    border: 1px solid var(--app-primary-border);
+    color: var(--app-primary);
+}
+
+.admin-list-page .top-buttons .btn-outline-secondary.top-btn-icon-only:hover,
+.top-buttons.modern-toolbar .btn-outline-secondary.top-btn-icon-only:hover {
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+    color: var(--app-primary-hover);
+}
+
+.admin-list-page .top-buttons .btn-outline-secondary.top-btn-icon-only.active,
+.top-buttons.modern-toolbar .btn-outline-secondary.top-btn-icon-only.active {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    color: #ffffff;
+}
+
+.admin-list-page .top-buttons .btn-outline-dark.top-btn-icon-only,
+.top-buttons.modern-toolbar .btn-outline-dark.top-btn-icon-only {
+    background: var(--app-info-soft);
+    border: 1px solid var(--app-info-border);
+    color: #2563eb;
+}
+
+.admin-list-page .top-buttons .btn-outline-dark.top-btn-icon-only:hover,
+.top-buttons.modern-toolbar .btn-outline-dark.top-btn-icon-only:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.admin-list-page .top-buttons .btn-danger.top-btn-icon-only,
+.top-buttons.modern-toolbar .btn-danger.top-btn-icon-only {
+    background: #ef4444;
+    border: 1px solid #ef4444;
+    color: #ffffff;
+}
+
+.admin-list-page .top-buttons .btn-danger.top-btn-icon-only:hover:not(:disabled),
+.top-buttons.modern-toolbar .btn-danger.top-btn-icon-only:hover:not(:disabled) {
+    background: var(--app-danger);
+    border-color: var(--app-danger);
+}
+
+.admin-list-page .top-buttons .btn-success.top-btn-icon-only,
+.top-buttons.modern-toolbar .btn-success.top-btn-icon-only {
+    background: #22c55e;
+    border: 1px solid #22c55e;
+    color: #ffffff;
+}
+
+.admin-list-page .top-buttons .btn-success.top-btn-icon-only:hover:not(:disabled),
+.top-buttons.modern-toolbar .btn-success.top-btn-icon-only:hover:not(:disabled) {
+    background: var(--app-success);
+    border-color: var(--app-success);
+}
+
+.admin-list-page .top-buttons .btn-warning.top-btn-icon-only,
+.top-buttons.modern-toolbar .btn-warning.top-btn-icon-only {
+    background: #f59e0b;
+    border: 1px solid #f59e0b;
+    color: #ffffff;
+}
+
+.admin-list-page .top-buttons .btn-warning.top-btn-icon-only:hover:not(:disabled),
+.top-buttons.modern-toolbar .btn-warning.top-btn-icon-only:hover:not(:disabled) {
+    background: var(--app-warning);
+    border-color: var(--app-warning);
+}
+
+.admin-list-page .top-buttons .btn-primary.top-btn,
+.top-buttons.modern-toolbar .btn-primary.top-btn {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(99, 102, 241, 0.35);
+}
+
+.admin-list-page .top-buttons .btn-primary.top-btn:hover,
+.top-buttons.modern-toolbar .btn-primary.top-btn:hover {
+    background: var(--app-primary-hover);
+    border-color: var(--app-primary-hover);
+}
+
+.admin-list-page .top-buttons .btn-danger.top-btn:not(.top-btn-icon-only),
+.top-buttons.modern-toolbar .btn-danger.top-btn:not(.top-btn-icon-only) {
+    background: var(--app-danger);
+    border: 1px solid var(--app-danger);
+    color: #ffffff;
+}
+
+.admin-list-page .top-buttons .btn-dark.top-btn,
+.top-buttons.modern-toolbar .btn-dark.top-btn {
+    background: #334155;
+    border-color: #334155;
+    color: #ffffff;
+}
+
+.admin-list-page .top-buttons .btn-dark.top-btn:hover,
+.top-buttons.modern-toolbar .btn-dark.top-btn:hover {
+    background: #1e293b;
+    border-color: #1e293b;
+}
+
+.top-btn-icon {
+    width: 1rem;
+    height: 1rem;
+    display: block;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+.top-btn-icon-inline {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.top-btn-icon-spin {
+    animation: top-btn-icon-spin 0.75s linear infinite;
+    transform-origin: center;
+}
+
+@keyframes top-btn-icon-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* —— Filter panel —— */
+.the-filter-panel.modern-filter,
+.admin-list-page .the-filter-panel {
+    background: var(--app-background);
+    border-top: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--app-border);
+    overflow: hidden;
+}
+
+.the-filter-panel.modern-filter .the-filter-panel__body,
+.admin-list-page .the-filter-panel__body {
+    padding: 1.125rem 1.25rem 0.75rem;
+}
+
+.the-filter-panel.modern-filter .the-filter-panel__footer,
+.admin-list-page .the-filter-panel__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem 1rem;
+    border-top: 1px solid var(--app-border);
+    background: var(--app-background);
+}
+
+.admin-filter-field .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--app-text-secondary);
+    margin-bottom: 0.375rem;
+}
+
+.admin-filter-field .form-select,
+.admin-filter-field .form-control {
+    min-height: 38px;
+    border-radius: var(--app-radius-md);
+    border-color: var(--app-border);
+    font-size: 0.875rem;
+    color: var(--app-text);
+    transition:
+        border-color var(--app-transition),
+        box-shadow var(--app-transition);
+}
+
+.admin-filter-field .form-select:focus,
+.admin-filter-field .form-control:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.the-filter-panel.modern-filter .the-filter-panel__footer .btn-outline-dark,
+.admin-list-page .the-filter-panel__footer .btn-outline-dark {
+    border-radius: var(--app-radius-md);
+    border-color: var(--app-border);
+    color: #475569;
+    min-height: 36px;
+    padding-inline: 0.875rem;
+    font-weight: 500;
+    transition: all var(--app-transition);
+}
+
+.the-filter-panel.modern-filter .the-filter-panel__footer .btn-outline-dark:hover,
+.admin-list-page .the-filter-panel__footer .btn-outline-dark:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+.the-filter-panel.modern-filter .the-filter-panel__footer .btn-outline-success,
+.admin-list-page .the-filter-panel__footer .btn-outline-success {
+    border-radius: var(--app-radius-md);
+    border-color: var(--app-success-border);
+    background: var(--app-success-soft);
+    color: #15803d;
+    min-height: 36px;
+    padding-inline: 0.875rem;
+    font-weight: 500;
+    transition: all var(--app-transition);
+}
+
+.the-filter-panel.modern-filter .the-filter-panel__footer .btn-outline-success:hover,
+.admin-list-page .the-filter-panel__footer .btn-outline-success:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+/* —— DataTable toolbar —— */
+.admin-list-page .dataTables_wrapper > .row:first-child,
+.modern-table .dataTables_wrapper > .row:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.625rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.admin-list-page .dataTables_wrapper > .row:first-child > [class*='col-'],
+.modern-table .dataTables_wrapper > .row:first-child > [class*='col-'] {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 100%;
+    padding: 0;
+    margin-bottom: 0 !important;
+}
+
+.admin-list-page .dataTables_wrapper > .row:first-child > .col-md-6:first-child,
+.modern-table .dataTables_wrapper > .row:first-child > .col-md-6:first-child {
+    margin-right: auto;
+}
+
+.admin-list-page .dataTables_wrapper > .row:first-child > .col-md-6:last-child,
+.modern-table .dataTables_wrapper > .row:first-child > .col-md-6:last-child {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.625rem;
+    margin-left: auto;
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_length,
+.modern-table .dataTables_wrapper .dataTables_length {
+    float: none;
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_length label,
+.modern-table .dataTables_wrapper .dataTables_length label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    color: var(--app-text-secondary);
+    font-weight: 500;
+    font-size: 0.8125rem;
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_length .form-select,
+.modern-table .dataTables_wrapper .dataTables_length .form-select {
+    min-height: 36px;
+    border-radius: var(--app-radius-md);
+    border-color: var(--app-border);
+    margin-inline: 0.35rem;
+    transition:
+        border-color var(--app-transition),
+        box-shadow var(--app-transition);
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_length .form-select:focus,
+.modern-table .dataTables_wrapper .dataTables_length .form-select:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_filter,
+.modern-table .dataTables_wrapper .dataTables_filter {
+    float: none !important;
+    text-align: right;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_filter label,
+.modern-table .dataTables_wrapper .dataTables_filter label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0;
+    line-height: 0;
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_filter input[type='search'],
+.modern-table .dataTables_wrapper .dataTables_filter input[type='search'] {
+    min-height: 38px;
+    border-radius: var(--app-radius-md);
+    border: 1px solid var(--app-border);
+    padding: 0.375rem 0.75rem 0.375rem 2.25rem;
+    font-size: 0.875rem;
+    margin-left: 0;
+    transition:
+        border-color var(--app-transition),
+        box-shadow var(--app-transition);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242 1.01a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 0.65rem center;
+    background-size: 0.9rem;
+}
+
+.admin-list-page .dataTables_wrapper .dataTables_filter input[type='search']:focus,
+.modern-table .dataTables_wrapper .dataTables_filter input[type='search']:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    outline: none;
+}
+
+.admin-list-page .dataTables_wrapper .table-export-wrap,
+.modern-table .dataTables_wrapper .table-export-wrap {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-list-page .table-export-hint,
+.modern-table .table-export-hint {
+    display: none;
+}
+
+.admin-list-page .dataTables_wrapper .table-export-meta:not(:has(.table-export-error)),
+.modern-table .dataTables_wrapper .table-export-meta:not(:has(.table-export-error)) {
+    display: none;
+}
+
+/* —— Export buttons —— */
+.table-export-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
+.table-export-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem 0.75rem;
+}
+
+.table-export-group {
+    border-radius: var(--app-radius-md);
+    border: 1px solid var(--app-border);
+    overflow: hidden;
+    box-shadow: none;
+}
+
+.table-export-group .table-export-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: none;
+    border-radius: 0;
+    transition:
+        background-color var(--app-transition),
+        color var(--app-transition);
+}
+
+.table-export-group .table-export-btn + .table-export-btn {
+    box-shadow: inset 1px 0 0 rgba(15, 23, 42, 0.08);
+}
+
+.table-export-btn--excel {
+    color: #15803d;
+    background: var(--app-success-soft);
+}
+
+.table-export-btn--excel:hover:not(:disabled) {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.table-export-btn--csv {
+    color: var(--app-info);
+    background: var(--app-info-soft);
+}
+
+.table-export-btn--csv:hover:not(:disabled) {
+    background: #dbeafe;
+    color: #075985;
+}
+
+.table-export-btn--pdf {
+    color: var(--app-danger);
+    background: var(--app-danger-soft);
+}
+
+.table-export-btn--pdf:hover:not(:disabled) {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.table-export-btn--copy {
+    color: var(--app-primary);
+    background: var(--app-primary-soft);
+}
+
+.table-export-btn--copy:hover:not(:disabled) {
+    background: #e0e7ff;
+    color: var(--app-primary-hover);
+}
+
+.table-export-btn:focus-visible {
+    z-index: 2;
+    outline: 2px solid var(--app-primary);
+    outline-offset: 2px;
+}
+
+.table-export-btn:disabled {
+    opacity: 0.52;
+    cursor: not-allowed;
+}
+
+.table-export-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 0.35rem 0.75rem;
+    max-width: 100%;
+    text-align: right;
+}
+
+.table-export-hint {
+    font-size: 0.6875rem;
+    color: var(--app-text-muted);
+}
+
+.table-export-error {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--app-danger);
+}
+
+@media (max-width: 575.98px) {
+    .table-export-btn__label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .table-export-group .table-export-btn {
+        padding: 0.45rem 0.65rem;
+    }
+}
+
+/* —— Universal table —— */
+.modern-table .table,
+.admin-list-table .table {
+    margin-bottom: 0;
+    border-color: var(--app-border);
+    table-layout: auto;
+    width: 100% !important;
+}
+
+.modern-table .table.dataTable,
+.admin-list-table .table.dataTable {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.modern-table .table thead th,
+.modern-table .table tfoot th,
+.admin-list-table .table thead th,
+.admin-list-table .table tfoot th {
+    background: var(--app-background) !important;
+    color: var(--app-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-color: var(--app-border);
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    line-height: 1.25;
+    position: relative;
+    white-space: nowrap;
+}
+
+.modern-table .table thead th > span,
+.modern-table .table tfoot th > span,
+.admin-list-table .table thead th > span,
+.admin-list-table .table tfoot th > span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.25rem;
+    vertical-align: middle;
+}
+
+.modern-table .table tbody td,
+.admin-list-table .table tbody td {
+    background: var(--app-card);
+    color: var(--app-text);
+    border-color: var(--app-border);
+    padding: 0.8125rem 1rem;
+    vertical-align: middle;
+    font-size: 0.875rem;
+    transition: background-color var(--app-transition);
+}
+
+.modern-table .table.table-striped > tbody > tr:nth-of-type(odd) > *,
+.admin-list-table .table.table-striped > tbody > tr:nth-of-type(odd) > * {
+    --bs-table-bg-type: var(--app-card);
+    background-color: var(--app-card) !important;
+}
+
+.modern-table .table tbody tr:hover td,
+.admin-list-table .table tbody tr:hover td {
+    background: var(--app-background) !important;
+}
+
+/* Cell content utilities (opt-in via column type or data-colname) */
+.modern-table .table tbody td[data-colname='count'] span,
+.admin-list-table .table tbody td[data-colname='count'] span {
+    font-size: 0.8125rem;
+    color: var(--app-text-secondary);
+}
+
+.modern-table .table tbody td .modern-cell-primary,
+.admin-list-table .table tbody td .modern-cell-primary {
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.modern-table .table tbody td .modern-cell-secondary,
+.admin-list-table .table tbody td .modern-cell-secondary {
+    color: var(--app-text-secondary);
+    font-size: 0.8125rem;
+}
+
+.modern-table .table tbody td .modern-cell-code,
+.admin-list-table .table tbody td .modern-cell-code {
+    display: inline-block;
+    background: var(--app-background);
+    border: 1px solid var(--app-border);
+    border-radius: 5px;
+    padding: 0.1875rem 0.4375rem;
+    font-size: 0.75rem;
+    color: #475569;
+    font-family: var(--app-font-mono);
+    word-break: break-word;
+}
+
+/* Checkboxes */
+.modern-table .form-check-table,
+.admin-list-table .form-check-table {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.modern-table .form-check-table .form-check-input,
+.admin-list-table .form-check-table .form-check-input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    float: none;
+    border-color: #cbd5e1;
+    cursor: pointer;
+}
+
+.modern-table .form-check-table .form-check-input:checked,
+.admin-list-table .form-check-table .form-check-input:checked {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.modern-table .form-check-table .form-check-input:focus,
+.admin-list-table .form-check-table .form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.modern-table .table tbody td:has(.form-check-table),
+.modern-table .table thead th:has(.form-check-table),
+.modern-table .table tfoot th:has(.form-check-table),
+.admin-list-table .table tbody td:has(.form-check-table),
+.admin-list-table .table thead th:has(.form-check-table),
+.admin-list-table .table tfoot th:has(.form-check-table) {
+    text-align: center;
+}
+
+/* Sorting indicators — stacked CSS chevrons */
+.modern-table .table.dataTable thead > tr > th.sorting,
+.modern-table .table.dataTable tfoot > tr > th.sorting,
+.modern-table .table.dataTable thead > tr > th.sorting_asc,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc,
+.modern-table .table.dataTable thead > tr > th.sorting_desc,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc,
+.admin-list-table .table.dataTable thead > tr > th.sorting,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc {
+    padding-right: 1.85rem !important;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting::before,
+.modern-table .table.dataTable thead > tr > th.sorting::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting::after,
+.modern-table .table.dataTable thead > tr > th.sorting_asc::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc::before,
+.modern-table .table.dataTable thead > tr > th.sorting_asc::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc::after,
+.modern-table .table.dataTable thead > tr > th.sorting_desc::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc::before,
+.modern-table .table.dataTable thead > tr > th.sorting_desc::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc::after {
+    content: '' !important;
+    position: absolute;
+    left: auto;
+    right: 0.75rem;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 0;
+    line-height: 0;
+    border: none;
+    background: none;
+    display: block;
+    pointer-events: none;
+    transition:
+        opacity var(--app-transition),
+        border-color var(--app-transition),
+        transform var(--app-transition);
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting::before,
+.modern-table .table.dataTable thead > tr > th.sorting_asc::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc::before,
+.modern-table .table.dataTable thead > tr > th.sorting_desc::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc::before {
+    top: 50%;
+    transform: translateY(calc(-50% - 5px));
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 5px solid #94a3b8;
+    opacity: 0.45;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting::after,
+.modern-table .table.dataTable thead > tr > th.sorting_asc::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc::after,
+.modern-table .table.dataTable thead > tr > th.sorting_desc::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc::after {
+    top: 50%;
+    transform: translateY(calc(-50% + 5px));
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #94a3b8;
+    opacity: 0.45;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting:hover::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting:hover::before,
+.modern-table .table.dataTable thead > tr > th.sorting:hover::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting:hover::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting:hover::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting:hover::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting:hover::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting:hover::after {
+    opacity: 0.75;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting_asc::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc::before {
+    border-bottom-color: var(--app-primary);
+    opacity: 1;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting_asc::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_asc::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_asc::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_asc::after {
+    opacity: 0.2;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting_desc::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc::after {
+    border-top-color: var(--app-primary);
+    opacity: 1;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting_desc::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_desc::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_desc::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_desc::before {
+    opacity: 0.2;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting_disabled::before,
+.modern-table .table.dataTable tfoot > tr > th.sorting_disabled::before,
+.modern-table .table.dataTable thead > tr > th.sorting_disabled::after,
+.modern-table .table.dataTable tfoot > tr > th.sorting_disabled::after,
+.admin-list-table .table.dataTable thead > tr > th.sorting_disabled::before,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_disabled::before,
+.admin-list-table .table.dataTable thead > tr > th.sorting_disabled::after,
+.admin-list-table .table.dataTable tfoot > tr > th.sorting_disabled::after {
+    display: none !important;
+}
+
+.modern-table .table.dataTable thead > tr > th.sorting_disabled,
+.modern-table .table tfoot th.sorting_disabled,
+.admin-list-table .table.dataTable thead > tr > th.sorting_disabled,
+.admin-list-table .table tfoot th.sorting_disabled {
+    padding-right: 1rem !important;
+}
+
+/* Status badges */
+.modern-table .badge,
+.admin-list-table .badge {
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+.modern-table .badge.bg-success,
+.admin-list-table .badge.bg-success {
+    background: var(--app-success-soft) !important;
+    color: #15803d !important;
+    border-color: var(--app-success-border);
+}
+
+.modern-table .badge.bg-danger,
+.admin-list-table .badge.bg-danger {
+    background: var(--app-danger-soft) !important;
+    color: var(--app-danger) !important;
+    border-color: var(--app-danger-border);
+}
+
+.modern-table .badge.bg-warning,
+.admin-list-table .badge.bg-warning {
+    background: var(--app-warning-soft) !important;
+    color: #b45309 !important;
+    border-color: var(--app-warning-border);
+}
+
+.modern-table .badge.bg-info,
+.admin-list-table .badge.bg-info {
+    background: var(--app-info-soft) !important;
+    color: var(--app-info) !important;
+    border-color: var(--app-info-border);
+}
+
+.modern-table .badge.bg-secondary,
+.admin-list-table .badge.bg-secondary {
+    background: var(--app-background) !important;
+    color: var(--app-text-secondary) !important;
+    border-color: var(--app-border);
+}
+
+.modern-table .badge.bg-success::before,
+.admin-list-table .badge.bg-success::before {
+    content: '●';
+    margin-right: 0.35rem;
+    font-size: 0.5rem;
+    vertical-align: middle;
+}
+
+.modern-table .badge.bg-danger::before,
+.admin-list-table .badge.bg-danger::before {
+    content: '●';
+    margin-right: 0.35rem;
+    font-size: 0.5rem;
+    vertical-align: middle;
+}
+
+/* Action dropdown */
+.modern-table .modern-action-btn,
+.admin-list-table .modern-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    color: #475569;
+    border-radius: var(--app-radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all var(--app-transition);
+}
+
+.modern-table .modern-action-btn:hover,
+.modern-table .modern-action-btn:focus,
+.admin-list-table .modern-action-btn:hover,
+.admin-list-table .modern-action-btn:focus {
+    background: var(--app-background);
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.modern-table .modern-action-btn.dropdown-toggle::after,
+.admin-list-table .modern-action-btn.dropdown-toggle::after {
+    display: none;
+}
+
+.modern-table .modern-action-btn__icon,
+.admin-list-table .modern-action-btn__icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    display: block;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+.modern-table .table thead th .dropdown .dropdown-toggle,
+.modern-table .table tfoot th .dropdown .dropdown-toggle,
+.admin-list-table .table thead th .dropdown .dropdown-toggle,
+.admin-list-table .table tfoot th .dropdown .dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.375rem;
+    padding: 0.125rem 0.4375rem;
+    line-height: 1;
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    color: var(--app-text-secondary);
+    border-radius: var(--app-radius-sm);
+}
+
+.modern-table .dropdown-menu,
+.admin-list-table .dropdown-menu {
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-md);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    padding: 0.35rem;
+}
+
+.modern-table .dropdown-item,
+.admin-list-table .dropdown-item {
+    border-radius: var(--app-radius-sm);
+    font-size: 0.8125rem;
+    padding: 0.45rem 0.65rem;
+    transition: background-color var(--app-transition);
+}
+
+.modern-table .dropdown-item:hover,
+.admin-list-table .dropdown-item:hover {
+    background: var(--app-background);
+}
+
+/* Pagination & info */
+.admin-list-page .dataTables_info,
+.modern-table .dataTables_info {
+    font-size: 0.8125rem;
+    color: var(--app-text-secondary);
+    padding-top: 0.75rem;
+}
+
+.admin-list-page .pagination,
+.modern-table .pagination {
+    gap: 0.25rem;
+    margin-bottom: 0;
+    padding-top: 0.5rem;
+}
+
+.admin-list-page .pagination .page-link,
+.modern-table .pagination .page-link {
+    border-radius: var(--app-radius-md) !important;
+    border: 1px solid var(--app-border);
+    color: #475569;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    min-width: 2rem;
+    text-align: center;
+    transition: all var(--app-transition);
+}
+
+.admin-list-page .pagination .page-link:hover,
+.modern-table .pagination .page-link:hover {
+    background: var(--app-background);
+    border-color: #cbd5e1;
+    color: var(--app-text);
+}
+
+.admin-list-page .pagination .page-item.active .page-link,
+.modern-table .pagination .page-item.active .page-link {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    color: #ffffff;
+}
+
+.admin-list-page .pagination .page-item.disabled .page-link,
+.modern-table .pagination .page-item.disabled .page-link {
+    background: var(--app-background);
+    color: var(--app-text-muted);
+    border-color: var(--app-border);
+}
+
+/* —— Responsive —— */
+@media (max-width: 767.98px) {
+    .admin-list-card__toolbar,
+    .admin-list-card__body {
+        padding-inline: 1rem;
+    }
+
+    .admin-list-page .dataTables_wrapper > .row:first-child > .col-md-6:last-child,
+    .modern-table .dataTables_wrapper > .row:first-child > .col-md-6:last-child {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .admin-list-page .dataTables_wrapper .dataTables_filter,
+    .modern-table .dataTables_wrapper .dataTables_filter {
+        text-align: left !important;
+        width: 100%;
+    }
+
+    .admin-list-page .dataTables_wrapper .dataTables_filter input[type='search'],
+    .modern-table .dataTables_wrapper .dataTables_filter input[type='search'] {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 0;
+    }
+
+    .admin-list-page .dataTables_wrapper .table-export-wrap,
+    .modern-table .dataTables_wrapper .table-export-wrap {
+        flex-wrap: wrap;
+    }
+
+    .modern-page-header__title {
+        font-size: 1.25rem;
+    }
+}

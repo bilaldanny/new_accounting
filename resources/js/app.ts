@@ -3,7 +3,7 @@ import '../scss/app.scss';
 import { createInertiaApp, usePage, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
-import { createApp, createSSRApp, h, type App as VueApp } from 'vue';
+import { createApp, createSSRApp, defineComponent, h, type App as VueApp } from 'vue';
 import Popper from "vue3-popper";
 import { createPinia } from 'pinia'
 import VueNotification from '@dafcoe/vue-notification';
@@ -15,6 +15,13 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
 import axios from 'axios';
+
+const VueformSsrStub = defineComponent({
+    inheritAttrs: false,
+    setup(_, { slots, attrs }) {
+        return () => h('div', { ...attrs, 'data-vueform-ssr': '' }, slots.default?.());
+    },
+});
 
 const appName =
     typeof window !== 'undefined'
@@ -268,6 +275,11 @@ async function bootstrapClientApp(
     const { default: VueSweetalert2 } = await import('vue-sweetalert2');
     await import('sweetalert2/dist/sweetalert2.min.css');
 
+    if (!import.meta.env.SSR) {
+        const { registerVueform } = await import('@/plugins/vueform.client');
+        registerVueform(app, resolveVuePlugin);
+    }
+
     app
         .use(resolveVuePlugin(Vidle), {})
         .use(resolveVuePlugin(VueSweetalert2))
@@ -300,6 +312,8 @@ createInertiaApp({
             .component('Popper', Popper);
 
         if (!el) {
+            app.component('Vueform', VueformSsrStub);
+
             return app;
         }
 

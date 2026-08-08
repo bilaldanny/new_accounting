@@ -81,6 +81,19 @@
             <!--app JS-->
             <script src="{{ asset('assets/js/app.js') }}"></script>
         @endif
+
+        <audio id="success-audio">
+            <source src="{{ asset('assets/sounds/success.ogg') }}" type="audio/ogg">
+            <source src="{{ asset('assets/sounds/success.mp3') }}" type="audio/mpeg">
+        </audio>
+        <audio id="error-audio">
+            <source src="{{ asset('assets/sounds/error.ogg') }}" type="audio/ogg">
+            <source src="{{ asset('assets/sounds/error.mp3') }}" type="audio/mpeg">
+        </audio>
+        <audio id="warning-audio">
+            <source src="{{ asset('assets/sounds/warning.ogg') }}" type="audio/ogg">
+            <source src="{{ asset('assets/sounds/warning.mp3') }}" type="audio/mpeg">
+        </audio>
         
     </body>
 </html>

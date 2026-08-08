@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 
 
     const params = defineProps({
@@ -9,18 +9,36 @@ import { reactive, ref } from 'vue';
         onSubmit: Function,
         endpoint: String,
         method: { type: String, default: 'post' },
-        formSize: { type: String, default: 'lg' },
+        formSize: { type: String, default: 'sm' },
         formId: { type: String },
         formData: { type: Object},
         floatPlaceholders: {type: Boolean, default: false}
     });
 
-    const emit = defineEmits(['update:formData'])
+    const emit = defineEmits(['update:formData', 'update:submitting'])
 
     const vueform$ = ref(null)
+    const isSubmitting = ref(false)
+
+    watch(isSubmitting, (value) => {
+        emit('update:submitting', value)
+    })
 
     // make a local copy of formData
-    const localValue = reactive({ ...params.formData })
+    const localValue = reactive({ ...(params.formData ?? {}) })
+
+    watch(
+        () => params.formData,
+        (newData) => {
+            if (!newData) {
+                return;
+            }
+
+            Object.assign(localValue, newData);
+            vueform$.value?.update(localValue);
+        },
+        { deep: true },
+    );
 
     // when Vueform updates → emit to parent
     const handleUpdate = (val) => {
@@ -28,19 +46,48 @@ import { reactive, ref } from 'vue';
     }
 
     const handleSubmit = async (form$: any, formData: FormData) => {
+        isSubmitting.value = true;
+
         if (typeof params.onSubmit === 'function') {
-            await params.onSubmit(form$, formData)
+            try {
+                await params.onSubmit(form$, formData);
+            } catch {
+                isSubmitting.value = false;
+            }
         }
+    }
+
+    const handleSuccess = (response: unknown) => {
+        isSubmitting.value = false;
+        params.success?.(response);
+    }
+
+    const handleError = (error: unknown, details?: unknown) => {
+        isSubmitting.value = false;
+        params.error?.(error, details);
+    }
+
+    const handleFinish = () => {
+        isSubmitting.value = false;
     }
 
     // expose a method so parent can trigger submit
-    function submitForm() {
-        if (vueform$.value) {
-            vueform$.value.submit() // or .submitForm() depending on Vueform API
+    async function submitForm() {
+        if (!vueform$.value || isSubmitting.value) {
+            return;
         }
+
+        await vueform$.value.validate();
+
+        if (vueform$.value.invalid) {
+            return;
+        }
+
+        vueform$.value.submit();
     }
 
     function reset() {
+        isSubmitting.value = false;
 
         if(vueform$.value){
             vueform$.value.reset()
@@ -73,7 +120,8 @@ import { reactive, ref } from 'vue';
         submitForm,
         reset,
         update,
-        validate
+        validate,
+        isSubmitting,
     })
 
 </script>
@@ -87,8 +135,9 @@ import { reactive, ref } from 'vue';
         :model-value="localValue"
         @update:model-value="handleUpdate"
         @submit="handleSubmit"
-        @success="params.success"
-        @error="params.error"
+        @success="handleSuccess"
+        @error="handleError"
+        @finish="handleFinish"
         ref="vueform$"
         method="post"
         :show-required="['label', 'placeholder', 'floating']"

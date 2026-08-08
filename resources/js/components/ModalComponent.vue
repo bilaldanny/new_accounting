@@ -49,7 +49,7 @@ onMounted(() => {
     }
 
     modalEl.addEventListener('hide.bs.modal', handleHide)
-    modalEl.addEventListener('shown.bs.modal', handleShown)
+    modalEl.addEventListener('show.bs.modal', handleShown)
     modalEl.addEventListener('hidden.bs.modal', handleHidden)
 
     // store cleanup references
@@ -62,7 +62,7 @@ onBeforeUnmount(() => {
     if (!handlers) return
 
     modalEl.removeEventListener('hide.bs.modal', handlers.handleHide)
-    modalEl.removeEventListener('shown.bs.modal', handlers.handleShown)
+    modalEl.removeEventListener('show.bs.modal', handlers.handleShown)
     modalEl.removeEventListener('hidden.bs.modal', handlers.handleHidden)
 })
 </script>

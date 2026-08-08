@@ -42,7 +42,7 @@ const { formatedText } = useCommons();
 </script>
 
 <template>
-    <div class="top-buttons d-inline-flex align-items-center flex-wrap gap-1">
+    <div class="top-buttons modern-toolbar d-inline-flex align-items-center flex-wrap gap-1">
         <button
             type="button"
             class="btn btn-sm btn-outline-secondary top-btn top-btn-icon-only"
@@ -210,23 +210,7 @@ const { formatedText } = useCommons();
 </template>
 
 <style scoped>
-.top-buttons :deep(.top-btn) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.65rem;
-    font-size: 0.8125rem;
-    line-height: 1.25;
-}
-
-.top-buttons :deep(.top-btn-icon-only) {
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-}
-
-.top-btn-icon {
+.top-buttons :deep(.top-btn-icon) {
     width: 1rem;
     height: 1rem;
     display: block;
@@ -234,12 +218,12 @@ const { formatedText } = useCommons();
     flex-shrink: 0;
 }
 
-.top-btn-icon-inline {
+.top-buttons :deep(.top-btn-icon-inline) {
     display: inline-block;
     vertical-align: middle;
 }
 
-.top-btn-icon-spin {
+.top-buttons :deep(.top-btn-icon-spin) {
     animation: top-btn-icon-spin 0.75s linear infinite;
     transform-origin: center;
 }
