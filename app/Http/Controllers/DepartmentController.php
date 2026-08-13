@@ -215,6 +215,18 @@ class DepartmentController extends Controller
         }
     }
 
+    public function fetch(Request $request)
+    {
+        $departments = Department::query()
+            ->where('active', '=', 1)
+            ->where('company_id', '=', $request->company_id)
+            ->where('branch_id', '=', $request->branch_id)
+            ->select('departments.*', 'name as text')
+            ->get();
+
+        return response()->json($departments);
+    }
+
     public function trash(Request $request)
     {
         $sort_by = $request->sort_by ?? 'created_at';

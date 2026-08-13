@@ -10,28 +10,29 @@ use Throwable;
 
 class MenuController extends Controller
 {
-    public function index(Request $request){
-        $sort_by     = $request->sort_by ?? 'created_at';
-        $sort_type   = $request->sort_type ?? 'desc';
+    public function index(Request $request)
+    {
+        $sort_by = $request->sort_by ?? 'created_at';
+        $sort_type = $request->sort_type ?? 'desc';
         $show_record = $request->show_record ?? 10;
-        $status      = $request->status ?? 'all';
-        $search      = $request->search ?? '';
-        $cur_page    = $request->cur_page ?? 1;
+        $status = $request->status ?? 'all';
+        $search = $request->search ?? '';
+        $cur_page = $request->cur_page ?? 1;
 
         // Base Query
         $query = Menu::query()
-                    ->when($status !== 'all', function ($q) use ($status) {
-                        $q->where('is_active', $status);
-                    })
-                    ->when($status === 'all', function ($q) {
-                        $q->whereIn('is_active', [0, 1]);
-                    })
-                    ->when($search, function ($q) use ($search) {
-                        $q->where(function ($sub) use ($search) {
-                            $sub->whereAny(['name','route_name','route_path','sort_order'], 'like', "%{$search}%");
-                        });
-                    })
-                    ->orderBy($sort_by, $sort_type);
+            ->when($status !== 'all', function ($q) use ($status) {
+                $q->where('is_active', $status);
+            })
+            ->when($status === 'all', function ($q) {
+                $q->whereIn('is_active', [0, 1]);
+            })
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->whereAny(['name', 'route_name', 'route_path', 'sort_order'], 'like', "%{$search}%");
+                });
+            })
+            ->orderBy($sort_by, $sort_type);
 
         // Resolve current page before pagination
         Paginator::currentPageResolver(function () use ($cur_page) {
@@ -54,191 +55,225 @@ class MenuController extends Controller
 
     }
 
-    public function store(Request $request){
+    public function store(Request $request)
+    {
         $request->validate([
             'name' => 'bail|required',
             'type' => 'bail|required',
         ]);
 
         DB::beginTransaction();
-        try{
+        try {
             Menu::CreateMenu($request);
             DB::commit();
-        }catch (Throwable $e){
+        } catch (Throwable $e) {
             DB::rollBack();
-            return response()->json(['errormessage'=>$e]);
+
+            return response()->json(['errormessage' => $e]);
         }
 
-        return response()->json(['message'=>'Successfully Saved']);
+        return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function show($id){
+    public function show($id)
+    {
         $menu = Menu::find($id);
+
         return response()->json($menu);
     }
 
-    public function update(Request $request, $id){
+    public function update(Request $request, $id)
+    {
         $request->validate([
-            'name' => 'bail|required'
+            'name' => 'bail|required',
         ]);
 
         DB::beginTransaction();
-        try{
-            //New Data
+        try {
+            // New Data
             $data = Menu::UpdateMenu($request, $id);
             DB::commit();
-        }catch (Throwable $e){
+        } catch (Throwable $e) {
             DB::rollBack();
-            return response()->json(['errormessage'=>$e]);
+
+            return response()->json(['errormessage' => $e]);
         }
-        return response()->json(['message'=>'Successfully Saved']);
+
+        return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function destroy($id){
-        if(deletepermission()){
+    public function destroy($id)
+    {
+        if (deletepermission()) {
             Menu::DeleteMenu($id);
-            return response()->json(['message'=>'Successfully Deleted']);
-        }else{
+
+            return response()->json(['message' => 'Successfully Deleted']);
+        } else {
             return response()->json('406');
         }
     }
 
     /* Bulk Record Delete */
-    public function bulk_delete(Request $request){
-        if(deletepermission()){
+    public function bulk_delete(Request $request)
+    {
+        if (deletepermission()) {
             DB::beginTransaction();
-            try{
+            try {
                 // Perform the deletion
                 Menu::whereIn('id', $request->all())->delete();
                 DB::commit();
-                return response()->json(['message'=>'Successfully Deleted']);
-            }catch (Throwable $e){
+
+                return response()->json(['message' => 'Successfully Deleted']);
+            } catch (Throwable $e) {
                 DB::rollBack();
-                return response()->json(['errormessage'=>$e]);
+
+                return response()->json(['errormessage' => $e]);
             }
-        }else{
+        } else {
             return response()->json('406');
         }
     }
 
     /* Bulk Record Permanently Delete */
-    public function bulk_delete_per(Request $request){
-        if(deletepermission()){
+    public function bulk_delete_per(Request $request)
+    {
+        if (deletepermission()) {
 
             DB::beginTransaction();
-            try{
+            try {
                 // Perform the deletion
                 $ids = (array) $request->all();
                 Menu::whereIn('id', $ids)->forceDelete();
                 DB::commit();
-                return response()->json(['message'=>'Successfully Deleted']);
-            }catch (Throwable $e){
+
+                return response()->json(['message' => 'Successfully Deleted']);
+            } catch (Throwable $e) {
                 DB::rollBack();
-                return response()->json(['errormessage'=>$e]);
+
+                return response()->json(['errormessage' => $e]);
             }
-        }else{
+        } else {
             return response()->json('406');
         }
     }
 
     /* Update Status */
-    public function updatestatus(Request $request){
-        $menus = Menu::whereIn('id',$request->ids)->get();
+    public function updatestatus(Request $request)
+    {
+        $menus = Menu::whereIn('id', $request->ids)->get();
 
-        if(isset($menus)){
+        if (isset($menus)) {
             DB::beginTransaction();
-            try{
-                foreach($menus as $k => $menu){
-                    if(isset($request->status)){
+            try {
+                foreach ($menus as $k => $menu) {
+                    if (isset($request->status)) {
                         $menu->is_active = $request->status;
-                    }else{
-                        if($menu->is_active == false){
-                            $menu->is_active = "true";
-                        }else{
-                            $menu->is_active = "false";
+                    } else {
+                        if ($menu->is_active == false) {
+                            $menu->is_active = 'true';
+                        } else {
+                            $menu->is_active = 'false';
                         }
                     }
                     $menu->save();
                 }
                 DB::commit();
-            }catch (Throwable $e){
+            } catch (Throwable $e) {
                 DB::rollBack();
-                return response()->json(['errormessage'=>$e]);
+
+                return response()->json(['errormessage' => $e]);
             }
-        }else{
-            return response()->json(['errormessage'=>'Something went wrong']);
+        } else {
+            return response()->json(['errormessage' => 'Something went wrong']);
         }
-        return response()->json(['message'=>'Successfully Saved']);
+
+        return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function fetchmenus(){
+    public function fetchmenus()
+    {
         $menu = Menu::with('children.children')
-                    ->where('is_active','=',1)
-                    ->where('is_hidden','=',0)
-                    ->select('name as text','menus.*')
-                    ->orderBy('sort_order','ASC')
-                    ->get();
+            ->where('is_active', '=', 1)
+            ->where('is_hidden', '=', 0)
+            ->select('name as text', 'menus.*')
+            ->orderBy('sort_order', 'ASC')
+            ->get();
+
+        return response()->json($menu);
+    }
+
+    public function fetchpermenus()
+    {
+        $menu = Menu::with('children.children')
+            ->where('is_active', '=', 1)
+            ->select('name as text', 'menus.*')
+            ->get();
 
         return response()->json($menu);
     }
 
     /* Bulk Record Permanently Delete */
-    public function restore_records(Request $request){
-        if(deletepermission()){
+    public function restore_records(Request $request)
+    {
+        if (deletepermission()) {
             DB::beginTransaction();
-            try{
+            try {
                 // Perform the deletion
                 Menu::whereIn('id', $request->all())->restore();
                 DB::commit();
-                return response()->json(['message'=>'Successfully Restored']);
-            }catch (Throwable $e){
+
+                return response()->json(['message' => 'Successfully Restored']);
+            } catch (Throwable $e) {
                 DB::rollBack();
-                return response()->json(['errormessage'=>$e]);
+
+                return response()->json(['errormessage' => $e]);
             }
-        }else{
+        } else {
             return response()->json('406');
         }
     }
 
-    public function duplicate(Request $request){
+    public function duplicate(Request $request)
+    {
         DB::beginTransaction();
-        try{
+        try {
             $menu = Menu::find($request->id);
             $duplicator = $menu->replicate();
             $duplicator->name = $menu->name.' Copy';
             $duplicator->save();
             DB::commit();
 
-            return response()->json(['message'=>'Successfully Duplicated']);
-        }catch (Throwable $e){
+            return response()->json(['message' => 'Successfully Duplicated']);
+        } catch (Throwable $e) {
             DB::rollBack();
-            return response()->json(['errormessage'=>$e]);
+
+            return response()->json(['errormessage' => $e]);
         }
     }
 
     public function trash(Request $request)
     {
-        $sort_by     = $request->sort_by ?? 'created_at';
-        $sort_type   = $request->sort_type ?? 'desc';
+        $sort_by = $request->sort_by ?? 'created_at';
+        $sort_type = $request->sort_type ?? 'desc';
         $show_record = $request->show_record ?? 10;
-        $status      = $request->status ?? 'all';
-        $search      = $request->search ?? '';
-        $cur_page    = $request->cur_page ?? 1;
+        $status = $request->status ?? 'all';
+        $search = $request->search ?? '';
+        $cur_page = $request->cur_page ?? 1;
 
         // Base Query
         $query = Menu::onlyTrashed()
-                    ->when($status !== 'all', function ($q) use ($status) {
-                        $q->where('is_active', $status);
-                    })
-                    ->when($status === 'all', function ($q) {
-                        $q->whereIn('is_active', [0, 1]);
-                    })
-                    ->when($search, function ($q) use ($search) {
-                        $q->where(function ($sub) use ($search) {
-                            $sub->whereAny(['name','route_name','route_path','sort_order'], 'like', "%{$search}%");
-                        });
-                    })
-                    ->orderBy($sort_by, $sort_type);
+            ->when($status !== 'all', function ($q) use ($status) {
+                $q->where('is_active', $status);
+            })
+            ->when($status === 'all', function ($q) {
+                $q->whereIn('is_active', [0, 1]);
+            })
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->whereAny(['name', 'route_name', 'route_path', 'sort_order'], 'like', "%{$search}%");
+                });
+            })
+            ->orderBy($sort_by, $sort_type);
 
         // Resolve current page before pagination
         Paginator::currentPageResolver(function () use ($cur_page) {

@@ -14,21 +14,29 @@ export default function useRoles(){
 
     //Form Data
     const formData = ref({
+      'company_id':'',
+      'branch_id':'',
       'name':'',
       'is_hide':false,
       'is_active':true,
     });
 
     const defaultFormData = ref({
+      'company_id':'',
+      'branch_id':'',
       'name':'',
       'is_hide':false,
       'is_active':true,
     });
 
     const permission = ref({
-      'role_id':'',
-      'menu_id':'',
-      'status':'',
+      'company_id': '',
+      'branch_id': '',
+      'department_id': '',
+      'role_id': '',
+      'menu_id': '',
+      'menuid': '',
+      'status': '',
     })
 
     const {Notify, select_data, fetchWithRetry, changeStateFn, changeOrderFn, deleteFn, checkAllFn, duplicateFn, getData, restoreFn} = useCommons()
@@ -50,6 +58,8 @@ export default function useRoles(){
         page: 1,
         search: '',
         status: 'all',
+        company_id: '',
+        branch_id: '',
       },
       loading: false,
       modalLoading: true,

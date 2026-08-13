@@ -1,429 +1,324 @@
 <?php
 
-
-
 namespace App\Http\Controllers;
 
-
-
-use App\Models\Permission;
-
 use App\Models\Menu;
-
+use App\Models\Permission;
 use Illuminate\Http\Request;
-
-use DB;
-
-
+use Illuminate\Http\Response;
 
 class PermissionController extends Controller
-
 {
-
     /**
-
      * Display a listing of the resource.
 
      *
 
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function index()
-
     {
 
         //
 
     }
 
-
-
     /**
-
      * Show the form for creating a new resource.
 
      *
 
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function create()
-
     {
 
         //
 
     }
 
-
-
     /**
-
      * Store a newly created resource in storage.
 
      *
 
-     * @param  \Illuminate\Http\Request  $request
-
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function store(Request $request)
-
     {
 
-        $raw = "role_id = ".$request->get('role_id');
+        $raw = 'role_id = '.$request->get('role_id');
 
+        if ($request->filled('department_id')) {
+            $raw .= ' AND department_id = '.$request->get('department_id');
+        }
 
+        if ($request->filled('company_id')) {
+            $raw .= ' AND company_id = '.$request->get('company_id');
+        }
+
+        if ($request->filled('branch_id')) {
+            $raw .= ' AND branch_id = '.$request->get('branch_id');
+        }
 
         $permission = Permission::whereRaw($raw)->get();
 
+        if (count($permission) === 0) {
 
-
-        if(count($permission) === 0){
-
-            $menu = Menu::where('is_active','=',1)->get();
-
-
+            $menu = Menu::where('is_active', '=', 1)->get();
 
             foreach ($menu as $key => $value) {
 
-                Permission::CreatePermission($request,$value->id,0);
+                Permission::CreatePermission($request, $value->id, 0);
 
             }
 
-
-
             $menus = Menu::with('children.children')->find($request->menuid);
-
-
 
             /* Parent Menu */
 
-                if(isset($menus) && $menus !== null){
+            if (isset($menus) && $menus !== null) {
 
-                    $permission = Permission::where('menu_id','=',$menus->id)
+                $permission = Permission::where('menu_id', '=', $menus->id)
+                    ->whereRaw($raw)
+                    ->first();
 
-                                        ->whereRaw($raw)
+                if ($permission->status === 1) {
 
-                                        ->first();
+                    $status = 0;
 
+                } else {
 
+                    $status = 1;
 
-                    if($permission->status === 1){
+                }
 
-                        $status = 0;
+                if (isset($permission)) {
 
-                    }else{
+                    Permission::UpdatePermission($permission, $status);
 
-                        $status = 1;
+                }
 
-                    }
+                /* Child Permission */
 
+                if (count($menus->children) > 0) {
 
+                    foreach ($menus->children as $k => $menu1) {
 
-                    if(isset($permission)){
+                        $childpermission = Permission::where('menu_id', '=', $menu1->id)
+                            ->whereRaw($raw)
+                            ->first();
 
-                        Permission::UpdatePermission($permission,$status);
+                        if (isset($childpermission)) {
 
-                    }
+                            Permission::UpdatePermission($childpermission, $status);
 
+                        }
 
+                        /* Sub Child Permission */
 
-                    /* Child Permission */
+                        if (count($menu1->children) > 0) {
 
-                        if(count($menus->children) > 0){
+                            foreach ($menu1->children as $k2 => $menu2) {
 
-                            foreach($menus->children as $k => $menu1){
+                                $subchildpermission = Permission::where('menu_id', '=', $menu2->id)
+                                    ->whereRaw($raw)
+                                    ->first();
 
-                                $childpermission = Permission::where('menu_id','=',$menu1->id)
+                                if (isset($subchildpermission)) {
 
-                                                    ->whereRaw($raw)
-
-                                                    ->first();
-
-
-
-                                if(isset($childpermission)){
-
-                                    Permission::UpdatePermission($childpermission,$status);
+                                    Permission::UpdatePermission($subchildpermission, $status);
 
                                 }
-
-
-
-                                /* Sub Child Permission */
-
-                                    if(count($menu1->children) > 0){
-
-                                        foreach($menu1->children as $k2 => $menu2){
-
-                                            $subchildpermission = Permission::where('menu_id','=',$menu2->id)
-
-                                                                ->whereRaw($raw)
-
-                                                                ->first();
-
-                                            if(isset($subchildpermission)){
-
-                                                Permission::UpdatePermission($subchildpermission,$status);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                /* Sub Child Permission */
 
                             }
 
                         }
 
-                    /* Child Permission */
+                        /* Sub Child Permission */
 
-                    
+                    }
 
                 }
 
+                /* Child Permission */
+
+            }
+
             /* Parent Menu */
 
-        }else{
+        } else {
 
             $status = $request->get('status');
 
-
-
             /* Menu */
 
-                $menus = Menu::with('children.children')->find($request->menuid);
+            $menus = Menu::with('children.children')->find($request->menuid);
 
             /* Menu */
-
-
 
             /* Parent Menu */
 
-                if(isset($menus) && $menus !== null){
+            if (isset($menus) && $menus !== null) {
 
+                $permission = Permission::where('menu_id', '=', $menus->id)
+                    ->whereRaw($raw)
+                    ->first();
 
+                if (isset($permission)) {
 
-                    $permission = Permission::where('menu_id','=',$menus->id)
+                    Permission::UpdatePermission($permission, $status);
 
-                                        ->whereRaw($raw)
+                } else {
 
-                                        ->first();
+                    Permission::CreatePermission($request, $menus->id, $status);
 
+                }
 
+                /* Child Permission */
 
-                    if(isset($permission)){
+                if (count($menus->children) > 0) {
 
-                        Permission::UpdatePermission($permission,$status);
+                    foreach ($menus->children as $k => $menu1) {
 
-                    }else{
+                        $childpermission = Permission::where('menu_id', '=', $menu1->id)
+                            ->whereRaw($raw)
+                            ->first();
 
-                        Permission::CreatePermission($request,$menus->id,$status);
+                        if (isset($childpermission)) {
 
-                    }
+                            Permission::UpdatePermission($childpermission, $status);
 
+                        } else {
 
+                            Permission::CreatePermission($request, $menu1->id, $status);
 
-                    /* Child Permission */
+                        }
 
-                        if(count($menus->children) > 0){
+                        /* Sub Child Permission */
 
-                            foreach($menus->children as $k => $menu1){
+                        if (count($menu1->children) > 0) {
 
-                                $childpermission = Permission::where('menu_id','=',$menu1->id)
+                            foreach ($menu1->children as $k2 => $menu2) {
 
-                                                    ->whereRaw($raw)
+                                $subchildpermission = Permission::where('menu_id', '=', $menu2->id)
+                                    ->whereRaw($raw)
+                                    ->first();
 
-                                                    ->first();
+                                if (isset($subchildpermission)) {
 
+                                    Permission::UpdatePermission($subchildpermission, $status);
 
+                                } else {
 
-                                if(isset($childpermission)){
-
-                                    Permission::UpdatePermission($childpermission,$status);
-
-                                }else{
-
-                                    Permission::CreatePermission($request,$menu1->id,$status);
+                                    Permission::CreatePermission($request, $menu2->id, $status);
 
                                 }
-
-
-
-                                /* Sub Child Permission */
-
-                                    if(count($menu1->children) > 0){
-
-                                        foreach($menu1->children as $k2 => $menu2){
-
-                                            $subchildpermission = Permission::where('menu_id','=',$menu2->id)
-
-                                                                ->whereRaw($raw)
-
-                                                                ->first();
-
-                                            if(isset($subchildpermission)){
-
-                                                Permission::UpdatePermission($subchildpermission,$status);
-
-                                            }else{
-
-                                                Permission::CreatePermission($request,$menu2->id,$status);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                /* Sub Child Permission */
 
                             }
 
                         }
 
-                    /* Child Permission */
+                        /* Sub Child Permission */
 
-
+                    }
 
                 }
 
+                /* Child Permission */
+
+            }
+
             /* Parent Menu */
-
-
 
         }
 
-
-
         forgetUserPermissionsCache((int) $request->get('role_id'));
 
-        return response()->json(['message'=>'Successfully Saved']);
+        return response()->json(['message' => 'Successfully Saved']);
 
     }
 
-
-
     /**
-
      * Display the specified resource.
 
      *
 
-     * @param  \App\Models\Permission  $permission
-
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function show(Permission $permission)
-
     {
 
         //
 
     }
 
-
-
     /**
-
      * Show the form for editing the specified resource.
 
      *
 
-     * @param  \App\Models\Permission  $permission
-
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function edit(Permission $permission)
-
     {
 
         //
 
     }
 
-
-
     /**
-
      * Update the specified resource in storage.
 
      *
 
-     * @param  \Illuminate\Http\Request  $request
-
-     * @param  \App\Models\Permission  $permission
-
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function update(Request $request, Permission $permission)
-
     {
 
         //
 
     }
 
-
-
     /**
-
      * Remove the specified resource from storage.
 
      *
 
-     * @param  \App\Models\Permission  $permission
-
-     * @return \Illuminate\Http\Response
-
+     * @return Response
      */
-
     public function destroy(Permission $permission)
-
     {
 
         //
 
     }
 
-
-
     public function fetch(Request $request)
-
     {
 
         $raw = 'status = 1';
 
-
-
-        if($request->role_id != null){
-
-            $raw .= ' and role_id = '.$request->role_id;
-
+        if ($request->filled('company_id')) {
+            $raw .= ' and company_id = '.$request->company_id;
         }
 
+        if ($request->filled('branch_id')) {
+            $raw .= ' and branch_id = '.$request->branch_id;
+        }
 
+        if ($request->filled('department_id')) {
+            $raw .= ' and department_id = '.$request->department_id;
+        }
+
+        if ($request->filled('role_id')) {
+            $raw .= ' and role_id = '.$request->role_id;
+        }
 
         $permission = Permission::whereRaw($raw)->pluck('menu_id')->toArray();
-
-
 
         return response()->json($permission);
 
     }
-
 }

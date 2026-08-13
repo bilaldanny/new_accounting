@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
                     'last_name' => $user->last_name,
                     'fullname' => $user->fullname,
                     'rolename' => $user->rolename,
+                    'company_id' => $user->company_id,
+                    'branch_id' => $user->branch_id,
                     'created_at' => $user->created_at,
                     'email' => $user->email,
                     'profile_image' => $user->profile_photo_url ?? $user->profile_photo_path,

@@ -61,7 +61,7 @@
             :url="modalProps.endpoint"
             ref="formRef"
         >
-            <Fields />
+            <Fields :form-data="modalProps.formData" :form-ref="formRef" />
         </TheForm>
 
         <template #footer>

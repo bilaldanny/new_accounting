@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\BranchController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
@@ -31,6 +33,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     /* Menu */
 
     /* Role */
+    Route::post('roles/check-name', [RoleController::class, 'checkName']);
     Route::get('roles/trash', [RoleController::class, 'trash']);
     Route::resource('roles', RoleController::class);
     Route::get('/fetchroles', [RoleController::class, 'fetchroles']);
@@ -39,6 +42,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/roles/bulk_delete', [RoleController::class, 'bulk_delete']);
     Route::post('roles/bulk_delete_per', [RoleController::class, 'bulk_delete_per']);
     Route::post('roles/restore_records', [RoleController::class, 'restore_records']);
+    Route::get('/fetchcompanies', [CompanyController::class, 'fetch']);
+    Route::get('/fetchbranches', [BranchController::class, 'fetch']);
+    Route::get('/fetchdepartments', [DepartmentController::class, 'fetch']);
     /* Role */
 
     /* Permission */

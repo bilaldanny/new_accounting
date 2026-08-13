@@ -13,6 +13,9 @@ const sharedRolesdata = ref([]);
 const sharedCountriesdata = ref([]);
 const sharedStatesdata = ref([]);
 const sharedCitiesdata = ref([]);
+const sharedCompaniesdata = ref([]);
+const sharedBranchesdata = ref([]);
+const sharedDepartmentsdata = ref([]);
 
 type IsotopeInstance = {
     layout: () => void;
@@ -32,6 +35,9 @@ export default function useCommons(){
     const countriesdata = sharedCountriesdata;
     const statesdata = sharedStatesdata;
     const citiesdata = sharedCitiesdata;
+    const companiesdata = sharedCompaniesdata;
+    const branchesdata = sharedBranchesdata;
+    const departmentsdata = sharedDepartmentsdata;
     const loading = ref(false);
     const MAX_RETRIES = 1;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -526,20 +532,69 @@ export default function useCommons(){
         }
     /* Restore */
 
-    const fetchpermission = async(role_id)=>{
-		permissiondata.value = [];
-		const response = await axios.get('/api/fetchpermissions?role_id='+role_id)
-		if(response.data.length !== 0){
-			permissiondata.value = response.data;
-		}else{
-			permissiondata.value = [];
-		}
-	}
+    /* Fetch Permission Menus */
+    const fetchPerMenu = async () => {
+        await runDeduped('api/fetchpermenus', async () => {
+            loading.value = true;
+            try {
+                const response = await fetchWithRetry(axios.get, '/api/fetchpermenus');
 
-    const getPerMenu1 = async (role_id) =>{
-		fetchMenu()
-		fetchpermission(role_id)
-	}
+                menusdata.value = response.data;
+
+                await nextTick();
+                setTimeout(() => {
+                    relayoutTheGrid();
+                }, 200);
+            } catch (error) {
+                if (error.response?.data?.message !== 'Unauthenticated.') {
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
+                }
+            } finally {
+                loading.value = false;
+            }
+        });
+    };
+
+    const fetchpermission = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+        department_id: string | number | null | undefined,
+        role_id: string | number | null | undefined,
+    ) => {
+        permissiondata.value = [];
+        const response = await axios.get('/api/fetchpermissions', {
+            params: {
+                company_id,
+                branch_id,
+                department_id,
+                role_id,
+            },
+        });
+        if (response.data.length !== 0) {
+            permissiondata.value = response.data;
+        } else {
+            permissiondata.value = [];
+        }
+    };
+
+    const getPermission = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+        department_id: string | number | null | undefined,
+        role_id: string | number | null | undefined,
+    ) => {
+        await fetchpermission(company_id, branch_id, department_id, role_id);
+    };
+
+    const getPerMenu1 = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+        department_id: string | number | null | undefined,
+        role_id: string | number | null | undefined,
+    ) => {
+        await fetchPerMenu();
+        await fetchpermission(company_id, branch_id, department_id, role_id);
+    };
 
     const fetchRole = async () => {
         loading.value = true;
@@ -614,6 +669,81 @@ export default function useCommons(){
         }
     };
 
+    const fetchCompany = async () => {
+        await runDeduped('api/fetchcompanies', async () => {
+            loading.value = true;
+            try {
+                const response = await fetchWithRetry(window.axios.get, '/api/fetchcompanies');
+                companiesdata.value = response.data;
+            } catch (error) {
+                if (error.response?.data?.message !== 'Unauthenticated.') {
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
+                }
+            } finally {
+                loading.value = false;
+            }
+        });
+    };
+
+    const fetchBranch = async (company_id: string | number | null | undefined) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            branchesdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchbranches', {
+                params: { company_id },
+            });
+            branchesdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const fetchDepartment = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+    ) => {
+        if (
+            company_id === null || company_id === undefined || company_id === '' ||
+            branch_id === null || branch_id === undefined || branch_id === ''
+        ) {
+            departmentsdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchdepartments', {
+                params: { company_id, branch_id },
+            });
+            departmentsdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getBranch = async (company_id: string | number | null | undefined) => {
+        await fetchBranch(company_id);
+    };
+
+    const getDepartment = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+    ) => {
+        await fetchDepartment(company_id, branch_id);
+    };
+
     function changeCountry(id){
         fetchState(id);
     }
@@ -647,9 +777,11 @@ export default function useCommons(){
         getData,
         restoreFn,
         getPerMenu1,
+        getPermission,
         loading,
         permissiondata,
         fetchpermission,
+        fetchPerMenu,
         defaultSearch,
         fetchRole,
         rolesdata,
@@ -659,6 +791,14 @@ export default function useCommons(){
         statesdata,
         fetchCity,
         citiesdata,
+        fetchCompany,
+        companiesdata,
+        fetchBranch,
+        branchesdata,
+        fetchDepartment,
+        departmentsdata,
+        getBranch,
+        getDepartment,
         changeCountry,
         changeState,
         imageError,

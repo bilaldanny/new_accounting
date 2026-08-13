@@ -72,8 +72,166 @@ declare module 'ziggy-js' {
     "unisharp.lfm.getDownload": [],
     "unisharp.lfm.getDelete": [],
     "unisharp.lfm.": [],
+    "menus.index": [],
+    "menus.create": [],
+    "menus.store": [],
+    "menus.show": [
+        {
+            "name": "menu",
+            "required": true
+        }
+    ],
+    "menus.edit": [
+        {
+            "name": "menu",
+            "required": true
+        }
+    ],
+    "menus.update": [
+        {
+            "name": "menu",
+            "required": true
+        }
+    ],
+    "menus.destroy": [
+        {
+            "name": "menu",
+            "required": true
+        }
+    ],
+    "roles.index": [],
+    "roles.create": [],
+    "roles.store": [],
+    "roles.show": [
+        {
+            "name": "role",
+            "required": true
+        }
+    ],
+    "roles.edit": [
+        {
+            "name": "role",
+            "required": true
+        }
+    ],
+    "roles.update": [
+        {
+            "name": "role",
+            "required": true
+        }
+    ],
+    "roles.destroy": [
+        {
+            "name": "role",
+            "required": true
+        }
+    ],
+    "permissions.index": [],
+    "permissions.create": [],
+    "permissions.store": [],
+    "permissions.show": [
+        {
+            "name": "permission",
+            "required": true
+        }
+    ],
+    "permissions.edit": [
+        {
+            "name": "permission",
+            "required": true
+        }
+    ],
+    "permissions.update": [
+        {
+            "name": "permission",
+            "required": true
+        }
+    ],
+    "permissions.destroy": [
+        {
+            "name": "permission",
+            "required": true
+        }
+    ],
+    "departments.index": [],
+    "departments.create": [],
+    "departments.store": [],
+    "departments.show": [
+        {
+            "name": "department",
+            "required": true
+        }
+    ],
+    "departments.edit": [
+        {
+            "name": "department",
+            "required": true
+        }
+    ],
+    "departments.update": [
+        {
+            "name": "department",
+            "required": true
+        }
+    ],
+    "departments.destroy": [
+        {
+            "name": "department",
+            "required": true
+        }
+    ],
+    "users.index": [],
+    "users.create": [],
+    "users.store": [],
+    "users.show": [
+        {
+            "name": "user",
+            "required": true
+        }
+    ],
+    "users.edit": [
+        {
+            "name": "user",
+            "required": true
+        }
+    ],
+    "users.update": [
+        {
+            "name": "user",
+            "required": true
+        }
+    ],
+    "users.destroy": [
+        {
+            "name": "user",
+            "required": true
+        }
+    ],
+    "checkSMTP": [],
     "home": [],
     "dashboard": [],
+    "menu": [],
+    "menu.trash": [],
+    "role": [],
+    "role.trash": [],
+    "role.permission": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "user": [],
+    "user.trash": [],
+    "company": [],
+    "company.trash": [],
+    "branch": [],
+    "branch.trash": [],
+    "department": [],
+    "department.trash": [],
+    "setting": [],
+    "email_template": [],
+    "email_setting.test_send": [],
+    "403": [],
     "profile.edit": [],
     "profile.update": [],
     "profile.destroy": [],
