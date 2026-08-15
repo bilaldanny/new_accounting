@@ -202,3 +202,28 @@ test('non superadmin users cannot view companyadmin role details', function () {
     $this->getJson('/api/roles/'.$companyAdminRole->id)->assertNotFound();
     $this->getJson('/api/roles/'.$managerRole->id)->assertSuccessful();
 });
+
+test('companyadmin must provide branch_id when creating a role', function () {
+    $scope = seedCompanyAndBranches();
+    $companyAdminRole = createRole('companyadmin', ['company_id' => $scope['company_id']]);
+    $companyAdmin = createUserForRole($companyAdminRole);
+    $companyAdmin->company_id = $scope['company_id'];
+    $companyAdmin->branch_id = $scope['branch_one_id'];
+    $companyAdmin->save();
+
+    Sanctum::actingAs($companyAdmin);
+
+    $this->postJson('/api/roles', [
+        'name' => 'Branch Manager',
+        'company_id' => $scope['company_id'],
+        'is_active' => true,
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors(['branch_id']);
+
+    $this->postJson('/api/roles', [
+        'name' => 'Branch Manager',
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_two_id'],
+        'is_active' => true,
+    ])->assertSuccessful();
+});

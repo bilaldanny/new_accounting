@@ -5,12 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class RoleController extends Controller
 {
+    /**
+     * @return array<string, string>
+     */
+    protected function roleFormRules(): array
+    {
+        return [
+            'name' => 'bail|required',
+            'branch_id' => Auth::user()?->hasRole('companyadmin') ? 'required' : 'nullable',
+        ];
+    }
+
     public function index(Request $request)
     {
         $sort_by = $request->sort_by ?? 'created_at';
@@ -96,9 +108,7 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'bail|required',
-        ]);
+        $request->validate($this->roleFormRules());
 
         DB::beginTransaction();
         try {
@@ -129,9 +139,7 @@ class RoleController extends Controller
 
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'name' => 'bail|required',
-        ]);
+        $request->validate($this->roleFormRules());
 
         DB::beginTransaction();
         try {
@@ -147,6 +155,49 @@ class RoleController extends Controller
         }
 
         return response()->json(['message' => 'Successfully Saved']);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'rows' => 'required|array|min:1',
+            'rows.*.name' => 'bail|required|string',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $created = 0;
+            $updated = 0;
+
+            foreach ($request->rows as $index => $row) {
+                if (! is_array($row)) {
+                    throw ValidationException::withMessages([
+                        'rows' => ['Row '.($index + 1).' is invalid.'],
+                    ]);
+                }
+
+                if (Role::upsertFromImport($row) === 'created') {
+                    $created++;
+                } else {
+                    $updated++;
+                }
+            }
+
+            DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return response()->json(['errormessage' => $e]);
+        }
+
+        return response()->json([
+            'message' => "Successfully imported {$created} new and updated {$updated} role records.",
+        ]);
     }
 
     public function destroy($id)

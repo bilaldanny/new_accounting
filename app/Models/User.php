@@ -8,16 +8,20 @@ use App\HasProfilePhoto;
 use App\Mail\DynamicEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -38,15 +42,21 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'company_id',
+        'branch_id',
+        'department_id',
         'role_id',
         'first_name',
         'last_name',
         'email',
         'username',
         'password',
-        'profile_photo_path',
+        'user_image',
         'pass',
         'is_active',
+        'phone',
+        'created_by',
+        'updated_by',
     ];
 
     /**
@@ -137,6 +147,99 @@ class User extends Authenticatable
     }
 
     /**
+     * @return BelongsTo<Company, $this>
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * @return BelongsTo<Branch, $this>
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * @return BelongsTo<Department, $this>
+     */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    protected function companyId(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value === null ? '' : $value,
+        );
+    }
+
+    protected function branchId(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value === null ? '' : $value,
+        );
+    }
+
+    protected function departmentId(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value === null ? '' : $value,
+        );
+    }
+
+    protected function roleId(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value === null ? '' : $value,
+        );
+    }
+
+    public function scopeVisibleToCurrentUser(Builder $query): Builder
+    {
+        $query->where('role_id', '!=', 1)
+            ->whereDoesntHave('role', function (Builder $roleQuery) {
+                $roleQuery->whereRaw(
+                    "LOWER(REPLACE(name, ' ', '')) = ?",
+                    [Role::normalizeName(Role::HIDDEN_ROLE_NAME)]
+                );
+            });
+
+        $user = Auth::user();
+
+        if ($user?->hasRole('superadmin')) {
+            return $query;
+        }
+
+        if ($user?->company_id) {
+            $query->where('company_id', $user->company_id);
+        }
+
+        if ($user?->hasRole('companyadmin') && $user->branch_id) {
+            $query->where('branch_id', $user->branch_id);
+        }
+
+        return $query;
+    }
+
+    public static function findVisibleToCurrentUser(int $id): ?self
+    {
+        return self::query()->visibleToCurrentUser()->find($id);
+    }
+
+    public static function resolveScopedId(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || $value === 'undefined') {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    /**
      * Whether this user belongs to any of the given role names (compared case-insensitively; spaces ignored).
      * Uses the app's `roles` table — not Spatie Permission.
      */
@@ -184,68 +287,34 @@ class User extends Authenticatable
 
         $roleId = (int) Auth::user()->role_id;
 
-        $permissions = Cache::remember("user_menu_permissions:{$roleId}", now()->addMinutes(15), function () use ($roleId) {
-            if ($roleId === 1) {
-                $menu = Menu::with(['children' => function ($query) {
-                    $query->select('route_path AS my_route', 'is_active AS status', 'menus.*')
-                        ->whereColumn('menus.id', '!=', 'menus.parent_id');
-                }])
-                    ->select('route_path AS my_route', 'is_active AS status', 'menus.*')
-                    ->orderBy('sort_order', 'asc')
-                    ->where('is_active', '=', 1)
-                    ->where(function ($query) {
-                        $query->whereNull('parent_id')
-                            ->orWhereColumn('parent_id', '!=', 'id');
-                    })
-                    ->get();
-
-                return $menu->map(function ($item) {
-                    $array = $item->toArray();
-                    $array['permission'] = [['status' => 1]];
-
-                    return $array;
-                })->values()->all();
-            }
-
-            return Menu::with([
-                'permission' => function ($query) {
-                    $query->where('status', 1);
-                },
-                'children' => function ($query) {
-                    $query->where(function ($q) {
-                        $q->whereHas('permission', function ($query1) {
-                            $query1->where('status', 1);
-                        })
-                            ->orWhereIn('route_path', ['checkout', 'support']);
-                    })
-                        ->whereColumn('menus.id', '!=', 'menus.parent_id')
-                        ->select('route_path AS my_route', 'is_active AS status', 'menus.*');
-                },
-            ])
-                ->where(function ($q) {
-                    $q->whereHas('permission', function ($query) {
-                        $query->where('status', 1);
-                    })
-                        ->orWhereIn('route_path', ['checkout', 'support']);
-                })
-                ->select('route_path AS my_route', 'is_active AS status', 'menus.*')
-                ->where('is_active', 1)
-                ->orderBy('sort_order', 'asc')
-                ->get()
-                ->toArray();
+        $permissions = Cache::remember("user_menu_permissions_tree:{$roleId}", now()->addMinutes(15), function () use ($roleId) {
+            return Menu::sidebarMenusForRole($roleId);
         });
 
         return collect($permissions);
     }
 
+    /**
+     * @return list<string>
+     */
+    public function getPermissionPaths(): array
+    {
+        if (! Auth::check()) {
+            return [];
+        }
+
+        $roleId = (int) Auth::user()->role_id;
+
+        return Cache::remember("user_permission_paths:{$roleId}", now()->addMinutes(15), function () use ($roleId) {
+            return Menu::permittedRoutePathsForRole($roleId);
+        });
+    }
+
     public function can($abilities, $arguments = [])
     {
-        $data = $this->getPermissions();
+        $permissions = Menu::permittedRouteNamesForRole((int) $this->role_id);
 
-        if (count($data) > 0) {
-            // Assume `$abilities` is the permission you want to check
-            $permissions = $data->pluck('route_name')->toArray();
-
+        if (count($permissions) > 0) {
             // If `$abilities` is an array, check for any matching permission
             if (is_array($abilities)) {
                 foreach ($abilities as $ability) {
@@ -320,33 +389,60 @@ class User extends Authenticatable
         );
     }
 
-    public static function CreateUser($request)
+    public function getProfilePhotoPathAttribute(): ?string
     {
-        $user = new User;
+        return $this->attributes['user_image'] ?? null;
+    }
+
+    protected function userImage(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value === null ? '' : $value,
+        );
+    }
+
+    public static function CreateUser($request): self
+    {
+        $user = new self;
+        $user->company_id = self::resolveScopedId($request->company_id);
+        $user->branch_id = self::resolveScopedId($request->branch_id);
+        $user->department_id = self::resolveScopedId($request->department_id);
         $user->role_id = $request->role_id;
         $user->first_name = $request->first_name;
         $user->last_name = $request->last_name;
-        $user->username = $request->username;
-        $user->email = $request->email;
+        $user->username = self::normalizeUsername((string) $request->username);
+        $user->email = strtolower(trim((string) $request->email));
+        $user->phone = $request->phone ?: null;
+        $user->user_image = $request->user_image ?: null;
         $user->pass = $request->password;
-        $user->profile_photo_path = ($request->profile_photo_path) ?? null;
         $user->password = Hash::make($request->password);
-        $user->is_active = $request->is_active;
+        $user->is_active = $request->is_active ?? true;
+        $user->created_by = auth()->id();
+        $user->updated_by = auth()->id();
         $user->save();
 
         return $user;
     }
 
-    public static function UpdateUser($request, $id)
+    public static function UpdateUser($request, $id): self
     {
-        $user = User::find($id);
+        $user = self::findVisibleToCurrentUser((int) $id);
+
+        if ($user === null) {
+            abort(404);
+        }
+
+        $user->company_id = self::resolveScopedId($request->company_id);
+        $user->branch_id = self::resolveScopedId($request->branch_id);
+        $user->department_id = self::resolveScopedId($request->department_id);
         $user->role_id = $request->role_id;
         $user->first_name = $request->first_name;
         $user->last_name = $request->last_name;
-        // $user->username = $request->username;
-        $user->email = $request->email;
-        $user->profile_photo_path = ($request->profile_photo_path) ?? null;
-        $user->is_active = $request->is_active;
+        $user->email = strtolower(trim((string) $request->email));
+        $user->phone = $request->phone ?: null;
+        $user->user_image = $request->user_image ?: $user->user_image;
+        $user->is_active = $request->is_active ?? $user->is_active;
+        $user->updated_by = auth()->id();
 
         if ($request->filled('password')) {
             $user->pass = $request->password;
@@ -358,10 +454,181 @@ class User extends Authenticatable
         return $user;
     }
 
-    public static function DeleteUser($id)
+    public static function upsertFromImport(array $row): string
     {
-        $user = User::find($id);
-        if (isset($user)) {
+        $id = self::normalizeImportId($row['id'] ?? null);
+        $payload = self::buildImportPayload($row);
+
+        if ($id !== null) {
+            $user = self::query()->visibleToCurrentUser()->find($id);
+
+            if ($user === null) {
+                throw ValidationException::withMessages([
+                    'rows' => ["User with id {$id} was not found."],
+                ]);
+            }
+
+            self::UpdateUser($payload, $id);
+
+            return 'updated';
+        }
+
+        if (! $payload->filled('password')) {
+            $payload->merge(['password' => 'password123']);
+        }
+
+        self::CreateUser($payload);
+
+        return 'created';
+    }
+
+    protected static function normalizeImportId(mixed $id): ?int
+    {
+        if ($id === null || $id === '' || $id === 0 || $id === '0') {
+            return null;
+        }
+
+        if (is_numeric($id)) {
+            $normalized = (int) $id;
+
+            return $normalized > 0 ? $normalized : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    protected static function buildImportPayload(array $row): Request
+    {
+        return new Request([
+            'company_id' => $row['company_id'] ?? null,
+            'branch_id' => $row['branch_id'] ?? null,
+            'department_id' => $row['department_id'] ?? null,
+            'role_id' => $row['role_id'] ?? null,
+            'first_name' => $row['first_name'] ?? null,
+            'last_name' => $row['last_name'] ?? null,
+            'username' => $row['username'] ?? null,
+            'email' => $row['email'] ?? null,
+            'password' => $row['password'] ?? null,
+            'phone' => $row['phone'] ?? null,
+            'user_image' => $row['user_image'] ?? null,
+            'is_active' => filter_var($row['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN),
+        ]);
+    }
+
+    public static function createCompanyAdmin($request, int $roleId, int $companyId, int $branchId): self
+    {
+        $adminName = trim((string) $request->admin_name);
+        $nameParts = preg_split('/\s+/', $adminName, 2);
+        $username = self::resolveCompanyAdminUsername($request, $companyId);
+
+        $user = new self;
+        $user->company_id = $companyId;
+        // $user->branch_id = $branchId;
+        $user->role_id = $roleId;
+        $user->first_name = $nameParts[0] ?? $adminName;
+        $user->last_name = $nameParts[1] ?? '';
+        $user->username = $username;
+        $user->email = $request->admin_email;
+        $user->phone = $request->admin_phone ?: null;
+        $user->password = Hash::make($request->password);
+        $user->pass = $request->password;
+        $user->is_active = true;
+        $user->created_by = auth()->id();
+        $user->updated_by = auth()->id();
+        $user->save();
+
+        return $user;
+    }
+
+    public static function updateCompanyAdmin($request, int $companyId): void
+    {
+        $user = self::query()->find($request->user_id);
+
+        if ($user === null) {
+            $user = self::query()
+                ->where('company_id', $companyId)
+                ->orderBy('created_at')
+                ->first();
+        }
+
+        if ($user === null) {
+            return;
+        }
+
+        $adminName = trim((string) $request->admin_name);
+        $nameParts = preg_split('/\s+/', $adminName, 2);
+
+        $user->first_name = $nameParts[0] ?? $adminName;
+        $user->last_name = $nameParts[1] ?? '';
+        $user->username = self::normalizeUsername((string) $request->admin_username);
+        $user->email = $request->admin_email;
+        $user->phone = $request->admin_phone ?: null;
+        $user->is_active = $request->is_active ?? $request->active ?? true;
+        $user->updated_by = auth()->id();
+        $user->save();
+    }
+
+    public static function normalizeUsername(string $username): string
+    {
+        return strtolower(preg_replace('/\s+/', '', trim($username)));
+    }
+
+    public static function emailExists(string $email, ?int $exceptUserId = null): bool
+    {
+        $email = strtolower(trim($email));
+
+        if ($email === '') {
+            return false;
+        }
+
+        return self::query()
+            ->when($exceptUserId !== null, fn ($query) => $query->where('id', '!=', $exceptUserId))
+            ->where('email', $email)
+            ->exists();
+    }
+
+    public static function usernameExists(string $username, ?int $exceptUserId = null): bool
+    {
+        $username = self::normalizeUsername($username);
+
+        if ($username === '') {
+            return false;
+        }
+
+        return self::query()
+            ->when($exceptUserId !== null, fn ($query) => $query->where('id', '!=', $exceptUserId))
+            ->where('username', $username)
+            ->exists();
+    }
+
+    public static function resolveCompanyAdminUsername($request, int $companyId): string
+    {
+        $username = self::normalizeUsername((string) ($request->admin_username ?? ''));
+
+        if ($username !== '') {
+            return $username;
+        }
+
+        $usernameBase = strtolower(preg_replace('/[^a-z0-9]/', '', (string) $request->admin_email));
+        $username = $usernameBase !== '' ? $usernameBase : 'admin'.$companyId;
+        $suffix = 1;
+
+        while (self::query()->where('username', $username)->exists()) {
+            $username = ($usernameBase !== '' ? $usernameBase : 'admin'.$companyId).$suffix;
+            $suffix++;
+        }
+
+        return $username;
+    }
+
+    public static function DeleteUser($id): void
+    {
+        $user = self::findVisibleToCurrentUser((int) $id);
+
+        if ($user !== null) {
             $user->delete();
         }
     }

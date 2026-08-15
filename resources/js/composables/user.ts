@@ -6,38 +6,46 @@ export default function useUsers(){
 
     interface QueryParams {
         sort_by: string;
-        sort_type: 'asc' | 'desc'; // More specific than string
+        sort_type: 'asc' | 'desc';
         show_record: number;
         page: number;
         search: string;
     }
 
-    //Form Data
     const formData = ref({
+      'company_id':'',
+      'branch_id':'',
+      'department_id':'',
       'role_id':'',
       'first_name':'',
       'last_name':'',
+      'username':'',
       'email':'',
       'password':'',
-      'sort_order':0,
-      'is_hide':false,
-      'is_active':true
+      'password_confirmation':'',
+      'phone':'',
+      'user_image':'',
+      'is_active':true,
     });
 
     const defaultFormData = ref({
+      'company_id':'',
+      'branch_id':'',
+      'department_id':'',
       'role_id':'',
       'first_name':'',
       'last_name':'',
+      'username':'',
       'email':'',
       'password':'',
-      'sort_order':0,
-      'is_hide':false,
-      'is_active':true
+      'password_confirmation':'',
+      'phone':'',
+      'user_image':'',
+      'is_active':true,
     });
 
     const {Notify, select_data, fetchWithRetry, changeStateFn, changeOrderFn, deleteFn, checkAllFn, duplicateFn, getData, restoreFn} = useCommons()
 
-    // State Management with reactive
     const state = reactive({
       records: {
         data: [],
@@ -54,94 +62,72 @@ export default function useUsers(){
         page: 1,
         search: '',
         status: 'all',
+        company_id: '',
+        branch_id: '',
       },
       loading: false,
-      modalLoading: false,
+      modalLoading: true,
       edit_ids: [],
       selectAll: false,
       usersdata: [],
-      typedata: [],
       trash_count:0,
       loadingIds: new Set(),
     });
 
-    /* Change Status */
-        const changeStatus = async (ids: Array<number>, status: string) => {
-            return changeStateFn(API_ENDPOINTS.users+'/statusupdate',ids,status,state);
+    const changeStatus = async (ids: Array<number>, status: string) => {
+        return changeStateFn(API_ENDPOINTS.users+'/statusupdate',ids,status,state);
+    }
+
+    const changeOrder = async (event: Event) => {
+        return changeOrderFn(event, state)
+    };
+
+    const deleteRecord = async (ids: Array<number>) => {
+        return deleteFn(API_ENDPOINTS.users+'/bulk_delete', ids, state);
+    }
+
+    const perDeleteBulkRecord = async (ids: Array<number>) => {
+        return deleteFn(API_ENDPOINTS.users+'/bulk_delete_per', ids, state);
+    }
+
+    const checkAll = async (id: number) => {
+        return checkAllFn(id, state);
+    };
+
+    const duplicate = async (id: number) => {
+        return duplicateFn(API_ENDPOINTS.users+'/duplicate', id)
+    }
+
+    const getUsers = async (data: QueryParams) => {
+        return getData(API_ENDPOINTS.users, data, state)
+    };
+
+    const getTrashUsers = async (data: QueryParams) => {
+        return getData(API_ENDPOINTS.users+'/trash', data, state);
+    };
+
+    const getEditData = async (id: number) => {
+        if (!id) {
+            return;
         }
-    /* Change Status */
 
-    /* Change sorting order */
-        const changeOrder = async (event: Event) => {
-            return changeOrderFn(event, state)
-        };
-    /* Change sorting order */
-
-    /* Delete Function */
-        const deleteRecord = async (ids: Array<number>) => {
-            return deleteFn(API_ENDPOINTS.users+'/bulk_delete', ids, state);
-        }
-    /* Delete Function */
-
-    /* Permanently Delete Function */
-        const perDeleteBulkRecord = async (ids: Array<number>) => {
-            return deleteFn(API_ENDPOINTS.users+'/bulk_delete_per', ids, state);
-        }
-    /* Permanently Delete Function */
-
-    // Check all records or a specific one
-        const checkAll = async (id: number) => {
-            return checkAllFn(id, state);
-        };
-    // Check all records or a specific one
-
-    /* Duplicate Record */
-        const duplicate = async (id: number) => {
-            return duplicateFn(API_ENDPOINTS.users+'/duplicate', id)
-        }
-    /* Duplicate Record */
-
-    /* Get User Function */
-        const getUsers = async (data: QueryParams) => {
-            return getData(API_ENDPOINTS.users, data, state)
-        };
-    /* Get User Function */
-
-    /* Get Trash User Function */
-        const getTrashUsers = async (data: QueryParams) => {
-            return getData(API_ENDPOINTS.users+'/trash', data, state);
-        };
-    /* Get Trash User Function */
-
-    /* Fetch Data To Edit Form */
-        const getEditData = async (id: number) => {
-            try {
-                state.loading = true;
-                const response = await fetchWithRetry(window.axios.get, `/api/users/${id}`);
-                formData.value = response.data;
-            } catch (error: unknown) {
-                if (window.axios.isAxiosError(error)) {
-                    // ✅ Safely access response
-                    if(error.response?.data?.message !== 'Unauthenticated.'){
-                        Notify(error.response?.data?.message || 'An error occurred', 'alert');
-                    }
-                } else {
-                    // 🔸 Non-Axios error
-                    Notify('Unexpected error occurred', 'alert');
+        try {
+            const response = await fetchWithRetry(window.axios.get, `/api/users/${id}`);
+            formData.value = response.data;
+        } catch (error: unknown) {
+            if (window.axios.isAxiosError(error)) {
+                if(error.response?.data?.message !== 'Unauthenticated.'){
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
                 }
-            } finally {
-                state.loading = false;
+            } else {
+                Notify('Unexpected error occurred', 'alert');
             }
         }
-    /* Fetch Data To Edit Form */
+    }
 
-    /* Restore Function */
-        const restoreBulkRecord = async (ids: Array<number>) => {
-            return restoreFn(API_ENDPOINTS.users+'/restore_records', ids, state)
-        }
-    /* Restore Function */
-
-
+    const restoreBulkRecord = async (ids: Array<number>) => {
+        return restoreFn(API_ENDPOINTS.users+'/restore_records', ids, state)
+    }
 
     return{
         state,

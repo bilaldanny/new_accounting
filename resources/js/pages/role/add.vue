@@ -29,6 +29,12 @@
         }
     });
 
+    watch(formRef, (instance) => {
+        if (modalProps.formRef) {
+            modalProps.formRef.value = instance;
+        }
+    });
+
     function reset() {
         if(formRef.value){
             formRef.value.reset()

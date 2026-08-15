@@ -37,6 +37,11 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+
+        if ($user) {
+            $user->loadMissing('company');
+        }
+
         $setting = getSetting();
         $permissions = $user ? $user->getPermissions() : collect();
 
@@ -58,12 +63,13 @@ class HandleInertiaRequests extends Middleware
                     'fullname' => $user->fullname,
                     'rolename' => $user->rolename,
                     'company_id' => $user->company_id,
+                    'company_name' => $user->company?->name,
                     'branch_id' => $user->branch_id,
                     'created_at' => $user->created_at,
                     'email' => $user->email,
                     'profile_image' => $user->profile_photo_url ?? $user->profile_photo_path,
                     'permissions' => $permissions,
-                    'permission_paths' => $permissions->isNotEmpty() ? $permissions->pluck('route_path') : [],
+                    'permission_paths' => $user->getPermissionPaths(),
                 ] : null,
             ],
             'setting' => $setting,

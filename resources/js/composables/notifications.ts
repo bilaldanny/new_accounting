@@ -1,7 +1,6 @@
 import { ref } from 'vue';
 import useCommons from './common';
 import { API_ENDPOINTS } from './apiEndpoints';
-import axios from 'axios';
 
 export interface Notification {
     id: number;
@@ -23,10 +22,24 @@ let fetchNotificationsInFlight: Promise<void> | null = null;
 let lastFetchedAtMs = 0;
 const FETCH_NOTIFICATIONS_COOLDOWN_MS = 1500;
 
+function getAxios() {
+    if (typeof window === 'undefined' || !window.axios) {
+        return null;
+    }
+
+    return window.axios;
+}
+
 export default function useNotifications() {
     const { fetchWithRetry } = useCommons();
 
     const fetchNotifications = async (options?: { force?: boolean }) => {
+        const axios = getAxios();
+
+        if (!axios || !API_ENDPOINTS.notifications) {
+            return;
+        }
+
         const force = options?.force === true;
         const now = Date.now();
 
@@ -61,6 +74,12 @@ export default function useNotifications() {
     };
 
     const markAsRead = async (id: number) => {
+        const axios = getAxios();
+
+        if (!axios) {
+            return;
+        }
+
         try {
             await fetchWithRetry(axios.post, `${API_ENDPOINTS.notifications}/mark-read/${id}`);
             const n = notifications.value.find((x) => x.id === id);
@@ -77,6 +96,12 @@ export default function useNotifications() {
     };
 
     const markAllAsRead = async () => {
+        const axios = getAxios();
+
+        if (!axios) {
+            return;
+        }
+
         try {
             await fetchWithRetry(axios.post, `${API_ENDPOINTS.notifications}/mark-all-read`);
             notifications.value.forEach((n) => (n.is_read = true));
@@ -88,12 +113,17 @@ export default function useNotifications() {
     };
 
     const fetchCountsByType = async () => {
-        if (!API_ENDPOINTS.notifications) {
+        const axios = getAxios();
+
+        if (!axios || !API_ENDPOINTS.notifications) {
             return;
         }
 
         try {
-            const response = await axios.get(`${API_ENDPOINTS.notifications}/counts-by-type`);
+            const response = await fetchWithRetry(
+                axios.get,
+                `${API_ENDPOINTS.notifications}/counts-by-type`,
+            );
             countsByType.value = response.data.counts_by_type ?? {};
         } catch (error) {
             // Optional sidebar badges — fail silently when API is not available yet

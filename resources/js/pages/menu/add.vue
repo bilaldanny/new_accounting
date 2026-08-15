@@ -29,6 +29,12 @@
         }
     });
 
+    watch(formRef, (instance) => {
+        if (modalProps.formRef) {
+            modalProps.formRef.value = instance;
+        }
+    });
+
     function submitFromParent() {
         if (formRef.value) {
             formRef.value.submitForm() // call exposed method from child

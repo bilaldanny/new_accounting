@@ -160,4 +160,102 @@ class Role extends Model
             $role->delete();
         }
     }
+
+    public static function createCompanyRole(int $companyId): self
+    {
+        $role = new self;
+        $role->company_id = $companyId;
+        $role->name = self::HIDDEN_ROLE_NAME;
+        $role->is_active = true;
+        $role->is_admin = false;
+        $role->save();
+
+        return $role;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    public static function upsertFromImport(array $row): string
+    {
+        $id = self::normalizeImportId($row['id'] ?? null);
+        $payload = self::buildImportPayload($row);
+
+        if ($id !== null) {
+            $role = self::query()->visibleToCurrentUser()->find($id);
+
+            if ($role === null) {
+                throw ValidationException::withMessages([
+                    'rows' => ["Role with id {$id} was not found."],
+                ]);
+            }
+
+            if ($role->is_admin) {
+                throw ValidationException::withMessages([
+                    'rows' => ["Role with id {$id} cannot be updated via import."],
+                ]);
+            }
+
+            if ($role->isHiddenFromCurrentUser()) {
+                throw ValidationException::withMessages([
+                    'rows' => ["Role with id {$id} cannot be updated via import."],
+                ]);
+            }
+
+            self::UpdateRole($payload, $id);
+
+            return 'updated';
+        }
+
+        self::assertImportNameAllowed((string) $payload->name);
+        self::CreateRole($payload);
+
+        return 'created';
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    protected static function assertImportNameAllowed(string $name): void
+    {
+        if (self::normalizeName($name) === self::normalizeName(self::HIDDEN_ROLE_NAME)
+            && ! Auth::user()?->hasRole('superadmin')) {
+            throw ValidationException::withMessages([
+                'rows' => ['This role name cannot be imported.'],
+            ]);
+        }
+    }
+
+    protected static function normalizeImportId(mixed $id): ?int
+    {
+        if ($id === null || $id === '' || $id === 0 || $id === '0') {
+            return null;
+        }
+
+        if (is_numeric($id)) {
+            $normalized = (int) $id;
+
+            return $normalized > 0 ? $normalized : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    protected static function buildImportPayload(array $row): object
+    {
+        return (object) [
+            'company_id' => self::resolveScopedId($row['company_id'] ?? null),
+            'branch_id' => self::resolveScopedId($row['branch_id'] ?? null),
+            'name' => (string) ($row['name'] ?? ''),
+            'is_active' => self::normalizeImportBool($row['is_active'] ?? 1),
+        ];
+    }
+
+    protected static function normalizeImportBool(mixed $value): int
+    {
+        return $value === true || $value === 1 || $value === '1' ? 1 : 0;
+    }
 }
