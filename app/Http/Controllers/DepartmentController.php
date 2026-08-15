@@ -5,11 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class DepartmentController extends Controller
 {
+    /**
+     * @return array<string, string>
+     */
+    protected function departmentFormRules(): array
+    {
+        return [
+            'name' => 'bail|required',
+            'branch_id' => Auth::user()?->hasRole('companyadmin') ? 'required' : 'nullable',
+        ];
+    }
+
     public function index(Request $request)
     {
         $sort_by = $request->sort_by ?? 'created_at';
@@ -20,6 +33,11 @@ class DepartmentController extends Controller
         $cur_page = $request->cur_page ?? 1;
 
         $query = Department::query()
+            ->visibleToCurrentUser()
+            ->with([
+                'company:id,name',
+                'branch:id,name',
+            ])
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('active', $status);
             })
@@ -30,6 +48,12 @@ class DepartmentController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name'], 'like', "%{$search}%");
                 });
+            })
+            ->when($request->filled('company_id'), function ($q) use ($request) {
+                $q->where('company_id', $request->company_id);
+            })
+            ->when($request->filled('branch_id'), function ($q) use ($request) {
+                $q->where('branch_id', $request->branch_id);
             })
             ->orderBy($sort_by, $sort_type);
 
@@ -46,21 +70,48 @@ class DepartmentController extends Controller
             $departments = $query->paginate($show_record);
         }
 
+        $departments->getCollection()->transform(function (Department $department) {
+            $department->company_name = $department->company?->name;
+            $department->branch_name = $department->branch?->name;
+
+            return $department;
+        });
+
         $trash_count = Department::onlyTrashed()->count();
 
         return response()->json(['data' => $departments, 'trash_count' => $trash_count]);
     }
 
-    public function store(Request $request)
+    public function checkName(Request $request)
     {
         $request->validate([
-            'name' => 'bail|required',
+            'name' => 'required|string',
+            'except_id' => 'nullable|integer',
+            'company_id' => 'nullable',
+            'branch_id' => 'nullable',
         ]);
+
+        return response()->json([
+            'name_taken' => Department::nameExists(
+                $request->string('name')->toString(),
+                $request->integer('except_id') ?: null,
+                Department::resolveScopedId($request->company_id),
+                Department::resolveScopedId($request->branch_id),
+            ),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate($this->departmentFormRules());
 
         DB::beginTransaction();
         try {
             Department::createDepartment($request);
             DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Throwable $e) {
             DB::rollBack();
 
@@ -70,23 +121,71 @@ class DepartmentController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
+    public function import(Request $request)
+    {
+        $request->validate([
+            'rows' => 'required|array|min:1',
+            'rows.*.name' => 'bail|required|string',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $created = 0;
+            $updated = 0;
+
+            foreach ($request->rows as $index => $row) {
+                if (! is_array($row)) {
+                    throw ValidationException::withMessages([
+                        'rows' => ['Row '.($index + 1).' is invalid.'],
+                    ]);
+                }
+
+                if (Department::upsertFromImport($row) === 'created') {
+                    $created++;
+                } else {
+                    $updated++;
+                }
+            }
+
+            DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return response()->json(['errormessage' => $e]);
+        }
+
+        return response()->json([
+            'message' => "Successfully imported {$created} new and updated {$updated} department records.",
+        ]);
+    }
+
     public function show($id)
     {
-        $department = Department::find($id);
+        $department = Department::findVisibleToCurrentUser((int) $id);
+
+        if ($department === null) {
+            abort(404);
+        }
 
         return response()->json($department);
     }
 
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'name' => 'bail|required',
-        ]);
+        $request->validate($this->departmentFormRules());
 
         DB::beginTransaction();
         try {
             Department::updateDepartment($request, $id);
             DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Throwable $e) {
             DB::rollBack();
 
@@ -99,6 +198,12 @@ class DepartmentController extends Controller
     public function destroy($id)
     {
         if (deletepermission()) {
+            $department = Department::findVisibleToCurrentUser((int) $id);
+
+            if ($department === null) {
+                abort(404);
+            }
+
             Department::deleteDepartment($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -112,7 +217,12 @@ class DepartmentController extends Controller
         if (deletepermission()) {
             DB::beginTransaction();
             try {
-                Department::whereIn('id', $request->all())->delete();
+                $ids = Department::query()
+                    ->visibleToCurrentUser()
+                    ->whereIn('id', $request->all())
+                    ->pluck('id');
+
+                Department::whereIn('id', $ids)->delete();
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Deleted']);
@@ -131,7 +241,12 @@ class DepartmentController extends Controller
         if (deletepermission()) {
             DB::beginTransaction();
             try {
-                $ids = (array) $request->all();
+                $ids = Department::query()
+                    ->onlyTrashed()
+                    ->visibleToCurrentUser()
+                    ->whereIn('id', (array) $request->all())
+                    ->pluck('id');
+
                 Department::whereIn('id', $ids)->forceDelete();
                 DB::commit();
 
@@ -148,7 +263,10 @@ class DepartmentController extends Controller
 
     public function updatestatus(Request $request)
     {
-        $departments = Department::whereIn('id', $request->ids)->get();
+        $departments = Department::query()
+            ->visibleToCurrentUser()
+            ->whereIn('id', $request->ids)
+            ->get();
 
         if (isset($departments)) {
             DB::beginTransaction();
@@ -183,7 +301,13 @@ class DepartmentController extends Controller
         if (deletepermission()) {
             DB::beginTransaction();
             try {
-                Department::whereIn('id', $request->all())->restore();
+                $ids = Department::query()
+                    ->onlyTrashed()
+                    ->visibleToCurrentUser()
+                    ->whereIn('id', $request->all())
+                    ->pluck('id');
+
+                Department::whereIn('id', $ids)->restore();
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
@@ -201,9 +325,18 @@ class DepartmentController extends Controller
     {
         DB::beginTransaction();
         try {
-            $department = Department::find($request->id);
+            $department = Department::findVisibleToCurrentUser((int) $request->id);
+
+            if ($department === null) {
+                abort(404);
+            }
+
             $duplicator = $department->replicate();
-            $duplicator->name = $department->name.' Copy';
+            $duplicator->name = $this->duplicateDepartmentName(
+                $department->name,
+                $department->company_id,
+                $department->branch_id,
+            );
             $duplicator->save();
             DB::commit();
 
@@ -215,12 +348,32 @@ class DepartmentController extends Controller
         }
     }
 
+    private function duplicateDepartmentName(string $name, mixed $companyId = null, mixed $branchId = null): string
+    {
+        $companyId = Department::resolveScopedId($companyId);
+        $branchId = Department::resolveScopedId($branchId);
+        $candidate = $name.' Copy';
+        $suffix = 1;
+
+        while (Department::nameExists($candidate, null, $companyId, $branchId)) {
+            $suffix++;
+            $candidate = $name.' Copy '.$suffix;
+        }
+
+        return $candidate;
+    }
+
     public function fetch(Request $request)
     {
         $departments = Department::query()
+            ->visibleToCurrentUser()
             ->where('active', '=', 1)
-            ->where('company_id', '=', $request->company_id)
-            ->where('branch_id', '=', $request->branch_id)
+            ->when($request->filled('company_id'), function ($q) use ($request) {
+                $q->where('company_id', $request->company_id);
+            })
+            ->when($request->filled('branch_id'), function ($q) use ($request) {
+                $q->where('branch_id', $request->branch_id);
+            })
             ->select('departments.*', 'name as text')
             ->get();
 
@@ -237,6 +390,7 @@ class DepartmentController extends Controller
         $cur_page = $request->cur_page ?? 1;
 
         $query = Department::onlyTrashed()
+            ->visibleToCurrentUser()
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('active', $status);
             })

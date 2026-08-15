@@ -20,6 +20,10 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         external_link_variant?: 'link' | 'button';
         /** Replace null / undefined / empty string with this (e.g. "0"); default cell fallback stays "-" otherwise */
         emptyDisplay?: string;
+        /** When true, cell opens the edit modal (requires `actionType="modal"`) */
+        linkable?: boolean;
+        /** Bootstrap modal target; defaults to `#EditModal` */
+        modal?: string;
     }
     // 🔹 Refs
     const referenceRefs = reactive({})
@@ -1144,12 +1148,12 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                         <!-- Default data binding -->
                                         <span v-else>
                                             <a
-                                                v-if="col?.linkable && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${col.url}`)"
+                                                v-if="col?.linkable && tableData.actionType === 'modal' && props.auth.user.permission_paths.includes(`/${tableData.apiUrl}/:id/edit`)"
                                                 data-bs-toggle="modal"
-                                                :data-bs-target="col?.modal"
-                                                class="text-primary"
+                                                :data-bs-target="col?.modal ?? '#EditModal'"
+                                                class="text-primary modern-cell-primary"
                                                 href="javascript:void(0)"
-                                                @click="tableData[col.type]?.(row.id)"
+                                                @click="tableData.edit?.(row.id)"
                                             >
                                                 {{ defaultCellDisplay(row, col) }}
                                             </a>

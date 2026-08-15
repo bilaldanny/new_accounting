@@ -47,6 +47,10 @@ class PermissionController extends Controller
     public function store(Request $request)
     {
 
+        if (! Menu::assignerCanManageMenu((int) $request->user()->role_id, (int) $request->menuid)) {
+            return response()->json(['message' => 'You are not allowed to manage this permission.'], 403);
+        }
+
         $raw = 'role_id = '.$request->get('role_id');
 
         if ($request->filled('department_id')) {

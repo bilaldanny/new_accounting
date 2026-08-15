@@ -13,6 +13,7 @@
         formData:{type: Object},
         formRef:{type: Object},
         endpoint:{type: String},
+        recordId:{type: Number, default: null},
         onOpen:{type: Function},
         onClose:{type: Function},
         onSubmit:{type: Function},
@@ -67,7 +68,12 @@
             :url="modalProps.endpoint"
             ref="formRef"
         >
-            <Fields type="edit"/>
+            <Fields
+                type="edit"
+                :record-id="modalProps.recordId"
+                :form-data="modalProps.formData"
+                :form-ref="formRef"
+            />
         </TheForm>
 
         <template #footer>

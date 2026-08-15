@@ -1107,3 +1107,321 @@
     height: 1em;
 }
 
+.vf-addon.vf-addon-after {
+    padding: 0 !important;
+}
+
+.vf-addon-wrapper {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+}
+
+.password-field {
+    margin-bottom: 0.25rem;
+}
+
+.password-field-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.375rem !important;
+}
+
+.password-input-shell {
+    height: 42px;
+    border: 1px solid #d9e0e7 !important;
+    border-radius: 7px !important;
+    background-color: #fff !important;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &.vf-input-group-focused {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+    }
+}
+
+.password-field-input {
+    height: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.password-field-addon {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    padding-right: 6px;
+}
+
+@keyframes code-generate-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.code-generate-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0 !important;
+    border: 0;
+    background-color: transparent;
+    color: #94a3b8;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+
+    svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    &:hover:not(:disabled) {
+        color: #0d6efd;
+        background-color: #f1f5f9;
+    }
+
+    &:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+    }
+
+    &:disabled {
+        cursor: progress;
+        opacity: 0.7;
+    }
+}
+
+.code-generate-btn-loading svg {
+    animation: code-generate-spin 0.6s linear infinite;
+}
+
+.eye-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0 !important;
+    border: 0;
+    background-color: transparent;
+    color: #94a3b8;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+
+    svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    &:hover {
+        color: #0d6efd;
+        background-color: #f1f5f9;
+    }
+
+    &:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+    }
+}
+
+.password-generate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 34px;
+    margin-top: 0.5rem;
+    padding: 0 0.75rem;
+    border: 1px solid #0d6efd;
+    border-radius: 6px;
+    background-color: #fff;
+    color: #0d6efd;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    svg {
+        width: 0.875rem;
+        height: 0.875rem;
+    }
+
+    &:hover {
+        background-color: rgba(13, 110, 253, 0.08);
+    }
+
+    &:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.18);
+    }
+}
+
+.password-requirements-panel {
+    margin-top: 0.625rem;
+    padding: 12px 14px;
+    background-color: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.password-requirements-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+
+    svg {
+        width: 0.875rem;
+        height: 0.875rem;
+    }
+}
+
+.password-requirements-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 40px;
+    row-gap: 8px;
+
+    @media (max-width: 575.98px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.password-requirement-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 12.5px;
+    font-weight: 400;
+    line-height: 1.4;
+
+    svg {
+        width: 0.9375rem;
+        height: 0.9375rem;
+        flex-shrink: 0;
+    }
+
+    &.text-success {
+        font-weight: 500;
+    }
+}
+
+.company-section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.company-section-header-spaced {
+    margin-top: 1.5rem;
+}
+
+.company-section-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    border-radius: 0.625rem;
+
+    svg {
+        width: 1.125rem;
+        height: 1.125rem;
+    }
+}
+
+.company-section-icon-primary {
+    background-color: rgba(13, 110, 253, 0.12);
+    color: #0d6efd;
+}
+
+.company-section-icon-indigo {
+    background-color: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+}
+
+.company-section-icon-teal {
+    background-color: rgba(13, 166, 143, 0.12);
+    color: #0ca678;
+}
+
+.company-section-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.company-section-subtitle {
+    font-size: 0.8125rem;
+    color: #6c757d;
+}
+
+.company-logo-choose {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: calc(1.5em + 0.5rem + 2px);
+    padding: 0.25rem 0.75rem;
+    border: 1px solid #0d6efd;
+    border-radius: 0.375rem 0 0 0.375rem;
+    background-color: #0d6efd;
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
+    svg {
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+    }
+
+    &:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+}
+
+.company-logo-preview {
+    display: flex;
+    align-items: center;
+    min-height: 1.75rem;
+    margin-top: 0.5rem;
+}
+
+// Vueform phone country dropdown uses position:fixed with z-index 1002,
+// which sits behind Bootstrap modals (1055). Raise it inside modals.
+.vf-addon-options-dropdown {
+    z-index: 2000 !important;
+}
+
+// Toast notifications must appear above Bootstrap modals/backdrops (1050–1055).
+.notification-list {
+    z-index: 2000 !important;
+}

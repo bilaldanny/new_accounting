@@ -4,9 +4,11 @@
     import PermissionCard from '@/components/role/permission/PermissionCard.vue';
     import PermissionHeader from '@/components/role/permission/PermissionHeader.vue';
     import PermissionSkeletonLoader from '@/components/role/permission/PermissionSkeletonLoader.vue';
+    import PermissionScopeFields from '@/pages/role/permission/ScopeFields.vue';
     import { role } from '@/routes';
     import { Head, usePage } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
+    import { ShieldQuarter } from '@boxicons/vue';
+    import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 
     defineOptions({
         layout: {
@@ -45,23 +47,57 @@
     const showBranchFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
     const showDepartmentFilter = computed(() => true);
     const showFilters = computed(() => showCompanyFilter.value || showBranchFilter.value || showDepartmentFilter.value);
+
+    const normalizeScopeId = (id) =>
+        id === null || id === undefined || id === '' ? '' : String(id);
+
+    const scopeFormData = reactive({
+        company_id: '',
+        branch_id: '',
+        department_id: '',
+    });
+
     const branchFilterDisabled = computed(
-        () => showCompanyFilter.value && !permission.value.company_id,
+        () => showCompanyFilter.value && !normalizeScopeId(scopeFormData.company_id),
     );
     const departmentFilterDisabled = computed(
         () => (showCompanyFilter.value || showBranchFilter.value) &&
-            (!permission.value.company_id || !permission.value.branch_id),
+            (!normalizeScopeId(scopeFormData.company_id) || !normalizeScopeId(scopeFormData.branch_id)),
     );
-    const showPermissionGrid = computed(() => {
-        if (loading.value) {
-            return false;
+    const hasPermissionScope = computed(() => {
+        if (normalizeScopeId(scopeFormData.department_id)) {
+            return true;
+        }
+
+        if (normalizeScopeId(scopeFormData.branch_id)) {
+            return true;
         }
 
         if (isSuperadmin.value) {
             return true;
         }
 
-        return permission.value.department_id !== '';
+        return false;
+    });
+    const showPermissionGrid = computed(() => {
+        if (loading.value) {
+            return false;
+        }
+
+        return hasPermissionScope.value;
+    });
+    const emptyStateCopy = computed(() => {
+        if (showBranchFilter.value) {
+            return {
+                title: 'Select a branch to begin',
+                text: 'Choose a branch to manage branch-level permissions, or select a department for department-specific access.',
+            };
+        }
+
+        return {
+            title: 'Select a department to begin',
+            text: 'Choose a department from the filters above to load and manage permissions.',
+        };
     });
 
     const {
@@ -81,6 +117,12 @@
         departmentsdata,
     } = useCommons();
     const { permission } = useRoles();
+
+    const selectedRole = ref(null);
+    const selectedRoleName = computed(() => selectedRole.value?.name ?? '');
+    const scopeForm$ = ref(null);
+    const scopeReady = ref(false);
+    let skipScopeSync = false;
 
     const searchQuery = ref('');
 
@@ -150,38 +192,73 @@
         return Math.round((grantedCount.value / totalPermissions.value) * 100);
     });
 
+    const authCompanyName = computed(() => String(authUser.value?.company_name ?? '').trim());
+
+    const resolveCompanyLabel = (companyId) => {
+        const normalizedCompanyId = normalizeScopeId(companyId);
+
+        if (!normalizedCompanyId) {
+            return '';
+        }
+
+        const company = companiesdata.value.find(
+            (item) => String(item.id) === normalizedCompanyId,
+        );
+
+        return company?.text ?? company?.name ?? authCompanyName.value ?? 'Company';
+    };
+
     const scopeSummary = computed(() => {
         const parts = [];
 
-        if (permission.value.company_id) {
-            const company = companiesdata.value.find(
-                (item) => String(item.id) === String(permission.value.company_id),
-            );
-            parts.push(company?.text ?? company?.name ?? 'Company');
+        if (scopeFormData.company_id) {
+            parts.push(resolveCompanyLabel(scopeFormData.company_id));
         }
 
-        if (permission.value.branch_id) {
+        if (scopeFormData.branch_id) {
             const branch = branchesdata.value.find(
-                (item) => String(item.id) === String(permission.value.branch_id),
+                (item) => String(item.id) === normalizeScopeId(scopeFormData.branch_id),
             );
             parts.push(branch?.text ?? branch?.name ?? 'Branch');
         }
 
-        if (permission.value.department_id) {
+        if (scopeFormData.department_id) {
             const department = departmentsdata.value.find(
-                (item) => String(item.id) === String(permission.value.department_id),
+                (item) => String(item.id) === normalizeScopeId(scopeFormData.department_id),
             );
             parts.push(department?.text ?? department?.name ?? 'Department');
         }
 
         if (parts.length === 0) {
-            return isSuperadmin.value ? 'All organizations' : 'Current organization';
+            if (isSuperadmin.value) {
+                return 'All organizations';
+            }
+
+            return authCompanyName.value || 'Current organization';
         }
 
         return parts.join(' · ');
     });
 
+    async function loadSelectedRole() {
+        try {
+            const response = await window.axios.get(`/api/roles/${routeProps.id}`);
+            selectedRole.value = response.data;
+        } catch (error) {
+            if (window.axios.isAxiosError(error) && error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'Unable to load role details', 'alert');
+            }
+        }
+    }
+
+    function syncScopeToPermission() {
+        permission.value.company_id = scopeFormData.company_id ?? '';
+        permission.value.branch_id = scopeFormData.branch_id ?? '';
+        permission.value.department_id = scopeFormData.department_id ?? '';
+    }
+
     async function reloadPermissions() {
+        syncScopeToPermission();
         await getPerMenu1(
             permission.value.company_id,
             permission.value.branch_id,
@@ -191,14 +268,14 @@
     }
 
     async function handleCompanyChange(companyId) {
-        permission.value.branch_id = '';
-        permission.value.department_id = '';
+        scopeFormData.branch_id = '';
+        scopeFormData.department_id = '';
         departmentsdata.value = [];
 
-        if (!isSuperadmin.value) {
-            menusdata.value = [];
-            permissiondata.value = [];
-        }
+        scopeForm$.value?.update({
+            branch_id: '',
+            department_id: '',
+        });
 
         if (companyId) {
             await getBranch(companyId);
@@ -208,16 +285,16 @@
 
         if (isSuperadmin.value) {
             await reloadPermissions();
+            return;
         }
+
+        menusdata.value = [];
+        permissiondata.value = [];
     }
 
     async function handleBranchChange(companyId, branchId) {
-        permission.value.department_id = '';
-
-        if (!isSuperadmin.value) {
-            menusdata.value = [];
-            permissiondata.value = [];
-        }
+        scopeFormData.department_id = '';
+        scopeForm$.value?.update({ department_id: '' });
 
         if (companyId && branchId) {
             await getDepartment(companyId, branchId);
@@ -225,18 +302,7 @@
             departmentsdata.value = [];
         }
 
-        if (isSuperadmin.value) {
-            await reloadPermissions();
-        }
-    }
-
-    async function handleDepartmentChange() {
-        if (isSuperadmin.value) {
-            await reloadPermissions();
-            return;
-        }
-
-        if (permission.value.department_id !== '') {
+        if (branchId || isSuperadmin.value) {
             await reloadPermissions();
             return;
         }
@@ -244,6 +310,58 @@
         menusdata.value = [];
         permissiondata.value = [];
     }
+
+    async function handleDepartmentChange() {
+        if (!hasPermissionScope.value) {
+            menusdata.value = [];
+            permissiondata.value = [];
+            return;
+        }
+
+        await reloadPermissions();
+    }
+
+    function handleScopeFormUpdate(value) {
+        if (skipScopeSync || !value || typeof value !== 'object') {
+            return;
+        }
+
+        Object.assign(scopeFormData, value);
+        syncScopeToPermission();
+    }
+
+    watch(
+        () => normalizeScopeId(scopeFormData.company_id),
+        async (companyId, previousCompanyId) => {
+            if (!scopeReady.value || companyId === previousCompanyId) {
+                return;
+            }
+
+            await handleCompanyChange(companyId);
+        },
+    );
+
+    watch(
+        () => normalizeScopeId(scopeFormData.branch_id),
+        async (branchId, previousBranchId) => {
+            if (!scopeReady.value || branchId === previousBranchId) {
+                return;
+            }
+
+            await handleBranchChange(scopeFormData.company_id, branchId);
+        },
+    );
+
+    watch(
+        () => normalizeScopeId(scopeFormData.department_id),
+        async (departmentId, previousDepartmentId) => {
+            if (!scopeReady.value || departmentId === previousDepartmentId) {
+                return;
+            }
+
+            await handleDepartmentChange();
+        },
+    );
 
     const checksubparent = async (id, event) => {
         const subparentElement = event.target.closest('.my-subparent-list');
@@ -360,28 +478,46 @@
     };
 
     onMounted(async () => {
+        skipScopeSync = true;
         permission.value.role_id = routeProps.id;
 
+        await loadSelectedRole();
+
         if (isSuperadmin.value) {
-            permission.value.company_id = '';
-            permission.value.branch_id = '';
-            permission.value.department_id = '';
+            scopeFormData.company_id = '';
+            scopeFormData.branch_id = '';
+            scopeFormData.department_id = '';
+            syncScopeToPermission();
             await fetchCompany();
             await reloadPermissions();
+            await nextTick();
+            scopeForm$.value?.update({ ...scopeFormData });
+            skipScopeSync = false;
+            scopeReady.value = true;
             return;
         }
 
-        permission.value.company_id = authUser.value?.company_id ?? '';
-        permission.value.branch_id = authUser.value?.branch_id ?? '';
-        permission.value.department_id = '';
+        scopeFormData.company_id = authUser.value?.company_id ?? '';
+        scopeFormData.branch_id = authUser.value?.branch_id ?? '';
+        scopeFormData.department_id = '';
+        syncScopeToPermission();
 
-        if (isCompanyadmin.value && permission.value.company_id) {
-            await fetchBranch(permission.value.company_id);
+        if (isCompanyadmin.value && scopeFormData.company_id) {
+            await fetchBranch(scopeFormData.company_id);
         }
 
-        if (permission.value.company_id && permission.value.branch_id) {
-            await fetchDepartment(permission.value.company_id, permission.value.branch_id);
+        if (scopeFormData.company_id && scopeFormData.branch_id) {
+            await fetchDepartment(scopeFormData.company_id, scopeFormData.branch_id);
         }
+
+        if (scopeFormData.branch_id || scopeFormData.department_id) {
+            await reloadPermissions();
+        }
+
+        await nextTick();
+        scopeForm$.value?.update({ ...scopeFormData });
+        skipScopeSync = false;
+        scopeReady.value = true;
     });
 </script>
 
@@ -393,79 +529,50 @@
             <div class="card-body permission-page__toolbar-body">
                 <div class="permission-page__toolbar-head">
                     <div class="permission-page__toolbar-intro">
-                        <div class="permission-page__toolbar-icon">
-                            <i class="mdi mdi-shield-key-outline" aria-hidden="true" />
+                        <div class="permission-page__toolbar-icon" aria-hidden="true">
+                            <ShieldQuarter size="md" class="permission-page__toolbar-icon-svg" />
                         </div>
                         <div>
                             <h2 class="permission-page__toolbar-title">Permission scope</h2>
                             <p class="permission-page__toolbar-subtitle">
                                 Configure access for this role
+                                <span
+                                    v-if="selectedRoleName"
+                                    class="permission-page__role-badge"
+                                >
+                                    {{ selectedRoleName }}
+                                </span>
                                 <span class="permission-page__scope-badge">{{ scopeSummary }}</span>
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div class="permission-page__filters row g-3">
-                    <div v-if="showCompanyFilter" class="col-md-4 col-lg-3">
-                        <label class="permission-page__filter-label" for="permission-filter-company">
-                            <i class="mdi mdi-domain" aria-hidden="true" />
-                            Company
-                        </label>
-                        <select
-                            id="permission-filter-company"
-                            v-model="permission.company_id"
-                            class="form-select permission-page__select"
-                            @change="handleCompanyChange(permission.company_id)"
-                        >
-                            <option value="">All companies</option>
-                            <option v-for="company in companiesdata" :key="company.id" :value="company.id">
-                                {{ company.text ?? company.name }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div v-if="showBranchFilter" class="col-md-4 col-lg-3">
-                        <label class="permission-page__filter-label" for="permission-filter-branch">
-                            <i class="mdi mdi-source-branch" aria-hidden="true" />
-                            Branch
-                        </label>
-                        <select
-                            id="permission-filter-branch"
-                            v-model="permission.branch_id"
-                            class="form-select permission-page__select"
-                            :disabled="branchFilterDisabled"
-                            @change="handleBranchChange(permission.company_id, permission.branch_id)"
-                        >
-                            <option value="">All branches</option>
-                            <option v-for="branch in branchesdata" :key="branch.id" :value="branch.id">
-                                {{ branch.text ?? branch.name }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div v-if="showDepartmentFilter" class="col-md-4 col-lg-3">
-                        <label class="permission-page__filter-label" for="permission-filter-department">
-                            <i class="mdi mdi-sitemap-outline" aria-hidden="true" />
-                            Department
-                        </label>
-                        <select
-                            id="permission-filter-department"
-                            v-model="permission.department_id"
-                            class="form-select permission-page__select"
-                            :disabled="departmentFilterDisabled"
-                            @change="handleDepartmentChange"
-                        >
-                            <option value="">All departments</option>
-                            <option v-for="department in departmentsdata" :key="department.id" :value="department.id">
-                                {{ department.text ?? department.name }}
-                            </option>
-                        </select>
-                    </div>
+                <div class="permission-page__scope-form">
+                    <Vueform
+                        :model-value="scopeFormData"
+                        sync
+                        :endpoint="false"
+                        size="sm"
+                        :display-errors="false"
+                        ref="scopeForm$"
+                        @update:model-value="handleScopeFormUpdate"
+                    >
+                        <PermissionScopeFields
+                            :show-company-filter="showCompanyFilter"
+                            :show-branch-filter="showBranchFilter"
+                            :show-department-filter="showDepartmentFilter"
+                            :companiesdata="companiesdata"
+                            :branchesdata="branchesdata"
+                            :departmentsdata="departmentsdata"
+                            :branch-filter-disabled="branchFilterDisabled"
+                            :department-filter-disabled="departmentFilterDisabled"
+                        />
+                    </Vueform>
                 </div>
 
                 <PermissionHeader
-                    v-if="showPermissionGrid || isSuperadmin"
+                    v-if="showPermissionGrid"
                     v-model:search="searchQuery"
                     :total-modules="totalModules"
                     :granted-count="grantedCount"
@@ -475,14 +582,14 @@
             </div>
         </section>
 
-        <div v-if="!showPermissionGrid && !loading && !isSuperadmin" class="permission-page__empty card custom-card">
+        <div v-if="!showPermissionGrid && !loading" class="permission-page__empty card custom-card">
             <div class="card-body permission-page__empty-body">
                 <div class="permission-page__empty-icon-wrap">
                     <i class="mdi mdi-shield-search permission-page__empty-icon" aria-hidden="true" />
                 </div>
-                <p class="permission-page__empty-title mb-1">Select a department to begin</p>
+                <p class="permission-page__empty-title mb-1">{{ emptyStateCopy.title }}</p>
                 <p class="permission-page__empty-text text-muted mb-0">
-                    Choose a department from the filters above to load and manage permissions.
+                    {{ emptyStateCopy.text }}
                 </p>
             </div>
         </div>
@@ -557,6 +664,14 @@
     margin-bottom: 0.25rem;
 }
 
+.permission-page__scope-form {
+    margin-bottom: 0.25rem;
+}
+
+.permission-page__scope-form :deep(.form-gap) {
+    row-gap: 1rem;
+}
+
 .permission-page__toolbar-intro {
     display: flex;
     align-items: flex-start;
@@ -574,6 +689,23 @@
     color: var(--accent-dark, #199683);
     font-size: 1.375rem;
     flex-shrink: 0;
+}
+
+.permission-page__toolbar-icon-svg {
+    display: block;
+    fill: currentColor;
+}
+
+.permission-page__role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.18);
 }
 
 .permission-page__toolbar-title {

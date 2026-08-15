@@ -6,6 +6,7 @@ use App\Models\Menu;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class MenuController extends Controller
@@ -202,14 +203,11 @@ class MenuController extends Controller
         return response()->json($menu);
     }
 
-    public function fetchpermenus()
+    public function fetchpermenus(Request $request)
     {
-        $menu = Menu::with('children.children')
-            ->where('is_active', '=', 1)
-            ->select('name as text', 'menus.*')
-            ->get();
+        $roleId = (int) $request->user()->role_id;
 
-        return response()->json($menu);
+        return response()->json(Menu::permissionMenusForAssigner($roleId));
     }
 
     /* Bulk Record Permanently Delete */
@@ -231,6 +229,50 @@ class MenuController extends Controller
         } else {
             return response()->json('406');
         }
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'rows' => 'required|array|min:1',
+            'rows.*.name' => 'bail|required|string',
+            'rows.*.type' => 'bail|required',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $created = 0;
+            $updated = 0;
+
+            foreach ($request->rows as $index => $row) {
+                if (! is_array($row)) {
+                    throw ValidationException::withMessages([
+                        'rows' => ['Row '.($index + 1).' is invalid.'],
+                    ]);
+                }
+
+                if (Menu::upsertFromImport($row) === 'created') {
+                    $created++;
+                } else {
+                    $updated++;
+                }
+            }
+
+            DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return response()->json(['errormessage' => $e]);
+        }
+
+        return response()->json([
+            'message' => "Successfully imported {$created} new and updated {$updated} menu records.",
+        ]);
     }
 
     public function duplicate(Request $request)

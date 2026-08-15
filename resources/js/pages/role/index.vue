@@ -12,6 +12,7 @@
     import { createTableExportAllRows } from '@/composables/tableExportList';
     import AddModal from './add.vue';
     import EditModal from './edit.vue';
+    import ImportModal from './import.vue';
 
     defineOptions({
         layout: {
@@ -62,15 +63,20 @@
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
     const showCompanyFilter = computed(() => isSuperadmin.value);
     const showBranchFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const showFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
     const branchFilterDisabled = computed(() => showCompanyFilter.value && !state.search.company_id);
 
-    const columns = [
-        { key: 'company_name', label: 'Company', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+    const columns = computed(() => [
+        ...(isSuperadmin.value ? [
+            { key: 'company_name', label: 'Company', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        ] : []),
+        ...(isSuperadmin.value || isCompanyadmin.value ? [
+            { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        ] : []),
         { key: 'name', label: 'Name', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
         { key: 'is_active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', show: 'active' },
         { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['edit', 'delete', 'duplicate', 'permission']},
-    ];
+    ]);
 
     const currentUrl = ref('');
     const oldcurrentUrl = ref((getSavedValue('currentUrl') || ''));
@@ -178,8 +184,14 @@
         form$.value?.reset();
         formData.value = {
             ...defaultFormData.value,
-            company_id: authUser.value?.company_id ?? '',
-            branch_id: authUser.value?.branch_id ?? '',
+            ...(isSuperadmin.value
+                ? {}
+                : isCompanyadmin.value
+                    ? { company_id: authUser.value?.company_id ?? '' }
+                    : {
+                        company_id: authUser.value?.company_id ?? '',
+                        branch_id: authUser.value?.branch_id ?? '',
+                    }),
         };
 
         if (showCompanyFilter.value) {
@@ -239,11 +251,13 @@
                     :changeStatus="changeStatus"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
+                    :show-filter="showFilter"
+                    :show-import="true"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
 
-            <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
+            <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
                     <label class="form-label" for="role-filter-company">Company</label>
                     <select
@@ -321,4 +335,6 @@
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"
     />
+
+    <ImportModal :on-success="getData" />
 </template>

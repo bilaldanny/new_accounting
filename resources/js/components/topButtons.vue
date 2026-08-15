@@ -11,6 +11,7 @@ import {
     TrashAlt,
     TrashX,
     UndoAlt,
+    FilePlus,
 } from '@boxicons/vue';
 
 const buttonProps = defineProps({
@@ -19,6 +20,8 @@ const buttonProps = defineProps({
     title: String,
     url: String,
     showFilter: { type: Boolean, default: true },
+    showAdd: { type: Boolean, default: true },
+    showImport: { type: Boolean, default: false },
     filterOpen: { type: Boolean, default: false },
     showStatus: { type: Boolean, default: true },
     /** When true, refresh (reload data) is only shown if user has `/${url}/reload` in permission_paths */
@@ -188,10 +191,28 @@ const { formatedText } = useCommons();
 
             <button
                 type="button"
+                class="btn btn-sm btn-success top-btn"
+                data-bs-toggle="modal"
+                data-bs-target="#ImportModal"
+                v-if="
+                    buttonProps.showImport &&
+                    props.auth.user.permission_paths.includes(`/${buttonProps.url}/import`)
+                "
+                title="Import"
+            >
+                <FilePlus size="sm" class="top-btn-icon top-btn-icon-inline" />
+                Import
+            </button>
+
+            <button
+                type="button"
                 class="btn btn-sm btn-primary top-btn"
                 data-bs-toggle="modal"
                 data-bs-target="#AddModal"
-                v-if="props.auth.user.permission_paths.includes(`/${buttonProps.url}/add`)"
+                v-if="
+                    buttonProps.showAdd &&
+                    props.auth.user.permission_paths.includes(`/${buttonProps.url}/add`)
+                "
             >
                 <Plus size="sm" class="top-btn-icon top-btn-icon-inline" />
                 Add New

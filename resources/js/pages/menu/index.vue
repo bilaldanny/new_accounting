@@ -13,6 +13,7 @@
     import { createTableExportAllRows } from '@/composables/tableExportList';
     import AddModal from './add.vue';
     import EditModal from './edit.vue';
+    import ImportModal from './import.vue';
 
     defineOptions({
         layout: {
@@ -202,6 +203,7 @@
                     :changeStatus="changeStatus"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
+                    :show-import="true"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
@@ -280,5 +282,7 @@
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"
     />
+
+    <ImportModal :on-success="getData" />
 </template>
 

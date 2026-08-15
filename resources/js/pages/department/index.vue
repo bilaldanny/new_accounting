@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-    import { onMounted, ref, watchEffect } from 'vue';
+    import { onMounted, ref, watchEffect, computed } from 'vue';
     import TopButtons from '@/components/topButtons.vue';
     import TheFilter from '@/components/theFilter.vue';
     import useCommons from '@/composables/common';
@@ -12,6 +12,7 @@
     import { createTableExportAllRows } from '@/composables/tableExportList';
     import AddModal from './add.vue';
     import EditModal from './edit.vue';
+    import ImportModal from './import.vue';
 
     defineOptions({
         layout: {
@@ -46,17 +47,36 @@
         getEditData
     } = useDepartments();
 
-    const {select_data, getSavedValue, formatedText, handleError, handleSuccess} = useCommons();
+    const {select_data, getSavedValue, formatedText, handleError, handleSuccess, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
 
-    const columns = [
-        { key: 'select', label: '', type: 'checkbox', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
-        { key: 'count', label: 'S.No', type: 'count', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
-        { key: 'name', label: 'Name', type: 'primary', responsive: ['sm', 'md', 'lg'] },
-        { key: 'company_id', label: 'Company', type: 'secondary', responsive: ['md', 'lg'] },
-        { key: 'branch_id', label: 'Branch', type: 'secondary', responsive: ['lg'] },
+    const authUser = computed(() => props.auth?.user as {
+        rolename?: string;
+        company_id?: number | string | null;
+        branch_id?: number | string | null;
+    } | null);
+
+    const normalizeRoleName = (name: unknown): string =>
+        String(name ?? '').toLowerCase().replace(/\s+/g, '');
+
+    const roleName = computed(() => normalizeRoleName(authUser.value?.rolename));
+    const isSuperadmin = computed(() => roleName.value === 'superadmin');
+    const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
+    const showCompanyFilter = computed(() => isSuperadmin.value);
+    const showBranchFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const showFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const branchFilterDisabled = computed(() => showCompanyFilter.value && !state.search.company_id);
+
+    const columns = computed(() => [
+        ...(isSuperadmin.value ? [
+            { key: 'company_name', label: 'Company', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        ] : []),
+        ...(isSuperadmin.value || isCompanyadmin.value ? [
+            { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        ] : []),
+        { key: 'name', label: 'Name', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
         { key: 'active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', show: 'active' },
         { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['edit', 'delete', 'duplicate']},
-    ]
+    ]);
 
     const currentUrl = ref('');
     const oldcurrentUrl = ref((getSavedValue('currentUrl') || ''));
@@ -124,7 +144,18 @@
         });
     };
 
-    onMounted(() => {
+    onMounted(async () => {
+        state.search.company_id = authUser.value?.company_id ?? '';
+        state.search.branch_id = authUser.value?.branch_id ?? '';
+
+        if (showCompanyFilter.value) {
+            await fetchCompany();
+        }
+
+        if (isCompanyadmin.value && authUser.value?.company_id) {
+            await fetchBranch(authUser.value.company_id);
+        }
+
         if(oldcurrentUrl.value === props.routeName){
             const savedValues = {
                 page: getSavedValue('currentPage', (v) => parseInt(v, 10)),
@@ -151,9 +182,33 @@
     const openAddModal = async () => {
         state.modalLoading = true;
         form$.value?.reset();
-        formData.value = { ...defaultFormData.value };
+        formData.value = {
+            ...defaultFormData.value,
+            ...(isSuperadmin.value
+                ? {}
+                : isCompanyadmin.value
+                    ? { company_id: authUser.value?.company_id ?? '' }
+                    : {
+                        company_id: authUser.value?.company_id ?? '',
+                        branch_id: authUser.value?.branch_id ?? '',
+                    }),
+        };
+
+        if (showCompanyFilter.value) {
+            await fetchCompany();
+        }
+
+        if (isCompanyadmin.value && authUser.value?.company_id) {
+            await fetchBranch(authUser.value.company_id);
+        }
+
         state.modalLoading = false;
     };
+
+    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
+        state.search.branch_id = '';
+        await fetchBranch(companyId);
+    }
 
     function handleAddModalClose() {
         state.modalLoading = true;
@@ -176,6 +231,8 @@
         state.search.search = '';
         state.search.show_record = 10;
         state.search.page = 1;
+        state.search.company_id = authUser.value?.company_id ?? '';
+        state.search.branch_id = authUser.value?.branch_id ?? '';
         getData();
     }
 
@@ -194,34 +251,39 @@
                     :changeStatus="changeStatus"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
+                    :show-filter="showFilter"
+                    :show-import="true"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
 
-            <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
-                <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="department-filter-status">Status</label>
+            <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
+                <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="department-filter-company">Company</label>
                     <select
-                        id="department-filter-status"
+                        id="department-filter-company"
                         class="form-select form-select-sm"
-                        v-model="state.search.status"
+                        v-model="state.search.company_id"
+                        @change="handleCompanyFilterChange(state.search.company_id)"
                     >
-                        <option value="all">All</option>
-                        <option value="1">Active</option>
-                        <option value="0">Inactive</option>
+                        <option value="">All</option>
+                        <option v-for="company in companiesdata" :key="company.id" :value="company.id">
+                            {{ company.text ?? company.name }}
+                        </option>
                     </select>
                 </div>
-                <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="department-filter-records">Show records</label>
+                <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="department-filter-branch">Branch</label>
                     <select
-                        id="department-filter-records"
+                        id="department-filter-branch"
                         class="form-select form-select-sm"
-                        v-model="state.search.show_record"
+                        v-model="state.search.branch_id"
+                        :disabled="branchFilterDisabled"
                     >
-                        <option :value="10">10</option>
-                        <option :value="25">25</option>
-                        <option :value="50">50</option>
-                        <option :value="100">100</option>
+                        <option value="">All</option>
+                        <option v-for="branch in branchesdata" :key="branch.id" :value="branch.id">
+                            {{ branch.text ?? branch.name }}
+                        </option>
                     </select>
                 </div>
             </TheFilter>
@@ -267,9 +329,12 @@
         :showLoader="state.modalLoading"
         :formData="formData"
         :formRef="form$"
+        :record-id="edit_id.id || null"
         :endpoint="`${API_ENDPOINTS.departments}/${edit_id.id}`"
         :onClose="handleEditModalClose"
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"
     />
+
+    <ImportModal :on-success="getData" />
 </template>

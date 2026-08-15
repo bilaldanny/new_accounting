@@ -10,6 +10,12 @@ const enExtended = {
     validation: {
         ...en.validation,
         role_name_unique: 'A role with this name already exists.',
+        department_name_unique: 'A department with this name already exists.',
+        company_code_unique: 'This company code is already taken.',
+        company_admin_email_unique: 'This admin email is already taken.',
+        company_admin_username_unique: 'This admin username is already taken.',
+        user_email_unique: 'This email is already taken.',
+        user_username_unique: 'This username is already taken.',
     },
 }
 
@@ -30,6 +36,82 @@ async function postCheckIdentity(payload: Record<string, string>) {
         throw new Error(`HTTP ${res.status}`)
     }
     return res.json() as Promise<{ email_taken: boolean; username_taken: boolean }>
+}
+
+async function postCheckCompanyCode(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/companies/check-code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ code_taken: boolean }>
+}
+
+async function postCheckCompanyAdminIdentity(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/companies/check-admin-identity', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ email_taken?: boolean; username_taken?: boolean }>
+}
+
+async function postCheckUserIdentity(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/users/check-identity', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ email_taken?: boolean; username_taken?: boolean }>
+}
+
+async function postCheckDepartmentName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/departments/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
 }
 
 async function postCheckRoleName(payload: Record<string, string | number>) {
@@ -87,6 +169,190 @@ class StudentUsernameUnique extends Validator {
     }
 }
 
+type ValidatorWithAttributes = Validator & {
+    attributes: Record<string | number, unknown>
+    form$?: { data?: Record<string, unknown> }
+}
+
+function ruleExceptId(
+    validator: Validator,
+    formFallbackKey?: string,
+): number | undefined {
+    const ctx = validator as ValidatorWithAttributes
+    const raw = ctx.attributes?.[0] ?? (formFallbackKey ? ctx.form$?.data?.[formFallbackKey] : undefined)
+
+    if (raw === undefined || raw === null || String(raw) === '') {
+        return undefined
+    }
+
+    return Number(raw)
+}
+
+class CompanyCodeUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const code = String(value ?? '').trim()
+        if (!code) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this, 'id')
+        const payload: Record<string, string | number> = { code }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        return postCheckCompanyCode(payload)
+            .then((data) => !data.code_taken)
+            .catch(() => true)
+    }
+}
+
+class CompanyAdminEmailUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const email = String(value ?? '').trim()
+        if (!email) {
+            return Promise.resolve(true)
+        }
+
+        const exceptUserId = ruleExceptId(this, 'user_id')
+        const payload: Record<string, string | number> = { email }
+
+        if (exceptUserId !== undefined) {
+            payload.except_user_id = exceptUserId
+        }
+
+        return postCheckCompanyAdminIdentity(payload)
+            .then((data) => !data.email_taken)
+            .catch(() => true)
+    }
+}
+
+class CompanyAdminUsernameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const username = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '')
+        if (!username) {
+            return Promise.resolve(true)
+        }
+
+        const exceptUserId = ruleExceptId(this, 'user_id')
+        const payload: Record<string, string | number> = { username }
+
+        if (exceptUserId !== undefined) {
+            payload.except_user_id = exceptUserId
+        }
+
+        return postCheckCompanyAdminIdentity(payload)
+            .then((data) => !data.username_taken)
+            .catch(() => true)
+    }
+}
+
+class UserEmailUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const email = String(value ?? '').trim()
+        if (!email) {
+            return Promise.resolve(true)
+        }
+
+        const exceptUserId = ruleExceptId(this, 'id')
+        const payload: Record<string, string | number> = { email }
+
+        if (exceptUserId !== undefined) {
+            payload.except_user_id = exceptUserId
+        }
+
+        return postCheckUserIdentity(payload)
+            .then((data) => !data.email_taken)
+            .catch(() => true)
+    }
+}
+
+class UserUsernameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const username = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '')
+        if (!username) {
+            return Promise.resolve(true)
+        }
+
+        const exceptUserId = ruleExceptId(this, 'id')
+        const payload: Record<string, string | number> = { username }
+
+        if (exceptUserId !== undefined) {
+            payload.except_user_id = exceptUserId
+        }
+
+        return postCheckUserIdentity(payload)
+            .then((data) => !data.username_taken)
+            .catch(() => true)
+    }
+}
+
+class DepartmentNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        if (formData.branch_id !== undefined && formData.branch_id !== null && formData.branch_id !== '') {
+            payload.branch_id = Number(formData.branch_id)
+        }
+
+        return postCheckDepartmentName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
 class RoleNameUnique extends Validator {
     get isAsync() {
         return true
@@ -100,12 +366,12 @@ class RoleNameUnique extends Validator {
             return Promise.resolve(true)
         }
 
-        const exceptId = this.params?.[0]
-        const formData = (this as { form$?: { data?: Record<string, unknown> } }).form$?.data ?? {}
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
         const payload: Record<string, string | number> = { name }
 
-        if (exceptId !== undefined && exceptId !== null && String(exceptId) !== '') {
-            payload.except_id = Number(exceptId)
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
         }
 
         if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
@@ -125,6 +391,7 @@ class RoleNameUnique extends Validator {
 export default defineConfig({
     theme: bootstrap,
     classHelpers: true,
+    plugins: [PluginMask],
     debounce: 500,
     locales: { en: enExtended },
     locale: 'en',
@@ -135,7 +402,13 @@ export default defineConfig({
     rules: {
         student_email_unique: StudentEmailUnique,
         student_username_unique: StudentUsernameUnique,
+        company_code_unique: CompanyCodeUnique,
+        company_admin_email_unique: CompanyAdminEmailUnique,
+        company_admin_username_unique: CompanyAdminUsernameUnique,
+        user_email_unique: UserEmailUnique,
+        user_username_unique: UserUsernameUnique,
         role_name_unique: RoleNameUnique,
+        department_name_unique: DepartmentNameUnique,
     },
     // Vueform merges `axios` into its bundled axios (the old `http` key is not read by the installer).
     axios: {

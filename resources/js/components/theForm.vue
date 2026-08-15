@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { nextTick, reactive, ref, watch } from 'vue';
 
 
     const params = defineProps({
@@ -19,6 +19,7 @@ import { reactive, ref, watch } from 'vue';
 
     const vueform$ = ref(null)
     const isSubmitting = ref(false)
+    let skipParentSync = false
 
     watch(isSubmitting, (value) => {
         emit('update:submitting', value)
@@ -30,7 +31,7 @@ import { reactive, ref, watch } from 'vue';
     watch(
         () => params.formData,
         (newData) => {
-            if (!newData) {
+            if (skipParentSync || !newData) {
                 return;
             }
 
@@ -40,9 +41,19 @@ import { reactive, ref, watch } from 'vue';
         { deep: true },
     );
 
-    // when Vueform updates → emit to parent
+    // when Vueform updates → keep parent formData in sync
     const handleUpdate = (val) => {
-        emit('update:formData', val)
+        skipParentSync = true;
+
+        if (params.formData && val && typeof val === 'object') {
+            Object.assign(params.formData, val);
+        }
+
+        emit('update:formData', val);
+
+        nextTick(() => {
+            skipParentSync = false;
+        });
     }
 
     const handleSubmit = async (form$: any, formData: FormData) => {
@@ -77,13 +88,21 @@ import { reactive, ref, watch } from 'vue';
             return;
         }
 
-        await vueform$.value.validate();
+        isSubmitting.value = true;
 
-        if (vueform$.value.invalid) {
-            return;
+        try {
+            await vueform$.value.validate();
+
+            if (vueform$.value.invalid) {
+                isSubmitting.value = false;
+
+                return;
+            }
+
+            vueform$.value.submit();
+        } catch {
+            isSubmitting.value = false;
         }
-
-        vueform$.value.submit();
     }
 
     function reset() {
@@ -103,9 +122,15 @@ import { reactive, ref, watch } from 'vue';
     }
 
     function update(value) {
+        skipParentSync = true;
+
         if(vueform$.value){
             vueform$.value.update(value);
         }
+
+        nextTick(() => {
+            skipParentSync = false;
+        });
     }
 
     async function validate() {
@@ -122,6 +147,7 @@ import { reactive, ref, watch } from 'vue';
         update,
         validate,
         isSubmitting,
+        vueform$,
     })
 
 </script>

@@ -21,6 +21,18 @@ type IsotopeInstance = {
     layout: () => void;
 };
 
+const suppressedNotificationMessages = new Set([
+    'Server Error',
+]);
+
+function shouldShowNotification(message: unknown, type: string): boolean {
+    if (type === 'success' || type === 'warning') {
+        return true;
+    }
+
+    return ! suppressedNotificationMessages.has(String(message ?? '').trim());
+}
+
 export default function useCommons(){
 
     let isotope: IsotopeInstance | null = null;
@@ -62,8 +74,23 @@ export default function useCommons(){
 
     const { setNotification } = useNotificationStore()
 
+    const playNotificationSound = (audioId: string) => {
+        const audio = document.getElementById(audioId) as HTMLAudioElement | null;
+
+        if (!audio) {
+            return;
+        }
+
+        audio.currentTime = 0;
+        void audio.play().catch(() => {});
+    };
+
     /* Notify */
     const Notify = async (message: string, type = 'success') => {
+        if (! shouldShowNotification(message, type)) {
+            return;
+        }
+
         // toast.dismiss();
 
         // switch (type) {
@@ -92,17 +119,16 @@ export default function useCommons(){
 			  "appearance": "light"
 			}
 		);
-		if(type === 'success'){
-			var x = document.getElementById("success-audio")
-			x.play();
+		if (type === 'success') {
+			playNotificationSound('success-audio');
 		}
-		if(type === 'error'){
-			var x = document.getElementById("error-audio")
-			x.play();
+
+		if (type === 'error' || type === 'alert') {
+			playNotificationSound('error-audio');
 		}
-		if(type === 'warning'){
-			var x = document.getElementById("warning-audio")
-			x.play();
+
+		if (type === 'warning') {
+			playNotificationSound('warning-audio');
 		}
     };
 
@@ -182,44 +208,76 @@ export default function useCommons(){
         }
     };
 
+    const resolveVueformInstance = (formRef: unknown) => {
+        const wrapper = (formRef as { value?: unknown })?.value ?? formRef;
+
+        if (! wrapper || typeof wrapper !== 'object') {
+            return null;
+        }
+
+        const vueformRef = (wrapper as { vueform$?: { value?: unknown } | unknown }).vueform$;
+
+        if (vueformRef && typeof vueformRef === 'object' && 'value' in vueformRef) {
+            return (vueformRef as { value: unknown }).value ?? null;
+        }
+
+        return vueformRef ?? null;
+    };
+
     /* Form Error */
     const handleError = (error, details, form$) => {
-        form$.messageBag.clear() // clear message bag
-        switch (details.type) {
+        const vueform = resolveVueformInstance(form$);
+        let notifyMessage = 'An error occurred';
+
+        vueform?.messageBag?.clear?.();
+
+        switch (details?.type) {
             // Error occured while preparing elements (no submit happened)
             case 'prepare':
-
-            form$.messageBag.append('Could not prepare form')
-            break
+                notifyMessage = 'Could not prepare form';
+                vueform?.messageBag?.append?.(notifyMessage);
+                break;
 
             // Error occured because response status is outside of 2xx
             case 'submit':
-                if(error.response.status === 419){
+                if (error?.response?.status === 419) {
                     window.location.href = 'login';
+
+                    return;
                 }
 
-                if(error.response.data.errors){
-                    Object.entries(error.response.data.errors).forEach(([key, messages]) => {
-                        form$.messageBag.append(messages[0]);
+                if (error?.response?.data?.errors) {
+                    const validationMessages = Object.values(error.response.data.errors).flat() as string[];
+
+                    validationMessages.forEach((message) => {
+                        vueform?.messageBag?.append?.(message);
                     });
-                }else{
-                    form$.messageBag.append(error.response.data.message)
+
+                    notifyMessage = validationMessages[0] ?? notifyMessage;
+                } else {
+                    notifyMessage = error?.response?.data?.message ?? notifyMessage;
+                    vueform?.messageBag?.append?.(notifyMessage);
                 }
-            break
+                break;
 
             // Request cancelled (no response object)
             case 'cancel':
-
-            form$.messageBag.append('Request cancelled')
-            break
+                notifyMessage = 'Request cancelled';
+                vueform?.messageBag?.append?.(notifyMessage);
+                break;
 
             // Some other errors happened (no response object)
             case 'other':
-
-            form$.messageBag.append('Couldn\'t submit form')
-            break
+            default:
+                notifyMessage = 'Couldn\'t submit form';
+                vueform?.messageBag?.append?.(notifyMessage);
+                break;
         }
-    }
+
+        if (error?.response?.data?.message !== 'Unauthenticated.') {
+            Notify(notifyMessage, 'alert');
+        }
+    };
 
     /* Form Success */
     const handleSuccess = (response, form$) => {
@@ -455,6 +513,10 @@ export default function useCommons(){
                 state.records = response.data.data;
                 state.trash_count = response.data.trash_count;
 
+                if ('can_add_branch' in response.data) {
+                    state.can_add_branch = response.data.can_add_branch;
+                }
+
                 if(state.search.page > state.records.last_page){
                     state.search.page = state.records.last_page;
                 }
@@ -632,41 +694,57 @@ export default function useCommons(){
     };
 
     const fetchState = async (country_id) => {
-        loading.value = true;
-        try{
-            const response = await fetchWithRetry(axios.post, '/api/fetchstates', {'country_id': country_id});
+        if (country_id === null || country_id === undefined || country_id === '') {
+            statesdata.value = [];
 
-            // Assign values to state
-            statesdata.value = response.data;
-
-            loading.value = false;
             return;
-        }catch (error) {
-            if(error.response?.data?.message !== 'Unauthenticated.'){
-                Notify(error.response?.data?.message || 'An error occurred', 'alert');
-            }
-        }finally {
-            loading.value = false;
         }
+
+        const key = `api/fetchstates:${country_id}`;
+
+        await runDeduped(key, async () => {
+            loading.value = true;
+
+            try {
+                const response = await fetchWithRetry(axios.post, '/api/fetchstates', { country_id });
+                statesdata.value = response.data;
+            } catch (error) {
+                if (error.response?.data?.message !== 'Unauthenticated.') {
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
+                }
+            } finally {
+                loading.value = false;
+            }
+        });
     };
 
-    const fetchCity = async (state_id) => {
-        loading.value = true;
-        try{
-            const response = await fetchWithRetry(axios.post, '/api/fetchcities', {'state_id': state_id});
+    const fetchCity = async (country_id: string | number | null | undefined, state_id: string | number | null | undefined) => {
+        if (state_id === null || state_id === undefined || state_id === '') {
+            citiesdata.value = [];
 
-            // Assign values to state
-            citiesdata.value = response.data;
-
-            loading.value = false;
             return;
-        }catch (error) {
-            if(error.response?.data?.message !== 'Unauthenticated.'){
-                Notify(error.response?.data?.message || 'An error occurred', 'alert');
-            }
-        }finally {
-            loading.value = false;
         }
+
+        const key = `api/fetchcities:${country_id}:${state_id}`;
+
+        await runDeduped(key, async () => {
+            loading.value = true;
+
+            try {
+                const response = await fetchWithRetry(axios.post, '/api/fetchcities', {
+                    country_id,
+                    state_id,
+                });
+
+                citiesdata.value = response.data;
+            } catch (error) {
+                if (error.response?.data?.message !== 'Unauthenticated.') {
+                    Notify(error.response?.data?.message || 'An error occurred', 'alert');
+                }
+            } finally {
+                loading.value = false;
+            }
+        });
     };
 
     const fetchCompany = async () => {
@@ -749,7 +827,7 @@ export default function useCommons(){
     }
 
     function changeState(state_id){
-        fetchCity(state_id);
+        fetchCity(null, state_id);
     }
 
     const placeholder = '/assets/images/no_image_available.png'

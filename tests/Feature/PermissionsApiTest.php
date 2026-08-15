@@ -199,3 +199,93 @@ test('fetchpermenus returns permission menus', function () {
     $response->assertSuccessful();
     expect(collect($response->json())->pluck('name'))->toContain('Dashboard');
 });
+
+test('fetchpermenus only returns menus the assigner role is permitted to manage', function () {
+    $scope = seedPermissionScope();
+
+    $settingsModuleId = DB::table('menus')->insertGetId([
+        'parent_id' => null,
+        'name' => 'Settings Module',
+        'icon' => 'bx-cog',
+        'route_name' => 'setting',
+        'route_path' => '/setting',
+        'menu_color' => '#000000',
+        'sort_order' => 2,
+        'is_hidden' => 0,
+        'is_active' => 1,
+        'is_permission' => 0,
+        'type' => 2,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $settingsPermissionId = DB::table('menus')->insertGetId([
+        'parent_id' => $settingsModuleId,
+        'name' => 'Settings Index',
+        'icon' => 'bx-cog',
+        'route_name' => 'setting.index',
+        'route_path' => '/setting/index',
+        'menu_color' => '#000000',
+        'sort_order' => 1,
+        'is_hidden' => 0,
+        'is_active' => 1,
+        'is_permission' => 1,
+        'type' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $managerRole = Role::query()->create([
+        'name' => 'limitedmanager',
+        'is_active' => true,
+        'is_admin' => false,
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_one_id'],
+    ]);
+
+    DB::table('permissions')->insert([
+        'company_id' => null,
+        'branch_id' => null,
+        'department_id' => null,
+        'role_id' => $managerRole->id,
+        'menu_id' => $scope['menu_id'],
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $managerUser = User::query()->forceCreate([
+        'role_id' => $managerRole->id,
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_one_id'],
+        'first_name' => 'Limited',
+        'last_name' => 'Manager',
+        'username' => 'limitedmanager',
+        'email' => 'limited@manager.test',
+        'password' => bcrypt('Password1!'),
+        'pass' => 'Password1!',
+        'is_active' => true,
+    ]);
+
+    Sanctum::actingAs($managerUser);
+
+    $response = $this->getJson('/api/fetchpermenus');
+
+    $response->assertSuccessful();
+
+    $menuNames = collect($response->json())->pluck('name');
+
+    expect($menuNames)->toContain('Dashboard')
+        ->and($menuNames)->not->toContain('Settings Module');
+
+    Sanctum::actingAs($managerUser);
+
+    $this->postJson('/api/permissions', [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_one_id'],
+        'department_id' => $scope['department_id'],
+        'role_id' => $scope['role_id'],
+        'menuid' => $settingsPermissionId,
+        'status' => 1,
+    ])->assertForbidden();
+});

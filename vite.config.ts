@@ -31,4 +31,7 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    optimizeDeps: {
+        include: ['bootstrap'],
+    },
 });

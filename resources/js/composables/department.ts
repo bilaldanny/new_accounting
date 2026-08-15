@@ -44,6 +44,8 @@ export default function useDepartments(){
         page: 1,
         search: '',
         status: 'all',
+        company_id: '',
+        branch_id: '',
       },
       loading: false,
       modalLoading: true,

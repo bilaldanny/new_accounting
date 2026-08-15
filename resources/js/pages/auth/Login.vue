@@ -11,7 +11,7 @@ defineOptions({
     layout: {
         title: 'Log in to your account',
         // description: 'Don\'t have an account yet? <a href="' + register.url() + '">Sign up here</a>',
-        description: 'Enter your email and password below to log in',
+        description: 'Enter your username or email and password below to log in',
     },
 });
 
@@ -55,7 +55,7 @@ const showPassword = ref(false);
                     placeholder="Enter Your Username Or Email"
                     required
                     autofocus
-                    autocomplete="email"
+                    autocomplete="username"
                 />
                 <InputError :message="errors.email" />
                 <InputError :message="errors.login" />

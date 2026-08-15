@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\URL;
@@ -157,5 +158,71 @@ function sendEmailVerificationLink($user)
         return true;
     } catch (Throwable $e) {
         return 'Failed to send verification email: '.$e->getMessage();
+    }
+}
+
+function parentChartOfAccount(int $companyId, int $branchId): void
+{
+    $parents = [
+        ['name' => 'Equity', 'code' => '100-00000', 'bs' => 1, 'acc_nature' => 'cr'],
+        ['name' => 'Assets', 'code' => '200-00000', 'bs' => 1, 'acc_nature' => 'dr'],
+        ['name' => 'Liabilities', 'code' => '300-00000', 'bs' => 1, 'acc_nature' => 'cr'],
+        ['name' => 'Expenses', 'code' => '400-00000', 'bs' => 0, 'acc_nature' => 'dr'],
+        ['name' => 'Revenue', 'code' => '500-00000', 'bs' => 0, 'acc_nature' => 'cr'],
+        ['name' => 'Cost of Goods Sold', 'code' => '600-00000', 'bs' => 0, 'acc_nature' => 'dr'],
+    ];
+
+    $now = now();
+
+    foreach ($parents as $value) {
+        DB::table('chart_of_accounts')->insert([
+            'company_id' => $companyId,
+            'branch_id' => $branchId,
+            'name' => $value['name'],
+            'code' => $value['code'],
+            'bs' => $value['bs'],
+            'acc_nature' => $value['acc_nature'],
+            'acc_type' => 'c',
+            'active' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+}
+
+function accountMapping(int $companyId, int $branchId): void
+{
+    $mapping = [
+        ['name' => 'Equity', 'key' => 'equity', 'value' => null],
+        ['name' => 'Assets', 'key' => 'assets', 'value' => null],
+        ['name' => 'Liabilities', 'key' => 'liability', 'value' => null],
+        ['name' => 'Expenses', 'key' => 'expenses', 'value' => null],
+        ['name' => 'Revenue', 'key' => 'revenue', 'value' => null],
+        ['name' => 'Customer', 'key' => 'customer', 'value' => null],
+        ['name' => 'Supplier', 'key' => 'supplier', 'value' => null],
+        ['name' => 'Customer Advance', 'key' => 'customeradvance', 'value' => null],
+        ['name' => 'Bank', 'key' => 'bank', 'value' => null],
+        ['name' => 'Cash', 'key' => 'cash', 'value' => null],
+        ['name' => 'Purchase', 'key' => 'purchase', 'value' => null],
+        ['name' => 'Import Purchase', 'key' => 'importpurchase', 'value' => null],
+        ['name' => 'Local Purchase', 'key' => 'localpurchase', 'value' => null],
+        ['name' => 'Sales', 'key' => 'sale', 'value' => null],
+        ['name' => 'Local Sales', 'key' => 'localsales', 'value' => null],
+        ['name' => 'Export Sales', 'key' => 'exportsale', 'value' => null],
+        ['name' => 'Profit And Loss', 'key' => 'pnl', 'value' => null],
+    ];
+
+    $now = now();
+
+    foreach ($mapping as $value) {
+        DB::table('chart_of_account_mappings')->insert([
+            'company_id' => $companyId,
+            'branch_id' => $branchId,
+            'name' => $value['name'],
+            'key' => $value['key'],
+            'value' => $value['value'],
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
     }
 }

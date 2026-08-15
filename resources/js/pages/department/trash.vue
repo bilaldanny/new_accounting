@@ -47,8 +47,6 @@
         { key: 'select', label: '', type: 'checkbox', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
         { key: 'count', label: 'S.No', type: 'count', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled' },
         { key: 'name', label: 'Name', type: 'primary', responsive: ['sm', 'md', 'lg'] },
-        { key: 'company_id', label: 'Company', type: 'secondary', responsive: ['md', 'lg'] },
-        { key: 'branch_id', label: 'Branch', type: 'secondary', responsive: ['lg'] },
         { key: 'active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', show: 'active' },
         { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['restore', 'delete']},
     ]
