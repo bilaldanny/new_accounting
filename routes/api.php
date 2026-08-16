@@ -1,14 +1,21 @@
 <?php
 
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CompanySettingController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CountryController;
+use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StateController;
+use App\Http\Controllers\TaxController;
+use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +28,8 @@ Route::get('/user', function (Request $request) {
 Route::post('fetchcountries', [CountryController::class, 'fetch']);
 Route::post('fetchstates', [StateController::class, 'fetch']);
 Route::post('fetchcities', [CityController::class, 'fetch']);
+Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
+Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
     /* Menu */
@@ -77,6 +86,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/companies/bulk_delete', [CompanyController::class, 'bulk_delete']);
     Route::post('companies/bulk_delete_per', [CompanyController::class, 'bulk_delete_per']);
     Route::post('companies/restore_records', [CompanyController::class, 'restore_records']);
+    Route::get('company-settings/{companyId}', [CompanySettingController::class, 'show']);
+    Route::put('company-settings/{companyId}', [CompanySettingController::class, 'update']);
+    Route::get('fetchparentaccounts', [ChartOfAccountController::class, 'fetchParentAccounts']);
+    Route::get('fetchchildaccounts', [ChartOfAccountController::class, 'fetchChildAccounts']);
+    Route::get('fetchallaccounts', [ChartOfAccountController::class, 'fetchAllAccounts']);
+    Route::get('fetchparentsaleaccounts', [ChartOfAccountController::class, 'fetchParentSaleAccounts']);
+    Route::get('fetchparentpurchaseaccounts', [ChartOfAccountController::class, 'fetchParentPurchaseAccounts']);
+    Route::get('fetchcustomers', [ContactController::class, 'fetchCustomers']);
+    Route::post('taxes/statusupdate', [TaxController::class, 'updateStatus']);
+    Route::post('taxes/bulk_delete', [TaxController::class, 'bulk_delete']);
+    Route::get('fetchtaxes', [TaxController::class, 'fetch']);
+    Route::resource('taxes', TaxController::class);
+    Route::get('fetchfinancialyears', [FinancialYearController::class, 'fetch']);
+    Route::resource('financialyears', FinancialYearController::class);
     /* Company */
 
     /* Permission */
@@ -84,6 +107,25 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('fetchpermissions', [PermissionController::class, 'fetch']);
     Route::post('permissions/statusupdate', [PermissionController::class, 'updatestatus']);
     /* Permission */
+
+    /* Currency */
+    Route::post('currencies/check-code', [CurrencyController::class, 'checkCode']);
+    Route::get('currencies/trash', [CurrencyController::class, 'trash']);
+    Route::resource('currencies', CurrencyController::class);
+    Route::post('/currencies/statusupdate', [CurrencyController::class, 'updatestatus']);
+    Route::post('/currencies/bulk_delete', [CurrencyController::class, 'bulk_delete']);
+    Route::post('currencies/bulk_delete_per', [CurrencyController::class, 'bulk_delete_per']);
+    Route::post('currencies/restore_records', [CurrencyController::class, 'restore_records']);
+    /* Currency */
+
+    /* Timezone */
+    Route::post('timezones/check-name', [TimezoneController::class, 'checkName']);
+    Route::get('timezones/trash', [TimezoneController::class, 'trash']);
+    Route::resource('timezones', TimezoneController::class);
+    Route::post('/timezones/bulk_delete', [TimezoneController::class, 'bulk_delete']);
+    Route::post('timezones/bulk_delete_per', [TimezoneController::class, 'bulk_delete_per']);
+    Route::post('timezones/restore_records', [TimezoneController::class, 'restore_records']);
+    /* Timezone */
 
     /* Department */
     Route::post('departments/check-name', [DepartmentController::class, 'checkName']);
