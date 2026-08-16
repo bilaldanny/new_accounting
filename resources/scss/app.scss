@@ -1415,6 +1415,226 @@
     margin-top: 0.5rem;
 }
 
+.company-setting-page {
+    .company-setting-nav {
+        flex: 0 0 14rem;
+        max-width: 14rem;
+        padding: 0.875rem;
+        background: #f8fafc;
+        border: 1px solid #e8edf3;
+        border-radius: 0.875rem;
+        position: sticky;
+        top: 1rem;
+    }
+
+    .company-setting-nav__heading {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        padding: 0 0.5rem 0.75rem;
+    }
+
+    .company-setting-nav__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .company-setting-nav__button {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        width: 100%;
+        margin: 0;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid transparent;
+        border-radius: 0.625rem;
+        background: transparent;
+        color: #64748b;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        text-align: left;
+        transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .company-setting-nav__button:hover {
+        background: #fff;
+        color: #334155;
+    }
+
+    .company-setting-nav__button--active {
+        background: #fff;
+        color: var(--accent-dark, #199683);
+        border-color: rgba(25, 150, 131, 0.16);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        font-weight: 600;
+    }
+
+    .company-setting-nav__icon {
+        flex-shrink: 0;
+        opacity: 0.9;
+    }
+
+    .company-setting-shell__main {
+        padding: 1.25rem 1.5rem;
+        background: #fff;
+        border: 1px solid #e8edf3;
+        border-radius: 0.875rem;
+        min-height: 24rem;
+    }
+
+    .company-setting-shell__main .vf-form {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .company-setting-tab-panel {
+        width: 100%;
+    }
+
+    .company-setting-section-label {
+        margin: 0.25rem 0 0.75rem;
+        padding-bottom: 0.625rem;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .company-setting-section-help {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #64748b;
+        line-height: 1.5;
+    }
+
+    .company-setting-divider {
+        margin: 1rem 0 1.25rem;
+        border-color: #eef2f7;
+        opacity: 1;
+    }
+
+    .company-setting-empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #64748b;
+        background: #f8fafc;
+        border: 1px dashed #dbe3ec;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .company-setting-tab-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .company-setting-table-wrap {
+        border: 1px solid #e8edf3;
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+
+    .company-setting-table {
+        margin-bottom: 0;
+
+        thead th {
+            background: #f8fafc;
+            border-bottom: 1px solid #e8edf3;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        tbody td {
+            font-size: 0.875rem;
+            vertical-align: middle;
+        }
+    }
+
+    .company-setting-page__actions {
+        display: flex;
+        justify-content: flex-end;
+        margin: 1.5rem -1.5rem -1.25rem;
+        padding: 1rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid #e8edf3;
+        border-radius: 0 0 0.875rem 0.875rem;
+    }
+
+    .company-setting-page__save-btn {
+        min-width: 9.5rem;
+        font-weight: 600;
+        padding-inline: 1.25rem;
+    }
+
+    .company-setting-logo-preview {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 3rem;
+        margin-top: 0.625rem;
+        padding: 0.5rem 0.75rem;
+        background: #f8fafc;
+        border: 1px dashed #dbe3ec;
+        border-radius: 0.5rem;
+    }
+
+    .company-setting-logo-preview--filled {
+        border-style: solid;
+        background: #fff;
+    }
+
+    .company-setting-logo-preview__image {
+        display: block;
+        max-height: 2.75rem;
+        max-width: 100%;
+        object-fit: contain;
+    }
+
+    .company-setting-logo-field .vf-input {
+        text-overflow: ellipsis;
+    }
+
+    .company-setting-shell__main .vf-element {
+        margin-bottom: 0.125rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .company-setting-nav {
+            flex: none;
+            max-width: none;
+            width: 100%;
+            position: static;
+        }
+
+        .company-setting-tab-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .company-setting-page__actions {
+            margin-inline: -1rem;
+            padding-inline: 1rem;
+        }
+    }
+}
+
 // Vueform phone country dropdown uses position:fixed with z-index 1002,
 // which sits behind Bootstrap modals (1055). Raise it inside modals.
 .vf-addon-options-dropdown {

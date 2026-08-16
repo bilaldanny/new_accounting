@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -22,6 +23,9 @@ class Company extends Model
         'name',
         'logo',
         'phone',
+        'cell',
+        'whatsapp_no',
+        'fb_link',
         'email',
         'ntn_no',
         'address',
@@ -48,6 +52,14 @@ class Company extends Model
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);
+    }
+
+    /**
+     * @return HasOne<CompanySetting, $this>
+     */
+    public function companySetting(): HasOne
+    {
+        return $this->hasOne(CompanySetting::class);
     }
 
     /**

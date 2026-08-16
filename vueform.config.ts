@@ -11,7 +11,9 @@ const enExtended = {
         ...en.validation,
         role_name_unique: 'A role with this name already exists.',
         department_name_unique: 'A department with this name already exists.',
+        timezone_name_unique: 'A timezone with this name already exists.',
         company_code_unique: 'This company code is already taken.',
+        currency_code_unique: 'This currency code is already taken.',
         company_admin_email_unique: 'This admin email is already taken.',
         company_admin_username_unique: 'This admin username is already taken.',
         user_email_unique: 'This email is already taken.',
@@ -36,6 +38,25 @@ async function postCheckIdentity(payload: Record<string, string>) {
         throw new Error(`HTTP ${res.status}`)
     }
     return res.json() as Promise<{ email_taken: boolean; username_taken: boolean }>
+}
+
+async function postCheckCurrencyCode(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/currencies/check-code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ code_taken: boolean }>
 }
 
 async function postCheckCompanyCode(payload: Record<string, string | number>) {
@@ -93,6 +114,25 @@ async function postCheckUserIdentity(payload: Record<string, string | number>) {
         throw new Error(`HTTP ${res.status}`)
     }
     return res.json() as Promise<{ email_taken?: boolean; username_taken?: boolean }>
+}
+
+async function postCheckTimezoneName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/timezones/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
 }
 
 async function postCheckDepartmentName(payload: Record<string, string | number>) {
@@ -186,6 +226,32 @@ function ruleExceptId(
     }
 
     return Number(raw)
+}
+
+class CurrencyCodeUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const code = String(value ?? '').trim()
+        if (!code) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const payload: Record<string, string | number> = { code }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        return postCheckCurrencyCode(payload)
+            .then((data) => !data.code_taken)
+            .catch(() => true)
+    }
 }
 
 class CompanyCodeUnique extends Validator {
@@ -318,6 +384,32 @@ class UserUsernameUnique extends Validator {
     }
 }
 
+class TimezoneNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        return postCheckTimezoneName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
 class DepartmentNameUnique extends Validator {
     get isAsync() {
         return true
@@ -402,6 +494,7 @@ export default defineConfig({
     rules: {
         student_email_unique: StudentEmailUnique,
         student_username_unique: StudentUsernameUnique,
+        currency_code_unique: CurrencyCodeUnique,
         company_code_unique: CompanyCodeUnique,
         company_admin_email_unique: CompanyAdminEmailUnique,
         company_admin_username_unique: CompanyAdminUsernameUnique,
@@ -409,6 +502,7 @@ export default defineConfig({
         user_username_unique: UserUsernameUnique,
         role_name_unique: RoleNameUnique,
         department_name_unique: DepartmentNameUnique,
+        timezone_name_unique: TimezoneNameUnique,
     },
     // Vueform merges `axios` into its bundled axios (the old `http` key is not read by the installer).
     axios: {

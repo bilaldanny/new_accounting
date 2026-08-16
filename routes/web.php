@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use UniSharp\LaravelFilemanager\Lfm;
@@ -99,6 +100,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('company/trash', function () {
         return Inertia::render('company/trash');
     })->name('company.trash');
+
+    Route::get('company/setting', function () {
+        return Inertia::render('company/setting');
+    })->name('company.setting');
+
+    Route::get('business/settings', [SettingController::class, 'index'])->name('business.settings');
     /* Company */
 
     /* Branch */
@@ -120,6 +127,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('department/trash');
     })->name('department.trash');
     /* Department */
+
+    /* Currency */
+    Route::get('currency', function () {
+        return Inertia::render('currency/index');
+    })->name('currency');
+
+    Route::get('currency/trash', function () {
+        return Inertia::render('currency/trash');
+    })->name('currency.trash');
+    /* Currency */
+
+    /* Timezone */
+    Route::get('timezone', function () {
+        return Inertia::render('timezone/index');
+    })->name('timezone');
+
+    Route::get('timezone/trash', function () {
+        return Inertia::render('timezone/trash');
+    })->name('timezone.trash');
+    /* Timezone */
 
     /* Setting */
     Route::get('setting', [SettingController::class, 'index'])->name('setting');
