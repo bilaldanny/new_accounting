@@ -1,6 +1,8 @@
 <?php
 
 use App\Mail\DynamicEmail;
+use App\Models\ChartOfAccount;
+use App\Models\ChartOfAccountMapping;
 use App\Models\Permission;
 use App\Models\Setting;
 use App\Models\User;
@@ -225,4 +227,71 @@ function accountMapping(int $companyId, int $branchId): void
             'updated_at' => $now,
         ]);
     }
+}
+
+function generateChartOfAccountCode(string $type, ChartOfAccountMapping $mapping, object $request): string
+{
+    if (! in_array($type, ['supplier', 'customer'], true)) {
+        return '000';
+    }
+
+    $account = ChartOfAccount::query()
+        ->with(['parent.parent'])
+        ->find($mapping->value);
+
+    if ($account === null) {
+        return '000';
+    }
+
+    $companyId = (int) $request->company_id;
+    $branchId = (int) $request->branch_id;
+
+    if ($account->parent_id === null) {
+        $childCount = ChartOfAccount::query()
+            ->where('parent_id', $account->id)
+            ->where('company_id', $companyId)
+            ->where('branch_id', $branchId)
+            ->count();
+
+        return $account->code.($childCount + 1).'0-00000';
+    }
+
+    $codePrefix = explode('-', (string) $account->code)[0];
+
+    if ($account->parent?->parent_id === null) {
+        $childCount = ChartOfAccount::query()
+            ->where('parent_id', $account->id)
+            ->where('company_id', $companyId)
+            ->where('branch_id', $branchId)
+            ->count();
+
+        return substr($codePrefix, 0, 2).($childCount + 1).'-00000';
+    }
+
+    $childCount = ChartOfAccount::query()
+        ->where('parent_id', $account->id)
+        ->count();
+
+    $code = $codePrefix.'-'.str_pad((string) ($childCount + 1), 5, '0', STR_PAD_LEFT);
+
+    return ensureUniqueChartOfAccountCode($code, $companyId, $branchId);
+}
+
+function ensureUniqueChartOfAccountCode(string $code, int $companyId, int $branchId): string
+{
+    $candidate = $code;
+
+    while (ChartOfAccount::query()
+        ->where('code', $candidate)
+        ->where('company_id', $companyId)
+        ->where('branch_id', $branchId)
+        ->exists()) {
+        $parts = explode('-', $candidate);
+        $lastIndex = count($parts) - 1;
+        $next = ((int) $parts[$lastIndex]) + 1;
+        $parts[$lastIndex] = str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        $candidate = implode('-', $parts);
+    }
+
+    return $candidate;
 }

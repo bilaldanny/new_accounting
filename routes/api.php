@@ -11,9 +11,10 @@ use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\MenuController;
-use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StateController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\UserController;
@@ -126,6 +127,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('timezones/bulk_delete_per', [TimezoneController::class, 'bulk_delete_per']);
     Route::post('timezones/restore_records', [TimezoneController::class, 'restore_records']);
     /* Timezone */
+
+    /* Supplier */
+    Route::get('suppliers/trash', [SupplierController::class, 'trash']);
+    Route::resource('suppliers', SupplierController::class);
+    Route::post('/suppliers/statusupdate', [SupplierController::class, 'updatestatus']);
+    Route::post('/suppliers/duplicate', [SupplierController::class, 'duplicate']);
+    Route::post('/suppliers/{id}/link-coa', [SupplierController::class, 'linkCoa']);
+    Route::post('/suppliers/bulk_delete', [SupplierController::class, 'bulk_delete']);
+    Route::post('suppliers/bulk_delete_per', [SupplierController::class, 'bulk_delete_per']);
+    Route::post('suppliers/restore_records', [SupplierController::class, 'restore_records']);
+    Route::get('/fetchsuppliers', [SupplierController::class, 'fetch']);
+    Route::get('/fetchcontactdetail', [SupplierController::class, 'contactDetail']);
+    Route::get('/fetchledger', [ReportController::class, 'fetchLedger']);
+    /* Supplier */
 
     /* Department */
     Route::post('departments/check-name', [DepartmentController::class, 'checkName']);

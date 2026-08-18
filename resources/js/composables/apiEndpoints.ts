@@ -34,5 +34,10 @@ export const API_ENDPOINTS = {
     userCheckIdentity: '/api/users/check-identity',
     departments: '/api/departments',
     departmentImport: '/api/departments/import',
+    suppliers: '/api/suppliers',
+    fetchSuppliers: '/api/fetchsuppliers',
+    fetchContactDetail: '/api/fetchcontactdetail',
+    fetchLedger: '/api/fetchledger',
+    linkSupplierCoa: (id: number | string) => `/api/suppliers/${id}/link-coa`,
     notifications: '/api/notifications',
 } as const;
