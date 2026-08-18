@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { computed, onMounted, ref, watch } from 'vue';
+    import { usePage } from '@inertiajs/vue3';
     import { Buildings, CheckCircle, Circle, EyeAlt, EyeClosed, ImagePlus, Lock, SliderAlt, UserCircle } from '@boxicons/vue';
     import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
     import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
@@ -22,6 +23,9 @@
     });
 
     const appUrl = resolvePublicAppBaseUrl();
+
+    const page = usePage();
+    const defaultDialCode = computed(() => String(page.props.dailCode ?? ''));
 
     const logoInputId = computed(() => (params.type === 'edit' ? 'EditLogo' : 'Logo'));
 
@@ -249,6 +253,7 @@
         label="Phone No"
         placeholder="Enter phone number"
         :columns="colThird"
+        :default="defaultDialCode"
         :allow-incomplete="true"
         :unmask="true"
     />
@@ -319,6 +324,7 @@
         label="Owner Phone"
         placeholder="Enter owner phone number"
         :columns="colThird"
+        :default="defaultDialCode"
         :allow-incomplete="true"
         :unmask="true"
     />

@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import useCommons from './common';
 import { API_ENDPOINTS } from './apiEndpoints';
 
@@ -15,7 +16,24 @@ export const defaultPurchaseColumns = () => [
     { name: 'Unit Selling Price (Inc. tax)', show: true },
 ];
 
+const phoneFields = ['phone', 'cell', 'whatsapp_no'] as const;
+
+function applyPhoneDefaults<T extends Record<string, unknown>>(data: T, defaultDialCode: string): T {
+    phoneFields.forEach((field) => {
+        const value = data[field];
+
+        if (value === null || value === undefined || value === '') {
+            data[field] = defaultDialCode;
+        }
+    });
+
+    return data;
+}
+
 export default function useCompanySettings() {
+    const { props: pageProps } = usePage();
+    const defaultDialCode = String(pageProps.dailCode ?? '');
+
     const { Notify, fetchWithRetry, fetchBranch, branchesdata } = useCommons();
 
     const loading = ref(false);
@@ -50,9 +68,9 @@ export default function useCompanySettings() {
         purchase_column: defaultPurchaseColumns(),
         transaction_edit_days: '',
         email: '',
-        phone: '',
-        cell: '',
-        whatsapp_no: '',
+        phone: defaultDialCode,
+        cell: defaultDialCode,
+        whatsapp_no: defaultDialCode,
         fb_link: '',
         address: '',
         country_id: '',
@@ -189,13 +207,13 @@ export default function useCompanySettings() {
                 },
             );
 
-            formData.value = {
+            formData.value = applyPhoneDefaults({
                 ...defaultFormData,
                 ...response.data.companySetting,
                 branch_id: branchId || formData.value.branch_id || '',
                 account_setup: response.data.account_setup ?? formData.value.account_setup ?? [],
                 purchase_column: response.data.companySetting?.purchase_column ?? defaultPurchaseColumns(),
-            };
+            }, defaultDialCode);
 
             const saleAccount = formData.value.account_setup.find((item: { key?: string }) => item.key === 'sale');
             const purchaseAccount = formData.value.account_setup.find((item: { key?: string }) => item.key === 'purchase');
@@ -234,12 +252,12 @@ export default function useCompanySettings() {
                 payload,
             );
 
-            formData.value = {
+            formData.value = applyPhoneDefaults({
                 ...formData.value,
                 ...response.data.companySetting,
                 branch_id: payload.branch_id ?? formData.value.branch_id,
                 account_setup: response.data.account_setup ?? formData.value.account_setup,
-            };
+            }, defaultDialCode);
 
             Notify(response.data.message || 'Successfully Saved', 'success');
 

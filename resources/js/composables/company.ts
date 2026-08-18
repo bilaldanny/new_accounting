@@ -1,8 +1,12 @@
 import { reactive, ref } from "vue";
+import { usePage } from "@inertiajs/vue3";
 import useCommons from "./common";
 import { API_ENDPOINTS } from './apiEndpoints'
 
 export default function useCompanies(){
+    const { props: pageProps } = usePage();
+    const defaultDialCode = String(pageProps.dailCode ?? '');
+
     interface QueryParams {
         sort_by: string;
         sort_type: 'asc' | 'desc';
@@ -15,12 +19,12 @@ export default function useCompanies(){
       'code':'',
       'name':'',
       'email':'',
-      'phone': '',
+      'phone': defaultDialCode,
       'ntn_no':'',
       'admin_name':'',
       'admin_username':'',
       'admin_email':'',
-      'admin_phone': '',
+      'admin_phone': defaultDialCode,
       'password':'',
       'password_confirmation':'',
       'max_users':10,
@@ -35,12 +39,12 @@ export default function useCompanies(){
       'code':'',
       'name':'',
       'email':'',
-      'phone': '',
+      'phone': defaultDialCode,
       'ntn_no':'',
       'admin_name':'',
       'admin_username':'',
       'admin_email':'',
-      'admin_phone': '',
+      'admin_phone': defaultDialCode,
       'password':'',
       'password_confirmation':'',
       'max_users':10,
