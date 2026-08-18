@@ -878,6 +878,17 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
 
                                         <span
                                             :class="[
+                                                'badge align-items-center d-inline-flex',
+                                                row[col.key] === true ? 'bg-success' : 'bg-secondary',
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'account_linked'"
+                                            :title="row[col.key] === true && row.supplier_gl_id ? `Account: ${row.supplier_gl_id}` : 'Not linked to chart of accounts'"
+                                        >
+                                            {{ row[col.key] === true ? 'Linked' : 'Not Linked' }}
+                                        </span>
+
+                                        <span
+                                            :class="[
                                                 'badge cursor-pointer align-items-center d-inline-flex text-capitalize',
                                                 (row[col.key] === 'approved')?'bg-success':'bg-danger'
                                             ]"

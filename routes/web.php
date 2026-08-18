@@ -128,6 +128,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('department.trash');
     /* Department */
 
+    /* Supplier */
+    Route::get('supplier', function () {
+        return Inertia::render('supplier/index');
+    })->name('supplier');
+
+    Route::get('supplier/trash', function () {
+        return Inertia::render('supplier/trash');
+    })->name('supplier.trash');
+
+    Route::get('supplier/{id}/view', function ($id) {
+        return Inertia::render('supplier/view', ['id' => $id]);
+    })->name('supplier.view');
+    /* Supplier */
+
     /* Currency */
     Route::get('currency', function () {
         return Inertia::render('currency/index');
