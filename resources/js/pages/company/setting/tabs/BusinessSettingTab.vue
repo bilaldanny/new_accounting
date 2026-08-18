@@ -7,7 +7,7 @@
     import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
 
     import useCommons from '@/composables/common';
-
+    import { usePage } from '@inertiajs/vue3';
     import { onMounted, ref, watch, computed } from 'vue';
 
     import {
@@ -70,7 +70,8 @@
 
     } = useCommons();
 
-
+    const page = usePage();
+    const defaultDialCode = computed(() => String(page.props.dailCode ?? ''));
 
     const selectedCountryId = computed(() => props.formData?.country_id ?? '');
 
@@ -394,18 +395,16 @@
 
 
 
-    <TextElement
-
+    <PhoneElement
+        id="CompanySettingPhone"
+        field-name="CompanySettingPhone"
         name="phone"
-
         label="Business Number"
-
         placeholder="Business number"
-
         :columns="colThird"
-
-        input-type="tel"
-
+        :default="defaultDialCode"
+        :allow-incomplete="true"
+        :unmask="true"
     />
 
 
@@ -752,36 +751,28 @@
 
     />
 
-
-
-    <TextElement
-
+    <PhoneElement
+        id="CompanySettingCell"
+        field-name="CompanySettingCell"
         name="cell"
-
         label="Cell No"
-
         placeholder="Cell number"
-
         :columns="colThird"
-
-        input-type="tel"
-
+        :default="defaultDialCode"
+        :allow-incomplete="true"
+        :unmask="true"
     />
 
-
-
-    <TextElement
-
+    <PhoneElement
+        id="CompanySettingWhatsappNo"
+        field-name="CompanySettingWhatsappNo"
         name="whatsapp_no"
-
         label="WhatsApp No"
-
         placeholder="WhatsApp number"
-
         :columns="colThird"
-
-        input-type="tel"
-
+        :default="defaultDialCode"
+        :allow-incomplete="true"
+        :unmask="true"
     />
 
 
