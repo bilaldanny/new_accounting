@@ -1,10 +1,9 @@
 <script setup lang="ts">
     import useCommons from '@/composables/common';
-    import useSuppliers from '@/composables/supplier';
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useBanks from '@/composables/bank';
     import { computed, onMounted, ref, watch } from 'vue';
     import { usePage } from '@inertiajs/vue3';
-    import { Building, Envelope, RefreshCw, SliderAlt, Store, UserCircle } from '@boxicons/vue';
+    import { Building, Envelope, RefreshCw, SliderAlt, UserCircle } from '@boxicons/vue';
 
     const params = defineProps({
         type: String,
@@ -21,7 +20,6 @@
     const page = usePage();
     const colThird = { container: 4, label: 12, wrapper: 12 };
     const colQuarter = { container: 3, label: 12, wrapper: 12 };
-    const colHalf = { container: 6, label: 12, wrapper: 12 };
     const colFull = { container: 12, label: 12, wrapper: 12 };
     const defaultDialCode = computed(() => String(page.props.dailCode ?? ''));
 
@@ -32,7 +30,6 @@
         rolename?: string;
         company_id?: number | string | null;
         branch_id?: number | string | null;
-        currency_id?: number | string | null;
     } | null);
 
     const roleName = computed(() => normalizeRoleName(authUser.value?.rolename));
@@ -59,11 +56,9 @@
         Notify,
     } = useCommons();
 
-    const { generateSupplierCode } = useSuppliers();
+    const { generateBankCode } = useBanks();
 
     const codeGenerating = ref(false);
-
-    const currenciesdata = ref<Array<{ id: number | string; text?: string; currency_name?: string }>>([]);
 
     const selectedCompanyId = computed(() => params.formData?.company_id ?? '');
     const selectedCountryId = computed(() => params.formData?.country_id ?? '');
@@ -81,51 +76,10 @@
 
     const branchDisabled = computed(() => isSuperadmin.value && ! selectedCompanyId.value);
 
-    const userTypeOptions = [
-        { id: 'supplier', text: 'Supplier' },
-        { id: 'both', text: 'Both (Supplier & Customer)' },
-    ];
-
-    const tradeTypeOptions = [
+    const bankTypeOptions = [
         { id: 'local', text: 'Local' },
-        { id: 'export', text: 'Export' },
+        { id: 'export', text: 'Foreign' },
     ];
-
-    const payTypeOptions = [
-        { id: 'day', text: 'Days' },
-        { id: 'month', text: 'Months' },
-        { id: 'year', text: 'Years' },
-    ];
-
-    const payTypeValue = computed(() => String(params.formData?.pay_type ?? 'day'));
-
-    function onPayTypeChange(event: Event) {
-        const value = (event.target as HTMLSelectElement).value;
-        params.formRef?.update?.({ pay_type: value });
-    }
-
-    async function generateContactCode() {
-        const companyId = normalizeId(params.formData?.company_id);
-
-        if (! companyId) {
-            Notify('Select a company before generating a contact ID.', 'alert');
-
-            return;
-        }
-
-        codeGenerating.value = true;
-
-        try {
-            const branchId = normalizeId(params.formData?.branch_id);
-            const code = await generateSupplierCode(companyId, branchId || undefined);
-
-            if (code) {
-                params.formRef?.update?.({ code });
-            }
-        } finally {
-            codeGenerating.value = false;
-        }
-    }
 
     const prefixOptions = [
         { id: 'Mr.', text: 'Mr.' },
@@ -162,12 +116,26 @@
         }
     }
 
-    async function fetchCurrencies() {
+    async function generateContactCode() {
+        const companyId = normalizeId(params.formData?.company_id);
+
+        if (! companyId) {
+            Notify('Select a company before generating a bank code.', 'alert');
+
+            return;
+        }
+
+        codeGenerating.value = true;
+
         try {
-            const response = await window.axios.get(API_ENDPOINTS.fetchCurrencies);
-            currenciesdata.value = response.data;
-        } catch {
-            currenciesdata.value = [];
+            const branchId = normalizeId(params.formData?.branch_id);
+            const code = await generateBankCode(companyId, branchId || undefined);
+
+            if (code) {
+                params.formRef?.update?.({ code });
+            }
+        } finally {
+            codeGenerating.value = false;
         }
     }
 
@@ -180,10 +148,6 @@
 
         if (! isSuperadmin.value && ! isCompanyadmin.value && authUser.value?.branch_id) {
             updates.branch_id = authUser.value.branch_id;
-        }
-
-        if (! params.formData?.currency_id && authUser.value?.currency_id) {
-            updates.currency_id = authUser.value.currency_id;
         }
 
         if (Object.keys(updates).length > 0) {
@@ -293,7 +257,6 @@
         }
 
         await fetchCountry();
-        await fetchCurrencies();
 
         if (selectedCountryId.value) {
             lastFetchedCountryId.value = normalizeId(selectedCountryId.value);
@@ -369,14 +332,14 @@
     <TextElement v-if="showHiddenBranchField" name="branch_id" hidden="true" />
     <TextElement name="link_account" default="0" hidden="true" />
 
-    <StaticElement name="section_business" :columns="colFull">
+    <StaticElement name="section_bank" :columns="colFull">
         <div class="company-section-header company-section-header-primary">
             <span class="company-section-icon company-section-icon-primary">
-                <Store size="sm" />
+                <Building size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Business Details</h6>
-                <p class="company-section-subtitle mb-0">Organization scope, supplier type, and billing currency</p>
+                <h6 class="company-section-title mb-0">Bank Details</h6>
+                <p class="company-section-subtitle mb-0">Organization scope and bank information</p>
             </div>
         </div>
     </StaticElement>
@@ -418,36 +381,17 @@
         :rules="branchRules"
     />
 
-    <SelectElement
-        name="user_type"
-        :native="false"
-        :items="userTypeOptions"
-        id="UserType"
-        field-name="UserType"
-        placeholder="Select contact type"
-        label="Contact type"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="false"
-        :floating="false"
-        :can-clear="false"
-        :disabled="isEdit"
-        :default="'supplier'"
-        rules="required"
-    />
-
     <TextElement
         id="Code"
         field-name="Code"
         name="code"
-        label="Contact ID"
+        label="Bank Code"
         placeholder="Generating…"
         :columns="colThird"
         :readonly="true"
         autocomplete="off"
         rules="max:255"
-        :info="isEdit ? 'Auto-generated supplier code.' : 'Auto-generated on open. Use reload to regenerate.'"
+        :info="isEdit ? 'Auto-generated bank code.' : 'Auto-generated on open. Use reload to regenerate.'"
         :add-classes="{
             container: 'supplier-contact-id-field',
             inputContainer: 'supplier-contact-id-shell',
@@ -462,8 +406,8 @@
                 type="button"
                 class="code-generate-btn"
                 :class="{ 'code-generate-btn-loading': codeGenerating }"
-                title="Regenerate contact ID"
-                aria-label="Regenerate contact ID"
+                title="Regenerate bank code"
+                aria-label="Regenerate bank code"
                 :disabled="codeGenerating"
                 @click="generateContactCode"
             >
@@ -473,25 +417,24 @@
     </TextElement>
 
     <TextElement
-        id="BusinessName"
-        field-name="BusinessName"
-        name="business_name"
-        label="Business Name"
-        placeholder="Registered business or trading name"
+        id="BankName"
+        field-name="BankName"
+        name="bank_name"
+        label="Bank Name"
+        placeholder="Bank name"
         :columns="colThird"
         autocomplete="organization"
         rules="required|min:2|max:255"
-        info="The name shown on purchase orders and reports."
     />
 
     <SelectElement
         name="type"
         :native="false"
-        :items="tradeTypeOptions"
-        id="TradeType"
-        field-name="TradeType"
-        placeholder="Select trade type"
-        label="Trade Type"
+        :items="bankTypeOptions"
+        id="BankType"
+        field-name="BankType"
+        placeholder="Select bank type"
+        label="Bank Type"
         :columns="colThird"
         label-prop="text"
         value-prop="id"
@@ -499,24 +442,6 @@
         :floating="false"
         :can-clear="false"
         :default="'local'"
-        info="Local or export supplier for tax and compliance."
-    />
-
-    <SelectElement
-        name="currency_id"
-        :native="false"
-        :items="currenciesdata"
-        id="CurrencyId"
-        field-name="CurrencyId"
-        placeholder="Select currency"
-        label="Currency"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="true"
-        info="Preferred currency for transactions with this supplier."
     />
 
     <StaticElement name="section_contact_person" :columns="colFull">
@@ -526,7 +451,7 @@
             </span>
             <div>
                 <h6 class="company-section-title mb-0">Contact Person</h6>
-                <p class="company-section-subtitle mb-0">Primary individual associated with this supplier</p>
+                <p class="company-section-subtitle mb-0">Primary individual associated with this bank account</p>
             </div>
         </div>
     </StaticElement>
@@ -601,14 +526,13 @@
         :allow-incomplete="true"
         :unmask="true"
         rules="required"
-        info="Primary contact number for this supplier."
     />
 
     <PhoneElement
         id="AlternateNo"
         field-name="AlternateNo"
         name="alternate_no"
-        label="Alternate contact number"
+        label="Alternate Number"
         placeholder="Alternate number"
         :columns="colQuarter"
         :default="defaultDialCode"
@@ -620,7 +544,7 @@
         id="Landline"
         field-name="Landline"
         name="landline"
-        label="Landline"
+        label="LandLine"
         placeholder="Landline or office number"
         :columns="colQuarter"
         autocomplete="tel"
@@ -638,49 +562,17 @@
         rules="email"
     />
 
-    <DateElement
-        id="DateOfBirth"
-        field-name="DateOfBirth"
-        name="date_of_birth"
-        label="Date of birth"
-        placeholder="Select date of birth"
-        :columns="colQuarter"
-        :floating="false"
-    />
-
     <StaticElement name="section_location" :columns="colFull">
         <div class="company-section-header company-section-header-primary company-section-header-spaced">
             <span class="company-section-icon company-section-icon-primary">
                 <Building size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Address & Tax</h6>
-                <p class="company-section-subtitle mb-0">Structured address, location, and tax registration</p>
+                <h6 class="company-section-title mb-0">Location</h6>
+                <p class="company-section-subtitle mb-0">Country, city, and address details</p>
             </div>
         </div>
     </StaticElement>
-
-    <TextElement
-        id="AddressLine1"
-        field-name="AddressLine1"
-        name="address"
-        label="Address line 1"
-        placeholder="Address line 1"
-        :columns="colHalf"
-        autocomplete="address-line1"
-        rules="required|max:1000"
-    />
-
-    <TextElement
-        id="AddressLine2"
-        field-name="AddressLine2"
-        name="address_line_2"
-        label="Address line 2"
-        placeholder="Address line 2"
-        :columns="colHalf"
-        autocomplete="address-line2"
-        rules="max:1000"
-    />
 
     <SelectElement
         name="country_id"
@@ -690,7 +582,7 @@
         field-name="CountryId"
         placeholder="Select country"
         label="Country"
-        :columns="colQuarter"
+        :columns="colThird"
         label-prop="text"
         value-prop="id"
         :search="true"
@@ -706,7 +598,7 @@
         field-name="StateId"
         placeholder="Select state"
         label="State"
-        :columns="colQuarter"
+        :columns="colThird"
         label-prop="text"
         value-prop="id"
         :search="true"
@@ -723,24 +615,13 @@
         field-name="CityId"
         placeholder="Select city"
         label="City"
-        :columns="colQuarter"
+        :columns="colThird"
         label-prop="text"
         value-prop="id"
         :search="true"
         :floating="false"
         :can-clear="true"
         :disabled="!selectedStateId"
-    />
-
-    <TextElement
-        id="Zipcode"
-        field-name="Zipcode"
-        name="zipcode"
-        label="Zip Code"
-        placeholder="Zip/Postal Code"
-        :columns="colQuarter"
-        autocomplete="postal-code"
-        rules="max:50"
     />
 
     <TextElement
@@ -753,51 +634,27 @@
     />
 
     <TextElement
-        id="StreetName"
-        field-name="StreetName"
-        name="street_name"
-        label="Street name"
-        placeholder="Street name"
+        id="Address"
+        field-name="Address"
+        name="address"
+        label="Address"
+        placeholder="Address"
         :columns="colThird"
-        autocomplete="off"
-        rules="max:255"
+        autocomplete="street-address"
+        rules="max:1000"
     />
 
-    <TextElement
-        id="BuildingNumber"
-        field-name="BuildingNumber"
-        name="building_number"
-        label="Building number"
-        placeholder="Building number"
-        :columns="colThird"
-        autocomplete="off"
-        rules="max:50"
-    />
-
-
-    <StaticElement name="section_tax_payment" :columns="colFull">
+    <StaticElement name="section_accounting" :columns="colFull">
         <div class="company-section-header company-section-header-indigo company-section-header-spaced">
             <span class="company-section-icon company-section-icon-indigo">
                 <SliderAlt size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Tax & Payment</h6>
-                <p class="company-section-subtitle mb-0">Tax registration, opening balance, and default pay terms</p>
+                <h6 class="company-section-title mb-0">Accounting</h6>
+                <p class="company-section-subtitle mb-0">Opening balance when linking to chart of accounts</p>
             </div>
         </div>
     </StaticElement>
-
-    <TextElement
-        id="NtnNumber"
-        field-name="NtnNumber"
-        name="ntn_number"
-        label="Tax number"
-        placeholder="Tax registration number"
-        :columns="colThird"
-        autocomplete="off"
-        rules="required|max:255"
-        info="Tax registration number used on invoices and compliance."
-    />
 
     <TextElement
         v-if="!isEdit"
@@ -810,71 +667,6 @@
         input-type="number"
         :default="0"
         rules="numeric"
-        info="Opening ledger balance when the supplier account is linked to COA."
-    />
-
-    <TextElement name="pay_type" hidden="true" :default="'day'" />
-
-    <TextElement
-        id="PayTerm"
-        field-name="PayTerm"
-        name="pay_term"
-        label="Pay term"
-        placeholder="e.g. 15"
-        :columns="colThird"
-        input-type="number"
-        rules="numeric"
-        info="Number of days, months, or years before payment is due."
-        :add-classes="{
-            container: 'supplier-pay-term-field',
-            inputContainer: 'supplier-pay-term-shell',
-            input: 'supplier-pay-term-input',
-            ElementAddon: {
-                container: 'supplier-pay-term-addon',
-            },
-        }"
-    >
-        <template #addon-after>
-            <select
-                class="form-select supplier-pay-term-select"
-                :value="payTypeValue"
-                aria-label="Pay term period"
-                @change="onPayTypeChange"
-            >
-                <option
-                    v-for="option in payTypeOptions"
-                    :key="option.id"
-                    :value="option.id"
-                >
-                    {{ option.text }}
-                </option>
-            </select>
-        </template>
-    </TextElement>
-
-    <StaticElement name="section_payment" :columns="colFull">
-        <div class="company-section-header company-section-header-indigo company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-indigo">
-                <SliderAlt size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Credit Settings</h6>
-                <p class="company-section-subtitle mb-0">Credit limit defaults for purchase orders</p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <TextElement
-        id="CreditLimit"
-        field-name="CreditLimit"
-        name="credit_limit"
-        label="Credit Limit"
-        placeholder="0"
-        :columns="colThird"
-        input-type="number"
-        :default="0"
-        rules="numeric"
-        info="Maximum outstanding balance allowed for this supplier."
     />
 
     <StaticElement name="section_status" :columns="colFull">
@@ -884,7 +676,7 @@
             </span>
             <div>
                 <h6 class="company-section-title mb-0">Status</h6>
-                <p class="company-section-subtitle mb-0">Control whether this supplier is available for transactions</p>
+                <p class="company-section-subtitle mb-0">Control whether this bank is available for transactions</p>
             </div>
         </div>
     </StaticElement>
@@ -895,10 +687,9 @@
         id="Active"
         field-name="Active"
         name="active"
-        label="Supplier Status"
+        label="Bank Status"
         :true-value="true"
         :false-value="false"
         :default="true"
-        info="Inactive suppliers are hidden from purchase and payment selection."
     />
 </template>

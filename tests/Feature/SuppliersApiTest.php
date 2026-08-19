@@ -138,7 +138,14 @@ test('suppliers api creates a supplier with required fields', function () {
     $superadmin = User::query()->findOrFail(1);
     Sanctum::actingAs($superadmin);
 
-    $response = $this->postJson('/api/suppliers', validSupplierPayload($scope));
+    $response = $this->postJson('/api/suppliers', validSupplierPayload($scope, [
+        'address' => '123 Main Street',
+        'address_line_2' => 'Suite 4B',
+        'zipcode' => '85001',
+        'street_name' => 'Main Street',
+        'building_number' => '12A',
+        'landmark' => 'Near City Mall',
+    ]));
 
     $response->assertOk()
         ->assertJson(['message' => 'Successfully Saved']);
@@ -148,6 +155,12 @@ test('suppliers api creates a supplier with required fields', function () {
         'first_name' => 'Jane',
         'mobile' => '03007654321',
         'user_type' => 'supplier',
+        'address' => '123 Main Street',
+        'address_line_2' => 'Suite 4B',
+        'zipcode' => '85001',
+        'street_name' => 'Main Street',
+        'building_number' => '12A',
+        'landmark' => 'Near City Mall',
     ]);
 });
 
@@ -160,6 +173,7 @@ test('suppliers api auto links supplier to chart of account when mapping exists'
 
     $response = $this->postJson('/api/suppliers', validSupplierPayload($scope, [
         'business_name' => 'Linked Supplier Co',
+        'opening_balance' => 1500,
     ]));
 
     $response->assertOk()
@@ -188,7 +202,7 @@ test('suppliers api auto links supplier to chart of account when mapping exists'
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
         'coa_id' => $coaId,
-        'opening_balance' => 0,
+        'opening_balance' => 1500,
         'acc_nature' => 'cr',
     ]);
 });
@@ -455,4 +469,75 @@ test('suppliers api rejects linking supplier when mapping is missing', function 
 
     $response->assertUnprocessable()
         ->assertJsonValidationErrors(['supplier_mapping']);
+});
+
+test('suppliers api accepts optional contact id and date of birth', function () {
+    $scope = seedSupplierScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->postJson('/api/suppliers', validSupplierPayload($scope, [
+        'code' => 'SUP-CUSTOM-001',
+        'date_of_birth' => '1990-05-15',
+        'pay_term' => 15,
+        'pay_type' => 'day',
+    ]));
+
+    $response->assertOk();
+
+    $this->assertDatabaseHas('contacts', [
+        'business_name' => 'New Supplier Co',
+        'code' => 'SUP-CUSTOM-001',
+        'date_of_birth' => '1990-05-15',
+        'pay_term' => 15,
+        'pay_type' => 'day',
+    ]);
+});
+
+test('suppliers generate-code api returns the next contact code', function () {
+    $scope = seedSupplierScope();
+
+    createSupplier([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'code' => 'SU-00001',
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/suppliers/generate-code?company_id='.$scope['company_id'].'&branch_id='.$scope['branch_id']);
+
+    $response->assertOk()
+        ->assertJsonStructure(['code']);
+
+    expect($response->json('code'))->toBe('SU-00002');
+});
+
+test('suppliers generate-code api skips existing codes until a unique code is found', function () {
+    $scope = seedSupplierScope();
+
+    createSupplier([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'code' => 'SU-00001',
+    ]);
+
+    createSupplier([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'code' => 'SU-00002',
+        'business_name' => 'Second Supplier',
+        'first_name' => 'Second',
+        'mobile' => '03009998877',
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/suppliers/generate-code?company_id='.$scope['company_id'].'&branch_id='.$scope['branch_id']);
+
+    $response->assertOk();
+
+    expect($response->json('code'))->toBe('SU-00003');
 });

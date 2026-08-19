@@ -28,7 +28,7 @@ class ContactChartOfAccountLinker
         }
     }
 
-    public function linkExistingSupplier(Contact $contact): Contact
+    public function linkExistingSupplier(Contact $contact, float $openingBalance = 0): Contact
     {
         if (filled($contact->supplier_gl_id)) {
             throw ValidationException::withMessages([
@@ -47,7 +47,7 @@ class ContactChartOfAccountLinker
             'branch_id' => $contact->branch_id,
             'business_name' => $contact->business_name,
             'user_type' => $contact->user_type,
-            'opening_balance' => 0,
+            'opening_balance' => $openingBalance,
         ];
 
         $this->linkSupplierAccount($request, $this->resolveActiveFinancialYear((int) $contact->company_id));
@@ -61,6 +61,44 @@ class ContactChartOfAccountLinker
         $contact->link_account = $request->link_account ?? 1;
         $contact->supplier_gl_id = $request->supplier_gl_id;
         $contact->gl_id = $request->gl_id ?? $request->supplier_gl_id;
+        $contact->save();
+
+        return $contact->fresh();
+    }
+
+    public function linkExistingCustomer(Contact $contact, float $openingBalance = 0): Contact
+    {
+        if (filled($contact->customer_gl_id)) {
+            throw ValidationException::withMessages([
+                'customer_gl_id' => ['Customer is already linked to a chart of account.'],
+            ]);
+        }
+
+        if (! in_array($contact->user_type, ['customer', 'both'], true)) {
+            throw ValidationException::withMessages([
+                'user_type' => ['Contact is not a customer.'],
+            ]);
+        }
+
+        $request = (object) [
+            'company_id' => $contact->company_id,
+            'branch_id' => $contact->branch_id,
+            'business_name' => $contact->business_name,
+            'user_type' => $contact->user_type,
+            'opening_balance' => $openingBalance,
+        ];
+
+        $this->linkCustomerAccount($request, $this->resolveActiveFinancialYear((int) $contact->company_id));
+
+        if (! filled($request->customer_gl_id ?? null)) {
+            throw ValidationException::withMessages([
+                'customer_mapping' => ['Customer account mapping is not configured or parent account is missing.'],
+            ]);
+        }
+
+        $contact->link_account = $request->link_account ?? 1;
+        $contact->customer_gl_id = $request->customer_gl_id;
+        $contact->gl_id = $request->gl_id ?? $request->customer_gl_id;
         $contact->save();
 
         return $contact->fresh();

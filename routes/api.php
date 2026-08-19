@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CityController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\MenuController;
@@ -130,6 +132,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /* Supplier */
     Route::get('suppliers/trash', [SupplierController::class, 'trash']);
+    Route::get('suppliers/generate-code', [SupplierController::class, 'generateCode']);
     Route::resource('suppliers', SupplierController::class);
     Route::post('/suppliers/statusupdate', [SupplierController::class, 'updatestatus']);
     Route::post('/suppliers/duplicate', [SupplierController::class, 'duplicate']);
@@ -141,6 +144,31 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/fetchcontactdetail', [SupplierController::class, 'contactDetail']);
     Route::get('/fetchledger', [ReportController::class, 'fetchLedger']);
     /* Supplier */
+
+    /* Bank */
+    Route::get('banks/trash', [BankController::class, 'trash']);
+    Route::get('banks/generate-code', [BankController::class, 'generateCode']);
+    Route::resource('banks', BankController::class);
+    Route::post('/banks/statusupdate', [BankController::class, 'updatestatus']);
+    Route::post('/banks/duplicate', [BankController::class, 'duplicate']);
+    Route::post('/banks/{id}/link-coa', [BankController::class, 'linkCoa']);
+    Route::post('/banks/bulk_delete', [BankController::class, 'bulk_delete']);
+    Route::post('banks/bulk_delete_per', [BankController::class, 'bulk_delete_per']);
+    Route::post('banks/restore_records', [BankController::class, 'restore_records']);
+    Route::get('/fetchbanks', [BankController::class, 'fetch']);
+    /* Bank */
+
+    /* Customer */
+    Route::get('customers/trash', [CustomerController::class, 'trash']);
+    Route::get('customers/generate-code', [CustomerController::class, 'generateCode']);
+    Route::resource('customers', CustomerController::class);
+    Route::post('/customers/statusupdate', [CustomerController::class, 'updatestatus']);
+    Route::post('/customers/duplicate', [CustomerController::class, 'duplicate']);
+    Route::post('/customers/{id}/link-coa', [CustomerController::class, 'linkCoa']);
+    Route::post('/customers/bulk_delete', [CustomerController::class, 'bulk_delete']);
+    Route::post('customers/bulk_delete_per', [CustomerController::class, 'bulk_delete_per']);
+    Route::post('customers/restore_records', [CustomerController::class, 'restore_records']);
+    /* Customer */
 
     /* Department */
     Route::post('departments/check-name', [DepartmentController::class, 'checkName']);

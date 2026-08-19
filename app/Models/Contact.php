@@ -35,13 +35,19 @@ class Contact extends Model
         'pay_type',
         'credit_limit',
         'email',
+        'date_of_birth',
         'mobile',
         'alternate_no',
         'landline',
         'landmark',
+        'street_name',
+        'building_number',
+        'secondary_number',
         'active',
         'link_account',
         'address',
+        'address_line_2',
+        'zipcode',
         'code',
         'user_type',
         'type',
@@ -163,6 +169,14 @@ class Contact extends Model
         });
     }
 
+    public function scopeCustomers(Builder $query): Builder
+    {
+        return $query->where(function (Builder $sub) {
+            $sub->where('user_type', 'customer')
+                ->orWhere('user_type', 'both');
+        });
+    }
+
     public function scopeVisibleToCurrentUser(Builder $query): Builder
     {
         $user = Auth::user();
@@ -190,6 +204,14 @@ class Contact extends Model
             ->find($id);
     }
 
+    public static function findVisibleCustomer(int $id): ?self
+    {
+        return self::query()
+            ->customers()
+            ->visibleToCurrentUser()
+            ->find($id);
+    }
+
     public static function resolveScopedId(mixed $value): ?int
     {
         if ($value === null || $value === '' || $value === 'undefined') {
@@ -209,23 +231,166 @@ class Contact extends Model
         ])));
     }
 
-    public static function generateCode(int $companyId, ?int $branchId = null): string
+    public static function supplierPrefix(int $companyId): string
     {
         $setting = CompanySetting::query()
             ->where('company_id', $companyId)
             ->first();
 
-        $prefix = $setting?->supplier ?: 'SU';
+        return $setting?->supplier ?: 'SU';
+    }
 
-        $query = self::query()->where('company_id', $companyId);
+    public static function customerPrefix(int $companyId): string
+    {
+        $setting = CompanySetting::query()
+            ->where('company_id', $companyId)
+            ->first();
+
+        return $setting?->customer ?: 'CU';
+    }
+
+    public static function formatContactCode(string $prefix, int $number): string
+    {
+        return $prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public static function formatSupplierCode(string $prefix, int $number): string
+    {
+        return self::formatContactCode($prefix, $number);
+    }
+
+    public static function extractContactCodeNumber(string $code, string $prefix): int
+    {
+        $normalized = strtoupper(str_replace(' ', '', trim($code)));
+        $pattern = '/^'.preg_quote(strtoupper($prefix), '/').'-(\d+)$/';
+
+        if (preg_match($pattern, $normalized, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 0;
+    }
+
+    public static function extractSupplierCodeNumber(string $code, string $prefix): int
+    {
+        return self::extractContactCodeNumber($code, $prefix);
+    }
+
+    public static function codeExists(string $code, int $companyId, ?int $branchId = null, ?int $exceptId = null): bool
+    {
+        $code = trim($code);
+
+        if ($code === '') {
+            return false;
+        }
+
+        return self::query()
+            ->withTrashed()
+            ->where('company_id', $companyId)
+            ->when($branchId !== null, fn (Builder $query) => $query->where('branch_id', $branchId))
+            ->when($exceptId !== null, fn (Builder $query) => $query->where('id', '!=', $exceptId))
+            ->where('code', $code)
+            ->exists();
+    }
+
+    public static function nextCode(int $companyId, ?int $branchId = null): string
+    {
+        $prefix = self::supplierPrefix($companyId);
+
+        $query = self::query()
+            ->withTrashed()
+            ->where('company_id', $companyId);
 
         if ($branchId !== null) {
             $query->where('branch_id', $branchId);
         }
 
-        $count = $query->count();
+        $maxNumber = $query
+            ->pluck('code')
+            ->map(fn (string $code) => self::extractSupplierCodeNumber($code, $prefix))
+            ->max() ?? 0;
 
-        return $prefix.'-'.str_pad((string) ($count + 1), 5, '0', STR_PAD_LEFT);
+        $nextNumber = $maxNumber + 1;
+        $code = self::formatSupplierCode($prefix, $nextNumber);
+
+        while (self::codeExists($code, $companyId, $branchId)) {
+            $nextNumber++;
+            $code = self::formatSupplierCode($prefix, $nextNumber);
+        }
+
+        return $code;
+    }
+
+    public static function nextCustomerCode(int $companyId, ?int $branchId = null): string
+    {
+        $prefix = self::customerPrefix($companyId);
+
+        $query = self::query()
+            ->withTrashed()
+            ->where('company_id', $companyId);
+
+        if ($branchId !== null) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $maxNumber = $query
+            ->pluck('code')
+            ->map(fn (string $code) => self::extractContactCodeNumber($code, $prefix))
+            ->max() ?? 0;
+
+        $nextNumber = $maxNumber + 1;
+        $code = self::formatContactCode($prefix, $nextNumber);
+
+        while (self::codeExists($code, $companyId, $branchId)) {
+            $nextNumber++;
+            $code = self::formatContactCode($prefix, $nextNumber);
+        }
+
+        return $code;
+    }
+
+    public static function generateCode(int $companyId, ?int $branchId = null): string
+    {
+        return self::nextCode($companyId, $branchId);
+    }
+
+    public static function generateCustomerCode(int $companyId, ?int $branchId = null): string
+    {
+        return self::nextCustomerCode($companyId, $branchId);
+    }
+
+    public static function resolveSupplierCode(object $request, int $companyId, ?int $branchId): string
+    {
+        $code = trim((string) ($request->code ?? ''));
+
+        if ($code === '') {
+            return self::nextCode($companyId, $branchId);
+        }
+
+        if (self::codeExists($code, $companyId, $branchId)) {
+            throw ValidationException::withMessages([
+                'code' => ['Contact ID already exists.'],
+            ]);
+        }
+
+        return $code;
+    }
+
+    public static function resolveCustomerCode(object $request, int $companyId, ?int $branchId): string
+    {
+        $code = trim((string) ($request->code ?? ''));
+
+        if ($code === '') {
+            return self::nextCustomerCode($companyId, $branchId);
+        }
+
+        if (self::codeExists($code, $companyId, $branchId)) {
+            throw ValidationException::withMessages([
+                'code' => ['Contact ID already exists.'],
+            ]);
+        }
+
+        return $code;
     }
 
     /**
@@ -248,12 +413,18 @@ class Contact extends Model
         $contact->pay_type = $request->pay_type ?? 'day';
         $contact->credit_limit = $request->credit_limit ?? 0;
         $contact->email = $request->email ?? null;
+        $contact->date_of_birth = filled($request->date_of_birth ?? null) ? $request->date_of_birth : null;
         $contact->mobile = $request->mobile;
         $contact->alternate_no = $request->alternate_no ?? null;
         $contact->landline = $request->landline ?? null;
         $contact->landmark = $request->landmark ?? null;
+        $contact->street_name = $request->street_name ?? null;
+        $contact->building_number = $request->building_number ?? null;
+        $contact->secondary_number = $request->secondary_number ?? null;
         $contact->active = $request->active ?? true;
         $contact->address = $request->address ?? '';
+        $contact->address_line_2 = $request->address_line_2 ?? null;
+        $contact->zipcode = $request->zipcode ?? null;
         $contact->type = $request->type ?? 'local';
         $contact->ntn_number = $request->ntn_number ?? '';
 
@@ -290,7 +461,7 @@ class Contact extends Model
         $contact = new self;
 
         return self::fillFromRequest($request, $contact, [
-            'code' => self::generateCode($companyId, $branchId),
+            'code' => self::resolveSupplierCode($request, $companyId, $branchId),
             'user_type' => $userType,
             'link_account' => $request->link_account ?? 0,
             'supplier_gl_id' => $request->supplier_gl_id ?? null,
@@ -310,7 +481,7 @@ class Contact extends Model
         return self::fillFromRequest($request, $contact);
     }
 
-    public static function linkSupplierToChartOfAccount(int $id): self
+    public static function linkSupplierToChartOfAccount(int $id, float $openingBalance = 0): self
     {
         $contact = self::findVisibleSupplier($id);
 
@@ -318,12 +489,76 @@ class Contact extends Model
             abort(404);
         }
 
-        return app(ContactChartOfAccountLinker::class)->linkExistingSupplier($contact);
+        return app(ContactChartOfAccountLinker::class)->linkExistingSupplier($contact, $openingBalance);
     }
 
     public static function deleteSupplier(int $id): void
     {
         $contact = self::findVisibleSupplier($id);
+
+        if ($contact !== null) {
+            $contact->delete();
+        }
+    }
+
+    public static function createCustomer(object $request): self
+    {
+        $companyId = self::resolveScopedId($request->company_id);
+        $branchId = self::resolveScopedId($request->branch_id);
+
+        if ($companyId === null || $branchId === null) {
+            throw ValidationException::withMessages([
+                'company_id' => ['Company and branch are required.'],
+            ]);
+        }
+
+        $userType = $request->user_type ?? 'customer';
+
+        if (! in_array($userType, ['customer', 'both'], true)) {
+            throw ValidationException::withMessages([
+                'user_type' => ['Invalid customer type.'],
+            ]);
+        }
+
+        app(ContactChartOfAccountLinker::class)->linkForCreate($request);
+
+        $contact = new self;
+
+        return self::fillFromRequest($request, $contact, [
+            'code' => self::resolveCustomerCode($request, $companyId, $branchId),
+            'user_type' => $userType,
+            'link_account' => $request->link_account ?? 0,
+            'supplier_gl_id' => $request->supplier_gl_id ?? null,
+            'customer_gl_id' => $request->customer_gl_id ?? null,
+            'gl_id' => $request->gl_id ?? null,
+        ]);
+    }
+
+    public static function updateCustomer(object $request, int $id): self
+    {
+        $contact = self::findVisibleCustomer($id);
+
+        if ($contact === null) {
+            abort(404);
+        }
+
+        return self::fillFromRequest($request, $contact);
+    }
+
+    public static function linkCustomerToChartOfAccount(int $id, float $openingBalance = 0): self
+    {
+        $contact = self::findVisibleCustomer($id);
+
+        if ($contact === null) {
+            abort(404);
+        }
+
+        return app(ContactChartOfAccountLinker::class)->linkExistingCustomer($contact, $openingBalance);
+    }
+
+    public static function deleteCustomer(int $id): void
+    {
+        $contact = self::findVisibleCustomer($id);
 
         if ($contact !== null) {
             $contact->delete();
