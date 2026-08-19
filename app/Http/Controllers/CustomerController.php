@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class SupplierController extends Controller
+class CustomerController extends Controller
 {
     /**
      * @return array<string, string>
      */
-    protected function supplierFormRules(): array
+    protected function customerFormRules(): array
     {
         return [
             'company_id' => 'bail|required',
@@ -31,6 +31,7 @@ class SupplierController extends Controller
             'landmark' => 'nullable|string|max:255',
             'street_name' => 'nullable|string|max:255',
             'building_number' => 'nullable|string|max:50',
+            'secondary_number' => 'nullable|string|max:50',
             'ntn_number' => 'bail|required|string|max:255',
             'code' => 'nullable|string|max:255',
             'opening_balance' => 'nullable|numeric',
@@ -38,7 +39,7 @@ class SupplierController extends Controller
             'alternate_no' => 'nullable|string|max:255',
             'landline' => 'nullable|string|max:255',
             'pay_term' => 'nullable|numeric',
-            'user_type' => 'nullable|in:supplier,both',
+            'user_type' => 'nullable|in:customer,both',
             'type' => 'nullable|in:local,export',
             'pay_type' => 'nullable|in:month,day,year',
         ];
@@ -67,7 +68,7 @@ class SupplierController extends Controller
         }
 
         return response()->json([
-            'code' => Contact::generateCode($companyId, $branchId),
+            'code' => Contact::generateCustomerCode($companyId, $branchId),
         ]);
     }
 
@@ -81,7 +82,7 @@ class SupplierController extends Controller
         $curPage = $request->cur_page ?? 1;
 
         $query = Contact::query()
-            ->suppliers()
+            ->customers()
             ->visibleToCurrentUser()
             ->with([
                 'company:id,name',
@@ -119,43 +120,43 @@ class SupplierController extends Controller
             return $curPage;
         });
 
-        $suppliers = $query->paginate($showRecord);
+        $customers = $query->paginate($showRecord);
 
-        if ($curPage > $suppliers->lastPage()) {
-            Paginator::currentPageResolver(function () use ($suppliers) {
-                return $suppliers->lastPage();
+        if ($curPage > $customers->lastPage()) {
+            Paginator::currentPageResolver(function () use ($customers) {
+                return $customers->lastPage();
             });
-            $suppliers = $query->paginate($showRecord);
+            $customers = $query->paginate($showRecord);
         }
 
-        $suppliers->getCollection()->transform(function (Contact $supplier) {
-            $supplier->company_name = $supplier->company?->name;
-            $supplier->branch_name = $supplier->branch?->name;
-            $supplier->city_name = $supplier->city?->name;
-            $supplier->display_name = $supplier->display_name;
-            $supplier->op_bal = 0;
-            $supplier->total_due = 0;
-            $supplier->return_due = 0;
-            $supplier->account_linked = filled($supplier->supplier_gl_id);
+        $customers->getCollection()->transform(function (Contact $customer) {
+            $customer->company_name = $customer->company?->name;
+            $customer->branch_name = $customer->branch?->name;
+            $customer->city_name = $customer->city?->name;
+            $customer->display_name = $customer->display_name;
+            $customer->op_bal = 0;
+            $customer->total_due = 0;
+            $customer->return_due = 0;
+            $customer->account_linked = filled($customer->customer_gl_id);
 
-            return $supplier;
+            return $customer;
         });
 
         $trashCount = Contact::onlyTrashed()
-            ->suppliers()
+            ->customers()
             ->visibleToCurrentUser()
             ->count();
 
-        return response()->json(['data' => $suppliers, 'trash_count' => $trashCount]);
+        return response()->json(['data' => $customers, 'trash_count' => $trashCount]);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate($this->supplierFormRules());
+        $request->validate($this->customerFormRules());
 
         DB::beginTransaction();
         try {
-            Contact::createSupplier($request);
+            Contact::createCustomer($request);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -171,24 +172,25 @@ class SupplierController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $supplier = Contact::findVisibleSupplier($id);
+        $customer = Contact::findVisibleCustomer($id);
 
-        if ($supplier === null) {
+        if ($customer === null) {
             abort(404);
         }
 
-        $supplier->load(['country', 'state', 'city', 'currency', 'company', 'branch']);
+        $customer->load(['country', 'state', 'city', 'currency', 'company', 'branch']);
+        $this->appendContactFinancialStats($customer);
 
-        return response()->json($supplier);
+        return response()->json($customer);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $request->validate($this->supplierFormRules());
+        $request->validate($this->customerFormRules());
 
         DB::beginTransaction();
         try {
-            Contact::updateSupplier($request, $id);
+            Contact::updateCustomer($request, $id);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -205,7 +207,7 @@ class SupplierController extends Controller
     public function destroy(int $id): JsonResponse
     {
         if (deletepermission()) {
-            Contact::deleteSupplier($id);
+            Contact::deleteCustomer($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
         }
@@ -221,7 +223,7 @@ class SupplierController extends Controller
 
         DB::beginTransaction();
         try {
-            $supplier = Contact::linkSupplierToChartOfAccount(
+            $customer = Contact::linkCustomerToChartOfAccount(
                 $id,
                 (float) ($request->opening_balance ?? 0),
             );
@@ -237,8 +239,8 @@ class SupplierController extends Controller
 
         return response()->json([
             'message' => 'Successfully Linked',
-            'supplier_gl_id' => $supplier->supplier_gl_id,
-            'link_account' => $supplier->link_account,
+            'customer_gl_id' => $customer->customer_gl_id,
+            'link_account' => $customer->link_account,
         ]);
     }
 
@@ -248,7 +250,7 @@ class SupplierController extends Controller
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
-                    ->suppliers()
+                    ->customers()
                     ->visibleToCurrentUser()
                     ->whereIn('id', $request->all())
                     ->pluck('id');
@@ -274,7 +276,7 @@ class SupplierController extends Controller
             try {
                 $ids = Contact::query()
                     ->onlyTrashed()
-                    ->suppliers()
+                    ->customers()
                     ->visibleToCurrentUser()
                     ->whereIn('id', (array) $request->all())
                     ->pluck('id');
@@ -295,25 +297,25 @@ class SupplierController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
-        $suppliers = Contact::query()
-            ->suppliers()
+        $customers = Contact::query()
+            ->customers()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
             ->get();
 
-        if ($suppliers->isEmpty()) {
+        if ($customers->isEmpty()) {
             return response()->json(['errormessage' => 'Something went wrong']);
         }
 
         DB::beginTransaction();
         try {
-            foreach ($suppliers as $supplier) {
+            foreach ($customers as $customer) {
                 if (isset($request->status)) {
-                    $supplier->active = $request->status;
+                    $customer->active = $request->status;
                 } else {
-                    $supplier->active = ! $supplier->active;
+                    $customer->active = ! $customer->active;
                 }
-                $supplier->save();
+                $customer->save();
             }
             DB::commit();
         } catch (Throwable $e) {
@@ -332,7 +334,7 @@ class SupplierController extends Controller
             try {
                 $ids = Contact::query()
                     ->onlyTrashed()
-                    ->suppliers()
+                    ->customers()
                     ->visibleToCurrentUser()
                     ->whereIn('id', $request->all())
                     ->pluck('id');
@@ -355,21 +357,21 @@ class SupplierController extends Controller
     {
         DB::beginTransaction();
         try {
-            $supplier = Contact::findVisibleSupplier((int) $request->id);
+            $customer = Contact::findVisibleCustomer((int) $request->id);
 
-            if ($supplier === null) {
+            if ($customer === null) {
                 abort(404);
             }
 
-            $duplicator = $supplier->replicate();
-            $duplicator->code = Contact::generateCode(
-                (int) $supplier->company_id,
-                (int) $supplier->branch_id,
+            $duplicator = $customer->replicate();
+            $duplicator->code = Contact::generateCustomerCode(
+                (int) $customer->company_id,
+                (int) $customer->branch_id,
             );
             $duplicator->business_name = $this->duplicateBusinessName(
-                $supplier->business_name,
-                (int) $supplier->company_id,
-                (int) $supplier->branch_id,
+                $customer->business_name,
+                (int) $customer->company_id,
+                (int) $customer->branch_id,
             );
             $duplicator->save();
             DB::commit();
@@ -388,7 +390,7 @@ class SupplierController extends Controller
         $suffix = 1;
 
         while (Contact::query()
-            ->suppliers()
+            ->customers()
             ->where('company_id', $companyId)
             ->where('branch_id', $branchId)
             ->where('business_name', $candidate)
@@ -398,66 +400,6 @@ class SupplierController extends Controller
         }
 
         return $candidate;
-    }
-
-    public function fetch(Request $request): JsonResponse
-    {
-        $suppliers = Contact::query()
-            ->suppliers()
-            ->visibleToCurrentUser()
-            ->where('active', '=', 1)
-            ->when($request->filled('company_id'), function ($q) use ($request) {
-                $q->where('company_id', $request->company_id);
-            })
-            ->when($request->filled('branch_id'), function ($q) use ($request) {
-                $q->where('branch_id', $request->branch_id);
-            })
-            ->select('contacts.*', 'business_name as text')
-            ->orderBy('business_name')
-            ->get();
-
-        return response()->json($suppliers);
-    }
-
-    public function contactDetail(Request $request): JsonResponse
-    {
-        $request->validate([
-            'contact_id' => 'required|integer',
-            'company_id' => 'nullable|integer',
-            'branch_id' => 'nullable|integer',
-        ]);
-
-        $query = Contact::query()
-            ->suppliers()
-            ->visibleToCurrentUser()
-            ->where('id', $request->contact_id);
-
-        if ($request->filled('company_id')) {
-            $query->where('company_id', $request->company_id);
-        }
-
-        if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
-
-        $contact = $query
-            ->with([
-                'country',
-                'state',
-                'city',
-                'currency',
-                'company',
-                'branch',
-            ])
-            ->first();
-
-        if ($contact === null) {
-            abort(404);
-        }
-
-        $this->appendContactFinancialStats($contact);
-
-        return response()->json($contact);
     }
 
     public function trash(Request $request): JsonResponse
@@ -470,7 +412,7 @@ class SupplierController extends Controller
         $curPage = $request->cur_page ?? 1;
 
         $query = Contact::onlyTrashed()
-            ->suppliers()
+            ->customers()
             ->visibleToCurrentUser()
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('active', $status);
@@ -495,16 +437,16 @@ class SupplierController extends Controller
             return $curPage;
         });
 
-        $suppliers = $query->paginate($showRecord);
+        $customers = $query->paginate($showRecord);
 
-        if ($curPage > $suppliers->lastPage()) {
-            Paginator::currentPageResolver(function () use ($suppliers) {
-                return $suppliers->lastPage();
+        if ($curPage > $customers->lastPage()) {
+            Paginator::currentPageResolver(function () use ($customers) {
+                return $customers->lastPage();
             });
-            $suppliers = $query->paginate($showRecord);
+            $customers = $query->paginate($showRecord);
         }
 
-        return response()->json(['data' => $suppliers]);
+        return response()->json(['data' => $customers]);
     }
 
     private function appendContactFinancialStats(Contact $contact): void

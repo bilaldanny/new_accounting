@@ -5,7 +5,7 @@
     import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
     import debounce from '@/utils/debounce';
-    import useSuppliers from '@/composables/supplier';
+    import useCustomers from '@/composables/customer';
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
@@ -14,11 +14,11 @@
 
     defineOptions({
         layout: {
-            title: 'Supplier Management',
-            subtitle: 'Manage suppliers and vendor contacts',
+            title: 'Customer Management',
+            subtitle: 'Manage customers and client contacts',
             breadcrumbs: [
                 {
-                    title: 'Supplier Management',
+                    title: 'Customer Management',
                     href: 'NULL',
                 },
             ],
@@ -33,7 +33,7 @@
 
     const {
         state,
-        getSuppliers,
+        getCustomers,
         changeStatus,
         deleteRecord,
         changeOrder,
@@ -42,8 +42,8 @@
         formData,
         defaultFormData,
         getEditData,
-        generateSupplierCode,
-    } = useSuppliers();
+        generateCustomerCode,
+    } = useCustomers();
 
     const {
         select_data,
@@ -101,8 +101,7 @@
             actions: ['view', 'edit', 'delete', 'duplicate'],
             viewTabActions: [
                 { tab: 'ledger', label: 'Ledger', icon: 'mdi mdi-book-open-page-variant-outline' },
-                { tab: 'purchases', label: 'Purchases', icon: 'mdi mdi-arrow-down-circle-outline' },
-                { tab: 'stock', label: 'Stock Report', icon: 'mdi mdi-timer-sand' },
+                { tab: 'sales', label: 'Sales', icon: 'mdi mdi-arrow-up-circle-outline' },
                 { tab: 'documents', label: 'Documents & Note', icon: 'mdi mdi-paperclip' },
             ],
         },
@@ -142,8 +141,8 @@
         });
     });
 
-    const debouncedGetSuppliers = debounce((params) => {
-        getSuppliers(params);
+    const debouncedGetCustomers = debounce((params) => {
+        getCustomers(params);
     }, 300);
 
     const getData = async () => {
@@ -153,13 +152,13 @@
             if (currentRecord.value !== state.search.show_record) {
                 state.search.page = 1;
             }
-            await debouncedGetSuppliers({ ...state.search });
+            await debouncedGetCustomers({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching suppliers:', error);
+            console.error('Error fetching customers:', error);
         }
     };
 
@@ -207,7 +206,7 @@
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetSuppliers({ ...state.search });
+        debouncedGetCustomers({ ...state.search });
     });
 
     const openAddModal = async () => {
@@ -239,7 +238,7 @@
 
         const companyId = formData.value.company_id;
         if (companyId) {
-            const code = await generateSupplierCode(companyId, formData.value.branch_id || undefined);
+            const code = await generateCustomerCode(companyId, formData.value.branch_id || undefined);
             if (code) {
                 formData.value.code = code;
             }
@@ -265,7 +264,7 @@
         Object.assign(state, newState);
     }
 
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.suppliers, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.customers, () => state);
     const filterOpen = ref(false);
 
     function clearSearch() {
@@ -300,9 +299,9 @@
 
             <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="supplier-filter-company">Company</label>
+                    <label class="form-label" for="customer-filter-company">Company</label>
                     <select
-                        id="supplier-filter-company"
+                        id="customer-filter-company"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -314,9 +313,9 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="supplier-filter-branch">Branch</label>
+                    <label class="form-label" for="customer-filter-branch">Branch</label>
                     <select
-                        id="supplier-filter-branch"
+                        id="customer-filter-branch"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
@@ -342,7 +341,7 @@
                         :delete="deleteRecord"
                         :duplicate="duplicate"
                         :edit="EditModalOpen"
-                        :viewRoute="(id: number) => `/supplier/${id}/view`"
+                        :viewRoute="(id: number) => `/customer/${id}/view`"
                         actionType="modal"
                         :apiUrl="props.routeName?.split('.')[0]"
                         show-export
@@ -360,7 +359,7 @@
         :showLoader="state.modalLoading"
         :formData="formData"
         :formRef="form$"
-        :endpoint="API_ENDPOINTS.suppliers"
+        :endpoint="API_ENDPOINTS.customers"
         :onOpen="openAddModal"
         :onClose="handleAddModalClose"
         :success="(response) => handleSuccess(response, form$)"
@@ -372,7 +371,7 @@
         :formData="formData"
         :formRef="form$"
         :record-id="edit_id.id || null"
-        :endpoint="`${API_ENDPOINTS.suppliers}/${edit_id.id}`"
+        :endpoint="`${API_ENDPOINTS.customers}/${edit_id.id}`"
         :onClose="handleEditModalClose"
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"

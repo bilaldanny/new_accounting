@@ -17,7 +17,7 @@ function applyPhoneDefaults<T extends Record<string, unknown>>(data: T, defaultD
     return data;
 }
 
-export default function useSuppliers() {
+export default function useCustomers() {
     const { props: pageProps } = usePage();
     const defaultDialCode = String(pageProps.dailCode ?? '');
     interface QueryParams {
@@ -43,7 +43,7 @@ export default function useSuppliers() {
         middle_name: '',
         last_name: '',
         business_name: '',
-        user_type: 'supplier',
+        user_type: 'customer',
         type: 'local',
         mobile: defaultDialCode,
         alternate_no: defaultDialCode,
@@ -58,6 +58,7 @@ export default function useSuppliers() {
         landmark: '',
         street_name: '',
         building_number: '',
+        secondary_number: '',
         address: '',
         address_line_2: '',
         zipcode: '',
@@ -78,7 +79,7 @@ export default function useSuppliers() {
         middle_name: '',
         last_name: '',
         business_name: '',
-        user_type: 'supplier',
+        user_type: 'customer',
         type: 'local',
         mobile: defaultDialCode,
         alternate_no: defaultDialCode,
@@ -93,6 +94,7 @@ export default function useSuppliers() {
         landmark: '',
         street_name: '',
         building_number: '',
+        secondary_number: '',
         address: '',
         address_line_2: '',
         zipcode: '',
@@ -142,7 +144,7 @@ export default function useSuppliers() {
     });
 
     const changeStatus = async (ids: Array<number>, status: string) => {
-        return changeStateFn(`${API_ENDPOINTS.suppliers}/statusupdate`, ids, status, state);
+        return changeStateFn(`${API_ENDPOINTS.customers}/statusupdate`, ids, status, state);
     };
 
     const changeOrder = async (event: Event) => {
@@ -150,11 +152,11 @@ export default function useSuppliers() {
     };
 
     const deleteRecord = async (ids: Array<number>) => {
-        return deleteFn(`${API_ENDPOINTS.suppliers}/bulk_delete`, ids, state);
+        return deleteFn(`${API_ENDPOINTS.customers}/bulk_delete`, ids, state);
     };
 
     const perDeleteBulkRecord = async (ids: Array<number>) => {
-        return deleteFn(`${API_ENDPOINTS.suppliers}/bulk_delete_per`, ids, state);
+        return deleteFn(`${API_ENDPOINTS.customers}/bulk_delete_per`, ids, state);
     };
 
     const checkAll = async (id: number) => {
@@ -162,15 +164,15 @@ export default function useSuppliers() {
     };
 
     const duplicate = async (id: number) => {
-        return duplicateFn(`${API_ENDPOINTS.suppliers}/duplicate`, id);
+        return duplicateFn(`${API_ENDPOINTS.customers}/duplicate`, id);
     };
 
-    const getSuppliers = async (data: QueryParams) => {
-        return getData(API_ENDPOINTS.suppliers, data, state);
+    const getCustomers = async (data: QueryParams) => {
+        return getData(API_ENDPOINTS.customers, data, state);
     };
 
-    const getTrashSuppliers = async (data: QueryParams) => {
-        return getData(`${API_ENDPOINTS.suppliers}/trash`, data, state);
+    const getTrashCustomers = async (data: QueryParams) => {
+        return getData(`${API_ENDPOINTS.customers}/trash`, data, state);
     };
 
     const getEditData = async (id: number) => {
@@ -179,7 +181,7 @@ export default function useSuppliers() {
         }
 
         try {
-            const response = await fetchWithRetry(window.axios.get, `/api/suppliers/${id}`);
+            const response = await fetchWithRetry(window.axios.get, `/api/customers/${id}`);
             formData.value = applyPhoneDefaults(response.data, defaultDialCode);
         } catch (error: unknown) {
             if (window.axios.isAxiosError(error)) {
@@ -193,28 +195,28 @@ export default function useSuppliers() {
     };
 
     const restoreBulkRecord = async (ids: Array<number>) => {
-        return restoreFn(`${API_ENDPOINTS.suppliers}/restore_records`, ids, state);
+        return restoreFn(`${API_ENDPOINTS.customers}/restore_records`, ids, state);
     };
 
-    const suppliersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
+    const customersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
 
-    const fetchSuppliersDropdown = async (
+    const fetchCustomersDropdown = async (
         companyId: string | number | null | undefined,
         branchId: string | number | null | undefined,
     ) => {
         if (!companyId || !branchId) {
-            suppliersdata.value = [];
+            customersdata.value = [];
             return;
         }
 
         try {
             const response = await fetchWithRetry(
                 window.axios.get,
-                `${API_ENDPOINTS.fetchSuppliers}?company_id=${companyId}&branch_id=${branchId}`,
+                `${API_ENDPOINTS.fetchCustomers}?company_id=${companyId}&branch_id=${branchId}`,
             );
-            suppliersdata.value = response.data;
+            customersdata.value = response.data;
         } catch (error: unknown) {
-            suppliersdata.value = [];
+            customersdata.value = [];
 
             if (window.axios.isAxiosError(error) && error.response?.data?.message !== 'Unauthenticated.') {
                 Notify(error.response?.data?.message || 'An error occurred', 'alert');
@@ -227,7 +229,7 @@ export default function useSuppliers() {
         company_id?: string | number;
         branch_id?: string | number;
     }) => {
-        const response = await fetchWithRetry(window.axios.get, API_ENDPOINTS.fetchContactDetail, { params });
+        const response = await fetchWithRetry(window.axios.get, `/api/customers/${params.contact_id}`);
 
         return response.data;
     };
@@ -244,13 +246,13 @@ export default function useSuppliers() {
         return response.data;
     };
 
-    const linkSupplierCoa = async (id: number | string) => {
-        const response = await fetchWithRetry(window.axios.post, API_ENDPOINTS.linkSupplierCoa(id));
+    const linkCustomerCoa = async (id: number | string) => {
+        const response = await fetchWithRetry(window.axios.post, API_ENDPOINTS.linkCustomerCoa(id));
 
         return response.data;
     };
 
-    const generateSupplierCode = async (
+    const generateCustomerCode = async (
         companyId: string | number | null | undefined,
         branchId?: string | number | null | undefined,
     ) => {
@@ -269,7 +271,7 @@ export default function useSuppliers() {
 
             const response = await fetchWithRetry(
                 window.axios.get,
-                `${API_ENDPOINTS.supplierGenerateCode}?${params.toString()}`,
+                `${API_ENDPOINTS.customerGenerateCode}?${params.toString()}`,
             );
 
             return String(response.data?.code ?? '');
@@ -286,8 +288,8 @@ export default function useSuppliers() {
         state,
         changeStatus,
         Notify,
-        getSuppliers,
-        getTrashSuppliers,
+        getCustomers,
+        getTrashCustomers,
         getEditData,
         formData,
         defaultFormData,
@@ -298,11 +300,11 @@ export default function useSuppliers() {
         checkAll,
         duplicate,
         select_data,
-        suppliersdata,
-        fetchSuppliersDropdown,
+        customersdata,
+        fetchCustomersDropdown,
         getContactDetail,
         getLedger,
-        linkSupplierCoa,
-        generateSupplierCode,
+        linkCustomerCoa,
+        generateCustomerCode,
     };
 }

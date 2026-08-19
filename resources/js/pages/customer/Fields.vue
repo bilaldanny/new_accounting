@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import useCommons from '@/composables/common';
-    import useSuppliers from '@/composables/supplier';
+    import useCustomers from '@/composables/customer';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { computed, onMounted, ref, watch } from 'vue';
     import { usePage } from '@inertiajs/vue3';
@@ -59,7 +59,7 @@
         Notify,
     } = useCommons();
 
-    const { generateSupplierCode } = useSuppliers();
+    const { generateCustomerCode } = useCustomers();
 
     const codeGenerating = ref(false);
 
@@ -82,7 +82,7 @@
     const branchDisabled = computed(() => isSuperadmin.value && ! selectedCompanyId.value);
 
     const userTypeOptions = [
-        { id: 'supplier', text: 'Supplier' },
+        { id: 'customer', text: 'Customer' },
         { id: 'both', text: 'Both (Supplier & Customer)' },
     ];
 
@@ -117,7 +117,7 @@
 
         try {
             const branchId = normalizeId(params.formData?.branch_id);
-            const code = await generateSupplierCode(companyId, branchId || undefined);
+            const code = await generateCustomerCode(companyId, branchId || undefined);
 
             if (code) {
                 params.formRef?.update?.({ code });
@@ -376,7 +376,7 @@
             </span>
             <div>
                 <h6 class="company-section-title mb-0">Business Details</h6>
-                <p class="company-section-subtitle mb-0">Organization scope, supplier type, and billing currency</p>
+                <p class="company-section-subtitle mb-0">Organization scope, customer type, and billing currency</p>
             </div>
         </div>
     </StaticElement>
@@ -433,7 +433,7 @@
         :floating="false"
         :can-clear="false"
         :disabled="isEdit"
-        :default="'supplier'"
+        :default="'customer'"
         rules="required"
     />
 
@@ -447,7 +447,7 @@
         :readonly="true"
         autocomplete="off"
         rules="max:255"
-        :info="isEdit ? 'Auto-generated supplier code.' : 'Auto-generated on open. Use reload to regenerate.'"
+        :info="isEdit ? 'Auto-generated customer code.' : 'Auto-generated on open. Use reload to regenerate.'"
         :add-classes="{
             container: 'supplier-contact-id-field',
             inputContainer: 'supplier-contact-id-shell',
@@ -481,7 +481,7 @@
         :columns="colThird"
         autocomplete="organization"
         rules="required|min:2|max:255"
-        info="The name shown on purchase orders and reports."
+        info="The name shown on sales invoices and reports."
     />
 
     <SelectElement
@@ -499,7 +499,7 @@
         :floating="false"
         :can-clear="false"
         :default="'local'"
-        info="Local or export supplier for tax and compliance."
+        info="Local or export customer for tax and compliance."
     />
 
     <SelectElement
@@ -516,7 +516,7 @@
         :search="true"
         :floating="false"
         :can-clear="true"
-        info="Preferred currency for transactions with this supplier."
+        info="Preferred currency for transactions with this customer."
     />
 
     <StaticElement name="section_contact_person" :columns="colFull">
@@ -526,7 +526,7 @@
             </span>
             <div>
                 <h6 class="company-section-title mb-0">Contact Person</h6>
-                <p class="company-section-subtitle mb-0">Primary individual associated with this supplier</p>
+                <p class="company-section-subtitle mb-0">Primary individual associated with this customer</p>
             </div>
         </div>
     </StaticElement>
@@ -601,7 +601,7 @@
         :allow-incomplete="true"
         :unmask="true"
         rules="required"
-        info="Primary contact number for this supplier."
+        info="Primary contact number for this customer."
     />
 
     <PhoneElement
@@ -775,6 +775,18 @@
     />
 
 
+    <TextElement
+        id="SecondaryNumber"
+        field-name="SecondaryNumber"
+        name="secondary_number"
+        label="Additional number"
+        placeholder="Secondary / additional number"
+        :columns="colThird"
+        autocomplete="off"
+        rules="max:50"
+    />
+
+
     <StaticElement name="section_tax_payment" :columns="colFull">
         <div class="company-section-header company-section-header-indigo company-section-header-spaced">
             <span class="company-section-icon company-section-icon-indigo">
@@ -810,7 +822,7 @@
         input-type="number"
         :default="0"
         rules="numeric"
-        info="Opening ledger balance when the supplier account is linked to COA."
+        info="Opening ledger balance when the customer account is linked to COA."
     />
 
     <TextElement name="pay_type" hidden="true" :default="'day'" />
@@ -859,7 +871,7 @@
             </span>
             <div>
                 <h6 class="company-section-title mb-0">Credit Settings</h6>
-                <p class="company-section-subtitle mb-0">Credit limit defaults for purchase orders</p>
+                <p class="company-section-subtitle mb-0">Credit limit defaults for sales invoices</p>
             </div>
         </div>
     </StaticElement>
@@ -874,7 +886,7 @@
         input-type="number"
         :default="0"
         rules="numeric"
-        info="Maximum outstanding balance allowed for this supplier."
+        info="Maximum outstanding balance allowed for this customer."
     />
 
     <StaticElement name="section_status" :columns="colFull">
@@ -895,10 +907,10 @@
         id="Active"
         field-name="Active"
         name="active"
-        label="Supplier Status"
+        label="Customer Status"
         :true-value="true"
         :false-value="false"
         :default="true"
-        info="Inactive suppliers are hidden from purchase and payment selection."
+        info="Inactive customers are hidden from sales and payment selection."
     />
 </template>

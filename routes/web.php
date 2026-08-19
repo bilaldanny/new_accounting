@@ -142,6 +142,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('supplier.view');
     /* Supplier */
 
+    /* Bank */
+    Route::get('bank', function () {
+        return Inertia::render('bank/index');
+    })->name('bank');
+
+    Route::get('bank/trash', function () {
+        return Inertia::render('bank/trash');
+    })->name('bank.trash');
+
+    Route::get('bank/{id}/view', function ($id) {
+        return Inertia::render('bank/view', ['id' => $id]);
+    })->name('bank.view');
+    /* Bank */
+
+    /* Customer */
+    Route::get('customer', function () {
+        return Inertia::render('customer/index');
+    })->name('customer');
+
+    Route::get('customer/trash', function () {
+        return Inertia::render('customer/trash');
+    })->name('customer.trash');
+
+    Route::get('customer/{id}/view', function ($id) {
+        return Inertia::render('customer/view', ['id' => $id]);
+    })->name('customer.view');
+    /* Customer */
+
     /* Currency */
     Route::get('currency', function () {
         return Inertia::render('currency/index');

@@ -231,7 +231,7 @@ function accountMapping(int $companyId, int $branchId): void
 
 function generateChartOfAccountCode(string $type, ChartOfAccountMapping $mapping, object $request): string
 {
-    if (! in_array($type, ['supplier', 'customer'], true)) {
+    if (! in_array($type, ['supplier', 'customer', 'bank'], true)) {
         return '000';
     }
 

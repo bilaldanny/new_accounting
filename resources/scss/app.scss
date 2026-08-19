@@ -1158,6 +1158,98 @@
     padding-right: 6px;
 }
 
+.supplier-pay-term-shell {
+    height: 42px;
+    border: 1px solid #d9e0e7 !important;
+    border-radius: 7px !important;
+    background-color: #fff !important;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &.vf-input-group-focused {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+    }
+}
+
+.supplier-pay-term-input {
+    height: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.supplier-pay-term-addon {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-width: 7.5rem;
+    border-left: 1px solid #d9e0e7 !important;
+    background-color: #f8fafc !important;
+}
+
+.supplier-pay-term-addon .vf-element-layout,
+.supplier-pay-term-addon .vf-row,
+.supplier-pay-term-addon .vf-col-12 {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    max-width: 100%;
+}
+
+.supplier-pay-term-addon .vf-input-group,
+.supplier-pay-term-addon .form-control,
+.supplier-pay-term-addon .multiselect {
+    height: 100% !important;
+    min-height: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+}
+
+.supplier-pay-term-select {
+    height: 100%;
+    min-width: 7.5rem;
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+}
+
+.supplier-pay-term-select:focus {
+    box-shadow: none;
+}
+
+.supplier-contact-id-shell {
+    height: 42px;
+    border: 1px solid #d9e0e7 !important;
+    border-radius: 7px !important;
+    background-color: #fff !important;
+    overflow: hidden;
+}
+
+.supplier-contact-id-input {
+    height: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    border: 0 !important;
+    background-color: #f8fafc !important;
+    box-shadow: none !important;
+}
+
+.supplier-contact-id-addon {
+    flex-direction: row !important;
+    align-items: center !important;
+    padding-right: 4px !important;
+}
+
 @keyframes code-generate-spin {
     from {
         transform: rotate(0deg);

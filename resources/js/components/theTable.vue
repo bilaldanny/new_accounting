@@ -7,12 +7,20 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } 
 import { useFloating, offset, flip, shift, autoPlacement, autoUpdate, arrow, computePosition } from '@floating-ui/vue'
 import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
 
+    interface ViewTabAction {
+        tab: string;
+        label: string;
+        icon: string;
+    }
+
     interface Column {
         key: string;
         label: string;
         type?: 'checkbox' | 'count' | 'badge' | 'action' | 'external_link' | 'certificate_download' | string;
         sorting?: 'enabled' | 'disabled';
         actions?: string[];
+        /** Shortcut links to view page tabs (shown after divider when user has view permission). */
+        viewTabActions?: ViewTabAction[];
         data_column?: string;
         /** When `type` is `external_link`, show this label instead of repeating the URL */
         external_link_label?: string;
@@ -310,6 +318,36 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         );
     }
 
+    function hasViewPermission(apiUrl: string | undefined): boolean {
+        if (!apiUrl) {
+            return false;
+        }
+
+        const paths = (props as { auth?: { user?: { permission_paths?: string[] } } }).auth?.user?.permission_paths ?? [];
+
+        return paths.includes(`/${apiUrl}/:id/view`);
+    }
+
+    function canShowViewTabActions(col: Column): boolean {
+        return !!(
+            col.viewTabActions?.length &&
+            hasViewPermission(tableData.apiUrl) &&
+            tableData.viewRoute
+        );
+    }
+
+    function viewRouteWithTab(rowId: number, tab: string): string {
+        const base = tableData.viewRoute?.(rowId);
+
+        if (!base) {
+            return '#';
+        }
+
+        const separator = base.includes('?') ? '&' : '?';
+
+        return `${base}${separator}tab=${encodeURIComponent(tab)}`;
+    }
+
     /**
      * Drops the action column when none of its entries would render (same rules as row action v-if).
      */
@@ -322,14 +360,18 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
             if (col.type !== 'action') {
                 return true;
             }
-            if (!col.actions?.length) {
+            if (!col.actions?.length && !col.viewTabActions?.length) {
                 return false;
             }
             if (!apiUrl) {
                 return true;
             }
 
-            return col.actions.some((action) => {
+            if (canShowViewTabActions(col)) {
+                return true;
+            }
+
+            return col.actions?.some((action) => {
                 switch (action) {
                     case 'edit':
                         return paths.includes(`/${apiUrl}/:id/edit`);
@@ -882,7 +924,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                                 row[col.key] === true ? 'bg-success' : 'bg-secondary',
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'account_linked'"
-                                            :title="row[col.key] === true && row.supplier_gl_id ? `Account: ${row.supplier_gl_id}` : 'Not linked to chart of accounts'"
+                                            :title="row[col.key] === true && (row.supplier_gl_id || row.customer_gl_id) ? `Account: ${row.supplier_gl_id || row.customer_gl_id}` : 'Not linked to chart of accounts'"
                                         >
                                             {{ row[col.key] === true ? 'Linked' : 'Not Linked' }}
                                         </span>
@@ -1114,6 +1156,20 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                                         </template>
                                                     </a>
                                                 <!-- Invoice -->
+
+                                                <!-- View tab shortcuts -->
+                                                <template v-if="canShowViewTabActions(col)">
+                                                    <div class="dropdown-divider"></div>
+                                                    <Link
+                                                        v-for="item in col.viewTabActions"
+                                                        :key="item.tab"
+                                                        class="dropdown-item"
+                                                        :href="viewRouteWithTab(row.id, item.tab)"
+                                                    >
+                                                        <i :class="item.icon"></i> {{ item.label }}
+                                                    </Link>
+                                                </template>
+                                                <!-- View tab shortcuts -->
 
                                             </div>
                                         </span>

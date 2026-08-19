@@ -5,7 +5,7 @@
     import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
     import debounce from '@/utils/debounce';
-    import useSuppliers from '@/composables/supplier';
+    import useBanks from '@/composables/bank';
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
@@ -14,11 +14,11 @@
 
     defineOptions({
         layout: {
-            title: 'Supplier Management',
-            subtitle: 'Manage suppliers and vendor contacts',
+            title: 'Bank Management',
+            subtitle: 'Manage bank accounts and contacts',
             breadcrumbs: [
                 {
-                    title: 'Supplier Management',
+                    title: 'Bank Management',
                     href: 'NULL',
                 },
             ],
@@ -33,7 +33,7 @@
 
     const {
         state,
-        getSuppliers,
+        getBanks,
         changeStatus,
         deleteRecord,
         changeOrder,
@@ -42,8 +42,8 @@
         formData,
         defaultFormData,
         getEditData,
-        generateSupplierCode,
-    } = useSuppliers();
+        generateBankCode,
+    } = useBanks();
 
     const {
         select_data,
@@ -84,7 +84,7 @@
         ] : []),
         { key: 'count', label: 'S.No', type: 'count', responsive: ['xs', 'sm', 'md', 'lg'], sorting: 'disabled' },
         { key: 'code', label: 'Code', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'] },
-        { key: 'business_name', label: 'Business Name', type: 'primary', linkable: true, responsive: ['xs', 'sm', 'md', 'lg'] },
+        { key: 'bank_name', label: 'Bank Name', type: 'primary', linkable: true, responsive: ['xs', 'sm', 'md', 'lg'] },
         { key: 'first_name', label: 'Name', type: 'secondary', linkable: true, data_column: 'display_name', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'city_name', label: 'City', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '-' },
         { key: 'op_bal', label: 'Op Bal', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
@@ -99,12 +99,6 @@
             responsive: ['xs', 'sm', 'md', 'lg'],
             sorting: 'disabled',
             actions: ['view', 'edit', 'delete', 'duplicate'],
-            viewTabActions: [
-                { tab: 'ledger', label: 'Ledger', icon: 'mdi mdi-book-open-page-variant-outline' },
-                { tab: 'purchases', label: 'Purchases', icon: 'mdi mdi-arrow-down-circle-outline' },
-                { tab: 'stock', label: 'Stock Report', icon: 'mdi mdi-timer-sand' },
-                { tab: 'documents', label: 'Documents & Note', icon: 'mdi mdi-paperclip' },
-            ],
         },
     ]);
 
@@ -142,8 +136,8 @@
         });
     });
 
-    const debouncedGetSuppliers = debounce((params) => {
-        getSuppliers(params);
+    const debouncedGetBanks = debounce((params) => {
+        getBanks(params);
     }, 300);
 
     const getData = async () => {
@@ -153,13 +147,13 @@
             if (currentRecord.value !== state.search.show_record) {
                 state.search.page = 1;
             }
-            await debouncedGetSuppliers({ ...state.search });
+            await debouncedGetBanks({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching suppliers:', error);
+            console.error('Error fetching banks:', error);
         }
     };
 
@@ -207,7 +201,7 @@
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetSuppliers({ ...state.search });
+        debouncedGetBanks({ ...state.search });
     });
 
     const openAddModal = async () => {
@@ -220,12 +214,10 @@
                 : isCompanyadmin.value
                     ? {
                         company_id: authUser.value?.company_id ?? '',
-                        currency_id: authUser.value?.currency_id ?? '',
                     }
                     : {
                         company_id: authUser.value?.company_id ?? '',
                         branch_id: authUser.value?.branch_id ?? '',
-                        currency_id: authUser.value?.currency_id ?? '',
                     }),
         };
 
@@ -239,7 +231,7 @@
 
         const companyId = formData.value.company_id;
         if (companyId) {
-            const code = await generateSupplierCode(companyId, formData.value.branch_id || undefined);
+            const code = await generateBankCode(companyId, formData.value.branch_id || undefined);
             if (code) {
                 formData.value.code = code;
             }
@@ -265,7 +257,7 @@
         Object.assign(state, newState);
     }
 
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.suppliers, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.banks, () => state);
     const filterOpen = ref(false);
 
     function clearSearch() {
@@ -300,9 +292,9 @@
 
             <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="supplier-filter-company">Company</label>
+                    <label class="form-label" for="bank-filter-company">Company</label>
                     <select
-                        id="supplier-filter-company"
+                        id="bank-filter-company"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -314,9 +306,9 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="supplier-filter-branch">Branch</label>
+                    <label class="form-label" for="bank-filter-branch">Branch</label>
                     <select
-                        id="supplier-filter-branch"
+                        id="bank-filter-branch"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
@@ -342,7 +334,7 @@
                         :delete="deleteRecord"
                         :duplicate="duplicate"
                         :edit="EditModalOpen"
-                        :viewRoute="(id: number) => `/supplier/${id}/view`"
+                        :viewRoute="(id: number) => `/bank/${id}/view`"
                         actionType="modal"
                         :apiUrl="props.routeName?.split('.')[0]"
                         show-export
@@ -360,7 +352,7 @@
         :showLoader="state.modalLoading"
         :formData="formData"
         :formRef="form$"
-        :endpoint="API_ENDPOINTS.suppliers"
+        :endpoint="API_ENDPOINTS.banks"
         :onOpen="openAddModal"
         :onClose="handleAddModalClose"
         :success="(response) => handleSuccess(response, form$)"
@@ -372,7 +364,7 @@
         :formData="formData"
         :formRef="form$"
         :record-id="edit_id.id || null"
-        :endpoint="`${API_ENDPOINTS.suppliers}/${edit_id.id}`"
+        :endpoint="`${API_ENDPOINTS.banks}/${edit_id.id}`"
         :onClose="handleEditModalClose"
         :success="(response) => handleSuccess(response, form$)"
         :error="(error, details) => handleError(error, details, form$)"
