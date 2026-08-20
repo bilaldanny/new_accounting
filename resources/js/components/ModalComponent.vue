@@ -40,8 +40,8 @@ onMounted(() => {
         }
     }
 
-    const handleShown = () => {
-        modalProps.onOpen?.()
+    const handleShow = (event: Event) => {
+        modalProps.onOpen?.(event)
     }
 
     const handleHidden = () => {
@@ -49,11 +49,11 @@ onMounted(() => {
     }
 
     modalEl.addEventListener('hide.bs.modal', handleHide)
-    modalEl.addEventListener('show.bs.modal', handleShown)
+    modalEl.addEventListener('show.bs.modal', handleShow)
     modalEl.addEventListener('hidden.bs.modal', handleHidden)
 
     // store cleanup references
-    modalEl.__vueModalHandlers__ = { handleHide, handleShown, handleHidden }
+    modalEl.__vueModalHandlers__ = { handleHide, handleShow, handleHidden }
 })
 
 onBeforeUnmount(() => {
@@ -62,7 +62,7 @@ onBeforeUnmount(() => {
     if (!handlers) return
 
     modalEl.removeEventListener('hide.bs.modal', handlers.handleHide)
-    modalEl.removeEventListener('show.bs.modal', handlers.handleShown)
+    modalEl.removeEventListener('show.bs.modal', handlers.handleShow)
     modalEl.removeEventListener('hidden.bs.modal', handlers.handleHidden)
 })
 </script>

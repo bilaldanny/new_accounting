@@ -42,6 +42,7 @@ class CustomerController extends Controller
             'user_type' => 'nullable|in:customer,both',
             'type' => 'nullable|in:local,export',
             'pay_type' => 'nullable|in:month,day,year',
+            'customer_group_id' => 'nullable|integer|exists:customer_groups,id',
         ];
     }
 

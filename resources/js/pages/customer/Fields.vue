@@ -48,11 +48,13 @@
     const {
         fetchCompany,
         fetchBranch,
+        fetchCustomerGroup,
         fetchCountry,
         fetchState,
         fetchCity,
         companiesdata,
         branchesdata,
+        customergroupsdata,
         countriesdata,
         statesdata,
         citiesdata,
@@ -72,6 +74,7 @@
     const lastFetchedCompanyId = ref('');
     const lastFetchedCountryId = ref('');
     const lastFetchedStateId = ref('');
+    const lastFetchedBranchKey = ref('');
 
     const normalizeId = (id: unknown) =>
         id === null || id === undefined || id === '' ? '' : String(id);
@@ -80,6 +83,10 @@
     const companyRules = computed(() => (isSuperadmin.value ? 'required' : ''));
 
     const branchDisabled = computed(() => isSuperadmin.value && ! selectedCompanyId.value);
+
+    const customerGroupDisabled = computed(() =>
+        ! normalizeId(params.formData?.company_id) || ! normalizeId(params.formData?.branch_id),
+    );
 
     const userTypeOptions = [
         { id: 'customer', text: 'Customer' },
@@ -222,11 +229,46 @@
         const normalizedCompanyId = normalizeId(companyId);
 
         if (params.formData?.branch_id) {
-            params.formRef?.update?.({ branch_id: '' });
+            params.formRef?.update?.({ branch_id: '', customer_group_id: '' });
         }
 
         lastFetchedCompanyId.value = '';
+        lastFetchedBranchKey.value = '';
         await loadBranchOptions(normalizedCompanyId || undefined);
+    }
+
+    async function loadCustomerGroupOptions(
+        companyId: string | number | null | undefined,
+        branchId: string | number | null | undefined,
+    ) {
+        const normalizedCompanyId = normalizeId(companyId);
+        const normalizedBranchId = normalizeId(branchId);
+        const key = `${normalizedCompanyId}:${normalizedBranchId}`;
+
+        if (! normalizedCompanyId || ! normalizedBranchId) {
+            customergroupsdata.value = [];
+
+            return;
+        }
+
+        if (key === lastFetchedBranchKey.value) {
+            return;
+        }
+
+        lastFetchedBranchKey.value = key;
+        await fetchCustomerGroup(normalizedCompanyId, normalizedBranchId);
+    }
+
+    async function handleBranchChange(
+        companyId: string | number | null | undefined,
+        branchId: string | number | null | undefined,
+    ) {
+        if (params.formData?.customer_group_id) {
+            params.formRef?.update?.({ customer_group_id: '' });
+        }
+
+        lastFetchedBranchKey.value = '';
+        await loadCustomerGroupOptions(companyId, branchId);
     }
 
     async function handleCountryChange(countryId: string | number | null | undefined) {
@@ -292,6 +334,14 @@
             await loadBranchOptions(companyId);
         }
 
+        const branchId = isCompanyadmin.value
+            ? (params.formData?.branch_id || authUser.value?.branch_id)
+            : params.formData?.branch_id;
+
+        if (companyId && branchId) {
+            await loadCustomerGroupOptions(companyId, branchId);
+        }
+
         await fetchCountry();
         await fetchCurrencies();
 
@@ -314,6 +364,17 @@
             }
 
             await handleCompanyChange(companyId || undefined);
+        },
+    );
+
+    watch(
+        () => [normalizeId(params.formData?.company_id), normalizeId(params.formData?.branch_id)],
+        async ([companyId, branchId], [prevCompanyId, prevBranchId]) => {
+            if (companyId === prevCompanyId && branchId === prevBranchId) {
+                return;
+            }
+
+            await handleBranchChange(companyId || undefined, branchId || undefined);
         },
     );
 
@@ -517,6 +578,24 @@
         :floating="false"
         :can-clear="true"
         info="Preferred currency for transactions with this customer."
+    />
+
+    <SelectElement
+        name="customer_group_id"
+        :native="false"
+        :items="customergroupsdata"
+        id="CustomerGroupId"
+        field-name="CustomerGroupId"
+        placeholder="Select customer group"
+        label="Customer Group"
+        :columns="colThird"
+        label-prop="text"
+        value-prop="id"
+        :search="true"
+        :floating="false"
+        :can-clear="true"
+        :disabled="customerGroupDisabled"
+        info="Optional pricing group applied to this customer."
     />
 
     <StaticElement name="section_contact_person" :columns="colFull">

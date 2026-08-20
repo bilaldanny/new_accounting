@@ -11,6 +11,8 @@ const enExtended = {
         ...en.validation,
         role_name_unique: 'A role with this name already exists.',
         department_name_unique: 'A department with this name already exists.',
+        customer_group_name_unique: 'A customer group with this name already exists.',
+        chart_of_account_code_unique: 'This account code is already taken.',
         timezone_name_unique: 'A timezone with this name already exists.',
         company_code_unique: 'This company code is already taken.',
         currency_code_unique: 'This currency code is already taken.',
@@ -152,6 +154,44 @@ async function postCheckDepartmentName(payload: Record<string, string | number>)
         throw new Error(`HTTP ${res.status}`)
     }
     return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckCustomerGroupName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/customer-groups/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckChartOfAccountCode(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/chart-of-accounts/check-code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ code_taken: boolean }>
 }
 
 async function postCheckRoleName(payload: Record<string, string | number>) {
@@ -445,6 +485,76 @@ class DepartmentNameUnique extends Validator {
     }
 }
 
+class CustomerGroupNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        if (formData.branch_id !== undefined && formData.branch_id !== null && formData.branch_id !== '') {
+            payload.branch_id = Number(formData.branch_id)
+        }
+
+        return postCheckCustomerGroupName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class ChartOfAccountCodeUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const code = String(value ?? '').trim()
+        if (!code) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this, 'id')
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { code }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        if (formData.branch_id !== undefined && formData.branch_id !== null && formData.branch_id !== '') {
+            payload.branch_id = Number(formData.branch_id)
+        }
+
+        return postCheckChartOfAccountCode(payload)
+            .then((data) => !data.code_taken)
+            .catch(() => true)
+    }
+}
+
 class RoleNameUnique extends Validator {
     get isAsync() {
         return true
@@ -502,6 +612,8 @@ export default defineConfig({
         user_username_unique: UserUsernameUnique,
         role_name_unique: RoleNameUnique,
         department_name_unique: DepartmentNameUnique,
+        customer_group_name_unique: CustomerGroupNameUnique,
+        chart_of_account_code_unique: ChartOfAccountCodeUnique,
         timezone_name_unique: TimezoneNameUnique,
     },
     // Vueform merges `axios` into its bundled axios (the old `http` key is not read by the installer).

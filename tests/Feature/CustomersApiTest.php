@@ -2,6 +2,7 @@
 
 use App\Models\ChartOfAccountMapping;
 use App\Models\Contact;
+use App\Models\CustomerGroup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -383,4 +384,28 @@ test('customers generate-code api returns the next contact code', function () {
         ->assertJsonStructure(['code']);
 
     expect($response->json('code'))->toBe('CU-00002');
+});
+
+test('customers api stores customer_group_id when provided', function () {
+    $scope = seedCustomerScope();
+    $customerGroup = CustomerGroup::query()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'name' => 'Premium Retail',
+        'price_calculation_type' => 'percentage',
+        'calculation_percentage' => 12.5,
+        'active' => true,
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/customers', validCustomerPayload($scope, [
+        'customer_group_id' => $customerGroup->id,
+    ]))->assertOk();
+
+    $this->assertDatabaseHas('contacts', [
+        'business_name' => 'New Customer Co',
+        'customer_group_id' => $customerGroup->id,
+    ]);
 });
