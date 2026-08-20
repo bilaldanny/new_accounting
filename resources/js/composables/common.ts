@@ -16,6 +16,7 @@ const sharedCitiesdata = ref([]);
 const sharedCompaniesdata = ref([]);
 const sharedBranchesdata = ref([]);
 const sharedDepartmentsdata = ref([]);
+const sharedCustomerGroupsdata = ref([]);
 
 type IsotopeInstance = {
     layout: () => void;
@@ -50,6 +51,7 @@ export default function useCommons(){
     const companiesdata = sharedCompaniesdata;
     const branchesdata = sharedBranchesdata;
     const departmentsdata = sharedDepartmentsdata;
+    const customergroupsdata = sharedCustomerGroupsdata;
     const loading = ref(false);
     const MAX_RETRIES = 1;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -154,7 +156,7 @@ export default function useCommons(){
         }
         return String(text)
             .replace(/\bindex\b/gi, '') // remove "index"
-            .replace(/[._]/g, ' ') // replace both . and _ with space
+            .replace(/[-._]/g, ' ') // replace -, . and _ with space
             .replace(/\b\w/g, char => char.toUpperCase()); // capitalize each word
     };
 
@@ -822,6 +824,40 @@ export default function useCommons(){
         await fetchDepartment(company_id, branch_id);
     };
 
+    const fetchCustomerGroup = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+    ) => {
+        if (
+            company_id === null || company_id === undefined || company_id === '' ||
+            branch_id === null || branch_id === undefined || branch_id === ''
+        ) {
+            customergroupsdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchcustomergroups', {
+                params: { company_id, branch_id },
+            });
+            customergroupsdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getCustomerGroup = async (
+        company_id: string | number | null | undefined,
+        branch_id: string | number | null | undefined,
+    ) => {
+        await fetchCustomerGroup(company_id, branch_id);
+    };
+
     function changeCountry(id){
         fetchState(id);
     }
@@ -875,8 +911,11 @@ export default function useCommons(){
         branchesdata,
         fetchDepartment,
         departmentsdata,
+        fetchCustomerGroup,
+        customergroupsdata,
         getBranch,
         getDepartment,
+        getCustomerGroup,
         changeCountry,
         changeState,
         imageError,

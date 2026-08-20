@@ -84,17 +84,17 @@ const { formatedText } = useCommons();
                 class="btn btn-sm btn-success top-btn top-btn-icon-only"
                 v-if="
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/restore`) &&
-                    buttonProps.state?.edit_ids.length > 0
+                    buttonProps.state?.edit_ids?.length > 0
                 "
                 @click="buttonProps.restoreBulk?.(buttonProps.state?.edit_ids)"
-                :disabled="buttonProps.state?.loadingIds.size > 0"
+                :disabled="buttonProps.state?.loadingIds?.size > 0"
                 title="Restore selected"
             >
                 <span
                     class="spinner-border spinner-border-sm"
                     role="status"
                     aria-hidden="true"
-                    v-if="buttonProps.state?.loadingIds.size > 0"
+                    v-if="buttonProps.state?.loadingIds?.size > 0"
                 ></span>
                 <UndoAlt v-else size="sm" class="top-btn-icon" />
             </button>
@@ -104,17 +104,17 @@ const { formatedText } = useCommons();
                 class="btn btn-sm btn-danger top-btn top-btn-icon-only"
                 v-if="
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/delete`) &&
-                    buttonProps.state?.edit_ids.length > 0
+                    buttonProps.state?.edit_ids?.length > 0
                 "
                 @click="buttonProps.permanentDeleteBulk?.(buttonProps.state?.edit_ids)"
-                :disabled="buttonProps.state?.loadingIds.size > 0"
+                :disabled="buttonProps.state?.loadingIds?.size > 0"
                 title="Permanently delete selected"
             >
                 <span
                     class="spinner-border spinner-border-sm"
                     role="status"
                     aria-hidden="true"
-                    v-if="buttonProps.state?.loadingIds.size > 0"
+                    v-if="buttonProps.state?.loadingIds?.size > 0"
                 ></span>
                 <TrashX v-else size="sm" class="top-btn-icon" />
             </button>
@@ -135,16 +135,16 @@ const { formatedText } = useCommons();
                 class="btn btn-sm btn-danger top-btn top-btn-icon-only"
                 v-if="
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/delete`) &&
-                    buttonProps.state?.edit_ids.length > 0
+                    buttonProps.state?.edit_ids?.length > 0
                 "
                 @click="buttonProps.deleteRecord?.(buttonProps.state?.edit_ids)"
-                :disabled="buttonProps.state?.loadingIds.size > 0"
+                :disabled="buttonProps.state?.loadingIds?.size > 0"
             >
                 <span
                     class="spinner-border spinner-border-sm"
                     role="status"
                     aria-hidden="true"
-                    v-if="buttonProps.state?.loadingIds.size > 0"
+                    v-if="buttonProps.state?.loadingIds?.size > 0"
                 ></span>
                 <TrashAlt v-else size="sm" class="top-btn-icon" />
             </button>
@@ -154,17 +154,17 @@ const { formatedText } = useCommons();
                 class="btn btn-sm btn-success top-btn top-btn-icon-only"
                 v-if="
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/:id/edit`) &&
-                    buttonProps.state?.edit_ids.length > 0 &&
+                    buttonProps.state?.edit_ids?.length > 0 &&
                     buttonProps.showStatus
                 "
                 @click="buttonProps.changeStatus?.(buttonProps.state?.edit_ids, 'true')"
-                :disabled="buttonProps.state?.loadingIds.size > 0"
+                :disabled="buttonProps.state?.loadingIds?.size > 0"
             >
                 <span
                     class="spinner-border spinner-border-sm"
                     role="status"
                     aria-hidden="true"
-                    v-if="buttonProps.state?.loadingIds.size > 0"
+                    v-if="buttonProps.state?.loadingIds?.size > 0"
                 ></span>
                 <EyeAlt v-else size="sm" class="top-btn-icon" />
             </button>
@@ -174,17 +174,17 @@ const { formatedText } = useCommons();
                 class="btn btn-sm btn-warning top-btn top-btn-icon-only"
                 v-if="
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/:id/edit`) &&
-                    buttonProps.state?.edit_ids.length > 0 &&
+                    buttonProps.state?.edit_ids?.length > 0 &&
                     buttonProps.showStatus
                 "
                 @click="buttonProps.changeStatus?.(buttonProps.state?.edit_ids, 'false')"
-                :disabled="buttonProps.state?.loadingIds.size > 0"
+                :disabled="buttonProps.state?.loadingIds?.size > 0"
             >
                 <span
                     class="spinner-border spinner-border-sm"
                     role="status"
                     aria-hidden="true"
-                    v-if="buttonProps.state?.loadingIds.size > 0"
+                    v-if="buttonProps.state?.loadingIds?.size > 0"
                 ></span>
                 <EyeClosed v-else size="sm" class="top-btn-icon" />
             </button>

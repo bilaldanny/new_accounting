@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountBalanceController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ChartOfAccountController;
@@ -10,9 +11,11 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StateController;
@@ -63,6 +66,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/fetchcompanies', [CompanyController::class, 'fetch']);
     Route::get('/fetchbranches', [BranchController::class, 'fetch']);
     Route::get('/fetchdepartments', [DepartmentController::class, 'fetch']);
+    Route::get('/fetchcustomergroups', [CustomerGroupController::class, 'fetch']);
     /* Role */
 
     /* Branch */
@@ -92,15 +96,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('company-settings/{companyId}', [CompanySettingController::class, 'show']);
     Route::put('company-settings/{companyId}', [CompanySettingController::class, 'update']);
     Route::get('fetchparentaccounts', [ChartOfAccountController::class, 'fetchParentAccounts']);
+    Route::get('fetchcontrolaccounts', [ChartOfAccountController::class, 'fetchControlAccounts']);
     Route::get('fetchchildaccounts', [ChartOfAccountController::class, 'fetchChildAccounts']);
     Route::get('fetchallaccounts', [ChartOfAccountController::class, 'fetchAllAccounts']);
     Route::get('fetchparentsaleaccounts', [ChartOfAccountController::class, 'fetchParentSaleAccounts']);
     Route::get('fetchparentpurchaseaccounts', [ChartOfAccountController::class, 'fetchParentPurchaseAccounts']);
+    Route::get('chart-of-accounts/generate-code', [ChartOfAccountController::class, 'generateCode']);
+    Route::get('chart-of-accounts/resolve-from-parent', [ChartOfAccountController::class, 'resolveFromParent']);
+    Route::post('chart-of-accounts/check-code', [ChartOfAccountController::class, 'checkCode']);
+    Route::resource('chart-of-accounts', ChartOfAccountController::class)->only(['index', 'store', 'show', 'update']);
     Route::get('fetchcustomers', [ContactController::class, 'fetchCustomers']);
     Route::post('taxes/statusupdate', [TaxController::class, 'updateStatus']);
     Route::post('taxes/bulk_delete', [TaxController::class, 'bulk_delete']);
     Route::get('fetchtaxes', [TaxController::class, 'fetch']);
     Route::resource('taxes', TaxController::class);
+    Route::get('fetchobaccounts', [ChartOfAccountController::class, 'fetchObAccounts']);
+    Route::get('account-balances/fetch-balance', [AccountBalanceController::class, 'fetchBalance']);
+    Route::post('account-balances', [AccountBalanceController::class, 'store']);
     Route::get('fetchfinancialyears', [FinancialYearController::class, 'fetch']);
     Route::resource('financialyears', FinancialYearController::class);
     /* Company */
@@ -169,6 +181,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('customers/bulk_delete_per', [CustomerController::class, 'bulk_delete_per']);
     Route::post('customers/restore_records', [CustomerController::class, 'restore_records']);
     /* Customer */
+
+    /* Customer Group */
+    Route::post('customer-groups/check-name', [CustomerGroupController::class, 'checkName']);
+    Route::get('customer-groups/trash', [CustomerGroupController::class, 'trash']);
+    Route::resource('customer-groups', CustomerGroupController::class);
+    Route::post('/customer-groups/statusupdate', [CustomerGroupController::class, 'updatestatus']);
+    Route::post('/customer-groups/duplicate', [CustomerGroupController::class, 'duplicate']);
+    Route::post('/customer-groups/bulk_delete', [CustomerGroupController::class, 'bulk_delete']);
+    Route::post('customer-groups/bulk_delete_per', [CustomerGroupController::class, 'bulk_delete_per']);
+    Route::post('customer-groups/restore_records', [CustomerGroupController::class, 'restore_records']);
+    /* Customer Group */
 
     /* Department */
     Route::post('departments/check-name', [DepartmentController::class, 'checkName']);

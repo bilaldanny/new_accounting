@@ -18,6 +18,7 @@ class Contact extends Model
     protected $fillable = [
         'company_id',
         'branch_id',
+        'customer_group_id',
         'currency_id',
         'country_id',
         'state_id',
@@ -127,6 +128,14 @@ class Contact extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * @return BelongsTo<CustomerGroup, $this>
+     */
+    public function customerGroup(): BelongsTo
+    {
+        return $this->belongsTo(CustomerGroup::class);
     }
 
     /**
@@ -400,6 +409,7 @@ class Contact extends Model
     {
         $contact->company_id = self::resolveScopedId($request->company_id);
         $contact->branch_id = self::resolveScopedId($request->branch_id);
+        $contact->customer_group_id = self::resolveScopedId($request->customer_group_id ?? null);
         $contact->currency_id = self::resolveScopedId($request->currency_id ?? null);
         $contact->country_id = self::resolveScopedId($request->country_id ?? null);
         $contact->state_id = self::resolveScopedId($request->state_id ?? null);

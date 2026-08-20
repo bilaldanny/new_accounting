@@ -34,6 +34,7 @@ export default function useCustomers() {
     const formData = ref({
         company_id: '',
         branch_id: '',
+        customer_group_id: '',
         currency_id: '',
         country_id: '',
         state_id: '',
@@ -70,6 +71,7 @@ export default function useCustomers() {
     const defaultFormData = ref({
         company_id: '',
         branch_id: '',
+        customer_group_id: '',
         currency_id: '',
         country_id: '',
         state_id: '',

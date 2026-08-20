@@ -156,6 +156,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bank.view');
     /* Bank */
 
+    /* Chart Of Account */
+    Route::get('chart-of-account', function () {
+        return Inertia::render('chart-of-account/index');
+    })->name('chart-of-account');
+    /* Chart Of Account */
+
+    /* Opening Balance */
+    Route::get('opening-balance', function () {
+        return Inertia::render('opening-balance/index');
+    })->name('opening-balance');
+    /* Opening Balance */
+
+    /* Customer Group */
+    Route::get('customer-group', function () {
+        return Inertia::render('customer-group/index');
+    })->name('customer-group');
+
+    Route::get('customer-group/trash', function () {
+        return Inertia::render('customer-group/trash');
+    })->name('customer-group.trash');
+    /* Customer Group */
+
     /* Customer */
     Route::get('customer', function () {
         return Inertia::render('customer/index');
