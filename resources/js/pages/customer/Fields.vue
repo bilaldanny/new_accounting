@@ -39,6 +39,7 @@
     const isSuperadmin = computed(() => roleName.value === 'superadmin');
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
     const isEdit = computed(() => params.type === 'edit');
+    const isCoaLinked = computed(() => Boolean(params.formData?.customer_gl_id));
 
     const showCompanyField = computed(() => isSuperadmin.value);
     const showBranchField = computed(() => isSuperadmin.value || isCompanyadmin.value);
@@ -891,7 +892,6 @@
     />
 
     <TextElement
-        v-if="!isEdit"
         id="OpeningBalance"
         field-name="OpeningBalance"
         name="opening_balance"
@@ -900,8 +900,11 @@
         :columns="colThird"
         input-type="number"
         :default="0"
+        :readonly="isCoaLinked"
         rules="numeric"
-        info="Opening ledger balance when the customer account is linked to COA."
+        :info="isCoaLinked
+            ? 'Opening balance from the linked chart of account. Update it from Opening Balance settings if needed.'
+            : 'Opening ledger balance when the customer account is linked to COA.'"
     />
 
     <TextElement name="pay_type" hidden="true" :default="'day'" />

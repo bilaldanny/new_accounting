@@ -14,6 +14,7 @@ export type ChartOfAccountNode = {
     pl?: boolean;
     bs?: boolean;
     active?: boolean;
+    opening_balance?: number | string;
     children?: ChartOfAccountNode[];
 };
 

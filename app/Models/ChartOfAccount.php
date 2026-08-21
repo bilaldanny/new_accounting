@@ -454,4 +454,94 @@ class ChartOfAccount extends Model
             'bs' => $parentAccount->bs,
         ]);
     }
+
+    /**
+     * @param  Collection<int, ChartOfAccount>  $roots
+     */
+    public static function appendOpeningBalancesToTree(Collection $roots, int $companyId, int $branchId): void
+    {
+        $allAccounts = self::flattenTreeAccounts($roots);
+
+        foreach ($allAccounts as $account) {
+            $account->opening_balance = 0;
+        }
+
+        $financialYear = FinancialYear::query()
+            ->where('company_id', $companyId)
+            ->where('status', true)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($financialYear !== null) {
+            $transactionalIds = $allAccounts
+                ->filter(fn (self $account): bool => $account->acc_type === 't')
+                ->pluck('id');
+
+            if ($transactionalIds->isNotEmpty()) {
+                $balancesByCoaId = AccountBalance::query()
+                    ->where('company_id', $companyId)
+                    ->where('branch_id', $branchId)
+                    ->where('financial_id', $financialYear->id)
+                    ->whereIn('coa_id', $transactionalIds)
+                    ->pluck('opening_balance', 'coa_id');
+
+                foreach ($allAccounts as $account) {
+                    if ($account->acc_type !== 't') {
+                        continue;
+                    }
+
+                    $account->opening_balance = (float) ($balancesByCoaId->get($account->id) ?? 0);
+                }
+            }
+        }
+
+        self::rollupControlOpeningBalances($roots);
+    }
+
+    /**
+     * @param  Collection<int, ChartOfAccount>  $roots
+     * @return Collection<int, ChartOfAccount>
+     */
+    private static function flattenTreeAccounts(Collection $roots): Collection
+    {
+        $accounts = collect();
+
+        $walk = function (Collection $nodes) use (&$walk, $accounts): void {
+            foreach ($nodes as $node) {
+                $accounts->push($node);
+
+                if ($node->relationLoaded('children') && $node->children->isNotEmpty()) {
+                    $walk($node->children);
+                }
+            }
+        };
+
+        $walk($roots);
+
+        return $accounts;
+    }
+
+    /**
+     * @param  Collection<int, ChartOfAccount>  $roots
+     */
+    private static function rollupControlOpeningBalances(Collection $roots): void
+    {
+        $rollup = function (Collection $nodes) use (&$rollup): void {
+            foreach ($nodes as $node) {
+                if ($node->relationLoaded('children') && $node->children->isNotEmpty()) {
+                    $rollup($node->children);
+                }
+
+                if ($node->acc_type !== 'c') {
+                    continue;
+                }
+
+                $node->opening_balance = $node->relationLoaded('children')
+                    ? $node->children->sum(fn (self $child): float => (float) ($child->opening_balance ?? 0))
+                    : 0;
+            }
+        };
+
+        $rollup($roots);
+    }
 }

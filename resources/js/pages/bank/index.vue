@@ -87,9 +87,9 @@
         { key: 'bank_name', label: 'Bank Name', type: 'primary', linkable: true, responsive: ['xs', 'sm', 'md', 'lg'] },
         { key: 'first_name', label: 'Name', type: 'secondary', linkable: true, data_column: 'display_name', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'city_name', label: 'City', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '-' },
-        { key: 'op_bal', label: 'Op Bal', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
-        { key: 'total_due', label: 'Total Due', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
-        { key: 'return_due', label: 'Return Due', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
+        { key: 'op_bal', label: 'Op Bal', type: 'secondary', format: 'number', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
+        { key: 'total_due', label: 'Total Due', type: 'secondary', format: 'number', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
+        { key: 'return_due', label: 'Return Due', type: 'secondary', format: 'number', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
         { key: 'account_linked', label: 'COA Linked', type: 'badge', responsive: ['md', 'lg'], sorting: 'disabled', show: 'account_linked' },
         { key: 'active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting: 'disabled', show: 'active' },
         {

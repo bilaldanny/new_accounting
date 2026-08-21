@@ -133,13 +133,14 @@ class SupplierController extends Controller
             $supplier->branch_name = $supplier->branch?->name;
             $supplier->city_name = $supplier->city?->name;
             $supplier->display_name = $supplier->display_name;
-            $supplier->op_bal = 0;
             $supplier->total_due = 0;
             $supplier->return_due = 0;
             $supplier->account_linked = filled($supplier->supplier_gl_id);
 
             return $supplier;
         });
+
+        Contact::appendListOpeningBalances($suppliers->getCollection(), 'supplier_gl_id');
 
         $trashCount = Contact::onlyTrashed()
             ->suppliers()
@@ -178,6 +179,7 @@ class SupplierController extends Controller
         }
 
         $supplier->load(['country', 'state', 'city', 'currency', 'company', 'branch']);
+        $supplier->appendOpeningBalanceFromGl($supplier->supplier_gl_id);
 
         return response()->json($supplier);
     }

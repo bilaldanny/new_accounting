@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import type { ChartOfAccountNode } from '@/composables/chartOfAccount';
+    import { formatNumber } from '@/utils/numberFormat';
     import { Edit, Plus } from '@boxicons/vue';
     import ChildrenTree from './ChildrenTree.vue';
 
@@ -67,7 +68,7 @@
                 </div>
 
                 <div class="coa-tree__cell coa-tree__cell--balance">
-                    <span class="coa-balance">0.00</span>
+                    <span class="coa-balance">{{ formatNumber(node.opening_balance) }}</span>
                 </div>
 
                 <div class="coa-tree__cell coa-tree__cell--actions">

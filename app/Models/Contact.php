@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -572,6 +573,134 @@ class Contact extends Model
 
         if ($contact !== null) {
             $contact->delete();
+        }
+    }
+
+    public function appendOpeningBalanceFromGl(?string $glCode): void
+    {
+        if ($glCode === null || trim($glCode) === '') {
+            $this->opening_balance = 0;
+            $this->op_bal = 0;
+
+            return;
+        }
+
+        $coa = ChartOfAccount::query()
+            ->where('company_id', $this->company_id)
+            ->where('branch_id', $this->branch_id)
+            ->where('code', $glCode)
+            ->first();
+
+        if ($coa === null) {
+            $this->opening_balance = 0;
+            $this->op_bal = 0;
+
+            return;
+        }
+
+        $financialYear = FinancialYear::query()
+            ->where('company_id', $this->company_id)
+            ->where('status', true)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($financialYear === null) {
+            $this->opening_balance = 0;
+            $this->op_bal = 0;
+
+            return;
+        }
+
+        $balance = AccountBalance::query()
+            ->where('company_id', $this->company_id)
+            ->where('branch_id', $this->branch_id)
+            ->where('financial_id', $financialYear->id)
+            ->where('coa_id', $coa->id)
+            ->first();
+
+        $this->opening_balance = $balance?->opening_balance ?? 0;
+        $this->op_bal = $this->opening_balance;
+    }
+
+    /**
+     * @param  Collection<int, self>  $contacts
+     */
+    public static function appendListOpeningBalances(Collection $contacts, string $glAttribute): void
+    {
+        $contacts->each(function (self $contact): void {
+            $contact->opening_balance = 0;
+            $contact->op_bal = 0;
+        });
+
+        $linkedContacts = $contacts->filter(
+            fn (self $contact): bool => filled($contact->{$glAttribute}),
+        );
+
+        if ($linkedContacts->isEmpty()) {
+            return;
+        }
+
+        $financialYears = FinancialYear::query()
+            ->whereIn('company_id', $linkedContacts->pluck('company_id')->unique()->all())
+            ->where('status', true)
+            ->orderByDesc('id')
+            ->get()
+            ->unique('company_id')
+            ->keyBy('company_id');
+
+        $coaCodesByScope = $linkedContacts
+            ->groupBy(fn (self $contact): string => $contact->company_id.'-'.$contact->branch_id)
+            ->map(fn (Collection $group): array => $group->pluck($glAttribute)->unique()->filter()->values()->all());
+
+        $chartOfAccounts = ChartOfAccount::query()
+            ->where(function ($query) use ($coaCodesByScope): void {
+                foreach ($coaCodesByScope as $scopeKey => $codes) {
+                    if ($codes === []) {
+                        continue;
+                    }
+
+                    [$companyId, $branchId] = array_map('intval', explode('-', (string) $scopeKey, 2));
+
+                    $query->orWhere(function ($scopedQuery) use ($companyId, $branchId, $codes): void {
+                        $scopedQuery
+                            ->where('company_id', $companyId)
+                            ->where('branch_id', $branchId)
+                            ->whereIn('code', $codes);
+                    });
+                }
+            })
+            ->get()
+            ->keyBy(fn (ChartOfAccount $coa): string => $coa->company_id.'-'.$coa->branch_id.'-'.$coa->code);
+
+        if ($chartOfAccounts->isEmpty()) {
+            return;
+        }
+
+        $accountBalances = AccountBalance::query()
+            ->whereIn('coa_id', $chartOfAccounts->pluck('id')->all())
+            ->get()
+            ->keyBy(fn (AccountBalance $balance): string => $balance->company_id.'-'.$balance->branch_id.'-'.$balance->financial_id.'-'.$balance->coa_id);
+
+        foreach ($linkedContacts as $contact) {
+            $glCode = (string) $contact->{$glAttribute};
+            $coa = $chartOfAccounts->get($contact->company_id.'-'.$contact->branch_id.'-'.$glCode);
+
+            if ($coa === null) {
+                continue;
+            }
+
+            $financialYear = $financialYears->get($contact->company_id);
+
+            if ($financialYear === null) {
+                continue;
+            }
+
+            $balance = $accountBalances->get(
+                $contact->company_id.'-'.$contact->branch_id.'-'.$financialYear->id.'-'.$coa->id,
+            );
+
+            $contact->opening_balance = $balance?->opening_balance ?? 0;
+            $contact->op_bal = $contact->opening_balance;
         }
     }
 }

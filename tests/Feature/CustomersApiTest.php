@@ -332,7 +332,111 @@ test('customers show endpoint returns customer with financial stats', function (
         ->assertJsonPath('business_name', 'Detail Customer')
         ->assertJsonPath('total_sell', 0)
         ->assertJsonPath('paid_sell', 0)
-        ->assertJsonPath('due_sell', 0);
+        ->assertJsonPath('due_sell', 0)
+        ->assertJsonPath('opening_balance', 0);
+});
+
+test('customers api includes opening balance in list for linked customer', function () {
+    $scope = seedCustomerScope();
+    $customerParentId = seedCustomerCoaMapping($scope);
+
+    $coaId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $customerParentId,
+        'code' => '101-00000',
+        'name' => 'Listed Linked Customer',
+        'acc_type' => 't',
+        'acc_nature' => 'dr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    createCustomer([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Listed Linked Customer',
+        'customer_gl_id' => '101-00000',
+        'link_account' => true,
+    ]);
+
+    $financialYearId = DB::table('financial_years')
+        ->where('company_id', $scope['company_id'])
+        ->value('id');
+
+    DB::table('account_balances')->insert([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'financial_id' => $financialYearId,
+        'coa_id' => $coaId,
+        'opening_balance' => 2500,
+        'acc_nature' => 'dr',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/customers');
+
+    $response->assertOk();
+
+    $records = collect($response->json('data.data'))->keyBy('business_name');
+
+    expect($records['Listed Linked Customer']['op_bal'])->toBe(2500);
+});
+
+test('customers show endpoint returns opening balance for linked customer', function () {
+    $scope = seedCustomerScope();
+    $customerParentId = seedCustomerCoaMapping($scope);
+
+    $coaId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $customerParentId,
+        'code' => '101-00000',
+        'name' => 'Linked Detail Customer',
+        'acc_type' => 't',
+        'acc_nature' => 'dr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $customer = createCustomer([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Linked Detail Customer',
+        'customer_gl_id' => '101-00000',
+        'link_account' => true,
+    ]);
+
+    $financialYearId = DB::table('financial_years')
+        ->where('company_id', $scope['company_id'])
+        ->value('id');
+
+    DB::table('account_balances')->insert([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'financial_id' => $financialYearId,
+        'coa_id' => $coaId,
+        'opening_balance' => 2500,
+        'acc_nature' => 'dr',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/customers/'.$customer->id);
+
+    $response->assertOk()
+        ->assertJsonPath('opening_balance', 2500);
 });
 
 test('customers api links an existing unlinked customer to chart of account', function () {

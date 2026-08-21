@@ -2,6 +2,7 @@
     import Loader from '@/components/Loader.vue';
     import useCommons from '@/composables/common';
     import useCustomers from '@/composables/customer';
+    import { formatNumber } from '@/utils/numberFormat';
     import { Head, Link, usePage } from '@inertiajs/vue3';
     import {
         Archive,
@@ -219,11 +220,7 @@
         end_date: formatInputDate(today),
     });
 
-    const formatAmount = (value: unknown): string =>
-        Number(value ?? 0).toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
+    const formatAmount = formatNumber;
 
     const currencyCode = computed(() => contact.value.currency?.code ?? '');
 

@@ -87,6 +87,14 @@ class ChartOfAccountController extends Controller
             ->orderBy('code')
             ->get();
 
+        if ($request->filled('company_id') && $request->filled('branch_id')) {
+            ChartOfAccount::appendOpeningBalancesToTree(
+                $accounts,
+                $request->integer('company_id'),
+                $request->integer('branch_id'),
+            );
+        }
+
         return response()->json($accounts);
     }
 

@@ -337,6 +337,68 @@ test('chart of accounts store accepts string boolean values from vueform', funct
     ]);
 });
 
+test('chart of accounts index returns opening balance for transactional accounts', function () {
+    $scope = seedChartOfAccountScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/chart-of-accounts', [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $scope['assets_id'],
+        'code' => '201-00001',
+        'name' => 'Cash In Hand',
+        'acc_type' => 't',
+        'acc_nature' => 'dr',
+        'active' => true,
+        'pl' => false,
+        'bs' => true,
+    ])->assertSuccessful();
+
+    $coaId = DB::table('chart_of_accounts')
+        ->where('company_id', $scope['company_id'])
+        ->where('branch_id', $scope['branch_id'])
+        ->where('code', '201-00001')
+        ->value('id');
+
+    $financialYearId = DB::table('financial_years')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'name' => 'FY 2026',
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-12-31',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('account_balances')->insert([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'financial_id' => $financialYearId,
+        'coa_id' => $coaId,
+        'opening_balance' => 2500,
+        'acc_nature' => 'dr',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->getJson('/api/chart-of-accounts?'.http_build_query([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'status' => 'all',
+    ]));
+
+    $response->assertSuccessful();
+
+    $assetsNode = collect($response->json())
+        ->firstWhere('code', '200-00000');
+
+    $transactionalNode = collect($assetsNode['children'] ?? [])
+        ->firstWhere('code', '201-00001');
+
+    expect($transactionalNode['opening_balance'])->toBe(2500);
+});
+
 test('fetch control accounts returns active control accounts', function () {
     $scope = seedChartOfAccountScope();
     $superadmin = User::query()->findOrFail(1);

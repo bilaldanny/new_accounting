@@ -6,6 +6,7 @@ import debounce from '@/utils/debounce';
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import { useFloating, offset, flip, shift, autoPlacement, autoUpdate, arrow, computePosition } from '@floating-ui/vue'
 import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
+import { formatNumber } from '@/utils/numberFormat';
 
     interface ViewTabAction {
         tab: string;
@@ -28,6 +29,10 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         external_link_variant?: 'link' | 'button';
         /** Replace null / undefined / empty string with this (e.g. "0"); default cell fallback stays "-" otherwise */
         emptyDisplay?: string;
+        /** Format cell as number (PHP number_format style) */
+        format?: 'number';
+        /** Decimal places when `format` is `number` (default 2) */
+        decimals?: number;
         /** When true, cell opens the edit modal (requires `actionType="modal"`) */
         linkable?: boolean;
         /** Bootstrap modal target; defaults to `#EditModal` */
@@ -59,6 +64,8 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         edit?: (id: number) => void;
         view?: (id: number) => void;
         duplicate?: (id: number) => void;
+        linkCoa?: (id: number) => void | Promise<void>;
+        linkCoaLoadingId?: number | null;
         delete?: (ids: number[]) => void;
         restore?: (ids: number[]) => void;
         approve?: (id: number) => void;
@@ -91,12 +98,25 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
 
     const exportPdfTitle = computed(() => tableData.exportTitle || exportBaseName.value);
 
+    function formatCellNumber(value: unknown, col: Column): string {
+        return formatNumber(value, col.decimals ?? 2);
+    }
+
     function defaultCellDisplay(row: Record<string, unknown>, col: Column): unknown {
         const key = col.data_column ?? col.key;
         const raw = row[key];
         if (col.emptyDisplay !== undefined && (raw === null || raw === undefined || raw === '')) {
+            if (col.format === 'number') {
+                return formatCellNumber(col.emptyDisplay, col);
+            }
+
             return col.emptyDisplay;
         }
+
+        if (col.format === 'number') {
+            return formatCellNumber(raw, col);
+        }
+
         return raw ?? '-';
     }
 
@@ -105,9 +125,18 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
         const v = row[key];
         if (v === null || v === undefined || v === '') {
             if (col.emptyDisplay !== undefined) {
+                if (col.format === 'number') {
+                    return formatCellNumber(col.emptyDisplay, col);
+                }
+
                 return String(col.emptyDisplay);
             }
+
             return '';
+        }
+
+        if (col.format === 'number') {
+            return formatCellNumber(v, col);
         }
         if (typeof v === 'boolean') return v ? 'Yes' : 'No';
         if (typeof v === 'object') {
@@ -1067,6 +1096,23 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                                     </a>
                                                 <!-- Duplicate -->
 
+                                                <!-- Link to COA -->
+                                                    <a
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        v-if="col.actions?.includes('linkCoa') && !row.account_linked && tableData.linkCoa"
+                                                        @click="tableData.linkCoaLoadingId !== row.id ? tableData.linkCoa?.(row.id) : undefined"
+                                                    >
+                                                        <template v-if="tableData.linkCoaLoadingId === row.id">
+                                                            <span class="spinner-border spinner-border-sm me-1 align-middle" role="status" aria-hidden="true"></span>
+                                                            Linking…
+                                                        </template>
+                                                        <template v-else>
+                                                            <i class="mdi mdi-link-variant"></i> Link to COA
+                                                        </template>
+                                                    </a>
+                                                <!-- Link to COA -->
+
                                                 <!-- Restore -->
                                                     <a
                                                         class="dropdown-item"
@@ -1230,6 +1276,7 @@ import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
                                                     'modern-cell-code': col.type === 'code',
                                                     'modern-cell-primary': col.type === 'primary',
                                                     'modern-cell-secondary': col.type === 'secondary',
+                                                    'text-end d-inline-block w-100': col.format === 'number',
                                                 }"
                                             >{{ defaultCellDisplay(row, col) }}</span>
                                         </span>
