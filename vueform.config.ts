@@ -12,6 +12,11 @@ const enExtended = {
         role_name_unique: 'A role with this name already exists.',
         department_name_unique: 'A department with this name already exists.',
         customer_group_name_unique: 'A customer group with this name already exists.',
+        unit_name_unique: 'A unit with this name already exists.',
+        brand_name_unique: 'A brand with this name already exists.',
+        warranty_name_unique: 'A warranty with this name already exists.',
+        category_name_unique: 'A category with this name already exists.',
+        itemtype_name_unique: 'An item type with this name already exists.',
         chart_of_account_code_unique: 'This account code is already taken.',
         timezone_name_unique: 'A timezone with this name already exists.',
         company_code_unique: 'This company code is already taken.',
@@ -192,6 +197,101 @@ async function postCheckChartOfAccountCode(payload: Record<string, string | numb
         throw new Error(`HTTP ${res.status}`)
     }
     return res.json() as Promise<{ code_taken: boolean }>
+}
+
+async function postCheckUnitName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/units/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckBrandName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/brands/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckWarrantyName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/warranties/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckItemTypeName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/item-types/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckCategoryName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/categories/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
 }
 
 async function postCheckRoleName(payload: Record<string, string | number>) {
@@ -555,6 +655,161 @@ class ChartOfAccountCodeUnique extends Validator {
     }
 }
 
+class UnitNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        return postCheckUnitName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class BrandNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        return postCheckBrandName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class WarrantyNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        return postCheckWarrantyName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class ItemTypeNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        return postCheckItemTypeName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class CategoryNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.company_id !== undefined && formData.company_id !== null && formData.company_id !== '') {
+            payload.company_id = Number(formData.company_id)
+        }
+
+        return postCheckCategoryName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
 class RoleNameUnique extends Validator {
     get isAsync() {
         return true
@@ -613,6 +868,11 @@ export default defineConfig({
         role_name_unique: RoleNameUnique,
         department_name_unique: DepartmentNameUnique,
         customer_group_name_unique: CustomerGroupNameUnique,
+        unit_name_unique: UnitNameUnique,
+        brand_name_unique: BrandNameUnique,
+        warranty_name_unique: WarrantyNameUnique,
+        category_name_unique: CategoryNameUnique,
+        itemtype_name_unique: ItemTypeNameUnique,
         chart_of_account_code_unique: ChartOfAccountCodeUnique,
         timezone_name_unique: TimezoneNameUnique,
     },

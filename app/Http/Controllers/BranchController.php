@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Support\ImportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -120,6 +121,8 @@ class BranchController extends Controller
             'rows.*.name' => 'bail|required|string',
         ]);
 
+        Branch::assertImportWithinBranchLimit($request->rows);
+
         DB::beginTransaction();
 
         try {
@@ -151,9 +154,12 @@ class BranchController extends Controller
             return response()->json(['errormessage' => $e]);
         }
 
-        return response()->json([
-            'message' => "Successfully imported {$created} new and updated {$updated} branch records.",
-        ]);
+        return ImportResponse::success(
+            count($request->rows),
+            $created,
+            $updated,
+            'branch records'
+        );
     }
 
     public function show($id): JsonResponse

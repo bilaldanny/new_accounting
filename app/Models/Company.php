@@ -400,6 +400,9 @@ class Company extends Model
     protected static function buildImportRequest(array $row): Request
     {
         $isActive = $row['is_active'] ?? $row['active'] ?? 1;
+        $countryId = Branch::resolveImportCountryId($row['country_id'] ?? $row['country'] ?? null);
+        $stateId = Branch::resolveImportStateId($row['state_id'] ?? $row['state'] ?? null, $countryId);
+        $cityId = Branch::resolveImportCityId($row['city_id'] ?? $row['city'] ?? null, $stateId, $countryId);
         $code = isset($row['code']) ? self::normalizeCode((string) $row['code']) : '';
         $name = (string) ($row['name'] ?? '');
 
@@ -414,9 +417,9 @@ class Company extends Model
             'phone' => (string) ($row['phone'] ?? ''),
             'ntn_no' => (string) ($row['ntn_no'] ?? ''),
             'address' => (string) ($row['address'] ?? ''),
-            'country_id' => $row['country_id'] ?? '',
-            'state_id' => $row['state_id'] ?? '',
-            'city_id' => $row['city_id'] ?? '',
+            'country_id' => $countryId,
+            'state_id' => $stateId,
+            'city_id' => $cityId,
             'zipcode' => (string) ($row['zipcode'] ?? ''),
             'max_users' => $row['max_users'] ?? $row['user_no'] ?? 10,
             'max_branches' => $row['max_branches'] ?? $row['branch_no'] ?? 2,

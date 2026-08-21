@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Support\ImportResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -159,9 +160,12 @@ class DepartmentController extends Controller
             return response()->json(['errormessage' => $e]);
         }
 
-        return response()->json([
-            'message' => "Successfully imported {$created} new and updated {$updated} department records.",
-        ]);
+        return ImportResponse::success(
+            count($request->rows),
+            $created,
+            $updated,
+            'department records'
+        );
     }
 
     public function show($id)

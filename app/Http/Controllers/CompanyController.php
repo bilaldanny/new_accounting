@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\ImportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -270,9 +271,12 @@ class CompanyController extends Controller
             return response()->json(['errormessage' => $e]);
         }
 
-        return response()->json([
-            'message' => "Successfully imported {$created} new and updated {$updated} company records.",
-        ]);
+        return ImportResponse::success(
+            count($request->rows),
+            $created,
+            $updated,
+            'company records'
+        );
     }
 
     public function destroy($id): JsonResponse

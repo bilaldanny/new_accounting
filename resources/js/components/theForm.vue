@@ -124,7 +124,11 @@ import { nextTick, reactive, ref, watch } from 'vue';
     function update(value) {
         skipParentSync = true;
 
-        if(vueform$.value){
+        if (params.formData && value && typeof value === 'object') {
+            Object.assign(params.formData, value);
+        }
+
+        if (vueform$.value) {
             vueform$.value.update(value);
         }
 
