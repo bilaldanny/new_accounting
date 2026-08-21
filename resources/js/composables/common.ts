@@ -18,6 +18,12 @@ const sharedCompaniesdata = ref([]);
 const sharedBranchesdata = ref([]);
 const sharedDepartmentsdata = ref([]);
 const sharedCustomerGroupsdata = ref([]);
+const sharedUnitsdata = ref([]);
+const sharedCategoriesdata = ref([]);
+const sharedBrandsdata = ref([]);
+const sharedItemTypesdata = ref([]);
+const sharedSubcategoriesdata = ref([]);
+const sharedWarrantiesdata = ref([]);
 
 type IsotopeInstance = {
     layout: () => void;
@@ -53,6 +59,12 @@ export default function useCommons(){
     const branchesdata = sharedBranchesdata;
     const departmentsdata = sharedDepartmentsdata;
     const customergroupsdata = sharedCustomerGroupsdata;
+    const unitsdata = sharedUnitsdata;
+    const categoriesdata = sharedCategoriesdata;
+    const brandsdata = sharedBrandsdata;
+    const itemtypesdata = sharedItemTypesdata;
+    const subcategoriesdata = sharedSubcategoriesdata;
+    const warrantiesdata = sharedWarrantiesdata;
     const loading = ref(false);
     const MAX_RETRIES = 1;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -859,6 +871,202 @@ export default function useCommons(){
         await fetchCustomerGroup(company_id, branch_id);
     };
 
+    const fetchUnit = async (
+        company_id: string | number | null | undefined,
+        except_id?: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            unitsdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchunits', {
+                params: {
+                    company_id,
+                    ...(except_id ? { except_id } : {}),
+                },
+            });
+            unitsdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getUnit = async (
+        company_id: string | number | null | undefined,
+        except_id?: string | number | null | undefined,
+    ) => {
+        await fetchUnit(company_id, except_id);
+    };
+
+    const fetchCategory = async (
+        company_id: string | number | null | undefined,
+        except_id?: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            categoriesdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchcategories', {
+                params: {
+                    company_id,
+                    ...(except_id ? { except_id } : {}),
+                },
+            });
+            categoriesdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getCategory = async (
+        company_id: string | number | null | undefined,
+        except_id?: string | number | null | undefined,
+    ) => {
+        await fetchCategory(company_id, except_id);
+    };
+
+    const fetchBrand = async (
+        company_id: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            brandsdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchbrands', {
+                params: {
+                    company_id,
+                },
+            });
+            brandsdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getBrand = async (
+        company_id: string | number | null | undefined,
+    ) => {
+        await fetchBrand(company_id);
+    };
+
+    const fetchItemType = async (
+        company_id: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            itemtypesdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchitemtypes', {
+                params: {
+                    company_id,
+                },
+            });
+            itemtypesdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getItemType = async (
+        company_id: string | number | null | undefined,
+    ) => {
+        await fetchItemType(company_id);
+    };
+
+    const fetchSubCategory = async (
+        company_id: string | number | null | undefined,
+        category_id: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === ''
+            || category_id === null || category_id === undefined || category_id === '') {
+            subcategoriesdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchsubcategories', {
+                params: {
+                    company_id,
+                    category_id,
+                },
+            });
+            subcategoriesdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getSubCategory = async (
+        company_id: string | number | null | undefined,
+        category_id: string | number | null | undefined,
+    ) => {
+        await fetchSubCategory(company_id, category_id);
+    };
+
+    const fetchWarranty = async (
+        company_id: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            warrantiesdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchwarranties', {
+                params: {
+                    company_id,
+                },
+            });
+            warrantiesdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getWarranty = async (
+        company_id: string | number | null | undefined,
+    ) => {
+        await fetchWarranty(company_id);
+    };
+
     function changeCountry(id){
         fetchState(id);
     }
@@ -914,9 +1122,27 @@ export default function useCommons(){
         departmentsdata,
         fetchCustomerGroup,
         customergroupsdata,
+        fetchUnit,
+        unitsdata,
+        fetchCategory,
+        categoriesdata,
+        fetchBrand,
+        brandsdata,
+        fetchItemType,
+        itemtypesdata,
+        fetchSubCategory,
+        subcategoriesdata,
+        fetchWarranty,
+        warrantiesdata,
         getBranch,
         getDepartment,
         getCustomerGroup,
+        getUnit,
+        getCategory,
+        getBrand,
+        getItemType,
+        getSubCategory,
+        getWarranty,
         changeCountry,
         changeState,
         imageError,

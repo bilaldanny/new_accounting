@@ -210,6 +210,70 @@ class Branch extends Model
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $rows
+     *
+     * @throws ValidationException
+     */
+    public static function assertImportWithinBranchLimit(array $rows): void
+    {
+        $newRowsByCompany = [];
+
+        foreach ($rows as $index => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            if (self::normalizeImportId($row['id'] ?? null) !== null) {
+                continue;
+            }
+
+            $companyId = self::resolveScopedId($row['company_id'] ?? null);
+
+            if ($companyId === null && Auth::user()?->company_id) {
+                $companyId = (int) Auth::user()->company_id;
+            }
+
+            if ($companyId === null) {
+                throw ValidationException::withMessages([
+                    'rows' => ['Row '.($index + 1).': company_id is required for new branch imports.'],
+                ]);
+            }
+
+            $newRowsByCompany[$companyId] = ($newRowsByCompany[$companyId] ?? 0) + 1;
+        }
+
+        foreach ($newRowsByCompany as $companyId => $newCount) {
+            $company = Company::query()->find($companyId);
+
+            if ($company === null) {
+                throw ValidationException::withMessages([
+                    'rows' => ["Company with id {$companyId} was not found."],
+                ]);
+            }
+
+            $existingCount = self::query()->where('company_id', $companyId)->count();
+            $maxBranches = (int) $company->max_branches;
+
+            if ($existingCount + $newCount > $maxBranches) {
+                $remaining = max(0, $maxBranches - $existingCount);
+
+                throw ValidationException::withMessages([
+                    'rows' => [
+                        sprintf(
+                            'Import exceeds the branch limit for company "%s". Maximum allowed: %d, existing: %d, importing: %d new row(s). You can add at most %d more branch(es).',
+                            $company->name,
+                            $maxBranches,
+                            $existingCount,
+                            $newCount,
+                            $remaining,
+                        ),
+                    ],
+                ]);
+            }
+        }
+    }
+
+    /**
      * Ensure only one branch is default per company.
      */
     public static function clearOtherDefaults(int $companyId, int $exceptBranchId): void
@@ -433,13 +497,16 @@ class Branch extends Model
     protected static function buildImportRequest(array $row): Request
     {
         $isActive = $row['is_active'] ?? 1;
+        $countryId = self::resolveImportCountryId($row['country_id'] ?? $row['country'] ?? null);
+        $stateId = self::resolveImportStateId($row['state_id'] ?? $row['state'] ?? null, $countryId);
+        $cityId = self::resolveImportCityId($row['city_id'] ?? $row['city'] ?? null, $stateId, $countryId);
 
         return Request::create('/', 'POST', [
             'code' => isset($row['code']) ? (string) $row['code'] : '',
             'company_id' => self::resolveScopedId($row['company_id'] ?? null),
-            'country_id' => self::resolveScopedId($row['country_id'] ?? null),
-            'state_id' => self::resolveScopedId($row['state_id'] ?? null),
-            'city_id' => self::resolveScopedId($row['city_id'] ?? null),
+            'country_id' => $countryId,
+            'state_id' => $stateId,
+            'city_id' => $cityId,
             'name' => (string) ($row['name'] ?? ''),
             'description' => (string) ($row['description'] ?? ''),
             'phone' => (string) ($row['phone'] ?? ''),
@@ -449,6 +516,120 @@ class Branch extends Model
             'is_active' => self::normalizeImportBool($isActive),
             'is_default' => self::normalizeImportBool($row['is_default'] ?? 0),
         ]);
+    }
+
+    protected static function normalizeImportLocationValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            $value = (string) (int) $value;
+        }
+
+        $normalized = trim((string) $value);
+
+        return $normalized === '' ? null : $normalized;
+    }
+
+    public static function resolveImportCountryId(mixed $value): ?int
+    {
+        $normalized = self::normalizeImportLocationValue($value);
+
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (is_numeric($normalized)) {
+            return (int) $normalized;
+        }
+
+        $countryId = Country::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($normalized)])
+            ->value('id');
+
+        if ($countryId === null) {
+            throw ValidationException::withMessages([
+                'rows' => ["Country \"{$normalized}\" was not found."],
+            ]);
+        }
+
+        return (int) $countryId;
+    }
+
+    public static function resolveImportStateId(mixed $value, ?int $countryId): ?int
+    {
+        $normalized = self::normalizeImportLocationValue($value);
+
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (is_numeric($normalized)) {
+            return (int) $normalized;
+        }
+
+        $query = State::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($normalized)]);
+
+        if ($countryId !== null) {
+            $query->where('country_id', $countryId);
+        }
+
+        $matches = $query->pluck('id');
+
+        if ($matches->isEmpty()) {
+            throw ValidationException::withMessages([
+                'rows' => ["State \"{$normalized}\" was not found."],
+            ]);
+        }
+
+        if ($matches->count() > 1 && $countryId === null) {
+            throw ValidationException::withMessages([
+                'rows' => ["State \"{$normalized}\" is ambiguous. Provide country as well."],
+            ]);
+        }
+
+        return (int) $matches->first();
+    }
+
+    public static function resolveImportCityId(mixed $value, ?int $stateId, ?int $countryId): ?int
+    {
+        $normalized = self::normalizeImportLocationValue($value);
+
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (is_numeric($normalized)) {
+            return (int) $normalized;
+        }
+
+        $query = City::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($normalized)]);
+
+        if ($stateId !== null) {
+            $query->where('state_id', $stateId);
+        } elseif ($countryId !== null) {
+            $query->where('country_id', $countryId);
+        }
+
+        $matches = $query->pluck('id');
+
+        if ($matches->isEmpty()) {
+            throw ValidationException::withMessages([
+                'rows' => ["City \"{$normalized}\" was not found."],
+            ]);
+        }
+
+        if ($matches->count() > 1 && $stateId === null && $countryId === null) {
+            throw ValidationException::withMessages([
+                'rows' => ["City \"{$normalized}\" is ambiguous. Provide state or country as well."],
+            ]);
+        }
+
+        return (int) $matches->first();
     }
 
     protected static function normalizeImportBool(mixed $value): int

@@ -1,11 +1,18 @@
 <script setup lang="ts">
-    import ModalComponent from '@/components/ModalComponent.vue';
+    import ImportModalLayout from '@/components/ImportModalLayout.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
-    import { TABLE_EXPORT_PAGE_SIZE } from '@/composables/tableExportList';
+    import {
+        downloadImportTemplate,
+        normalizeImportBool,
+        normalizeImportExportValue,
+        parseImportApiResponse,
+        parseImportErrorResponse,
+        parseSpreadsheetFile,
+        type ImportResult,
+    } from '@/composables/importHelpers';
     import useCommons from '@/composables/common';
-    import { File, FilePlus } from '@boxicons/vue';
     import { usePage } from '@inertiajs/vue3';
-    import { computed, ref } from 'vue';
+    import { ref } from 'vue';
 
     const { props } = usePage();
     const { Notify } = useCommons();
@@ -19,14 +26,14 @@
     });
 
     const selectedFile = ref<File | null>(null);
-    const fileInput = ref<HTMLInputElement | null>(null);
+    const importLayout = ref<InstanceType<typeof ImportModalLayout> | null>(null);
     const isImporting = ref(false);
     const isDownloadingSample = ref(false);
     const fileError = ref('');
+    const importResult = ref<ImportResult | null>(null);
 
     const sampleColumns = [
         'id',
-        'company_id',
         'code',
         'name',
         'email',
@@ -34,140 +41,61 @@
         'mobile',
         'address',
         'description',
-        'country_id',
-        'state_id',
-        'city_id',
+        'country',
+        'state',
+        'city',
         'is_active',
         'is_default',
     ] as const;
 
     const fallbackSampleRows = [
-        ['', '', '', 'Sample Branch', 'branch@example.com', '', '', '', '', '', '', '', 1, 0],
+        ['', '', 'Sample Branch', 'branch@example.com', '', '', '', '', 'Pakistan', 'Punjab', 'Lahore', 1, 0],
     ];
-
-    const selectedFileLabel = computed(() => selectedFile.value?.name ?? 'No Excel file selected');
-
-    function normalizeExportValue(value: unknown): string | number {
-        if (value === null || value === undefined || value === '') {
-            return '';
-        }
-
-        return value as string | number;
-    }
-
-    function normalizeBool(value: unknown): number {
-        return value === true || value === 1 || value === '1' ? 1 : 0;
-    }
 
     function mapBranchToSampleRow(branch: Record<string, unknown>): (string | number)[] {
         return [
-            normalizeExportValue(branch.id),
-            normalizeExportValue(branch.company_id),
-            normalizeExportValue(branch.code),
-            normalizeExportValue(branch.name),
-            normalizeExportValue(branch.email),
-            normalizeExportValue(branch.phone),
-            normalizeExportValue(branch.mobile),
-            normalizeExportValue(branch.address),
-            normalizeExportValue(branch.description),
-            normalizeExportValue(branch.country_id),
-            normalizeExportValue(branch.state_id),
-            normalizeExportValue(branch.city_id),
-            normalizeBool(branch.is_active),
-            normalizeBool(branch.is_default),
+            normalizeImportExportValue(branch.id),
+            normalizeImportExportValue(branch.code),
+            normalizeImportExportValue(branch.name),
+            normalizeImportExportValue(branch.email),
+            normalizeImportExportValue(branch.phone),
+            normalizeImportExportValue(branch.mobile),
+            normalizeImportExportValue(branch.address),
+            normalizeImportExportValue(branch.description),
+            normalizeImportExportValue(branch.country ?? branch.country_name ?? branch.country_id),
+            normalizeImportExportValue(branch.state ?? branch.state_name ?? branch.state_id),
+            normalizeImportExportValue(branch.city ?? branch.city_name ?? branch.city_id),
+            normalizeImportBool(branch.is_active),
+            normalizeImportBool(branch.is_default),
         ];
     }
 
-    function isRowEmpty(row: Record<string, unknown>): boolean {
-        return Object.values(row).every((value) => String(value ?? '').trim() === '');
-    }
-
-    async function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
-        const XLSX = await import('xlsx');
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-
-        if (! sheetName) {
-            throw new Error('The Excel file does not contain any worksheets.');
-        }
-
-        const sheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-
-        return rows.filter((row) => ! isRowEmpty(row));
-    }
-
-    function handleImportResponse(response: { data?: { message?: string; errormessage?: unknown } }) {
-        if (response.data?.errormessage) {
-            const errorMessage = response.data.errormessage;
-
-            if (typeof errorMessage === 'object' && errorMessage !== null && 'errorInfo' in errorMessage) {
-                const errorInfo = (errorMessage as { errorInfo?: string[] }).errorInfo;
-                Notify(errorInfo?.[errorInfo.length - 1] ?? 'Import failed', 'alert');
-            } else {
-                Notify(String(errorMessage), 'alert');
-            }
-
-            return false;
-        }
-
-        Notify(response.data?.message ?? 'Import completed successfully', 'success');
-        document.querySelectorAll('.btn-close').forEach((element) => element.click());
-        resetFileInput();
-        modalProps.onSuccess?.();
-
-        return true;
-    }
-
-    async function fetchAllBranchRows(): Promise<Record<string, unknown>[]> {
-        const params = {
-            status: 'all',
-            search: '',
-            sort_by: 'created_at',
-            sort_type: 'asc',
-            show_record: TABLE_EXPORT_PAGE_SIZE,
-            cur_page: 1,
-        };
-
-        const { data: body } = await window.axios.get(API_ENDPOINTS.branches, { params });
-        const paginator = body?.data;
-        let rows = (paginator?.data ?? []) as Record<string, unknown>[];
-        const lastPage = Number(paginator?.last_page) || 1;
-
-        for (let page = 2; page <= lastPage; page++) {
-            const { data: nextBody } = await window.axios.get(API_ENDPOINTS.branches, {
-                params: { ...params, cur_page: page },
-            });
-
-            rows = rows.concat((nextBody?.data?.data ?? []) as Record<string, unknown>[]);
-        }
-
-        return rows;
-    }
-
-    function resetFileInput() {
+    function resetImportState() {
         selectedFile.value = null;
         fileError.value = '';
+        importResult.value = null;
+        importLayout.value?.resetAll();
+    }
 
-        if (fileInput.value) {
-            fileInput.value.value = '';
+    function handleImportDone() {
+        if (importResult.value?.status === 'success') {
+            modalProps.onSuccess?.();
         }
     }
 
-    function isExcelFile(file: File): boolean {
+    function isSpreadsheetFile(file: File): boolean {
         const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
 
-        return ['xlsx', 'xls'].includes(extension);
+        return ['xlsx', 'xls', 'csv'].includes(extension);
     }
 
     function handleFileChange(event: Event) {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0] ?? null;
 
-        if (file !== null && ! isExcelFile(file)) {
+        if (file !== null && ! isSpreadsheetFile(file)) {
             selectedFile.value = null;
-            fileError.value = 'Please select a valid Excel file (.xlsx or .xls).';
+            fileError.value = 'Please select a valid Excel or CSV file (.xlsx, .xls, or .csv).';
             input.value = '';
 
             return;
@@ -178,12 +106,12 @@
     }
 
     function handleOpen() {
-        resetFileInput();
+        resetImportState();
         modalProps.onOpen?.();
     }
 
     function handleClose() {
-        resetFileInput();
+        resetImportState();
         isImporting.value = false;
         isDownloadingSample.value = false;
         modalProps.onClose?.();
@@ -197,16 +125,14 @@
         isDownloadingSample.value = true;
 
         try {
-            const branches = await fetchAllBranchRows();
-            const rows = branches.length > 0
-                ? branches.map(mapBranchToSampleRow)
-                : fallbackSampleRows;
-
-            const XLSX = await import('xlsx');
-            const worksheet = XLSX.utils.aoa_to_sheet([sampleColumns, ...rows]);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Branches');
-            XLSX.writeFile(workbook, modalProps.sampleFileName);
+            await downloadImportTemplate({
+                columns: sampleColumns,
+                sheetName: 'Branches',
+                fileName: modalProps.sampleFileName,
+                listApiUrl: API_ENDPOINTS.branches,
+                mapRow: mapBranchToSampleRow,
+                fallbackRows: fallbackSampleRows,
+            });
         } catch (error: unknown) {
             if (window.axios.isAxiosError(error)) {
                 Notify(error.response?.data?.message || 'Unable to prepare sample file', 'alert');
@@ -220,10 +146,15 @@
 
     async function submitImport() {
         if (! selectedFile.value || isImporting.value) {
+            if (! selectedFile.value) {
+                fileError.value = 'Choose a file before importing.';
+            }
+
             return;
         }
 
         isImporting.value = true;
+        let rowCount = 0;
 
         try {
             if (modalProps.onImport) {
@@ -232,28 +163,26 @@
                 return;
             }
 
-            const rows = await parseExcelFile(selectedFile.value);
+            const rows = await parseSpreadsheetFile(selectedFile.value);
+            rowCount = rows.length;
 
             if (rows.length === 0) {
-                Notify('The Excel file does not contain any branch rows.', 'alert');
+                fileError.value = 'The selected file does not contain any branch rows.';
 
                 return;
             }
 
             const response = await window.axios.post(API_ENDPOINTS.branchImport, { rows });
-            handleImportResponse(response);
-        } catch (error: unknown) {
-            if (window.axios.isAxiosError(error)) {
-                const validationMessage = error.response?.data?.errors?.rows?.[0]
-                    ?? error.response?.data?.message
-                    ?? 'Import failed';
+            importResult.value = parseImportApiResponse(response, rows.length);
 
-                Notify(validationMessage, 'alert');
-            } else if (error instanceof Error) {
-                Notify(error.message, 'alert');
+            if (importResult.value.status === 'success') {
+                Notify(importResult.value.message, 'success');
             } else {
-                Notify('Import failed', 'alert');
+                Notify(importResult.value.message, 'alert');
             }
+        } catch (error: unknown) {
+            importResult.value = parseImportErrorResponse(error, rowCount);
+            Notify(importResult.value.message, 'alert');
         } finally {
             isImporting.value = false;
         }
@@ -261,82 +190,23 @@
 </script>
 
 <template>
-    <ModalComponent
-        id="ImportModal"
+    <ImportModalLayout
+        ref="importLayout"
         :title="`Import ${props.routeName}`"
-        :onOpen="handleOpen"
-        :onClose="handleClose"
-        size="lg"
-    >
-        <div class="row g-3">
-            <div class="col-12">
-                <div class="alert alert-light border d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-0">
-                    <div>
-                        <div class="fw-semibold mb-1">Need a template?</div>
-                        <div class="text-muted small">
-                            Download the sample Excel file with existing branch records when available. Leave the id column empty to add a new branch, or keep the id to update an existing record.
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-outline-primary d-inline-flex align-items-center"
-                        :disabled="isDownloadingSample"
-                        :aria-busy="isDownloadingSample"
-                        @click="downloadSampleFile"
-                    >
-                        <span
-                            v-if="isDownloadingSample"
-                            class="spinner-border spinner-border-sm me-1"
-                            role="status"
-                            aria-hidden="true"
-                        ></span>
-                        <FilePlus v-else size="sm" class="me-1" />
-                        Download sample file
-                    </button>
-                </div>
-            </div>
-
-            <div class="col-12">
-                <label class="form-label" for="branch-import-file">Excel file</label>
-                <input
-                    id="branch-import-file"
-                    ref="fileInput"
-                    type="file"
-                    class="form-control"
-                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                    @change="handleFileChange"
-                />
-                <div class="form-text">Upload an Excel workbook (.xlsx or .xls) using the sample file format.</div>
-                <div v-if="fileError" class="text-danger small mt-1">{{ fileError }}</div>
-            </div>
-
-            <div class="col-12">
-                <div class="border rounded px-3 py-2 d-flex align-items-center gap-2 bg-light">
-                    <File size="sm" class="text-primary flex-shrink-0" />
-                    <span class="small text-break">{{ selectedFileLabel }}</span>
-                </div>
-            </div>
-        </div>
-
-        <template #footer>
-            <button type="button" class="btn btn-light waves-effect" data-bs-dismiss="modal">Close</button>
-
-            <button
-                type="button"
-                class="btn btn-primary d-inline-flex align-items-center"
-                :disabled="!selectedFile || isImporting"
-                :aria-busy="isImporting"
-                @click="submitImport"
-            >
-                <span
-                    v-if="isImporting"
-                    class="spinner-border spinner-border-sm me-1"
-                    role="status"
-                    aria-hidden="true"
-                ></span>
-                {{ isImporting ? 'Importing…' : 'Import' }}
-            </button>
-        </template>
-    </ModalComponent>
+        :on-open="handleOpen"
+        :on-close="handleClose"
+        file-input-id="branch-import-file"
+        :selected-file="selectedFile"
+        :file-error="fileError"
+        :is-downloading-sample="isDownloadingSample"
+        :is-importing="isImporting"
+        :import-result="importResult"
+        lead-text="Name and email are required on every row."
+        secondary-text="The template includes existing records for updates. Leave id blank to add new rows."
+        submit-label="Check and import"
+        @download-sample="downloadSampleFile"
+        @file-change="handleFileChange"
+        @submit="submitImport"
+        @done="handleImportDone"
+    />
 </template>

@@ -130,29 +130,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /* Supplier */
     Route::get('supplier', function () {
-        return Inertia::render('supplier/index');
+        return Inertia::render('contact/supplier/index');
     })->name('supplier');
 
     Route::get('supplier/trash', function () {
-        return Inertia::render('supplier/trash');
+        return Inertia::render('contact/supplier/trash');
     })->name('supplier.trash');
 
     Route::get('supplier/{id}/view', function ($id) {
-        return Inertia::render('supplier/view', ['id' => $id]);
+        return Inertia::render('contact/supplier/view', ['id' => $id]);
     })->name('supplier.view');
     /* Supplier */
 
     /* Bank */
     Route::get('bank', function () {
-        return Inertia::render('bank/index');
+        return Inertia::render('contact/bank/index');
     })->name('bank');
 
     Route::get('bank/trash', function () {
-        return Inertia::render('bank/trash');
+        return Inertia::render('contact/bank/trash');
     })->name('bank.trash');
 
     Route::get('bank/{id}/view', function ($id) {
-        return Inertia::render('bank/view', ['id' => $id]);
+        return Inertia::render('contact/bank/view', ['id' => $id]);
     })->name('bank.view');
     /* Bank */
 
@@ -168,27 +168,87 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('opening-balance');
     /* Opening Balance */
 
+    /* Brand */
+    Route::get('brand', function () {
+        return Inertia::render('brand/index');
+    })->name('brand');
+
+    Route::get('brand/trash', function () {
+        return Inertia::render('brand/trash');
+    })->name('brand.trash');
+    /* Brand */
+
+    /* Unit */
+    Route::get('unit', function () {
+        return Inertia::render('unit/index');
+    })->name('unit');
+
+    Route::get('unit/trash', function () {
+        return Inertia::render('unit/trash');
+    })->name('unit.trash');
+    /* Unit */
+
+    /* Warranty */
+    Route::get('warranty', function () {
+        return Inertia::render('warranty/index');
+    })->name('warranty');
+
+    Route::get('warranty/trash', function () {
+        return Inertia::render('warranty/trash');
+    })->name('warranty.trash');
+    /* Warranty */
+
+    /* Category */
+    Route::get('category', function () {
+        return Inertia::render('category/index');
+    })->name('category');
+
+    Route::get('category/trash', function () {
+        return Inertia::render('category/trash');
+    })->name('category.trash');
+    /* Category */
+
+    /* Item Type */
+    Route::get('itemtype', function () {
+        return Inertia::render('itemtype/index');
+    })->name('itemtype');
+
+    Route::get('itemtype/trash', function () {
+        return Inertia::render('itemtype/trash');
+    })->name('itemtype.trash');
+    /* Item Type */
+
+    /* Variation */
+    Route::get('variation', function () {
+        return Inertia::render('variation/index');
+    })->name('variation');
+
+    Route::get('variation/trash', function () {
+        return Inertia::render('variation/trash');
+    })->name('variation.trash');
+    /* Variation */
+
     /* Customer Group */
     Route::get('customer-group', function () {
-        return Inertia::render('customer-group/index');
+        return Inertia::render('contact/customer-group/index');
     })->name('customer-group');
 
     Route::get('customer-group/trash', function () {
-        return Inertia::render('customer-group/trash');
+        return Inertia::render('contact/customer-group/trash');
     })->name('customer-group.trash');
     /* Customer Group */
 
     /* Customer */
     Route::get('customer', function () {
-        return Inertia::render('customer/index');
+        return Inertia::render('contact/customer/index');
     })->name('customer');
 
     Route::get('customer/trash', function () {
-        return Inertia::render('customer/trash');
+        return Inertia::render('contact/customer/trash');
     })->name('customer.trash');
 
     Route::get('customer/{id}/view', function ($id) {
-        return Inertia::render('customer/view', ['id' => $id]);
+        return Inertia::render('contact/customer/view', ['id' => $id]);
     })->name('customer.view');
     /* Customer */
 

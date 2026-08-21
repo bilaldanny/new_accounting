@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\ImportResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -391,9 +392,12 @@ class UserController extends Controller
             return response()->json(['errormessage' => $e]);
         }
 
-        return response()->json([
-            'message' => "Successfully imported {$created} new and updated {$updated} user records.",
-        ]);
+        return ImportResponse::success(
+            count($request->rows),
+            $created,
+            $updated,
+            'user records'
+        );
     }
 
     public function duplicate(Request $request)

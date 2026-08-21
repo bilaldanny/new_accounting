@@ -3,6 +3,8 @@
 use App\Http\Controllers\AccountBalanceController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CompanyController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FinancialYearController;
+use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ReportController;
@@ -22,7 +25,10 @@ use App\Http\Controllers\StateController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TimezoneController;
+use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VariationController;
+use App\Http\Controllers\WarrantyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -204,6 +210,84 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('departments/bulk_delete_per', [DepartmentController::class, 'bulk_delete_per']);
     Route::post('departments/restore_records', [DepartmentController::class, 'restore_records']);
     /* Department */
+
+    /* Category */
+    Route::post('/categories/import', [CategoryController::class, 'import']);
+    Route::post('categories/check-name', [CategoryController::class, 'checkName']);
+    Route::get('categories/trash', [CategoryController::class, 'trash']);
+    Route::resource('categories', CategoryController::class);
+    Route::get('/fetchcategories', [CategoryController::class, 'fetch']);
+    Route::get('/fetchsubcategories', [CategoryController::class, 'fetchsub']);
+    Route::post('/categories/statusupdate', [CategoryController::class, 'updatestatus']);
+    Route::post('/categories/duplicate', [CategoryController::class, 'duplicate']);
+    Route::post('/categories/bulk_delete', [CategoryController::class, 'bulk_delete']);
+    Route::post('categories/bulk_delete_per', [CategoryController::class, 'bulk_delete_per']);
+    Route::post('categories/restore_records', [CategoryController::class, 'restore_records']);
+    /* Category */
+
+    /* Brand */
+    Route::post('/brands/import', [BrandController::class, 'import']);
+    Route::post('brands/check-name', [BrandController::class, 'checkName']);
+    Route::get('brands/trash', [BrandController::class, 'trash']);
+    Route::resource('brands', BrandController::class);
+    Route::get('/fetchbrands', [BrandController::class, 'fetch']);
+    Route::post('/brands/statusupdate', [BrandController::class, 'updatestatus']);
+    Route::post('/brands/duplicate', [BrandController::class, 'duplicate']);
+    Route::post('/brands/bulk_delete', [BrandController::class, 'bulk_delete']);
+    Route::post('brands/bulk_delete_per', [BrandController::class, 'bulk_delete_per']);
+    Route::post('brands/restore_records', [BrandController::class, 'restore_records']);
+    /* Brand */
+
+    /* Warranty */
+    Route::post('/warranties/import', [WarrantyController::class, 'import']);
+    Route::post('warranties/check-name', [WarrantyController::class, 'checkName']);
+    Route::get('warranties/trash', [WarrantyController::class, 'trash']);
+    Route::resource('warranties', WarrantyController::class);
+    Route::get('/fetchwarranties', [WarrantyController::class, 'fetch']);
+    Route::post('/warranties/statusupdate', [WarrantyController::class, 'updatestatus']);
+    Route::post('/warranties/duplicate', [WarrantyController::class, 'duplicate']);
+    Route::post('/warranties/bulk_delete', [WarrantyController::class, 'bulk_delete']);
+    Route::post('warranties/bulk_delete_per', [WarrantyController::class, 'bulk_delete_per']);
+    Route::post('warranties/restore_records', [WarrantyController::class, 'restore_records']);
+    /* Warranty */
+
+    /* Item Type */
+    Route::post('/item-types/import', [ItemTypeController::class, 'import']);
+    Route::post('item-types/check-name', [ItemTypeController::class, 'checkName']);
+    Route::get('item-types/trash', [ItemTypeController::class, 'trash']);
+    Route::resource('item-types', ItemTypeController::class);
+    Route::get('/fetchitemtypes', [ItemTypeController::class, 'fetch']);
+    Route::post('/item-types/statusupdate', [ItemTypeController::class, 'updatestatus']);
+    Route::post('/item-types/duplicate', [ItemTypeController::class, 'duplicate']);
+    Route::post('/item-types/bulk_delete', [ItemTypeController::class, 'bulk_delete']);
+    Route::post('item-types/bulk_delete_per', [ItemTypeController::class, 'bulk_delete_per']);
+    Route::post('item-types/restore_records', [ItemTypeController::class, 'restore_records']);
+    /* Item Type */
+
+    /* Variation */
+    Route::post('/variations/import', [VariationController::class, 'import']);
+    Route::get('variations/trash', [VariationController::class, 'trash']);
+    Route::resource('variations', VariationController::class);
+    Route::get('/fetchvariations', [VariationController::class, 'fetch']);
+    Route::post('/variations/statusupdate', [VariationController::class, 'updatestatus']);
+    Route::post('/variations/duplicate', [VariationController::class, 'duplicate']);
+    Route::post('/variations/bulk_delete', [VariationController::class, 'bulk_delete']);
+    Route::post('variations/bulk_delete_per', [VariationController::class, 'bulk_delete_per']);
+    Route::post('variations/restore_records', [VariationController::class, 'restore_records']);
+    /* Variation */
+
+    /* Unit */
+    Route::post('/units/import', [UnitController::class, 'import']);
+    Route::post('units/check-name', [UnitController::class, 'checkName']);
+    Route::get('units/trash', [UnitController::class, 'trash']);
+    Route::resource('units', UnitController::class);
+    Route::get('/fetchunits', [UnitController::class, 'fetch']);
+    Route::post('/units/statusupdate', [UnitController::class, 'updatestatus']);
+    Route::post('/units/duplicate', [UnitController::class, 'duplicate']);
+    Route::post('/units/bulk_delete', [UnitController::class, 'bulk_delete']);
+    Route::post('units/bulk_delete_per', [UnitController::class, 'bulk_delete_per']);
+    Route::post('units/restore_records', [UnitController::class, 'restore_records']);
+    /* Unit */
 
     /* User */
     Route::post('users/check-identity', [UserController::class, 'checkIdentity']);
