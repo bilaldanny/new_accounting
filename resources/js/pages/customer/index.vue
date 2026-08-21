@@ -29,6 +29,7 @@
 
     const form$ = ref(null);
     const edit_id = ref({ id: 0 });
+    const linkCoaLoadingId = ref<number | null>(null);
     let editFetchToken = 0;
 
     const {
@@ -43,6 +44,8 @@
         defaultFormData,
         getEditData,
         generateCustomerCode,
+        linkCustomerCoa,
+        Notify,
     } = useCustomers();
 
     const {
@@ -87,9 +90,9 @@
         { key: 'business_name', label: 'Business Name', type: 'primary', linkable: true, responsive: ['xs', 'sm', 'md', 'lg'] },
         { key: 'first_name', label: 'Name', type: 'secondary', linkable: true, data_column: 'display_name', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'city_name', label: 'City', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '-' },
-        { key: 'op_bal', label: 'Op Bal', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
-        { key: 'total_due', label: 'Total Due', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
-        { key: 'return_due', label: 'Return Due', type: 'secondary', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
+        { key: 'op_bal', label: 'Op Bal', type: 'secondary', format: 'number', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
+        { key: 'total_due', label: 'Total Due', type: 'secondary', format: 'number', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
+        { key: 'return_due', label: 'Return Due', type: 'secondary', format: 'number', responsive: ['sm', 'md', 'lg'], sorting: 'disabled', emptyDisplay: '0' },
         { key: 'account_linked', label: 'COA Linked', type: 'badge', responsive: ['md', 'lg'], sorting: 'disabled', show: 'account_linked' },
         { key: 'active', label: 'Status', type: 'badge', responsive: ['xs', 'sm', 'md', 'lg'], sorting: 'disabled', show: 'active' },
         {
@@ -98,7 +101,7 @@
             type: 'action',
             responsive: ['xs', 'sm', 'md', 'lg'],
             sorting: 'disabled',
-            actions: ['view', 'edit', 'delete', 'duplicate'],
+            actions: ['view', 'edit', 'duplicate', 'linkCoa', 'delete'],
             viewTabActions: [
                 { tab: 'ledger', label: 'Ledger', icon: 'mdi mdi-book-open-page-variant-outline' },
                 { tab: 'sales', label: 'Sales', icon: 'mdi mdi-arrow-up-circle-outline' },
@@ -267,6 +270,37 @@
     const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.customers, () => state);
     const filterOpen = ref(false);
 
+    async function handleLinkCoa(id: number) {
+        if (linkCoaLoadingId.value === id) {
+            return;
+        }
+
+        linkCoaLoadingId.value = id;
+
+        try {
+            const response = await linkCustomerCoa(id);
+            Notify(response?.message ?? 'Successfully linked to chart of account', 'success');
+            await getData();
+        } catch (error: unknown) {
+            if (window.axios.isAxiosError(error)) {
+                const validationMessage = error.response?.data?.errors
+                    ? Object.values(error.response.data.errors as Record<string, string[]>).flat()[0]
+                    : null;
+
+                Notify(
+                    validationMessage
+                    || error.response?.data?.message
+                    || 'Unable to link customer to chart of account',
+                    'alert',
+                );
+            } else {
+                Notify('Unable to link customer to chart of account', 'alert');
+            }
+        } finally {
+            linkCoaLoadingId.value = null;
+        }
+    }
+
     function clearSearch() {
         state.search.status = 'all';
         state.search.search = '';
@@ -340,6 +374,8 @@
                         :changeStatus="changeStatus"
                         :delete="deleteRecord"
                         :duplicate="duplicate"
+                        :linkCoa="handleLinkCoa"
+                        :linkCoaLoadingId="linkCoaLoadingId"
                         :edit="EditModalOpen"
                         :viewRoute="(id: number) => `/customer/${id}/view`"
                         actionType="modal"

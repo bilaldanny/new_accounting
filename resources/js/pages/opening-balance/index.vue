@@ -5,6 +5,7 @@
     import TheFilter from '@/components/theFilter.vue';
     import useCommons from '@/composables/common';
     import useAccountBalances from '@/composables/accountBalance';
+    import { formatNumber } from '@/utils/numberFormat';
     import { Filter, LoaderLinesAlt, PieChart, Receipt, Wallet } from '@boxicons/vue';
 
     defineOptions({
@@ -112,12 +113,7 @@
             ?? 'Parent account';
     });
 
-    const formattedGrandTotal = computed(() =>
-        Number(grandTotal.value).toLocaleString(undefined, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2,
-        }),
-    );
+    const formattedGrandTotal = computed(() => formatNumber(grandTotal.value));
 
     const emptyState = computed(() => {
         if (! filterReady.value) {

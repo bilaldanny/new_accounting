@@ -1,6 +1,7 @@
 import { reactive, ref, nextTick, inject, getCurrentInstance } from "vue";
 import { toast } from 'vue-sonner';
 import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
+import { formatNumber } from '@/utils/numberFormat';
 import { useNotificationStore } from '@/utils/vueNotification'
 
 /** Shared across all `useCommons()` callers — coalesces concurrent identical fetches. */
@@ -919,7 +920,8 @@ export default function useCommons(){
         changeCountry,
         changeState,
         imageError,
-        relayoutTheGrid
+        relayoutTheGrid,
+        formatNumber,
     }
 
 }

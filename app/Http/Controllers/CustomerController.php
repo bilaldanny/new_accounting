@@ -135,13 +135,14 @@ class CustomerController extends Controller
             $customer->branch_name = $customer->branch?->name;
             $customer->city_name = $customer->city?->name;
             $customer->display_name = $customer->display_name;
-            $customer->op_bal = 0;
             $customer->total_due = 0;
             $customer->return_due = 0;
             $customer->account_linked = filled($customer->customer_gl_id);
 
             return $customer;
         });
+
+        Contact::appendListOpeningBalances($customers->getCollection(), 'customer_gl_id');
 
         $trashCount = Contact::onlyTrashed()
             ->customers()
@@ -181,6 +182,7 @@ class CustomerController extends Controller
 
         $customer->load(['country', 'state', 'city', 'currency', 'company', 'branch']);
         $this->appendContactFinancialStats($customer);
+        $customer->appendOpeningBalanceFromGl($customer->customer_gl_id);
 
         return response()->json($customer);
     }

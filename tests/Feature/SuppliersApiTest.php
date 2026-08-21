@@ -362,6 +362,111 @@ test('fetch suppliers endpoint returns active suppliers for dropdowns', function
         ->not->toContain('Inactive Supplier');
 });
 
+test('suppliers api includes opening balance in list for linked supplier', function () {
+    $scope = seedSupplierScope();
+    $supplierParentId = seedSupplierCoaMapping($scope);
+
+    $coaId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $supplierParentId,
+        'code' => '301-00000',
+        'name' => 'Listed Linked Supplier',
+        'acc_type' => 't',
+        'acc_nature' => 'cr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    createSupplier([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Listed Linked Supplier',
+        'supplier_gl_id' => '301-00000',
+        'gl_id' => '301-00000',
+        'link_account' => true,
+    ]);
+
+    $financialYearId = DB::table('financial_years')
+        ->where('company_id', $scope['company_id'])
+        ->value('id');
+
+    DB::table('account_balances')->insert([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'financial_id' => $financialYearId,
+        'coa_id' => $coaId,
+        'opening_balance' => 1800,
+        'acc_nature' => 'cr',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/suppliers');
+
+    $response->assertOk();
+
+    $records = collect($response->json('data.data'))->keyBy('business_name');
+
+    expect($records['Listed Linked Supplier']['op_bal'])->toBe(1800);
+});
+
+test('suppliers show endpoint returns opening balance for linked supplier', function () {
+    $scope = seedSupplierScope();
+    $supplierParentId = seedSupplierCoaMapping($scope);
+
+    $coaId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $supplierParentId,
+        'code' => '301-00000',
+        'name' => 'Linked Detail Supplier',
+        'acc_type' => 't',
+        'acc_nature' => 'cr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $supplier = createSupplier([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Linked Detail Supplier',
+        'supplier_gl_id' => '301-00000',
+        'gl_id' => '301-00000',
+        'link_account' => true,
+    ]);
+
+    $financialYearId = DB::table('financial_years')
+        ->where('company_id', $scope['company_id'])
+        ->value('id');
+
+    DB::table('account_balances')->insert([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'financial_id' => $financialYearId,
+        'coa_id' => $coaId,
+        'opening_balance' => 1800,
+        'acc_nature' => 'cr',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/suppliers/'.$supplier->id);
+
+    $response->assertOk()
+        ->assertJsonPath('opening_balance', 1800);
+});
+
 test('fetch contact detail returns supplier with financial stats', function () {
     $scope = seedSupplierScope();
     $supplier = createSupplier([
