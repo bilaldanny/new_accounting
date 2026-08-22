@@ -20,6 +20,7 @@ export default function useProducts(){
       profit_percent: '',
       default_sell_price: '',
       variation_image: '',
+      sku: '',
     });
 
     const formData = ref({
@@ -127,9 +128,9 @@ export default function useProducts(){
         return getData(API_ENDPOINTS.products+'/trash', data, state);
     };
 
-    const getEditData = async (id: number) => {
+    const getEditData = async (id: number): Promise<boolean> => {
         if (!id) {
-            return;
+            return false;
         }
 
         try {
@@ -140,6 +141,8 @@ export default function useProducts(){
                     ? response.data.productdetail
                     : [emptyDetail()],
             };
+
+            return true;
         } catch (error: unknown) {
             if (window.axios.isAxiosError(error)) {
                 if(error.response?.data?.message !== 'Unauthenticated.'){
@@ -148,6 +151,8 @@ export default function useProducts(){
             } else {
                 Notify('Unexpected error occurred', 'alert');
             }
+
+            return false;
         }
     }
 

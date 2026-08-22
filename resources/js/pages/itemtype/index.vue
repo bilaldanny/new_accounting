@@ -29,9 +29,13 @@
     const { props } = usePage();
 
     const form$ = ref(null)
+    const activeModal = ref<'add' | 'edit' | null>(null)
 
     const edit_id = ref({ id: 0 });
     let editFetchToken = 0;
+
+    const addFormLoading = computed(() => state.modalLoading || activeModal.value !== 'add')
+    const editFormLoading = computed(() => state.modalLoading || activeModal.value !== 'edit')
 
     const {
         state,
@@ -125,6 +129,7 @@
     };
 
     const EditModalOpen = (id: number) => {
+        activeModal.value = 'edit';
         edit_id.value.id = id;
         state.modalLoading = true;
         const token = ++editFetchToken;
@@ -167,6 +172,7 @@
     });
 
     const openAddModal = async () => {
+        activeModal.value = 'add';
         state.modalLoading = true;
         form$.value?.reset();
         formData.value = {
@@ -184,10 +190,18 @@
     };
 
     function handleAddModalClose() {
+        if (activeModal.value === 'add') {
+            activeModal.value = null;
+        }
+
         state.modalLoading = true;
     }
 
     function handleEditModalClose() {
+        if (activeModal.value === 'edit') {
+            activeModal.value = null;
+        }
+
         state.modalLoading = true;
     }
 
@@ -271,7 +285,7 @@
     </div>
 
     <AddModal
-        :showLoader="state.modalLoading"
+        :showLoader="addFormLoading"
         :formData="formData"
         :formRef="form$"
         :endpoint="API_ENDPOINTS.itemTypes"
@@ -282,7 +296,7 @@
     />
 
     <EditModal
-        :showLoader="state.modalLoading"
+        :showLoader="editFormLoading"
         :formData="formData"
         :formRef="form$"
         :record-id="edit_id.id || null"

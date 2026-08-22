@@ -9,8 +9,6 @@
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
-    import AddModal from './add.vue';
-    import EditModal from './edit.vue';
     import ImportModal from './import.vue';
 
     defineOptions({
@@ -28,11 +26,6 @@
 
     const { props } = usePage();
 
-    const form$ = ref(null)
-
-    const edit_id = ref({ id: 0 });
-    let editFetchToken = 0;
-
     const {
         state,
         getProducts,
@@ -41,17 +34,12 @@
         changeOrder,
         checkAll,
         duplicate,
-        formData,
-        defaultFormData,
-        getEditData
     } = useProducts();
 
     const {
         select_data,
         getSavedValue,
         formatedText,
-        handleError,
-        handleSuccess,
         fetchCompany,
         fetchCategory,
         fetchSubCategory,
@@ -147,18 +135,6 @@
         }
     };
 
-    const EditModalOpen = (id: number) => {
-        edit_id.value.id = id;
-        state.modalLoading = true;
-        const token = ++editFetchToken;
-
-        getEditData(id).finally(() => {
-            if (token === editFetchToken) {
-                state.modalLoading = false;
-            }
-        });
-    };
-
     async function loadFilterOptions(companyId: string | number | null | undefined) {
         if (! companyId) {
             categoriesdata.value = [];
@@ -238,40 +214,6 @@
         },
     );
 
-    const openAddModal = async () => {
-        state.modalLoading = true;
-        form$.value?.reset();
-        formData.value = {
-            ...defaultFormData.value,
-            productdetail: [{
-                variation_name: 'dummy',
-                default_purchase_price: '',
-                largequantity: '',
-                smallquantity: '',
-                profit_percent: '',
-                default_sell_price: '',
-                variation_image: '',
-            }],
-            ...(isSuperadmin.value
-                ? {}
-                : { company_id: authUser.value?.company_id ?? '' }),
-        };
-
-        if (showCompanyFilter.value) {
-            await fetchCompany();
-        }
-
-        state.modalLoading = false;
-    };
-
-    function handleAddModalClose() {
-        state.modalLoading = true;
-    }
-
-    function handleEditModalClose() {
-        state.modalLoading = true;
-    }
-
     function onStateUpdate(newState) {
         Object.assign(state, newState)
     }
@@ -308,6 +250,7 @@
                     :changeStatus="changeStatus"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
+                    add-href="/product/add"
                     :show-filter="showFilter"
                     :show-import="true"
                     @toggle-filter="filterOpen = !filterOpen"
@@ -394,8 +337,7 @@
                         :changeStatus="changeStatus"
                         :delete="deleteRecord"
                         :duplicate="duplicate"
-                        :edit="EditModalOpen"
-                        actionType="modal"
+                        actionType="link"
                         :apiUrl="props.routeName?.split('.')[0]"
                         show-export
                         :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
@@ -407,29 +349,6 @@
             </div>
         </div>
     </div>
-
-    <AddModal
-        :showLoader="state.modalLoading"
-        :formData="formData"
-        :formRef="form$"
-        :endpoint="API_ENDPOINTS.products"
-        :onOpen="openAddModal"
-        :onClose="handleAddModalClose"
-        :success="(response) => handleSuccess(response, form$)"
-        :error="(error, details) => handleError(error, details, form$)"
-    />
-
-    <EditModal
-        :showLoader="state.modalLoading"
-        :formData="formData"
-        :formRef="form$"
-        :record-id="edit_id.id || null"
-        :endpoint="`${API_ENDPOINTS.products}/${edit_id.id}`"
-        :logo-url="formData.product_image_url"
-        :onClose="handleEditModalClose"
-        :success="(response) => handleSuccess(response, form$)"
-        :error="(error, details) => handleError(error, details, form$)"
-    />
 
     <ImportModal :on-success="getData" />
 </template>

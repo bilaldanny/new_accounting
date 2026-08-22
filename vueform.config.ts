@@ -29,6 +29,26 @@ const enExtended = {
     },
 }
 
+const inflightUniqueChecks = new Map<string, Promise<unknown>>()
+
+function coalesceUniqueCheck<T>(key: string, send: () => Promise<T>): Promise<T> {
+    const existing = inflightUniqueChecks.get(key)
+
+    if (existing) {
+        return existing as Promise<T>
+    }
+
+    const request = send().finally(() => {
+        if (inflightUniqueChecks.get(key) === request) {
+            inflightUniqueChecks.delete(key)
+        }
+    })
+
+    inflightUniqueChecks.set(key, request)
+
+    return request
+}
+
 async function postCheckIdentity(payload: Record<string, string>) {
     const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
     const res = await fetch('/api/students/check-identity', {
@@ -277,22 +297,24 @@ async function postCheckProductName(payload: Record<string, string | number>) {
 }
 
 async function postCheckItemTypeName(payload: Record<string, string | number>) {
-    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
-    const res = await fetch('/api/item-types/check-name', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': token,
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload),
+    return coalesceUniqueCheck(`item-type-name:${JSON.stringify(payload)}`, async () => {
+        const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+        const res = await fetch('/api/item-types/check-name', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': token,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+        })
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`)
+        }
+        return res.json() as Promise<{ name_taken: boolean }>
     })
-    if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
-    }
-    return res.json() as Promise<{ name_taken: boolean }>
 }
 
 async function postCheckCategoryName(payload: Record<string, string | number>) {
@@ -804,7 +826,7 @@ class ItemTypeNameUnique extends Validator {
         return true
     }
     get debounce() {
-        return 400
+        return 0
     }
     check(value: unknown) {
         const name = String(value ?? '').trim()
@@ -812,11 +834,11 @@ class ItemTypeNameUnique extends Validator {
             return Promise.resolve(true)
         }
 
-        const exceptId = ruleExceptId(this)
+        const exceptId = ruleExceptId(this, 'id')
         const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
         const payload: Record<string, string | number> = { name }
 
-        if (exceptId !== undefined) {
+        if (exceptId !== undefined && ! Number.isNaN(exceptId)) {
             payload.except_id = exceptId
         }
 

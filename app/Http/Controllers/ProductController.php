@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Support\ImportResponse;
+use App\Support\VariantCombiner;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,8 @@ class ProductController extends Controller
             'product_desc' => 'nullable|string',
             'product_image' => 'nullable',
             'productdetail' => 'bail|required|array|min:1',
-            'productdetail.*.variation_name' => 'bail|required|string|max:200',
+            'productdetail.*.variation_name' => 'bail|required|string|max:255',
+            'productdetail.*.sku' => 'nullable|string|max:100',
             'productdetail.*.default_purchase_price' => 'nullable|numeric|min:0',
             'productdetail.*.profit_percent' => 'nullable|numeric|min:0',
             'productdetail.*.default_sell_price' => 'nullable|numeric|min:0',
@@ -125,6 +127,34 @@ class ProductController extends Controller
         $trash_count = Product::onlyTrashed()->count();
 
         return response()->json(['data' => $products, 'trash_count' => $trash_count]);
+    }
+
+    public function generateVariants(Request $request)
+    {
+        $request->validate([
+            'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
+            'category_id' => 'required',
+            'itemtype_id' => 'required',
+            'subcategory_id' => 'nullable',
+            'product_sku' => 'nullable|string|max:100',
+            'selections' => 'required|array|min:1',
+            'selections.*.variation_id' => 'required|integer',
+            'selections.*.values' => 'required|array|min:1',
+            'selections.*.values.*' => 'required|string|max:200',
+        ]);
+
+        $companyId = Auth::user()?->hasRole('superadmin')
+            ? Product::resolveScopedId($request->company_id)
+            : Product::resolveScopedId(Auth::user()?->company_id ?? $request->company_id);
+
+        return response()->json(VariantCombiner::generateForScope(
+            $companyId,
+            Product::resolveScopedId($request->category_id),
+            Product::resolveScopedId($request->subcategory_id),
+            Product::resolveScopedId($request->itemtype_id),
+            $request->input('selections', []),
+            $request->input('product_sku'),
+        ));
     }
 
     public function checkName(Request $request)

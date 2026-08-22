@@ -36,6 +36,14 @@
         }
     });
 
+    async function submitItemType(form$) {
+        const response = await window.axios.post(modalProps.endpoint, form$?.data);
+
+        modalProps.success?.(response);
+
+        return response;
+    }
+
     function reset() {
         if(formRef.value){
             formRef.value.reset()
@@ -60,7 +68,7 @@
             v-if="!modalProps.showLoader"
             v-model:submitting="isSaving"
             :key="modalProps.endpoint"
-            :onSubmit="modalProps.onSubmit"
+            :onSubmit="submitItemType"
             :formData="modalProps.formData"
             :success="modalProps.success"
             :error="modalProps.error"

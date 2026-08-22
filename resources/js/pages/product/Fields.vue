@@ -1,10 +1,18 @@
 <script setup lang="ts">
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
-    import { computed, nextTick, onMounted, ref, watch } from 'vue';
+    import { computed, onMounted, ref, watch } from 'vue';
     import { usePage } from '@inertiajs/vue3';
-    import { Barcode, Box, ImagePlus, Package, SliderAlt, Store } from '@boxicons/vue';
+    import { Box, ImagePlus, Layers, Package, SliderAlt, Store } from '@boxicons/vue';
+    import {
+        inferSelections,
+        normalizeVariantLabel,
+        type ApplicableVariation,
+        type VariationSelection,
+    } from '@/utils/variantCombiner';
     import ProductDetailsEditor, { type ProductDetailRow } from './ProductDetailsEditor.vue';
+    import VariationPicker from './VariationPicker.vue';
 
     const params = defineProps({
         type: String,
@@ -28,6 +36,7 @@
 
     const page = usePage();
 
+    const colQuarter = { container: 3, label: 12, wrapper: 12 };
     const colThird = { container: 4, label: 12, wrapper: 12 };
     const colHalf = { container: 6, label: 12, wrapper: 12 };
     const colFull = { container: 12, label: 12, wrapper: 12 };
@@ -77,8 +86,26 @@
     const lastFetchedCompanyId = ref('');
     const lastFetchedCategoryKey = ref('');
     const lastVariationKey = ref('');
+    const lastSelectedItemTypeId = ref('');
+    const lastFetchedMarginCompanyId = ref('');
+    const defaultMargin = ref<number | string>('');
     const pricingRows = ref<ProductDetailRow[]>([]);
     const detailsHydrated = ref(false);
+    const applicableVariations = ref<ApplicableVariation[]>([]);
+    const variationSelections = ref<VariationSelection[]>([]);
+    const generatingVariants = ref(false);
+    const generateError = ref('');
+    const scopeWarning = ref('');
+
+    const scopeReady = computed(() => (
+        Boolean(normalizeId(selectedCompanyId.value) || normalizeId(authUser.value?.company_id))
+        && Boolean(normalizeId(selectedCategoryId.value))
+        && Boolean(normalizeId(selectedItemTypeId.value))
+    ));
+
+    const hasGeneratedRows = computed(() => pricingRows.value.some((row) => (
+        row.variation_name && row.variation_name !== 'dummy'
+    )));
 
     const nameRules = computed(() => {
         if (params.recordId) {
@@ -93,12 +120,23 @@
     const subcategoryDisabled = computed(() => scopeDisabled.value || ! selectedCategoryId.value);
     const typeDisabled = computed(() => isEdit.value || scopeDisabled.value);
 
-    const typeOptions = [
-        { id: 'single', text: 'Single' },
-        { id: 'variable', text: 'Variable' },
-    ];
-
     const imageInputId = computed(() => (params.type === 'edit' ? 'EditProductImage' : 'ProductImage'));
+
+    function setProductType(type: 'single' | 'variable') {
+        if (typeDisabled.value) {
+            return;
+        }
+
+        if (params.formData) {
+            params.formData.type = type;
+        }
+
+        params.formRef?.update?.({ type });
+    }
+
+    function isBlankMargin(value: unknown): boolean {
+        return value === null || value === undefined || value === '';
+    }
 
     function dummyDetail(): ProductDetailRow {
         return {
@@ -106,10 +144,60 @@
             default_purchase_price: '',
             largequantity: '',
             smallquantity: '',
-            profit_percent: '',
+            profit_percent: isBlankMargin(defaultMargin.value) ? '' : defaultMargin.value,
             default_sell_price: '',
             variation_image: '',
+            sku: '',
         };
+    }
+
+    function applyDefaultMarginToEmptyRows() {
+        if (isEdit.value || ! detailsHydrated.value || isBlankMargin(defaultMargin.value)) {
+            return;
+        }
+
+        const nextDetails = pricingRows.value.map((row) => (
+            isBlankMargin(row.profit_percent)
+                ? { ...row, profit_percent: defaultMargin.value }
+                : row
+        ));
+
+        const hasChanges = nextDetails.some((row, index) => (
+            row.profit_percent !== pricingRows.value[index]?.profit_percent
+        ));
+
+        if (hasChanges) {
+            persistDetails(nextDetails);
+        }
+    }
+
+    async function loadDefaultMargin(companyId: string | number | null | undefined) {
+        const normalizedCompanyId = normalizeId(companyId);
+
+        if (! normalizedCompanyId) {
+            lastFetchedMarginCompanyId.value = '';
+            defaultMargin.value = '';
+
+            return;
+        }
+
+        if (normalizedCompanyId === lastFetchedMarginCompanyId.value) {
+            applyDefaultMarginToEmptyRows();
+
+            return;
+        }
+
+        lastFetchedMarginCompanyId.value = normalizedCompanyId;
+
+        try {
+            const response = await window.axios.get(`${API_ENDPOINTS.companySettings}/${normalizedCompanyId}`);
+            const value = response.data?.companySetting?.profit_percent;
+            defaultMargin.value = isBlankMargin(value) ? '' : value;
+        } catch {
+            defaultMargin.value = '';
+        }
+
+        applyDefaultMarginToEmptyRows();
     }
 
     function persistDetails(details: ProductDetailRow[]) {
@@ -154,23 +242,42 @@
         persistDetails(details);
     }
 
-    function detailsFromVariations(): ProductDetailRow[] {
-        const values = Array.isArray(variationsdata.value?.[0]?.values)
-            ? variationsdata.value[0].values
-            : [];
+    function firstApiError(error: unknown): string {
+        const response = (error as { response?: { data?: { message?: string; errors?: Record<string, string[] | string> } } })?.response;
+        const errors = response?.data?.errors;
 
-        const activeValues = values.filter((value: { name?: string; active?: boolean }) => (
-            value?.name && value.active !== false
-        ));
+        if (errors) {
+            const first = Object.values(errors)[0];
 
-        if (activeValues.length === 0) {
-            return [];
+            if (Array.isArray(first) && first[0]) {
+                return String(first[0]);
+            }
+
+            if (typeof first === 'string' && first !== '') {
+                return first;
+            }
         }
 
-        return activeValues.map((value: { name: string }) => ({
-            ...dummyDetail(),
-            variation_name: value.name,
-        }));
+        return response?.data?.message || 'Unable to generate variations.';
+    }
+
+    function compatibleSelection(
+        variation: ApplicableVariation,
+        previous: VariationSelection | undefined,
+    ): VariationSelection {
+        const available = (variation.values ?? [])
+            .filter((value) => value?.name && value.active !== false && value.active !== 0 && value.active !== '0')
+            .map((value) => String(value.name).trim());
+
+        if (previous) {
+            return {
+                variationId: variation.id,
+                enabled: previous.enabled,
+                selectedValues: previous.selectedValues.filter((value) => available.includes(value)),
+            };
+        }
+
+        return inferSelections([variation], pricingRows.value)[0];
     }
 
     async function loadScopeOptions(companyId: string | number | null | undefined) {
@@ -184,21 +291,26 @@
             unitsdata.value = [];
             warrantiesdata.value = [];
             variationsdata.value = [];
+            await loadDefaultMargin('');
 
             return;
         }
 
         if (normalizedCompanyId === lastFetchedCompanyId.value) {
+            await loadDefaultMargin(normalizedCompanyId);
+
             return;
         }
 
         lastFetchedCompanyId.value = normalizedCompanyId;
+        lastFetchedMarginCompanyId.value = '';
         await Promise.all([
             fetchCategory(normalizedCompanyId),
             fetchItemType(normalizedCompanyId),
             fetchBrand(normalizedCompanyId),
             fetchUnit(normalizedCompanyId),
             fetchWarranty(normalizedCompanyId),
+            loadDefaultMargin(normalizedCompanyId),
         ]);
     }
 
@@ -227,18 +339,29 @@
             return;
         }
 
-        params.formRef?.update?.({
+        const clearedScope = {
             unit_id: '',
             brand_id: '',
             category_id: '',
             subcategory_id: '',
             itemtype_id: '',
             warranty_id: '',
-        });
+        };
+
+        if (params.formData) {
+            Object.assign(params.formData, clearedScope);
+        }
+
+        params.formRef?.update?.(clearedScope);
 
         lastFetchedCompanyId.value = '';
         lastFetchedCategoryKey.value = '';
         lastVariationKey.value = '';
+        lastFetchedMarginCompanyId.value = '';
+        lastSelectedItemTypeId.value = '';
+        applicableVariations.value = [];
+        variationSelections.value = [];
+        generateError.value = '';
         await loadScopeOptions(companyId);
     }
 
@@ -254,12 +377,69 @@
         await loadSubcategoryOptions(companyId, categoryId);
     }
 
-    async function rebuildPricingRows(previousType?: string) {
-        if (isEdit.value) {
+    function selectedOptionId(value: unknown): string {
+        if (value && typeof value === 'object' && 'id' in value) {
+            return normalizeId((value as { id: unknown }).id);
+        }
+
+        return normalizeId(value);
+    }
+
+    async function loadApplicableVariations(options: { inferFromDetails?: boolean } = {}) {
+        if (selectedType.value !== 'variable') {
+            applicableVariations.value = [];
+            variationSelections.value = [];
+            generateError.value = '';
+
             return;
         }
 
+        const companyId = normalizeId(selectedCompanyId.value) || normalizeId(authUser.value?.company_id);
+        const categoryId = normalizeId(selectedCategoryId.value);
+        const itemtypeId = normalizeId(selectedItemTypeId.value);
+        const subcategoryId = normalizeId(params.formData?.subcategory_id);
+
+        if (! companyId || ! categoryId || ! itemtypeId) {
+            applicableVariations.value = [];
+            variationSelections.value = [];
+
+            return;
+        }
+
+        const key = `${companyId}:${categoryId}:${subcategoryId}:${itemtypeId}`;
+        const scopeChanged = lastVariationKey.value !== '' && lastVariationKey.value !== key;
+        lastVariationKey.value = key;
+
+        await fetchVariation(companyId, categoryId, subcategoryId || undefined, itemtypeId);
+
+        const variations = (Array.isArray(variationsdata.value) ? variationsdata.value : []) as ApplicableVariation[];
+        const previousSelections = variationSelections.value;
+        const previousIds = new Set(previousSelections.map((selection) => String(selection.variationId)));
+        const nextIds = new Set(variations.map((variation) => String(variation.id)));
+        const lostSelections = [...previousIds].some((id) => ! nextIds.has(id));
+
+        applicableVariations.value = variations;
+        variationSelections.value = options.inferFromDetails || previousSelections.length === 0
+            ? inferSelections(variations, pricingRows.value)
+            : variations.map((variation) => compatibleSelection(
+                variation,
+                previousSelections.find((selection) => String(selection.variationId) === String(variation.id)),
+            ));
+
+        if (scopeChanged && hasGeneratedRows.value) {
+            scopeWarning.value = lostSelections
+                ? 'Category, subcategory, or item type changed. Invalid variation selections were removed. Existing generated variants were kept so pricing is not lost. Review and generate again if needed.'
+                : 'Category, subcategory, or item type changed. Existing generated variants were kept so pricing is not lost. Review selections and generate again if needed.';
+        }
+    }
+
+    async function rebuildPricingRows(previousType?: string) {
         if (selectedType.value !== 'variable') {
+            applicableVariations.value = [];
+            variationSelections.value = [];
+            generateError.value = '';
+            scopeWarning.value = '';
+
             if (previousType === 'variable' || pricingRows.value.length === 0) {
                 persistDetails([dummyDetail()]);
             }
@@ -267,58 +447,138 @@
             return;
         }
 
-        const companyId = normalizeId(selectedCompanyId.value);
-        const categoryId = normalizeId(selectedCategoryId.value);
-        const itemtypeId = normalizeId(selectedItemTypeId.value);
-        const subcategoryId = normalizeId(params.formData?.subcategory_id);
+        if (previousType === 'single' && ! hasGeneratedRows.value) {
+            persistDetails([]);
+        }
 
-        if (! companyId || ! categoryId || ! itemtypeId) {
+        await loadApplicableVariations({ inferFromDetails: isEdit.value || hasGeneratedRows.value });
+    }
+
+    async function generateVariations() {
+        const companyId = normalizeId(selectedCompanyId.value) || normalizeId(authUser.value?.company_id);
+        const enabled = variationSelections.value.filter((selection) => selection.enabled);
+
+        generateError.value = '';
+
+        if (! companyId || enabled.length === 0) {
+            generateError.value = 'Select at least one variation.';
+
             return;
         }
 
-        const key = `${companyId}:${categoryId}:${subcategoryId}:${itemtypeId}`;
+        generatingVariants.value = true;
 
-        if (key !== lastVariationKey.value) {
-            lastVariationKey.value = key;
-            await fetchVariation(companyId, categoryId, subcategoryId || undefined, itemtypeId);
-        }
+        try {
+            const response = await window.axios.post(API_ENDPOINTS.productGenerateVariants, {
+                company_id: companyId,
+                category_id: normalizeId(selectedCategoryId.value),
+                subcategory_id: normalizeId(params.formData?.subcategory_id) || null,
+                itemtype_id: normalizeId(selectedItemTypeId.value),
+                product_sku: String(params.formData?.sku ?? '').trim(),
+                selections: enabled.map((selection) => ({
+                    variation_id: selection.variationId,
+                    values: selection.selectedValues,
+                })),
+            });
 
-        const variationRows = detailsFromVariations();
+            const combinations = Array.isArray(response.data?.combinations) ? response.data.combinations : [];
+            const existingByName = new Map(
+                pricingRows.value
+                    .filter((row) => row.variation_name && row.variation_name !== 'dummy')
+                    .map((row) => [normalizeVariantLabel(row.variation_name), row]),
+            );
 
-        if (variationRows.length > 0) {
-            persistDetails(variationRows);
+            persistDetails(combinations.map((combination: { variation_name: string; sku?: string }) => {
+                const existing = existingByName.get(normalizeVariantLabel(combination.variation_name));
+
+                if (existing) {
+                    return {
+                        ...existing,
+                        variation_name: combination.variation_name,
+                        sku: combination.sku ?? existing.sku,
+                    };
+                }
+
+                return {
+                    ...dummyDetail(),
+                    variation_name: combination.variation_name,
+                    sku: combination.sku ?? '',
+                };
+            }));
+            scopeWarning.value = '';
+        } catch (error) {
+            generateError.value = firstApiError(error);
+        } finally {
+            generatingVariants.value = false;
         }
     }
+
+    async function onItemTypeChange(value: unknown) {
+        const itemtypeId = selectedOptionId(value);
+
+        if (itemtypeId === lastSelectedItemTypeId.value) {
+            return;
+        }
+
+        lastSelectedItemTypeId.value = itemtypeId;
+
+        if (params.formData) {
+            params.formData.itemtype_id = itemtypeId;
+        }
+
+        params.formRef?.update?.({ itemtype_id: itemtypeId });
+
+        if (! detailsHydrated.value) {
+            return;
+        }
+
+        lastVariationKey.value = '';
+        await rebuildPricingRows();
+    }
+
+    function resolveMediaUrl(path: unknown): string {
+        const value = String(path ?? '').trim();
+
+        if (! value) {
+            return '';
+        }
+
+        if (
+            value.startsWith('http://')
+            || value.startsWith('https://')
+            || value.startsWith('data:')
+            || value.startsWith('blob:')
+        ) {
+            return value;
+        }
+
+        const base = String(appUrl ?? '').replace(/\/$/, '');
+
+        return `${base}/${value.replace(/^\//, '')}`;
+    }
+
+    const imagePreviewUrl = computed(() => (
+        resolveMediaUrl(params.logoUrl)
+        || resolveMediaUrl(params.formData?.product_image_url)
+        || resolveMediaUrl(params.formData?.product_image)
+    ));
 
     function chooseImage(event: MouseEvent) {
         openLfmImagePicker(event, appUrl);
     }
 
-    function renderImagePreview() {
-        const holder = document.getElementById('product-image-holder');
+    function clearProductImage() {
+        params.formRef?.update?.({ product_image: '', product_image_url: '' });
 
-        if (! holder) {
-            return;
+        if (params.formData) {
+            params.formData.product_image = '';
+            params.formData.product_image_url = '';
         }
-
-        const previewUrl = params.logoUrl || params.formData?.product_image_url || '';
-
-        if (! previewUrl) {
-            holder.innerHTML = '';
-
-            return;
-        }
-
-        holder.innerHTML = '';
-        const img = document.createElement('img');
-        img.className = 'company-logo-preview-img d-block rounded object-fit-contain';
-        img.style.height = '4.5rem';
-        img.src = previewUrl;
-        holder.appendChild(img);
     }
 
     onMounted(async () => {
         applyScopedDefaults();
+        lastSelectedItemTypeId.value = normalizeId(params.formData?.itemtype_id);
         ensureDefaultDetails();
 
         if (showCompanyField.value) {
@@ -334,8 +594,9 @@
             await loadSubcategoryOptions(companyId, selectedCategoryId.value);
         }
 
-        await nextTick();
-        renderImagePreview();
+        if (selectedType.value === 'variable') {
+            await loadApplicableVariations({ inferFromDetails: true });
+        }
     });
 
     watch(
@@ -399,9 +660,6 @@
         },
         { deep: true },
     );
-
-    watch(() => params.logoUrl, renderImagePreview);
-    watch(() => params.formData?.product_image, renderImagePreview);
 </script>
 
 <template>
@@ -413,14 +671,21 @@
         hidden="true"
     />
 
+    <TextElement
+        name="type"
+        hidden="true"
+        default="single"
+        rules="required|in:single,variable"
+    />
+
     <StaticElement v-if="showCompanyField" name="section_scope" :columns="colFull">
         <div class="company-section-header company-section-header-primary">
             <span class="company-section-icon company-section-icon-primary">
                 <Store size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Company Scope</h6>
-                <p class="company-section-subtitle mb-0">Assign this product to the correct company catalog</p>
+                <h6 class="company-section-title mb-0">Company</h6>
+                <p class="company-section-subtitle mb-0">Assign this product to a company catalog</p>
             </div>
         </div>
     </StaticElement>
@@ -441,17 +706,41 @@
         :floating="false"
         :can-clear="false"
         :rules="companyRules"
-        info="Required. Products, units, brands, and categories are scoped to a company."
     />
 
     <StaticElement name="section_identity" :columns="colFull">
-        <div class="company-section-header company-section-header-indigo" :class="{ 'company-section-header-spaced': showCompanyField }">
+        <div
+            class="company-section-header company-section-header-indigo"
+            :class="{ 'company-section-header-spaced': showCompanyField }"
+        >
             <span class="company-section-icon company-section-icon-indigo">
                 <Package size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Product Identity</h6>
-                <p class="company-section-subtitle mb-0">Name, SKU, and whether this is a single or variable product</p>
+                <h6 class="company-section-title mb-0">Product</h6>
+                <p class="company-section-subtitle mb-0">Name, SKU, and how this item is sold</p>
+            </div>
+            <div class="product-type-toggle" role="group" aria-label="Product type">
+                <button
+                    type="button"
+                    class="product-type-toggle__btn"
+                    :class="{ 'is-active': selectedType === 'single' }"
+                    :disabled="typeDisabled"
+                    @click="setProductType('single')"
+                >
+                    <Package size="xs" />
+                    Single
+                </button>
+                <button
+                    type="button"
+                    class="product-type-toggle__btn"
+                    :class="{ 'is-active': selectedType === 'variable' }"
+                    :disabled="typeDisabled"
+                    @click="setProductType('variable')"
+                >
+                    <Layers size="xs" />
+                    Variable
+                </button>
             </div>
         </div>
     </StaticElement>
@@ -460,12 +749,11 @@
         id="Name"
         field-name="Name"
         name="name"
-        label="Product Name"
+        label="Name"
         placeholder="e.g. Premium Basmati Rice 5kg"
-        :columns="colThird"
+        :columns="colHalf"
         autocomplete="off"
         :rules="nameRules"
-        info="A clear catalog name that staff will recognize on invoices and stock screens."
     />
 
     <TextElement
@@ -473,30 +761,43 @@
         field-name="Sku"
         name="sku"
         label="SKU"
-        placeholder="Auto-generated if left blank"
-        :columns="colThird"
+        placeholder="Auto-generated if blank"
+        :columns="colQuarter"
         autocomplete="off"
-        info="Leave blank to generate from company product code settings."
     />
 
-    <SelectElement
-        name="type"
-        :native="false"
-        :items="typeOptions"
-        id="Type"
-        field-name="Type"
-        placeholder="Select product type"
-        label="Product Type"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="false"
-        :floating="false"
-        :can-clear="false"
-        :default="'single'"
-        :disabled="typeDisabled"
-        rules="required|in:single,variable"
-        info="Single products have one price row. Variable products load variation values after category and item type are selected."
+    <TextElement
+        id="AlertQty"
+        field-name="AlertQty"
+        name="alert_qty"
+        label="Alert qty"
+        input-type="number"
+        placeholder="10"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="nullable|numeric|min:0"
+    />
+
+    <TextareaElement
+        name="product_desc"
+        id="ProductDesc"
+        field-name="ProductDesc"
+        label="Description"
+        placeholder="Short selling notes or packing details"
+        :columns="{ container: 9, label: 12, wrapper: 12 }"
+        :rows="3"
+    />
+
+    <TextElement
+        id="Weight"
+        field-name="Weight"
+        name="weight"
+        label="Weight"
+        input-type="number"
+        placeholder="Optional"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="nullable|numeric|min:0"
     />
 
     <StaticElement name="section_classification" :columns="colFull">
@@ -505,8 +806,8 @@
                 <Box size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Classification</h6>
-                <p class="company-section-subtitle mb-0">Unit, brand, category, and item type used for reporting and POS filters</p>
+                <h6 class="company-section-title mb-0">Organization</h6>
+                <p class="company-section-subtitle mb-0">Unit, brand, category, and item type</p>
             </div>
         </div>
     </StaticElement>
@@ -527,7 +828,6 @@
         :can-clear="false"
         :disabled="scopeDisabled"
         rules="required"
-        info="Base selling and stocking unit."
     />
 
     <SelectElement
@@ -546,7 +846,6 @@
         :can-clear="false"
         :disabled="scopeDisabled"
         rules="required"
-        info="Required. Used on the product list and POS brand filter."
     />
 
     <SelectElement
@@ -565,7 +864,6 @@
         :can-clear="false"
         :disabled="scopeDisabled"
         rules="required"
-        info="Required. Subcategories and variation sets depend on this choice."
     />
 
     <SelectElement
@@ -583,7 +881,6 @@
         :floating="false"
         :can-clear="true"
         :disabled="subcategoryDisabled"
-        info="Optional. Only categories nested under the selected parent appear here."
     />
 
     <SelectElement
@@ -593,7 +890,7 @@
         id="ItemtypeId"
         field-name="ItemtypeId"
         placeholder="Select item type"
-        label="Item Type"
+        label="Item type"
         :columns="colThird"
         label-prop="text"
         value-prop="id"
@@ -602,7 +899,7 @@
         :can-clear="false"
         :disabled="scopeDisabled"
         rules="required"
-        info="Required. Variable products load variation values for this item type."
+        @change="onItemTypeChange"
     />
 
     <SelectElement
@@ -620,52 +917,25 @@
         :floating="false"
         :can-clear="true"
         :disabled="scopeDisabled"
-        info="Optional coverage plan attached to this product."
     />
 
-    <StaticElement name="section_inventory" :columns="colFull">
+    <StaticElement name="section_media" :columns="colFull">
         <div class="company-section-header company-section-header-primary company-section-header-spaced">
             <span class="company-section-icon company-section-icon-primary">
-                <Barcode size="sm" />
+                <ImagePlus size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Inventory & Media</h6>
-                <p class="company-section-subtitle mb-0">Stock alerts, description, and catalog image</p>
+                <h6 class="company-section-title mb-0">Media & status</h6>
+                <p class="company-section-subtitle mb-0">Catalog image and whether this product is sellable</p>
             </div>
         </div>
     </StaticElement>
 
     <TextElement
-        id="AlertQty"
-        field-name="AlertQty"
-        name="alert_qty"
-        label="Alert Quantity"
-        input-type="number"
-        placeholder="e.g. 10"
-        :columns="colThird"
-        autocomplete="off"
-        rules="nullable|numeric|min:0"
-        info="Low-stock warning threshold in the base unit."
-    />
-
-    <TextElement
-        id="Weight"
-        field-name="Weight"
-        name="weight"
-        label="Weight"
-        input-type="number"
-        placeholder="Optional"
-        :columns="colThird"
-        autocomplete="off"
-        rules="nullable|numeric|min:0"
-        info="Optional shipping or packing weight."
-    />
-
-    <TextElement
         :id="imageInputId"
         field-name="ProductImage"
         name="product_image"
-        label="Product Image"
+        label="Product image"
         placeholder="Select product image"
         :columns="colThird"
         :add-classes="{
@@ -673,13 +943,11 @@
                 container: 'p-0',
             },
         }"
-        info="Optional catalog photo. Choose from the file manager."
     >
         <template #addon-before>
             <button
                 :data-input="imageInputId"
                 data-field-name="product_image"
-                data-preview="product-image-holder"
                 type="button"
                 class="company-logo-choose"
                 @click="chooseImage"
@@ -689,20 +957,65 @@
             </button>
         </template>
         <template #after>
-            <div id="product-image-holder" class="company-logo-preview"></div>
+            <div class="company-logo-preview">
+                <img
+                    v-if="imagePreviewUrl"
+                    :src="imagePreviewUrl"
+                    alt="Product preview"
+                    class="company-logo-preview-img d-block rounded object-fit-contain"
+                    style="height: 4.5rem"
+                >
+                <button
+                    v-if="imagePreviewUrl"
+                    type="button"
+                    class="btn btn-sm btn-link text-danger px-0"
+                    @click="clearProductImage"
+                >
+                    Remove image
+                </button>
+            </div>
         </template>
     </TextElement>
 
-    <TextareaElement
-        name="product_desc"
-        id="ProductDesc"
-        field-name="ProductDesc"
-        label="Product Description"
-        placeholder="Short selling notes, packing details, or catalog copy"
-        :columns="colHalf"
-        :rows="4"
-        info="Shown on product documents. Keep it concise and useful for staff."
+    <ToggleElement
+        :labels="{ 1: 'Active', 0: 'Inactive' }"
+        :columns="colThird"
+        id="Active"
+        field-name="Active"
+        name="active"
+        label="Product status"
+        :true-value="true"
+        :false-value="false"
+        :default="true"
     />
+
+    <StaticElement v-if="selectedType === 'variable'" name="section_variations" :columns="colFull">
+        <div class="company-section-header company-section-header-indigo company-section-header-spaced">
+            <span class="company-section-icon company-section-icon-indigo">
+                <Layers size="sm" />
+            </span>
+            <div>
+                <h6 class="company-section-title mb-0">Variations</h6>
+                <p class="company-section-subtitle mb-0">
+                    Include the attributes and values that should be combined
+                </p>
+            </div>
+        </div>
+    </StaticElement>
+
+    <StaticElement v-if="selectedType === 'variable'" name="variation_picker" :columns="colFull">
+        <VariationPicker
+            :variations="applicableVariations"
+            :selections="variationSelections"
+            :disabled="scopeDisabled"
+            :generating="generatingVariants"
+            :scope-ready="scopeReady"
+            :warning="scopeWarning"
+            :error="generateError"
+            @update:selections="variationSelections = $event"
+            @generate="generateVariations"
+        />
+    </StaticElement>
 
     <StaticElement name="section_pricing" :columns="colFull">
         <div class="company-section-header company-section-header-indigo company-section-header-spaced">
@@ -710,8 +1023,12 @@
                 <SliderAlt size="sm" />
             </span>
             <div>
-                <h6 class="company-section-title mb-0">Pricing & Variations</h6>
-                <p class="company-section-subtitle mb-0">Set purchase cost, packing quantities, margin, and selling price for each row</p>
+                <h6 class="company-section-title mb-0">Pricing</h6>
+                <p class="company-section-subtitle mb-0">
+                    {{ selectedType === 'variable'
+                        ? 'Each generated variant gets its own SKU, purchase, margin, and sell price'
+                        : 'Purchase cost, packing, margin, and sell price' }}
+                </p>
             </div>
         </div>
     </StaticElement>
@@ -724,29 +1041,4 @@
             @update:details="syncDetails"
         />
     </StaticElement>
-
-    <StaticElement name="section_status" :columns="colFull">
-        <div class="company-section-header company-section-header-teal company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-teal">
-                <SliderAlt size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Status</h6>
-                <p class="company-section-subtitle mb-0">Inactive products are hidden from POS and purchase screens</p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <ToggleElement
-        :labels="{ 1: 'Active', 0: 'Inactive' }"
-        :columns="colThird"
-        id="Active"
-        field-name="Active"
-        name="active"
-        label="Product Status"
-        :true-value="true"
-        :false-value="false"
-        :default="true"
-        info="Turn off to keep the product in the catalog without selling it."
-    />
 </template>

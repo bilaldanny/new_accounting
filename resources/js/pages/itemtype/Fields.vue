@@ -41,8 +41,10 @@
     const { fetchCompany, companiesdata } = useCommons();
 
     const nameRules = computed(() => {
-        if (params.recordId) {
-            return `required|min:3|max:200|itemtype_name_unique:${params.recordId}`;
+        const exceptId = params.recordId ?? params.formData?.id;
+
+        if (exceptId) {
+            return `required|min:3|max:200|itemtype_name_unique:${exceptId}`;
         }
 
         return 'required|min:3|max:200|itemtype_name_unique';
@@ -51,7 +53,7 @@
     const companyRules = computed(() => (isSuperadmin.value ? 'required' : ''));
 
     function applyScopedDefaults() {
-        if (isSuperadmin.value) {
+        if (isSuperadmin.value || params.formData?.company_id) {
             return;
         }
 
@@ -71,6 +73,7 @@
 
 <template>
     <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
+    <TextElement name="id" hidden="true" v-if="params.type === 'edit'" />
 
     <TextElement
         v-if="showHiddenCompanyField"
