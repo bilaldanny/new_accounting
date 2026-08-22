@@ -2,7 +2,7 @@ import { reactive, ref } from "vue";
 import useCommons from "./common";
 import { API_ENDPOINTS } from './apiEndpoints'
 
-export default function useVariations(){
+export default function useProducts(){
 
     interface QueryParams {
         sort_by: string;
@@ -12,24 +12,54 @@ export default function useVariations(){
         search: string;
     }
 
+    const emptyDetail = () => ({
+      variation_name: 'dummy',
+      default_purchase_price: '',
+      largequantity: '',
+      smallquantity: '',
+      profit_percent: '',
+      default_sell_price: '',
+      variation_image: '',
+    });
+
     const formData = ref({
       'company_id':'',
+      'name':'',
+      'type':'single',
+      'unit_id':'',
+      'brand_id':'',
       'category_id':'',
       'subcategory_id':'',
       'itemtype_id':'',
-      'values':[{ name: '', active: true }],
-      'priority':0,
+      'warranty_id':'',
+      'alert_qty':'',
+      'sku':'',
+      'weight':'',
+      'product_desc':'',
+      'product_image':'',
+      'product_image_url':'',
       'active':true,
+      'productdetail': [emptyDetail()],
     });
 
     const defaultFormData = ref({
       'company_id':'',
+      'name':'',
+      'type':'single',
+      'unit_id':'',
+      'brand_id':'',
       'category_id':'',
       'subcategory_id':'',
       'itemtype_id':'',
-      'values':[{ name: '', active: true }],
-      'priority':0,
+      'warranty_id':'',
+      'alert_qty':'',
+      'sku':'',
+      'weight':'',
+      'product_desc':'',
+      'product_image':'',
+      'product_image_url':'',
       'active':true,
+      'productdetail': [emptyDetail()],
     });
 
     const {Notify, select_data, fetchWithRetry, changeStateFn, changeOrderFn, deleteFn, checkAllFn, duplicateFn, getData, restoreFn} = useCommons()
@@ -54,6 +84,8 @@ export default function useVariations(){
         category_id: '',
         subcategory_id: '',
         itemtype_id: '',
+        brand_id: '',
+        type: 'all',
       },
       loading: false,
       modalLoading: true,
@@ -64,7 +96,7 @@ export default function useVariations(){
     });
 
     const changeStatus = async (ids: Array<number>, status: string) => {
-        return changeStateFn(API_ENDPOINTS.variations+'/statusupdate',ids,status,state);
+        return changeStateFn(API_ENDPOINTS.products+'/statusupdate',ids,status,state);
     }
 
     const changeOrder = async (event: Event) => {
@@ -72,11 +104,11 @@ export default function useVariations(){
     };
 
     const deleteRecord = async (ids: Array<number>) => {
-        return deleteFn(API_ENDPOINTS.variations+'/bulk_delete', ids, state);
+        return deleteFn(API_ENDPOINTS.products+'/bulk_delete', ids, state);
     }
 
     const perDeleteBulkRecord = async (ids: Array<number>) => {
-        return deleteFn(API_ENDPOINTS.variations+'/bulk_delete_per', ids, state);
+        return deleteFn(API_ENDPOINTS.products+'/bulk_delete_per', ids, state);
     }
 
     const checkAll = async (id: number) => {
@@ -84,15 +116,15 @@ export default function useVariations(){
     };
 
     const duplicate = async (id: number) => {
-        return duplicateFn(API_ENDPOINTS.variations+'/duplicate', id)
+        return duplicateFn(API_ENDPOINTS.products+'/duplicate', id)
     }
 
-    const getVariations = async (data: QueryParams) => {
-        return getData(API_ENDPOINTS.variations, data, state)
+    const getProducts = async (data: QueryParams) => {
+        return getData(API_ENDPOINTS.products, data, state)
     };
 
-    const getTrashVariations = async (data: QueryParams) => {
-        return getData(API_ENDPOINTS.variations+'/trash', data, state);
+    const getTrashProducts = async (data: QueryParams) => {
+        return getData(API_ENDPOINTS.products+'/trash', data, state);
     };
 
     const getEditData = async (id: number) => {
@@ -101,22 +133,12 @@ export default function useVariations(){
         }
 
         try {
-            const response = await fetchWithRetry(window.axios.get, `/api/variations/${id}`);
-            let values = response.data.values;
-
-            if (typeof values === 'string' && values !== '') {
-                try {
-                    values = JSON.parse(values);
-                } catch {
-                    values = [];
-                }
-            }
-
+            const response = await fetchWithRetry(window.axios.get, `/api/products/${id}`);
             formData.value = {
                 ...response.data,
-                values: Array.isArray(values) && values.length
-                    ? values
-                    : [{ name: '', active: true }],
+                productdetail: Array.isArray(response.data?.productdetail) && response.data.productdetail.length > 0
+                    ? response.data.productdetail
+                    : [emptyDetail()],
             };
         } catch (error: unknown) {
             if (window.axios.isAxiosError(error)) {
@@ -130,18 +152,19 @@ export default function useVariations(){
     }
 
     const restoreBulkRecord = async (ids: Array<number>) => {
-        return restoreFn(API_ENDPOINTS.variations+'/restore_records', ids, state)
+        return restoreFn(API_ENDPOINTS.products+'/restore_records', ids, state)
     }
 
     return{
         state,
         changeStatus,
         Notify,
-        getVariations,
-        getTrashVariations,
+        getProducts,
+        getTrashProducts,
         getEditData,
         formData,
         defaultFormData,
+        emptyDetail,
         deleteRecord,
         perDeleteBulkRecord,
         restoreBulkRecord,

@@ -19,6 +19,7 @@ use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StateController;
@@ -263,6 +264,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('item-types/bulk_delete_per', [ItemTypeController::class, 'bulk_delete_per']);
     Route::post('item-types/restore_records', [ItemTypeController::class, 'restore_records']);
     /* Item Type */
+
+    /* Product */
+    Route::post('/products/import', [ProductController::class, 'import']);
+    Route::post('products/check-name', [ProductController::class, 'checkName']);
+    Route::get('products/trash', [ProductController::class, 'trash']);
+    Route::resource('products', ProductController::class);
+    Route::get('/fetchproducts', [ProductController::class, 'fetch']);
+    Route::post('/products/statusupdate', [ProductController::class, 'updatestatus']);
+    Route::post('/products/duplicate', [ProductController::class, 'duplicate']);
+    Route::post('/products/bulk_delete', [ProductController::class, 'bulk_delete']);
+    Route::post('products/bulk_delete_per', [ProductController::class, 'bulk_delete_per']);
+    Route::post('products/restore_records', [ProductController::class, 'restore_records']);
+    /* Product */
 
     /* Variation */
     Route::post('/variations/import', [VariationController::class, 'import']);

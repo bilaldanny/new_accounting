@@ -218,6 +218,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('itemtype.trash');
     /* Item Type */
 
+    /* Product */
+    Route::get('product', function () {
+        return Inertia::render('product/index');
+    })->name('product');
+
+    Route::get('product/trash', function () {
+        return Inertia::render('product/trash');
+    })->name('product.trash');
+    /* Product */
+
     /* Variation */
     Route::get('variation', function () {
         return Inertia::render('variation/index');

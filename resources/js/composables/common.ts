@@ -24,6 +24,7 @@ const sharedBrandsdata = ref([]);
 const sharedItemTypesdata = ref([]);
 const sharedSubcategoriesdata = ref([]);
 const sharedWarrantiesdata = ref([]);
+const sharedVariationsdata = ref([]);
 
 type IsotopeInstance = {
     layout: () => void;
@@ -65,6 +66,7 @@ export default function useCommons(){
     const itemtypesdata = sharedItemTypesdata;
     const subcategoriesdata = sharedSubcategoriesdata;
     const warrantiesdata = sharedWarrantiesdata;
+    const variationsdata = sharedVariationsdata;
     const loading = ref(false);
     const MAX_RETRIES = 1;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1067,6 +1069,46 @@ export default function useCommons(){
         await fetchWarranty(company_id);
     };
 
+    const fetchVariation = async (
+        company_id: string | number | null | undefined,
+        category_id?: string | number | null | undefined,
+        subcategory_id?: string | number | null | undefined,
+        itemtype_id?: string | number | null | undefined,
+    ) => {
+        if (company_id === null || company_id === undefined || company_id === '') {
+            variationsdata.value = [];
+            return;
+        }
+
+        loading.value = true;
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchvariations', {
+                params: {
+                    company_id,
+                    ...(category_id ? { category_id } : {}),
+                    ...(subcategory_id ? { subcategory_id } : {}),
+                    ...(itemtype_id ? { itemtype_id } : {}),
+                },
+            });
+            variationsdata.value = response.data;
+        } catch (error) {
+            if (error.response?.data?.message !== 'Unauthenticated.') {
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const getVariation = async (
+        company_id: string | number | null | undefined,
+        category_id?: string | number | null | undefined,
+        subcategory_id?: string | number | null | undefined,
+        itemtype_id?: string | number | null | undefined,
+    ) => {
+        await fetchVariation(company_id, category_id, subcategory_id, itemtype_id);
+    };
+
     function changeCountry(id){
         fetchState(id);
     }
@@ -1134,6 +1176,8 @@ export default function useCommons(){
         subcategoriesdata,
         fetchWarranty,
         warrantiesdata,
+        fetchVariation,
+        variationsdata,
         getBranch,
         getDepartment,
         getCustomerGroup,
@@ -1143,6 +1187,7 @@ export default function useCommons(){
         getItemType,
         getSubCategory,
         getWarranty,
+        getVariation,
         changeCountry,
         changeState,
         imageError,

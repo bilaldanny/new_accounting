@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Variation;
+use App\Models\Product;
 use App\Support\ImportResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -11,58 +11,36 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class VariationController extends Controller
+class ProductController extends Controller
 {
     /**
      * @return array<string, mixed>
      */
-    protected function variationFormRules(): array
+    protected function productFormRules(): array
     {
         return [
+            'name' => 'bail|required|string|min:2|max:200',
+            'unit_id' => 'bail|required',
+            'brand_id' => 'bail|required',
             'category_id' => 'bail|required',
             'itemtype_id' => 'bail|required',
+            'type' => 'bail|required|in:single,variable',
             'subcategory_id' => 'nullable',
-            'values' => 'nullable|array',
-            'values.*.name' => 'nullable|string|max:200',
-            'values.*.active' => 'nullable|boolean',
-            'priority' => 'nullable|integer|min:0',
-            'active' => 'nullable|boolean',
+            'warranty_id' => 'nullable',
+            'alert_qty' => 'nullable|numeric|min:0',
+            'weight' => 'nullable|numeric|min:0',
+            'sku' => 'nullable|string|max:100',
+            'product_desc' => 'nullable|string',
+            'product_image' => 'nullable',
+            'productdetail' => 'bail|required|array|min:1',
+            'productdetail.*.variation_name' => 'bail|required|string|max:200',
+            'productdetail.*.default_purchase_price' => 'nullable|numeric|min:0',
+            'productdetail.*.profit_percent' => 'nullable|numeric|min:0',
+            'productdetail.*.default_sell_price' => 'nullable|numeric|min:0',
+            'productdetail.*.largequantity' => 'nullable|numeric|min:0',
+            'productdetail.*.smallquantity' => 'nullable|numeric|min:0',
             'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
         ];
-    }
-
-    protected function normalizeVariationRequest(Request $request): void
-    {
-        if ($request->has('active')) {
-            $request->merge([
-                'active' => Variation::normalizeRequestBool($request->input('active')),
-            ]);
-        }
-
-        $rawValues = $request->input('values');
-
-        if (is_string($rawValues) && $rawValues !== '') {
-            $decoded = json_decode($rawValues, true);
-            $rawValues = is_array($decoded) ? $decoded : $rawValues;
-        }
-
-        if (is_array($rawValues)) {
-            $request->merge([
-                'values' => collect($rawValues)
-                    ->map(function ($value) {
-                        if (! is_array($value)) {
-                            return $value;
-                        }
-
-                        if (array_key_exists('active', $value)) {
-                            $value['active'] = Variation::normalizeRequestBool($value['active']);
-                        }
-
-                        return $value;
-                    })
-                    ->all(),
-            ]);
-        }
     }
 
     public function index(Request $request)
@@ -74,13 +52,15 @@ class VariationController extends Controller
         $search = $request->search ?? '';
         $cur_page = $request->cur_page ?? 1;
 
-        $query = Variation::query()
+        $query = Product::query()
             ->visibleToCurrentUser()
             ->with([
                 'company:id,name',
                 'category:id,name',
                 'subcategory:id,name',
                 'itemtype:id,name',
+                'brand:id,name',
+                'unit:id,name',
             ])
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('active', $status);
@@ -90,10 +70,7 @@ class VariationController extends Controller
             })
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
-                    $sub->where('values', 'like', "%{$search}%")
-                        ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('subcategory', fn ($subcategoryQuery) => $subcategoryQuery->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('itemtype', fn ($itemtypeQuery) => $itemtypeQuery->where('name', 'like', "%{$search}%"));
+                    $sub->whereAny(['name', 'sku'], 'like', "%{$search}%");
                 });
             })
             ->when($request->filled('company_id'), function ($q) use ($request) {
@@ -108,48 +85,72 @@ class VariationController extends Controller
             ->when($request->filled('itemtype_id'), function ($q) use ($request) {
                 $q->where('itemtype_id', $request->itemtype_id);
             })
+            ->when($request->filled('brand_id'), function ($q) use ($request) {
+                $q->where('brand_id', $request->brand_id);
+            })
+            ->when($request->filled('type') && $request->type !== 'all', function ($q) use ($request) {
+                $q->where('type', $request->type);
+            })
             ->orderBy($sort_by, $sort_type);
 
         Paginator::currentPageResolver(function () use ($cur_page) {
             return $cur_page;
         });
 
-        $variations = $query->paginate($show_record);
+        $products = $query->paginate($show_record);
 
-        if ($cur_page > $variations->lastPage()) {
-            Paginator::currentPageResolver(function () use ($variations) {
-                return $variations->lastPage();
+        if ($cur_page > $products->lastPage()) {
+            Paginator::currentPageResolver(function () use ($products) {
+                return $products->lastPage();
             });
-            $variations = $query->paginate($show_record);
+            $products = $query->paginate($show_record);
         }
 
-        $variations->getCollection()->transform(function (Variation $variation) {
-            $categoryName = $variation->category?->name;
-            $subcategoryName = $variation->subcategory?->name;
+        $products->getCollection()->transform(function (Product $product) {
+            $product->company_name = $product->company?->name;
+            $product->category_name = $product->category?->name;
+            $product->subcategory_name = $product->subcategory?->name;
+            $product->itemtype_name = $product->itemtype?->name;
+            $product->brand_name = $product->brand?->name;
+            $product->unit_name = $product->unit?->name;
+            $product->category_label = trim(implode(' / ', array_filter([
+                $product->category_name,
+                $product->subcategory_name,
+            ]))) ?: null;
+            $product->product_image_url = Product::imageUrl($product->product_image);
 
-            $variation->company_name = $variation->company?->name;
-            $variation->category_name = $subcategoryName
-                ? trim($categoryName.' / '.$subcategoryName, ' /')
-                : $categoryName;
-            $variation->itemtype_name = $variation->itemtype?->name;
-            $variation->values_display = Variation::valuesDisplay($variation->values);
-
-            return $variation;
+            return $product;
         });
 
-        $trash_count = Variation::onlyTrashed()->count();
+        $trash_count = Product::onlyTrashed()->count();
 
-        return response()->json(['data' => $variations, 'trash_count' => $trash_count]);
+        return response()->json(['data' => $products, 'trash_count' => $trash_count]);
+    }
+
+    public function checkName(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'except_id' => 'nullable|integer',
+            'company_id' => 'nullable',
+        ]);
+
+        return response()->json([
+            'name_taken' => Product::nameExists(
+                $request->string('name')->toString(),
+                $request->integer('except_id') ?: null,
+                Product::resolveScopedId($request->company_id),
+            ),
+        ]);
     }
 
     public function store(Request $request)
     {
-        $this->normalizeVariationRequest($request);
-        $request->validate($this->variationFormRules());
+        $request->validate($this->productFormRules());
 
         DB::beginTransaction();
         try {
-            Variation::createVariation($request);
+            Product::createProduct($request);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -167,15 +168,17 @@ class VariationController extends Controller
     {
         $request->validate([
             'rows' => 'required|array|min:1',
-            'rows.*.category' => 'nullable',
+            'rows.*.name' => 'bail|required|string|min:2|max:200',
+            'rows.*.unit_id' => 'nullable',
+            'rows.*.unit' => 'nullable',
+            'rows.*.brand_id' => 'nullable',
+            'rows.*.brand' => 'nullable',
             'rows.*.category_id' => 'nullable',
-            'rows.*.subcategory' => 'nullable',
-            'rows.*.subcategory_id' => 'nullable',
+            'rows.*.category' => 'nullable',
+            'rows.*.itemtype_id' => 'nullable',
             'rows.*.item_type' => 'nullable',
             'rows.*.itemtype' => 'nullable',
-            'rows.*.itemtype_id' => 'nullable',
-            'rows.*.values' => 'bail|required',
-            'rows.*.priority' => 'nullable|integer|min:0',
+            'rows.*.type' => 'nullable|in:single,variable',
         ]);
 
         DB::beginTransaction();
@@ -191,7 +194,7 @@ class VariationController extends Controller
                     ]);
                 }
 
-                if (Variation::upsertFromImport($row) === 'created') {
+                if (Product::upsertFromImport($row) === 'created') {
                     $created++;
                 } else {
                     $updated++;
@@ -213,35 +216,33 @@ class VariationController extends Controller
             count($request->rows),
             $created,
             $updated,
-            'variation records'
+            'product records'
         );
     }
 
     public function show($id)
     {
-        $variation = Variation::findVisibleToCurrentUser((int) $id);
+        $product = Product::query()
+            ->visibleToCurrentUser()
+            ->with('productdetail')
+            ->find((int) $id);
 
-        if ($variation === null) {
+        if ($product === null) {
             abort(404);
         }
 
-        if ($variation->values === null || $variation->values === []) {
-            $variation->values = [
-                ['name' => '', 'active' => true],
-            ];
-        }
+        $product->product_image_url = Product::imageUrl($product->product_image);
 
-        return response()->json($variation);
+        return response()->json($product);
     }
 
     public function update(Request $request, $id)
     {
-        $this->normalizeVariationRequest($request);
-        $request->validate($this->variationFormRules());
+        $request->validate($this->productFormRules());
 
         DB::beginTransaction();
         try {
-            Variation::updateVariation($request, (int) $id);
+            Product::updateProduct($request, (int) $id);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -258,13 +259,13 @@ class VariationController extends Controller
     public function destroy($id)
     {
         if (deletepermission()) {
-            $variation = Variation::findVisibleToCurrentUser((int) $id);
+            $product = Product::findVisibleToCurrentUser((int) $id);
 
-            if ($variation === null) {
+            if ($product === null) {
                 abort(404);
             }
 
-            Variation::deleteVariation((int) $id);
+            Product::deleteProduct((int) $id);
 
             return response()->json(['message' => 'Successfully Deleted']);
         }
@@ -277,13 +278,13 @@ class VariationController extends Controller
         if (deletepermission()) {
             DB::beginTransaction();
             try {
-                $ids = Variation::query()
+                $ids = Product::query()
                     ->visibleToCurrentUser()
                     ->whereIn('id', $request->all())
                     ->pluck('id');
 
-                foreach ($ids as $variationId) {
-                    Variation::deleteVariation((int) $variationId);
+                foreach ($ids as $productId) {
+                    Product::deleteProduct((int) $productId);
                 }
 
                 DB::commit();
@@ -304,13 +305,13 @@ class VariationController extends Controller
         if (deletepermission()) {
             DB::beginTransaction();
             try {
-                $ids = Variation::query()
+                $ids = Product::query()
                     ->onlyTrashed()
                     ->visibleToCurrentUser()
                     ->whereIn('id', (array) $request->all())
                     ->pluck('id');
 
-                Variation::whereIn('id', $ids)->forceDelete();
+                Product::whereIn('id', $ids)->forceDelete();
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Deleted']);
@@ -326,25 +327,25 @@ class VariationController extends Controller
 
     public function updatestatus(Request $request)
     {
-        $variations = Variation::query()
+        $products = Product::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
             ->get();
 
-        if (isset($variations)) {
+        if (isset($products)) {
             DB::beginTransaction();
             try {
-                foreach ($variations as $variation) {
+                foreach ($products as $product) {
                     if (isset($request->status)) {
-                        $variation->active = $request->status;
+                        $product->active = $request->status;
                     } else {
-                        if ($variation->active == false) {
-                            $variation->active = 'true';
+                        if ($product->active == false) {
+                            $product->active = 'true';
                         } else {
-                            $variation->active = 'false';
+                            $product->active = 'false';
                         }
                     }
-                    $variation->save();
+                    $product->save();
                 }
                 DB::commit();
             } catch (Throwable $e) {
@@ -364,13 +365,13 @@ class VariationController extends Controller
         if (deletepermission()) {
             DB::beginTransaction();
             try {
-                $ids = Variation::query()
+                $ids = Product::query()
                     ->onlyTrashed()
                     ->visibleToCurrentUser()
                     ->whereIn('id', $request->all())
                     ->pluck('id');
 
-                Variation::whereIn('id', $ids)->restore();
+                Product::whereIn('id', $ids)->restore();
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
@@ -388,14 +389,28 @@ class VariationController extends Controller
     {
         DB::beginTransaction();
         try {
-            $variation = Variation::findVisibleToCurrentUser((int) $request->id);
+            $product = Product::query()
+                ->visibleToCurrentUser()
+                ->with('productdetail')
+                ->find((int) $request->id);
 
-            if ($variation === null) {
+            if ($product === null) {
                 abort(404);
             }
 
-            $duplicator = $variation->replicate();
+            $duplicator = $product->replicate();
+            $duplicator->name = $this->duplicateProductName($product->name, $product->company_id);
+            $duplicator->sku = Product::generateSku(Product::resolveScopedId($product->company_id));
             $duplicator->save();
+
+            foreach ($product->productdetail as $index => $detail) {
+                $cloned = $detail->replicate();
+                $cloned->product_id = $duplicator->id;
+                $cloned->name = $duplicator->name.' '.$detail->variation_name;
+                $cloned->sku = Product::variationSku($duplicator->sku, $index + 1);
+                $cloned->save();
+            }
+
             DB::commit();
 
             return response()->json(['message' => 'Successfully Duplicated']);
@@ -406,26 +421,32 @@ class VariationController extends Controller
         }
     }
 
+    private function duplicateProductName(string $name, mixed $companyId = null): string
+    {
+        $companyId = Product::resolveScopedId($companyId);
+        $candidate = $name.' Copy';
+        $suffix = 1;
+
+        while (Product::nameExists($candidate, null, $companyId)) {
+            $suffix++;
+            $candidate = $name.' Copy '.$suffix;
+        }
+
+        return $candidate;
+    }
+
     public function fetch(Request $request)
     {
-        $variations = Variation::query()
+        $products = Product::query()
             ->visibleToCurrentUser()
             ->where('active', '=', 1)
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
             })
-            ->when($request->filled('category_id'), function ($q) use ($request) {
-                $q->where('category_id', $request->category_id);
-            })
-            ->when($request->filled('subcategory_id'), function ($q) use ($request) {
-                $q->where('subcategory_id', $request->subcategory_id);
-            })
-            ->when($request->filled('itemtype_id'), function ($q) use ($request) {
-                $q->where('itemtype_id', $request->itemtype_id);
-            })
+            ->select('products.*', 'name as text')
             ->get();
 
-        return response()->json($variations);
+        return response()->json($products);
     }
 
     public function trash(Request $request)
@@ -437,13 +458,13 @@ class VariationController extends Controller
         $search = $request->search ?? '';
         $cur_page = $request->cur_page ?? 1;
 
-        $query = Variation::onlyTrashed()
+        $query = Product::onlyTrashed()
             ->visibleToCurrentUser()
             ->with([
-                'company:id,name',
                 'category:id,name',
                 'subcategory:id,name',
                 'itemtype:id,name',
+                'brand:id,name',
             ])
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('active', $status);
@@ -453,9 +474,7 @@ class VariationController extends Controller
             })
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
-                    $sub->where('values', 'like', "%{$search}%")
-                        ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('itemtype', fn ($itemtypeQuery) => $itemtypeQuery->where('name', 'like', "%{$search}%"));
+                    $sub->whereAny(['name', 'sku'], 'like', "%{$search}%");
                 });
             })
             ->orderBy($sort_by, $sort_type);
@@ -464,29 +483,26 @@ class VariationController extends Controller
             return $cur_page;
         });
 
-        $variations = $query->paginate($show_record);
+        $products = $query->paginate($show_record);
 
-        if ($cur_page > $variations->lastPage()) {
-            Paginator::currentPageResolver(function () use ($variations) {
-                return $variations->lastPage();
+        if ($cur_page > $products->lastPage()) {
+            Paginator::currentPageResolver(function () use ($products) {
+                return $products->lastPage();
             });
-            $variations = $query->paginate($show_record);
+            $products = $query->paginate($show_record);
         }
 
-        $variations->getCollection()->transform(function (Variation $variation) {
-            $categoryName = $variation->category?->name;
-            $subcategoryName = $variation->subcategory?->name;
+        $products->getCollection()->transform(function (Product $product) {
+            $product->category_label = trim(implode(' / ', array_filter([
+                $product->category?->name,
+                $product->subcategory?->name,
+            ]))) ?: null;
+            $product->itemtype_name = $product->itemtype?->name;
+            $product->brand_name = $product->brand?->name;
 
-            $variation->company_name = $variation->company?->name;
-            $variation->category_name = $subcategoryName
-                ? trim($categoryName.' / '.$subcategoryName, ' /')
-                : $categoryName;
-            $variation->itemtype_name = $variation->itemtype?->name;
-            $variation->values_display = Variation::valuesDisplay($variation->values);
-
-            return $variation;
+            return $product;
         });
 
-        return response()->json(['data' => $variations]);
+        return response()->json(['data' => $products]);
     }
 }
