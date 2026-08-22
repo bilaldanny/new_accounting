@@ -138,9 +138,7 @@ class Variation extends Model
     public static function normalizeValues(?array $values): array
     {
         if ($values === null || $values === []) {
-            return [
-                ['name' => '', 'active' => true],
-            ];
+            return [];
         }
 
         return collect($values)

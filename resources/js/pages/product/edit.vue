@@ -13,11 +13,13 @@
         formData:{type: Object},
         formRef:{type: Object},
         endpoint:{type: String},
+        recordId:{type: Number, default: null},
         onOpen:{type: Function},
         onClose:{type: Function},
         onSubmit:{type: Function},
         success:{type: Function},
         error:{type: Function},
+        logoUrl:{type: String, default: ''},
     });
 
     const formRef = ref(null)
@@ -35,11 +37,11 @@
         }
     });
 
-    async function submitWithValues(form$) {
+    async function submitWithDetails(form$) {
         try {
             const response = await window.axios.post(modalProps.endpoint, {
                 ...form$?.data,
-                values: modalProps.formData?.values ?? [],
+                productdetail: modalProps.formData?.productdetail ?? [],
             });
 
             modalProps.success?.(response);
@@ -59,14 +61,14 @@
     }
 
     defineExpose({
-    reset,
+        reset,
     })
 </script>
 
 <template>
     <ModalComponent
-        id="AddModal"
-        :title="`Add ${props.routeName}`"
+        id="EditModal"
+        :title="`Edit ${props.routeName}`"
         :onOpen="modalProps.onOpen"
         :onClose="modalProps.onClose"
         size="xl"
@@ -75,14 +77,21 @@
         <TheForm
             v-if="!modalProps.showLoader"
             v-model:submitting="isSaving"
-            :onSubmit="submitWithValues"
+            :key="modalProps.endpoint"
+            :onSubmit="submitWithDetails"
             :formData="modalProps.formData"
             :success="modalProps.success"
             :error="modalProps.error"
             :url="modalProps.endpoint"
             ref="formRef"
         >
-            <Fields :form-data="modalProps.formData" :form-ref="formRef" />
+            <Fields
+                type="edit"
+                :record-id="modalProps.recordId"
+                :form-data="modalProps.formData"
+                :form-ref="formRef"
+                :logo-url="modalProps.logoUrl"
+            />
         </TheForm>
 
         <template #footer>
@@ -106,4 +115,3 @@
         </template>
     </ModalComponent>
 </template>
-

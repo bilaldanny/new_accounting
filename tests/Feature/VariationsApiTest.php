@@ -98,6 +98,19 @@ test('variations api creates a variation with required fields', function () {
     ]);
 });
 
+test('variations api rejects missing values', function () {
+    $scope = seedVariationScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $payload = validVariationPayload($scope);
+    unset($payload['values']);
+
+    $this->postJson('/api/variations', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['values']);
+});
+
 test('variations api rejects empty value lists', function () {
     $scope = seedVariationScope();
     $superadmin = User::query()->findOrFail(1);

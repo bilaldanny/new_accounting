@@ -35,11 +35,11 @@
         }
     });
 
-    async function submitWithValues(form$) {
+    async function submitWithDetails(form$) {
         try {
             const response = await window.axios.post(modalProps.endpoint, {
                 ...form$?.data,
-                values: modalProps.formData?.values ?? [],
+                productdetail: modalProps.formData?.productdetail ?? [],
             });
 
             modalProps.success?.(response);
@@ -75,7 +75,7 @@
         <TheForm
             v-if="!modalProps.showLoader"
             v-model:submitting="isSaving"
-            :onSubmit="submitWithValues"
+            :onSubmit="submitWithDetails"
             :formData="modalProps.formData"
             :success="modalProps.success"
             :error="modalProps.error"
@@ -106,4 +106,3 @@
         </template>
     </ModalComponent>
 </template>
-
