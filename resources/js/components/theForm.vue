@@ -57,14 +57,18 @@ import { nextTick, reactive, ref, watch } from 'vue';
     }
 
     const handleSubmit = async (form$: any, formData: FormData) => {
+        if (typeof params.onSubmit !== 'function') {
+            return;
+        }
+
         isSubmitting.value = true;
 
-        if (typeof params.onSubmit === 'function') {
-            try {
-                await params.onSubmit(form$, formData);
-            } catch {
-                isSubmitting.value = false;
-            }
+        try {
+            await params.onSubmit(form$, formData);
+        } catch (error) {
+            params.error?.(error, { type: 'submit' });
+        } finally {
+            isSubmitting.value = false;
         }
     }
 
@@ -82,7 +86,6 @@ import { nextTick, reactive, ref, watch } from 'vue';
         isSubmitting.value = false;
     }
 
-    // expose a method so parent can trigger submit
     async function submitForm() {
         if (!vueform$.value || isSubmitting.value) {
             return;
@@ -94,13 +97,19 @@ import { nextTick, reactive, ref, watch } from 'vue';
             await vueform$.value.validate();
 
             if (vueform$.value.invalid) {
-                isSubmitting.value = false;
+                return;
+            }
+
+            if (typeof params.onSubmit === 'function') {
+                await params.onSubmit(vueform$.value, vueform$.value.data);
 
                 return;
             }
 
-            vueform$.value.submit();
-        } catch {
+            await vueform$.value.submit();
+        } catch (error) {
+            params.error?.(error, { type: 'submit' });
+        } finally {
             isSubmitting.value = false;
         }
     }

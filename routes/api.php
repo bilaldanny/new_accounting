@@ -268,6 +268,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     /* Product */
     Route::post('/products/import', [ProductController::class, 'import']);
     Route::post('products/check-name', [ProductController::class, 'checkName']);
+    Route::post('/products/generate-variants', [ProductController::class, 'generateVariants']);
     Route::get('products/trash', [ProductController::class, 'trash']);
     Route::resource('products', ProductController::class);
     Route::get('/fetchproducts', [ProductController::class, 'fetch']);

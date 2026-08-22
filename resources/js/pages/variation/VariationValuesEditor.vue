@@ -64,6 +64,19 @@
         updateValues(nextValues);
     }
 
+    function isDuplicateName(name: string, index: number): boolean {
+        const normalized = name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+        if (normalized === '') {
+            return false;
+        }
+
+        return localValues.value.some((item, itemIndex) => (
+            itemIndex !== index
+            && item.name.trim().replace(/\s+/g, ' ').toLowerCase() === normalized
+        ));
+    }
+
     function updateActive(index: number, active: boolean) {
         const nextValues = localValues.value.map((item, itemIndex) => (
             itemIndex === index ? { ...item, active } : item
@@ -106,10 +119,14 @@
                         :id="`variation-value-${index}`"
                         type="text"
                         class="form-control form-control-sm"
+                        :class="{ 'is-invalid': isDuplicateName(item.name, index) }"
                         placeholder="e.g. Medium, Blue, Leather"
                         :value="item.name"
                         @input="updateName(index, ($event.target as HTMLInputElement).value)"
                     >
+                    <div v-if="isDuplicateName(item.name, index)" class="invalid-feedback">
+                        This value is already used in this variation.
+                    </div>
                 </div>
 
                 <div class="variation-values-editor__toggle">

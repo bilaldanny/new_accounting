@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\VariantCombiner;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class Product extends Model
@@ -379,13 +382,30 @@ class Product extends Model
     /**
      * @throws ValidationException
      */
-    public static function assertValidDetails(?array $details): void
+    public static function assertValidDetails(?array $details, string $type = 'single'): void
     {
         $normalized = self::normalizeDetails($details, 'Product');
 
         if ($normalized === []) {
             throw ValidationException::withMessages([
                 'productdetail' => ['Add at least one pricing row.'],
+            ]);
+        }
+
+        $labels = collect($normalized)
+            ->map(fn (array $row): string => VariantCombiner::normalizeLabel((string) $row['variation_name']));
+
+        if ($labels->count() !== $labels->unique()->count()) {
+            throw ValidationException::withMessages([
+                'productdetail' => ['Each product variant must have a unique combination of variation values.'],
+            ]);
+        }
+
+        if ($type === 'variable' && count($normalized) > VariantCombiner::MAX_COMBINATIONS) {
+            throw ValidationException::withMessages([
+                'productdetail' => [
+                    'This selection creates '.count($normalized).' variants. Maximum is '.VariantCombiner::MAX_COMBINATIONS.'.',
+                ],
             ]);
         }
     }
@@ -395,7 +415,10 @@ class Product extends Model
         $companyId = self::resolveScopedId($request->company_id);
 
         self::assertUniqueName($request->name, null, $companyId);
-        self::assertValidDetails($request->productdetail ?? null);
+        self::assertValidDetails(
+            $request->productdetail ?? null,
+            in_array($request->type, ['single', 'variable'], true) ? $request->type : 'single',
+        );
 
         $product = new self;
         $product->fillFromRequest($request, $companyId);
@@ -419,7 +442,10 @@ class Product extends Model
         $companyId = self::resolveScopedId($request->company_id);
 
         self::assertUniqueName($request->name, $id, $companyId);
-        self::assertValidDetails($request->productdetail ?? null);
+        self::assertValidDetails(
+            $request->productdetail ?? null,
+            in_array($request->type, ['single', 'variable'], true) ? $request->type : (string) $product->type,
+        );
 
         $product->fillFromRequest($request, $companyId);
         $product->sku = trim((string) ($request->sku ?? '')) !== ''
@@ -457,11 +483,51 @@ class Product extends Model
             $keptIds[] = $detail->id;
         }
 
-        ProductDetail::query()
+        $orphanQuery = ProductDetail::query()
             ->where('product_id', $product->id)
-            ->when($keptIds !== [], fn (Builder $query) => $query->whereNotIn('id', $keptIds))
-            ->when($keptIds === [], fn (Builder $query) => $query)
-            ->delete();
+            ->when($keptIds !== [], fn (Builder $query) => $query->whereNotIn('id', $keptIds));
+
+        $orphanIds = $orphanQuery->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $blockedIds = self::detailIdsWithHistory($orphanIds);
+
+        if ($blockedIds !== []) {
+            throw ValidationException::withMessages([
+                'productdetail' => ['One or more variants cannot be removed because they already have stock or transaction history.'],
+            ]);
+        }
+
+        if ($orphanIds !== []) {
+            ProductDetail::query()->whereIn('id', $orphanIds)->delete();
+        }
+    }
+
+    /**
+     * @param  list<int>  $detailIds
+     * @return list<int>
+     */
+    public static function detailIdsWithHistory(array $detailIds): array
+    {
+        if ($detailIds === []) {
+            return [];
+        }
+
+        $blocked = [];
+
+        foreach (['purchase_lines', 'sell_lines', 'opening_stocks'] as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $found = DB::table($table)
+                ->whereIn('variation_id', $detailIds)
+                ->pluck('variation_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+
+            $blocked = array_merge($blocked, $found);
+        }
+
+        return array_values(array_unique($blocked));
     }
 
     protected function fillFromRequest(object $request, ?int $companyId): void

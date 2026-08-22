@@ -162,7 +162,9 @@
 
         ] : []),
 
-        { key: 'category_name', label: 'Category', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'name', label: 'Variation', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+
+        { key: 'category_name', label: 'Category', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
 
         { key: 'itemtype_name', label: 'Item Type', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
 

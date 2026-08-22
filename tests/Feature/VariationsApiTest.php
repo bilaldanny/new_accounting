@@ -54,6 +54,7 @@ function validVariationPayload(array $scope, array $overrides = []): array
         'category_id' => $scope['category_id'],
         'subcategory_id' => $scope['subcategory_id'],
         'itemtype_id' => $scope['itemtype_id'],
+        'name' => 'Size',
         'values' => [
             ['name' => 'Small', 'active' => true],
             ['name' => 'Medium', 'active' => true],
@@ -95,7 +96,21 @@ test('variations api creates a variation with required fields', function () {
         'category_id' => $scope['category_id'],
         'subcategory_id' => $scope['subcategory_id'],
         'itemtype_id' => $scope['itemtype_id'],
+        'name' => 'Size',
     ]);
+});
+
+test('variations api rejects a missing variation name', function () {
+    $scope = seedVariationScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $payload = validVariationPayload($scope);
+    unset($payload['name']);
+
+    $this->postJson('/api/variations', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
 });
 
 test('variations api rejects missing values', function () {
@@ -185,6 +200,51 @@ test('fetch variations api returns active records for scope', function () {
 
     $response->assertSuccessful();
     expect($response->json())->toHaveCount(1);
+});
+
+test('variations api allows multiple named variations in the same scope', function () {
+    $scope = seedVariationScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/variations', validVariationPayload($scope, ['name' => 'RAM']))
+        ->assertSuccessful();
+    $this->postJson('/api/variations', validVariationPayload($scope, [
+        'name' => 'Storage',
+        'values' => [
+            ['name' => '128 GB', 'active' => true],
+            ['name' => '256 GB', 'active' => true],
+        ],
+    ]))->assertSuccessful();
+
+    expect(Variation::query()->where('company_id', $scope['company_id'])->count())->toBe(2);
+});
+
+test('variations api rejects a duplicate name in the same scope', function () {
+    $scope = seedVariationScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/variations', validVariationPayload($scope, ['name' => 'RAM']))
+        ->assertSuccessful();
+
+    $this->postJson('/api/variations', validVariationPayload($scope, ['name' => 'RAM']))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
+});
+
+test('variations api rejects duplicate values inside one variation', function () {
+    $scope = seedVariationScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/variations', validVariationPayload($scope, [
+        'values' => [
+            ['name' => '4 GB', 'active' => true],
+            ['name' => '4 GB', 'active' => true],
+        ],
+    ]))->assertUnprocessable()
+        ->assertJsonValidationErrors(['values']);
 });
 
 test('variations api updates an existing variation', function () {

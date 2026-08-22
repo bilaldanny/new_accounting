@@ -69,3 +69,34 @@ export function openLfmImagePicker(event: MouseEvent, appUrl: string): void {
         targetPreview.dispatchEvent(new Event('change', { bubbles: true }));
     };
 }
+
+export function openLfmImagePickerCallback(
+    event: Event,
+    appUrl: string,
+    onSelect: (path: string) => void,
+): void {
+    event.preventDefault();
+
+    const routePrefix = `${appUrl.replace(/\/$/, '')}/laravel-filemanager`;
+    const baseUrl = appUrl.replace(/\/$/, '');
+
+    window.open(`${routePrefix}?type=image`, 'FileManager', 'width=900,height=600');
+
+    window.SetUrl = function (items: Array<{ url: string; thumb_url?: string }>) {
+        const path = items
+            .map((item) => {
+                let url = item.url;
+
+                if (baseUrl && url.startsWith(baseUrl)) {
+                    url = url.slice(baseUrl.length);
+                }
+
+                return url;
+            })
+            .find((url) => url !== '');
+
+        if (path) {
+            onSelect(path);
+        }
+    };
+}

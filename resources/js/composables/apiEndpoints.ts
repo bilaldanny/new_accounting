@@ -71,6 +71,7 @@ export const API_ENDPOINTS = {
     products: '/api/products',
     productImport: '/api/products/import',
     productCheckName: '/api/products/check-name',
+    productGenerateVariants: '/api/products/generate-variants',
     fetchProducts: '/api/fetchproducts',
     suppliers: '/api/suppliers',
     supplierGenerateCode: '/api/suppliers/generate-code',

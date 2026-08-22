@@ -19,6 +19,7 @@ class Variation extends Model
         'category_id',
         'subcategory_id',
         'itemtype_id',
+        'name',
         'values',
         'priority',
         'active',
@@ -169,17 +170,86 @@ class Variation extends Model
                 'values' => ['Add at least one variation value.'],
             ]);
         }
+
+        $names = collect($normalized)
+            ->map(fn (array $value): string => mb_strtolower(preg_replace('/\s+/', ' ', $value['name']) ?? ''));
+
+        if ($names->count() !== $names->unique()->count()) {
+            throw ValidationException::withMessages([
+                'values' => ['Each variation value must be unique. Duplicate values are not allowed.'],
+            ]);
+        }
+    }
+
+    public static function normalizeVariationName(?string $name): string
+    {
+        return mb_strtolower(preg_replace('/\s+/', '', trim((string) $name)) ?? '');
+    }
+
+    public static function nameExistsInScope(
+        string $name,
+        ?int $companyId,
+        ?int $categoryId,
+        ?int $subcategoryId,
+        ?int $itemtypeId,
+        ?int $exceptId = null,
+    ): bool {
+        $normalized = self::normalizeVariationName($name);
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        return self::query()
+            ->when($exceptId !== null, fn (Builder $query) => $query->where('id', '!=', $exceptId))
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->where('category_id', $categoryId)
+            ->where('subcategory_id', $subcategoryId)
+            ->where('itemtype_id', $itemtypeId)
+            ->whereRaw("LOWER(REPLACE(name, ' ', '')) = ?", [$normalized])
+            ->exists();
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public static function assertUniqueNameInScope(
+        string $name,
+        ?int $companyId,
+        ?int $categoryId,
+        ?int $subcategoryId,
+        ?int $itemtypeId,
+        ?int $exceptId = null,
+    ): void {
+        if (self::nameExistsInScope($name, $companyId, $categoryId, $subcategoryId, $itemtypeId, $exceptId)) {
+            throw ValidationException::withMessages([
+                'name' => ['A variation with this name already exists for the selected category, subcategory, and item type.'],
+            ]);
+        }
     }
 
     public static function createVariation(object $request): self
     {
+        $companyId = self::resolveScopedId($request->company_id);
+        $categoryId = self::resolveScopedId($request->category_id);
+        $subcategoryId = self::resolveScopedId($request->subcategory_id);
+        $itemtypeId = self::resolveScopedId($request->itemtype_id);
+
         self::assertValidValues($request->values ?? null);
+        self::assertUniqueNameInScope(
+            (string) ($request->name ?? ''),
+            $companyId,
+            $categoryId,
+            $subcategoryId,
+            $itemtypeId,
+        );
 
         $variation = new self;
-        $variation->company_id = self::resolveScopedId($request->company_id);
-        $variation->category_id = self::resolveScopedId($request->category_id);
-        $variation->subcategory_id = self::resolveScopedId($request->subcategory_id);
-        $variation->itemtype_id = self::resolveScopedId($request->itemtype_id);
+        $variation->company_id = $companyId;
+        $variation->category_id = $categoryId;
+        $variation->subcategory_id = $subcategoryId;
+        $variation->itemtype_id = $itemtypeId;
+        $variation->name = trim((string) ($request->name ?? ''));
         $variation->values = self::normalizeValues($request->values ?? null);
         $variation->priority = (int) ($request->priority ?? 0);
         $variation->active = $request->active ?? true;
@@ -196,12 +266,26 @@ class Variation extends Model
             abort(404);
         }
 
-        self::assertValidValues($request->values ?? null);
+        $companyId = self::resolveScopedId($request->company_id);
+        $categoryId = self::resolveScopedId($request->category_id);
+        $subcategoryId = self::resolveScopedId($request->subcategory_id);
+        $itemtypeId = self::resolveScopedId($request->itemtype_id);
 
-        $variation->company_id = self::resolveScopedId($request->company_id);
-        $variation->category_id = self::resolveScopedId($request->category_id);
-        $variation->subcategory_id = self::resolveScopedId($request->subcategory_id);
-        $variation->itemtype_id = self::resolveScopedId($request->itemtype_id);
+        self::assertValidValues($request->values ?? null);
+        self::assertUniqueNameInScope(
+            (string) ($request->name ?? ''),
+            $companyId,
+            $categoryId,
+            $subcategoryId,
+            $itemtypeId,
+            (int) $id,
+        );
+
+        $variation->company_id = $companyId;
+        $variation->category_id = $categoryId;
+        $variation->subcategory_id = $subcategoryId;
+        $variation->itemtype_id = $itemtypeId;
+        $variation->name = trim((string) ($request->name ?? ''));
         $variation->values = self::normalizeValues($request->values ?? null);
         $variation->priority = (int) ($request->priority ?? 0);
         $variation->active = $request->active ?? true;
@@ -320,6 +404,7 @@ class Variation extends Model
                 $row['itemtype_id'] ?? $row['item_type'] ?? $row['itemtype'] ?? null,
                 $companyId,
             ),
+            'name' => trim((string) ($row['name'] ?? $row['variation'] ?? $row['variation_name'] ?? '')),
             'values' => self::parseImportValues($row['values'] ?? null),
             'priority' => (int) ($row['priority'] ?? 0),
             'active' => self::normalizeImportBool($active),

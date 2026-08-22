@@ -68,6 +68,7 @@
     const valuesHydrated = ref(false);
 
     const companyRules = computed(() => (isSuperadmin.value ? 'required' : ''));
+    const nameRules = 'required|min:2|max:200';
     const categoryRules = 'required';
     const itemtypeRules = 'required';
 
@@ -360,6 +361,18 @@
         :disabled="scopeDisabled"
         :rules="itemtypeRules"
         info="Required. Item type this variation applies to."
+    />
+
+    <TextElement
+        id="VariationName"
+        field-name="VariationName"
+        name="name"
+        label="Variation name"
+        placeholder="e.g. RAM, Color, Size"
+        :columns="colThird"
+        autocomplete="off"
+        :rules="nameRules"
+        info="Required. The attribute this set represents, such as RAM, color, or size."
     />
 
     <StaticElement name="section_values" :columns="colFull">

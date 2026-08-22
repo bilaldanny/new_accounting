@@ -21,6 +21,7 @@ class VariationController extends Controller
         return [
             'category_id' => 'bail|required',
             'itemtype_id' => 'bail|required',
+            'name' => 'bail|required|string|min:2|max:200',
             'subcategory_id' => 'nullable',
             'values' => 'nullable|array',
             'values.*.name' => 'nullable|string|max:200',
@@ -90,7 +91,7 @@ class VariationController extends Controller
             })
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
-                    $sub->where('values', 'like', "%{$search}%")
+                    $sub->whereAny(['name', 'values'], 'like', "%{$search}%")
                         ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('subcategory', fn ($subcategoryQuery) => $subcategoryQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('itemtype', fn ($itemtypeQuery) => $itemtypeQuery->where('name', 'like', "%{$search}%"));
@@ -174,6 +175,9 @@ class VariationController extends Controller
             'rows.*.item_type' => 'nullable',
             'rows.*.itemtype' => 'nullable',
             'rows.*.itemtype_id' => 'nullable',
+            'rows.*.name' => 'nullable|string|max:200',
+            'rows.*.variation' => 'nullable|string|max:200',
+            'rows.*.variation_name' => 'nullable|string|max:200',
             'rows.*.values' => 'bail|required',
             'rows.*.priority' => 'nullable|integer|min:0',
         ]);
@@ -423,6 +427,7 @@ class VariationController extends Controller
             ->when($request->filled('itemtype_id'), function ($q) use ($request) {
                 $q->where('itemtype_id', $request->itemtype_id);
             })
+            ->orderBy('id')
             ->get();
 
         return response()->json($variations);
@@ -453,7 +458,7 @@ class VariationController extends Controller
             })
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
-                    $sub->where('values', 'like', "%{$search}%")
+                    $sub->whereAny(['name', 'values'], 'like', "%{$search}%")
                         ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('itemtype', fn ($itemtypeQuery) => $itemtypeQuery->where('name', 'like', "%{$search}%"));
                 });

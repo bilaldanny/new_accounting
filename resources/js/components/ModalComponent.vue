@@ -13,6 +13,18 @@ const modalProps = defineProps({
     title: {
         type: String
     },
+    subtitle: {
+        type: String,
+        default: '',
+    },
+    dialogClass: {
+        type: String,
+        default: '',
+    },
+    contentClass: {
+        type: String,
+        default: '',
+    },
     header: {
         type: Boolean,
         default: true
@@ -80,18 +92,24 @@ onBeforeUnmount(() => {
                 'modal-dialog',
                 'modal-dialog-scrollable',
                 'modal-dialog-centered',
-                `modal-${modalProps.size}`
+                `modal-${modalProps.size}`,
+                modalProps.dialogClass,
             ]"
         >
-            <div class="modal-content">
+            <div class="modal-content" :class="modalProps.contentClass">
                 <div class="modal-header" v-if="modalProps.header">
-                    <h6
-                        v-if="modalProps.title"
-                        class="modal-title text-capitalize"
-                        id="exampleModalLabel1"
-                    >
-                        {{ modalProps.title }}
-                    </h6>
+                    <div class="modal-heading">
+                        <h6
+                            v-if="modalProps.title"
+                            class="modal-title text-capitalize"
+                            id="exampleModalLabel1"
+                        >
+                            {{ modalProps.title }}
+                        </h6>
+                        <p v-if="modalProps.subtitle" class="modal-subtitle mb-0">
+                            {{ modalProps.subtitle }}
+                        </p>
+                    </div>
                     <button
                         type="button"
                         id="ModalClose"

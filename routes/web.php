@@ -223,6 +223,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('product/index');
     })->name('product');
 
+    Route::get('product/add', function () {
+        return Inertia::render('product/add');
+    })->name('product.add');
+
+    Route::get('product/{id}/edit', function ($id) {
+        return Inertia::render('product/edit', ['id' => $id]);
+    })->name('product.edit');
+
     Route::get('product/trash', function () {
         return Inertia::render('product/trash');
     })->name('product.trash');

@@ -22,6 +22,7 @@ const buttonProps = defineProps({
     showFilter: { type: Boolean, default: true },
     showAdd: { type: Boolean, default: true },
     showImport: { type: Boolean, default: false },
+    addHref: { type: String, default: '' },
     filterOpen: { type: Boolean, default: false },
     showStatus: { type: Boolean, default: true },
     /** When true, refresh (reload data) is only shown if user has `/${url}/reload` in permission_paths */
@@ -204,13 +205,27 @@ const { formatedText } = useCommons();
                 Import
             </button>
 
+            <Link
+                v-if="
+                    buttonProps.showAdd &&
+                    buttonProps.addHref &&
+                    props.auth.user.permission_paths.includes(`/${buttonProps.url}/add`)
+                "
+                :href="buttonProps.addHref"
+                class="btn btn-sm btn-primary top-btn"
+            >
+                <Plus size="sm" class="top-btn-icon top-btn-icon-inline" />
+                Add New
+            </Link>
+
             <button
                 type="button"
                 class="btn btn-sm btn-primary top-btn"
                 data-bs-toggle="modal"
                 data-bs-target="#AddModal"
-                v-if="
+                v-else-if="
                     buttonProps.showAdd &&
+                    !buttonProps.addHref &&
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/add`)
                 "
             >

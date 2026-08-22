@@ -32,8 +32,8 @@
     const fileError = ref('');
     const importResult = ref<ImportResult | null>(null);
 
-    const sampleColumns = ['id', 'category', 'subcategory', 'item_type', 'values', 'active'] as const;
-    const fallbackSampleRows = [['', 'Apparel', 'Shirts', 'Finished Goods', 'Small|Medium|Large', 1]];
+    const sampleColumns = ['id', 'name', 'category', 'subcategory', 'item_type', 'values', 'active'] as const;
+    const fallbackSampleRows = [['', 'Size', 'Apparel', 'Shirts', 'Finished Goods', 'Small|Medium|Large', 1]];
 
     function formatValuesForExport(variation: Record<string, unknown>): string {
         const values = variation.values;
@@ -69,6 +69,7 @@
 
         return [
             normalizeImportExportValue(variation.id),
+            normalizeImportExportValue(variation.name),
             normalizeImportExportValue(category?.name ?? variation.category_id),
             normalizeImportExportValue(subcategory?.name ?? variation.subcategory_id),
             normalizeImportExportValue(itemtype?.name ?? variation.itemtype_name ?? variation.itemtype_id),
