@@ -234,7 +234,7 @@ const { formatedText } = useCommons();
             </button>
 
             <Link
-                :href="`${buttonProps.url}/trash`"
+                :href="`/${buttonProps.url}/trash`"
                 class="btn btn-sm btn-danger top-btn"
                 v-if="props.auth.user.permission_paths.includes(`/${buttonProps.url}/trash`)"
             >

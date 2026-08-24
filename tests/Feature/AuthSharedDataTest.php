@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CompanySetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,10 @@ test('shared auth user includes company name', function () {
 
     $user = User::query()->findOrFail($userId);
 
+    $setting = CompanySetting::createCompanySettings($companyId, 'Acme Corporation');
+    $setting->search_type = 'selectbox';
+    $setting->save();
+
     $this->actingAs($user);
 
     $this->get(route('dashboard'))
@@ -49,5 +54,6 @@ test('shared auth user includes company name', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('auth.user.company_id', $companyId)
             ->where('auth.user.company_name', 'Acme Corporation')
+            ->where('auth.user.search_type', 'selectbox')
         );
 });
