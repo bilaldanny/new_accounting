@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\CompanySetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
@@ -64,6 +65,9 @@ class HandleInertiaRequests extends Middleware
                     'rolename' => $user->rolename,
                     'company_id' => $user->company_id,
                     'company_name' => $user->company?->name,
+                    'search_type' => $user->company_id
+                        ? (CompanySetting::query()->where('company_id', $user->company_id)->value('search_type') ?: 'searchbox')
+                        : 'searchbox',
                     'branch_id' => $user->branch_id,
                     'created_at' => $user->created_at,
                     'email' => $user->email,

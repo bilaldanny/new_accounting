@@ -218,6 +218,86 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('itemtype.trash');
     /* Item Type */
 
+    /* Purchase */
+    Route::get('purchase', function () {
+        return Inertia::render('purchase/index');
+    })->name('purchase');
+
+    Route::get('purchase/add', function () {
+        return Inertia::render('purchase/add');
+    })->name('purchase.add');
+
+    Route::get('purchase/return', function () {
+        return Inertia::render('purchase/purchasereturn/index');
+    })->name('purchase.return');
+
+    Route::get('purchase/return/add', function () {
+        return Inertia::render('purchase/purchasereturn/add');
+    })->name('purchase.return.add');
+
+    Route::get('purchase/return/trash', function () {
+        return Inertia::render('purchase/purchasereturn/trash');
+    })->name('purchase.return.trash');
+
+    Route::get('purchase/return/{id}/edit', function ($id) {
+        return Inertia::render('purchase/purchasereturn/edit', ['id' => $id]);
+    })->name('purchase.return.edit');
+
+    Route::get('purchase/return/{id}/view', function ($id) {
+        return Inertia::render('purchase/purchasereturn/view', ['id' => $id]);
+    })->name('purchase.return.view');
+
+    Route::get('purchase/approval', function () {
+        return Inertia::render('approval/purchase/index');
+    })->name('purchase.approval');
+
+    Route::get('purchase/approval/{id}/view', function ($id) {
+        return Inertia::render('approval/purchase/view', [
+            'id' => $id,
+            'returnTo' => '/purchase/approval',
+            'listTitle' => 'Purchase Approval',
+        ]);
+    })->name('purchase.approval.view');
+
+    Route::get('purchase/{id}/edit', function ($id) {
+        return Inertia::render('purchase/edit', ['id' => $id]);
+    })->name('purchase.edit');
+
+    Route::get('purchase/{id}/view', function ($id) {
+        return Inertia::render('approval/purchase/view', [
+            'id' => $id,
+            'returnTo' => '/purchase',
+            'listTitle' => 'Purchase Management',
+        ]);
+    })->name('purchase.view');
+
+    Route::get('purchase/trash', function () {
+        return Inertia::render('purchase/trash');
+    })->name('purchase.trash');
+    /* Purchase */
+
+    /* Receiving Note */
+    Route::get('receivingnote', function () {
+        return Inertia::render('purchase/receivingnote/index');
+    })->name('receivingnote');
+
+    Route::get('receivingnote/add', function () {
+        return Inertia::render('purchase/receivingnote/add');
+    })->name('receivingnote.add');
+
+    Route::get('receivingnote/trash', function () {
+        return Inertia::render('purchase/receivingnote/trash');
+    })->name('receivingnote.trash');
+
+    Route::get('receivingnote/{id}/edit', function ($id) {
+        return Inertia::render('purchase/receivingnote/edit', ['id' => $id]);
+    })->name('receivingnote.edit');
+
+    Route::get('receivingnote/{id}/view', function ($id) {
+        return Inertia::render('purchase/receivingnote/view', ['id' => $id]);
+    })->name('receivingnote.view');
+    /* Receiving Note */
+
     /* Product */
     Route::get('product', function () {
         return Inertia::render('product/index');

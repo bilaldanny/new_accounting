@@ -365,6 +365,44 @@ import { formatNumber } from '@/utils/numberFormat';
         );
     }
 
+    function canShowApproveAction(col: Column): boolean {
+        return !!(col.actions?.includes('approve') && tableData.approve);
+    }
+
+    function canShowReceivingNoteAction(col: Column): boolean {
+        return !!col.actions?.includes('receivingNote');
+    }
+
+    function canShowPurchaseReturnAction(col: Column): boolean {
+        return !!col.actions?.includes('return');
+    }
+
+    function canShowPurchaseWorkflowDivider(col: Column): boolean {
+        return canShowApproveAction(col)
+            || canShowReceivingNoteAction(col)
+            || canShowPurchaseReturnAction(col);
+    }
+
+    function receivingNoteHref(row: Record<string, unknown>): string {
+        const noteId = row.receiving_note_id;
+
+        if (noteId) {
+            return `/receivingnote/${noteId}/edit`;
+        }
+
+        return `/receivingnote/add?purchase_id=${row.id}`;
+    }
+
+    function purchaseReturnHref(row: Record<string, unknown>): string {
+        const returnId = row.purchase_return_id;
+
+        if (returnId) {
+            return `/purchase/return/${returnId}/edit`;
+        }
+
+        return `/purchase/return/add?purchase_id=${row.id}`;
+    }
+
     function viewRouteWithTab(rowId: number, tab: string): string {
         const base = tableData.viewRoute?.(rowId);
 
@@ -419,6 +457,8 @@ import { formatNumber } from '@/utils/numberFormat';
                         return paths.includes(`/${apiUrl}/:id/permission`);
                     case 'approve':
                     case 'reject':
+                    case 'receivingNote':
+                    case 'return':
                         return true;
                     case 'invoice':
                         return canUseInvoiceAction(apiUrl);
@@ -1139,6 +1179,35 @@ import { formatNumber } from '@/utils/numberFormat';
                                                     </a>
                                                 <!-- Delete -->
 
+                                                <template v-if="canShowPurchaseWorkflowDivider(col)">
+                                                    <div class="dropdown-divider"></div>
+
+                                                    <a
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        v-if="canShowApproveAction(col)"
+                                                        @click="tableData.approve?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-check-circle-outline"></i> Approve
+                                                    </a>
+
+                                                    <Link
+                                                        v-if="canShowReceivingNoteAction(col)"
+                                                        class="dropdown-item"
+                                                        :href="receivingNoteHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-package-variant-closed"></i> Receiving note
+                                                    </Link>
+
+                                                    <Link
+                                                        v-if="canShowPurchaseReturnAction(col)"
+                                                        class="dropdown-item"
+                                                        :href="purchaseReturnHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-undo"></i> Return
+                                                    </Link>
+                                                </template>
+
                                                 <!-- Permission -->
                                                     <Link
                                                         :href="`${tableData.apiUrl}/${row.id}/permission`"
@@ -1151,17 +1220,6 @@ import { formatNumber } from '@/utils/numberFormat';
                                                         <i class="mdi mdi-lock-outline"></i> Permission
                                                     </Link>
                                                 <!-- Permission -->
-
-                                                <!-- Approve -->
-                                                    <a
-                                                        class="dropdown-item"
-                                                        href="javascript:void(0)"
-                                                        v-if="col.actions?.includes('approve') && row.status === 'pending' && tableData.approve"
-                                                        @click="tableData.approve?.(row.id)"
-                                                    >
-                                                        <i class="mdi mdi-check-circle-outline"></i> Approve
-                                                    </a>
-                                                <!-- Approve -->
 
                                                 <!-- Reject -->
                                                     <a

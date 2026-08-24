@@ -20,6 +20,10 @@ use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PurchaseApprovalController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PurchaseReturnController;
+use App\Http\Controllers\ReceivingNoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StateController;
@@ -264,6 +268,43 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('item-types/bulk_delete_per', [ItemTypeController::class, 'bulk_delete_per']);
     Route::post('item-types/restore_records', [ItemTypeController::class, 'restore_records']);
     /* Item Type */
+
+    /* Purchase */
+    Route::get('purchases/search-products', [PurchaseController::class, 'searchProducts']);
+    Route::get('purchases/trash', [PurchaseController::class, 'trash']);
+    Route::resource('purchases', PurchaseController::class);
+    Route::post('/purchases/statusupdate', [PurchaseController::class, 'updatestatus']);
+    Route::post('/purchases/duplicate', [PurchaseController::class, 'duplicate']);
+    Route::post('/purchases/bulk_delete', [PurchaseController::class, 'bulk_delete']);
+    Route::post('purchases/bulk_delete_per', [PurchaseController::class, 'bulk_delete_per']);
+    Route::post('purchases/restore_records', [PurchaseController::class, 'restore_records']);
+    /* Purchase */
+
+    /* Purchase Approval */
+    Route::get('purchase-approvals', [PurchaseApprovalController::class, 'index']);
+    Route::get('purchase-approvals/{id}', [PurchaseApprovalController::class, 'show']);
+    Route::post('purchase-approvals/{id}/approve', [PurchaseApprovalController::class, 'approve']);
+    /* Purchase Approval */
+
+    /* Receiving Note */
+    Route::get('receiving-notes/eligible-purchases', [ReceivingNoteController::class, 'eligiblePurchases']);
+    Route::get('receiving-notes/purchase/{id}', [ReceivingNoteController::class, 'purchaseLines']);
+    Route::get('receiving-notes/trash', [ReceivingNoteController::class, 'trash']);
+    Route::resource('receiving-notes', ReceivingNoteController::class);
+    Route::post('receiving-notes/bulk_delete', [ReceivingNoteController::class, 'bulk_delete']);
+    Route::post('receiving-notes/bulk_delete_per', [ReceivingNoteController::class, 'bulk_delete_per']);
+    Route::post('receiving-notes/restore_records', [ReceivingNoteController::class, 'restore_records']);
+    /* Receiving Note */
+
+    /* Purchase Return */
+    Route::get('purchase-returns/eligible-purchases', [PurchaseReturnController::class, 'eligiblePurchases']);
+    Route::get('purchase-returns/purchase/{id}', [PurchaseReturnController::class, 'purchaseLines']);
+    Route::get('purchase-returns/trash', [PurchaseReturnController::class, 'trash']);
+    Route::resource('purchase-returns', PurchaseReturnController::class);
+    Route::post('purchase-returns/bulk_delete', [PurchaseReturnController::class, 'bulk_delete']);
+    Route::post('purchase-returns/bulk_delete_per', [PurchaseReturnController::class, 'bulk_delete_per']);
+    Route::post('purchase-returns/restore_records', [PurchaseReturnController::class, 'restore_records']);
+    /* Purchase Return */
 
     /* Product */
     Route::post('/products/import', [ProductController::class, 'import']);
