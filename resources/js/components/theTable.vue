@@ -365,8 +365,20 @@ import { formatNumber } from '@/utils/numberFormat';
         );
     }
 
-    function canShowApproveAction(col: Column): boolean {
-        return !!(col.actions?.includes('approve') && tableData.approve);
+    function rowStatus(row?: Record<string, unknown>): string {
+        return String(row?.status ?? '').toLowerCase();
+    }
+
+    function canShowApproveAction(col: Column, row?: Record<string, unknown>): boolean {
+        if (!(col.actions?.includes('approve') && tableData.approve)) {
+            return false;
+        }
+
+        if (row === undefined) {
+            return true;
+        }
+
+        return ['pending', 'final'].includes(rowStatus(row));
     }
 
     function canShowReceivingNoteAction(col: Column): boolean {
@@ -377,10 +389,15 @@ import { formatNumber } from '@/utils/numberFormat';
         return !!col.actions?.includes('return');
     }
 
-    function canShowPurchaseWorkflowDivider(col: Column): boolean {
-        return canShowApproveAction(col)
+    function canShowIssueNoteAction(col: Column): boolean {
+        return !!col.actions?.includes('issueNote');
+    }
+
+    function canShowPurchaseWorkflowDivider(col: Column, row: Record<string, unknown>): boolean {
+        return canShowApproveAction(col, row)
             || canShowReceivingNoteAction(col)
-            || canShowPurchaseReturnAction(col);
+            || canShowPurchaseReturnAction(col)
+            || canShowIssueNoteAction(col);
     }
 
     function receivingNoteHref(row: Record<string, unknown>): string {
@@ -401,6 +418,16 @@ import { formatNumber } from '@/utils/numberFormat';
         }
 
         return `/purchase/return/add?purchase_id=${row.id}`;
+    }
+
+    function issueNoteHref(row: Record<string, unknown>): string {
+        const noteId = row.issue_note_id;
+
+        if (noteId) {
+            return `/issuenote/${noteId}/edit`;
+        }
+
+        return `/issuenote/add?sell_id=${row.id}`;
     }
 
     function viewRouteWithTab(rowId: number, tab: string): string {
@@ -1179,13 +1206,13 @@ import { formatNumber } from '@/utils/numberFormat';
                                                     </a>
                                                 <!-- Delete -->
 
-                                                <template v-if="canShowPurchaseWorkflowDivider(col)">
+                                                <template v-if="canShowPurchaseWorkflowDivider(col, row)">
                                                     <div class="dropdown-divider"></div>
 
                                                     <a
                                                         class="dropdown-item"
                                                         href="javascript:void(0)"
-                                                        v-if="canShowApproveAction(col)"
+                                                        v-if="canShowApproveAction(col, row)"
                                                         @click="tableData.approve?.(row.id)"
                                                     >
                                                         <i class="mdi mdi-check-circle-outline"></i> Approve
@@ -1205,6 +1232,14 @@ import { formatNumber } from '@/utils/numberFormat';
                                                         :href="purchaseReturnHref(row)"
                                                     >
                                                         <i class="mdi mdi-undo"></i> Return
+                                                    </Link>
+
+                                                    <Link
+                                                        v-if="canShowIssueNoteAction(col)"
+                                                        class="dropdown-item"
+                                                        :href="issueNoteHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-package-variant"></i> Issue note
                                                     </Link>
                                                 </template>
 

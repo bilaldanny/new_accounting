@@ -298,6 +298,66 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('receivingnote.view');
     /* Receiving Note */
 
+    /* Sell */
+    Route::get('sell', function () {
+        return Inertia::render('sell/index');
+    })->name('sell');
+
+    Route::get('sell/add', function () {
+        return Inertia::render('sell/add');
+    })->name('sell.add');
+
+    Route::get('sell/trash', function () {
+        return Inertia::render('sell/trash');
+    })->name('sell.trash');
+
+    Route::get('sell/approval', function () {
+        return Inertia::render('approval/sell/index');
+    })->name('sell.approval');
+
+    Route::get('sell/approval/{id}/view', function ($id) {
+        return Inertia::render('approval/sell/view', [
+            'id' => $id,
+            'returnTo' => '/sell/approval',
+            'listTitle' => 'Sell Approval',
+        ]);
+    })->name('sell.approval.view');
+
+    Route::get('sell/{id}/edit', function ($id) {
+        return Inertia::render('sell/edit', ['id' => $id]);
+    })->name('sell.edit');
+
+    Route::get('sell/{id}/view', function ($id) {
+        return Inertia::render('approval/sell/view', [
+            'id' => $id,
+            'returnTo' => '/sell',
+            'listTitle' => 'Sell Management',
+        ]);
+    })->name('sell.view');
+    /* Sell */
+
+    /* Issue Note */
+    Route::get('issuenote', function () {
+        return Inertia::render('sell/issuenote/index');
+    })->name('issuenote');
+
+    Route::get('issuenote/add', function () {
+        return Inertia::render('sell/issuenote/add');
+    })->name('issuenote.add');
+
+    Route::get('issuenote/trash', function () {
+        return Inertia::render('sell/issuenote/trash');
+    })->name('issuenote.trash');
+
+    Route::get('issuenote/{id}/edit', function ($id) {
+        return Inertia::render('sell/issuenote/edit', ['id' => $id]);
+    })->name('issuenote.edit');
+
+    Route::get('issuenote/{id}/view', function ($id) {
+        return Inertia::render('sell/issuenote/view', ['id' => $id]);
+    })->name('issuenote.view');
+    /* Issue Note */
+
     /* Product */
     Route::get('product', function () {
         return Inertia::render('product/index');
