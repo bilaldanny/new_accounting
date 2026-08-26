@@ -16,6 +16,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FinancialYearController;
+use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
@@ -26,6 +27,8 @@ use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\ReceivingNoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SellApprovalController;
+use App\Http\Controllers\SellController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
@@ -305,6 +308,33 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('purchase-returns/bulk_delete_per', [PurchaseReturnController::class, 'bulk_delete_per']);
     Route::post('purchase-returns/restore_records', [PurchaseReturnController::class, 'restore_records']);
     /* Purchase Return */
+
+    /* Sell */
+    Route::get('sells/search-products', [SellController::class, 'searchProducts']);
+    Route::get('sells/trash', [SellController::class, 'trash']);
+    Route::resource('sells', SellController::class);
+    Route::post('/sells/statusupdate', [SellController::class, 'updatestatus']);
+    Route::post('/sells/duplicate', [SellController::class, 'duplicate']);
+    Route::post('/sells/bulk_delete', [SellController::class, 'bulk_delete']);
+    Route::post('sells/bulk_delete_per', [SellController::class, 'bulk_delete_per']);
+    Route::post('sells/restore_records', [SellController::class, 'restore_records']);
+    /* Sell */
+
+    /* Sell Approval */
+    Route::get('sell-approvals', [SellApprovalController::class, 'index']);
+    Route::get('sell-approvals/{id}', [SellApprovalController::class, 'show']);
+    Route::post('sell-approvals/{id}/approve', [SellApprovalController::class, 'approve']);
+    /* Sell Approval */
+
+    /* Issue Note */
+    Route::get('issue-notes/eligible-sells', [IssueNoteController::class, 'eligibleSells']);
+    Route::get('issue-notes/sell/{id}', [IssueNoteController::class, 'sellLines']);
+    Route::get('issue-notes/trash', [IssueNoteController::class, 'trash']);
+    Route::resource('issue-notes', IssueNoteController::class);
+    Route::post('issue-notes/bulk_delete', [IssueNoteController::class, 'bulk_delete']);
+    Route::post('issue-notes/bulk_delete_per', [IssueNoteController::class, 'bulk_delete_per']);
+    Route::post('issue-notes/restore_records', [IssueNoteController::class, 'restore_records']);
+    /* Issue Note */
 
     /* Product */
     Route::post('/products/import', [ProductController::class, 'import']);
