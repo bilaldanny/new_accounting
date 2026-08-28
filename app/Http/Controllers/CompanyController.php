@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\SendUserCredentials;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CompanySetting;
@@ -19,6 +20,7 @@ class CompanyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'desc';
         $show_record = $request->show_record ?? 10;
@@ -71,6 +73,8 @@ class CompanyController extends Controller
 
     public function generateCode(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+
         return response()->json([
             'code' => Company::nextCode(),
         ]);
@@ -78,6 +82,7 @@ class CompanyController extends Controller
 
     public function checkCode(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
         $request->validate([
             'code' => 'required|string',
             'except_id' => 'nullable|integer',
@@ -93,6 +98,7 @@ class CompanyController extends Controller
 
     public function checkAdminIdentity(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
         $request->validate([
             'email' => 'nullable|email',
             'username' => 'nullable|string',
@@ -121,6 +127,8 @@ class CompanyController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/company/add');
         $request->merge([
             'code' => Company::resolveCode($request->input('code'), (string) $request->input('name', 'COMP')),
             'admin_username' => User::normalizeUsername((string) $request->input('admin_username', '')),
@@ -141,7 +149,6 @@ class CompanyController extends Controller
             'admin_phone' => 'nullable|numeric',
             'max_users' => 'bail|required|numeric',
             'max_branches' => 'bail|required|numeric',
-            'logo' => 'bail|required|string',
             'email' => 'nullable|email',
             'phone' => 'nullable|numeric',
         ]);
@@ -167,8 +174,10 @@ class CompanyController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function show($id): JsonResponse
+    public function show(Request $request, $id): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+
         $company = Company::find($id);
 
         if ($company === null) {
@@ -182,10 +191,13 @@ class CompanyController extends Controller
 
         if ($user !== null) {
             $company->user_id = $user->id;
-            $company->admin_email = $user->email;
-            $company->admin_username = $user->username;
             $company->admin_name = trim($user->first_name.' '.$user->last_name);
-            $company->admin_phone = $user->phone;
+
+            if ($this->isSuperadmin($request)) {
+                $company->admin_email = $user->email;
+                $company->admin_username = $user->username;
+                $company->admin_phone = $user->phone;
+            }
         }
 
         $company->logo_url = Company::logoUrl($company->logo);
@@ -195,6 +207,8 @@ class CompanyController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/company/:id/edit');
         $company = Company::findOrFail($id);
         $adminUserId = User::query()
             ->where('company_id', $company->id)
@@ -233,8 +247,33 @@ class CompanyController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
+    public function sendCredentials(Request $request, int $id, SendUserCredentials $sendUserCredentials): JsonResponse
+    {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/company/:id/edit');
+
+        $company = Company::query()->findOrFail($id);
+
+        $user = User::query()
+            ->where('company_id', $company->id)
+            ->orderBy('created_at')
+            ->first();
+
+        if ($user === null) {
+            return response()->json([
+                'message' => 'This company does not have an administrator account.',
+            ], 422);
+        }
+
+        $sendUserCredentials->handle($user);
+
+        return response()->json(['message' => 'Login credentials have been queued for email.']);
+    }
+
     public function import(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/company/import');
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string',
@@ -279,9 +318,10 @@ class CompanyController extends Controller
         );
     }
 
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/company/delete')) {
             Company::deleteCompany($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -292,7 +332,8 @@ class CompanyController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/company/delete')) {
             DB::beginTransaction();
             try {
                 Company::whereIn('id', $request->all())->delete();
@@ -311,7 +352,8 @@ class CompanyController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/company/delete')) {
             DB::beginTransaction();
             try {
                 $ids = (array) $request->all();
@@ -331,6 +373,8 @@ class CompanyController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/company/:id/edit');
         $companies = Company::whereIn('id', $request->ids)->get();
 
         if (isset($companies)) {
@@ -363,7 +407,8 @@ class CompanyController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/company/restore')) {
             DB::beginTransaction();
             try {
                 Company::whereIn('id', $request->all())->restore();
@@ -382,6 +427,8 @@ class CompanyController extends Controller
 
     public function duplicate(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/company/add');
         DB::beginTransaction();
         try {
             $company = Company::find($request->id);
@@ -399,8 +446,9 @@ class CompanyController extends Controller
         }
     }
 
-    public function fetch(): JsonResponse
+    public function fetch(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
         $companies = Company::query()
             ->where('is_active', true)
             ->select('companies.*')
@@ -413,6 +461,7 @@ class CompanyController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
+        $this->authorizeSuperadmin($request);
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'desc';
         $show_record = $request->show_record ?? 10;
@@ -448,5 +497,20 @@ class CompanyController extends Controller
         }
 
         return response()->json(['data' => $companies]);
+    }
+
+    private function isSuperadmin(Request $request): bool
+    {
+        $user = $request->user();
+        $roleName = strtolower(str_replace(' ', '', (string) ($user?->rolename ?? '')));
+
+        return $roleName === 'superadmin';
+    }
+
+    private function authorizeSuperadmin(Request $request): void
+    {
+        if (! $this->isSuperadmin($request)) {
+            abort(403);
+        }
     }
 }

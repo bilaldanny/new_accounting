@@ -82,6 +82,8 @@ class IssueNoteController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/issuenote/add');
+
         $request->validate($this->issueNoteRules());
 
         DB::beginTransaction();
@@ -113,6 +115,7 @@ class IssueNoteController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/issuenote/:id/edit');
         $request->validate([
             'selllines' => 'bail|required|array|min:1',
             'selllines.*.id' => 'bail|required',
@@ -137,7 +140,7 @@ class IssueNoteController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/issuenote/delete')) {
             Transaction::deleteIssueNote($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -148,7 +151,7 @@ class IssueNoteController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/issuenote/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -176,7 +179,7 @@ class IssueNoteController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/issuenote/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -202,7 +205,7 @@ class IssueNoteController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/issuenote/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()

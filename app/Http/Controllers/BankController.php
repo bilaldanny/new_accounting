@@ -139,6 +139,8 @@ class BankController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/bank/add');
+
         $request->validate($this->bankFormRules());
 
         DB::beginTransaction();
@@ -172,6 +174,7 @@ class BankController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/bank/:id/edit');
         $request->validate($this->bankFormRules());
 
         DB::beginTransaction();
@@ -192,7 +195,7 @@ class BankController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/bank/delete')) {
             Bank::deleteBank($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -203,6 +206,7 @@ class BankController extends Controller
 
     public function linkCoa(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/bank/:id/edit');
         $request->validate([
             'opening_balance' => 'nullable|numeric',
         ]);
@@ -232,7 +236,7 @@ class BankController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/bank/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Bank::query()
@@ -256,7 +260,7 @@ class BankController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/bank/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Bank::query()
@@ -281,6 +285,7 @@ class BankController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/bank/:id/edit');
         $banks = Bank::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -312,7 +317,7 @@ class BankController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/bank/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Bank::query()
@@ -337,6 +342,7 @@ class BankController extends Controller
 
     public function duplicate(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/bank/add');
         DB::beginTransaction();
         try {
             $bank = Bank::findVisibleBank((int) $request->id);

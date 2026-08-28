@@ -78,6 +78,8 @@ class TimezoneController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/timezone/add');
+
         $request->merge([
             'name' => Timezone::normalizeName($request->input('name')),
         ]);
@@ -109,6 +111,8 @@ class TimezoneController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/timezone/:id/edit');
+
         $request->merge([
             'name' => Timezone::normalizeName($request->input('name')),
         ]);
@@ -134,7 +138,7 @@ class TimezoneController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/timezone/delete')) {
             Timezone::deleteTimezone($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -145,7 +149,7 @@ class TimezoneController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/timezone/delete')) {
             DB::beginTransaction();
             try {
                 Timezone::query()->whereIn('id', $request->all())->delete();
@@ -164,7 +168,7 @@ class TimezoneController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/timezone/delete')) {
             DB::beginTransaction();
             try {
                 Timezone::query()->whereIn('id', (array) $request->all())->forceDelete();
@@ -183,7 +187,7 @@ class TimezoneController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/timezone/restore')) {
             DB::beginTransaction();
             try {
                 Timezone::query()->whereIn('id', $request->all())->restore();

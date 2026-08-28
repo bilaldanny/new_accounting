@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\SendUserCredentials;
 use App\Models\User;
 use App\Support\ImportResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -171,6 +173,8 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/user/add');
+
         $request->validate($this->userFormRules());
 
         DB::beginTransaction();
@@ -202,6 +206,8 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/user/:id/edit');
+
         $request->validate($this->userFormRules((int) $id));
 
         DB::beginTransaction();
@@ -220,9 +226,24 @@ class UserController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
+    public function sendCredentials(int $id, SendUserCredentials $sendUserCredentials): JsonResponse
+    {
+        $this->authorizeMenuPermission('/user/:id/edit');
+
+        $user = User::findVisibleToCurrentUser($id);
+
+        if ($user === null) {
+            abort(404);
+        }
+
+        $sendUserCredentials->handle($user);
+
+        return response()->json(['message' => 'Login credentials have been queued for email.']);
+    }
+
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/user/delete')) {
             User::DeleteUser($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -233,7 +254,7 @@ class UserController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/user/delete')) {
             DB::beginTransaction();
             try {
                 User::query()
@@ -255,7 +276,7 @@ class UserController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/user/delete')) {
             DB::beginTransaction();
             try {
                 $ids = (array) $request->all();
@@ -278,6 +299,7 @@ class UserController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/user/:id/edit');
         $users = User::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -333,7 +355,7 @@ class UserController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/user/restore')) {
             DB::beginTransaction();
             try {
                 User::whereIn('id', $request->all())->restore();
@@ -352,6 +374,8 @@ class UserController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/user/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.first_name' => 'bail|required|string',
@@ -402,6 +426,8 @@ class UserController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/user/add');
+
         DB::beginTransaction();
         try {
             $user = User::findVisibleToCurrentUser((int) $request->id);
@@ -414,7 +440,6 @@ class UserController extends Controller
             $duplicator->username = $this->duplicateUsername($user->username);
             $duplicator->email = $this->duplicateEmail($user->email);
             $duplicator->password = $user->password;
-            $duplicator->pass = $user->pass;
             $duplicator->save();
             DB::commit();
 

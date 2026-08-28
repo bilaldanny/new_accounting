@@ -99,6 +99,8 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/category/add');
+
         $request->validate($this->categoryFormRules());
 
         DB::beginTransaction();
@@ -119,6 +121,8 @@ class CategoryController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/category/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string|min:3|max:200',
@@ -176,6 +180,8 @@ class CategoryController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/category/:id/edit');
+
         $request->validate($this->categoryFormRules());
 
         DB::beginTransaction();
@@ -196,7 +202,7 @@ class CategoryController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/category/delete')) {
             $category = Category::findVisibleToCurrentUser((int) $id);
 
             if ($category === null) {
@@ -213,7 +219,7 @@ class CategoryController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/category/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Category::query()
@@ -240,7 +246,7 @@ class CategoryController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/category/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Category::query()
@@ -265,6 +271,7 @@ class CategoryController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/category/:id/edit');
         $categories = Category::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -300,7 +307,7 @@ class CategoryController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/category/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Category::query()
@@ -325,6 +332,8 @@ class CategoryController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/category/add');
+
         DB::beginTransaction();
         try {
             $category = Category::findVisibleToCurrentUser((int) $request->id);

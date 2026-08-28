@@ -14,12 +14,18 @@ Route::post('set_cookie', function (Request $request) {
 
 /* Clear Cache Route */
 Route::get('/artisan/{cmd}', function ($cmd) {
+    if (! request()->user()?->hasRole('superadmin')) {
+        abort(403);
+    }
+
+    $exitCode = 0;
+
     switch ($cmd) {
         case 'clear':
-            $exitCode = Artisan::call('config:clear');
-            $exitCode = Artisan::call('cache:clear');
-            $exitCode = Artisan::call('route:clear');
-            $exitCode = Artisan::call('view:clear');
+            Artisan::call('config:clear');
+            Artisan::call('cache:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
             $exitCode = Artisan::call('optimize:clear');
             break;
 
@@ -29,11 +35,10 @@ Route::get('/artisan/{cmd}', function ($cmd) {
 
         default:
             abort(404);
-            break;
     }
 
     return $exitCode;
-});
+})->middleware('auth');
 /* Clear Cache Route */
 
 /* Checking Session Timeout */
@@ -50,7 +55,7 @@ Route::prefix('idle-timeout-alert')->middleware('auth')->group(function () {
 /* Checking Session Timeout */
 
 /* Check Smtp Connection */
-Route::post('checkSMTP', [HomeController::class, 'check_smtp'])->name('checkSMTP');
+Route::post('checkSMTP', [HomeController::class, 'check_smtp'])->middleware('auth')->name('checkSMTP');
 /* Check Smtp Connection */
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -105,7 +110,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('company/setting');
     })->name('company.setting');
 
-    Route::get('business/settings', [SettingController::class, 'index'])->name('business.settings');
+    Route::get('business/settings', function () {
+        return Inertia::render('company/setting');
+    })->name('business.settings');
+
+    Route::get('software/setting', [SettingController::class, 'index'])->name('software.setting');
     /* Company */
 
     /* Branch */
@@ -431,7 +440,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* Timezone */
 
     /* Setting */
-    Route::get('setting', [SettingController::class, 'index'])->name('setting');
+    Route::get('setting', function () {
+        return Inertia::render('company/setting');
+    })->name('setting');
     Route::get('email_template', [SettingController::class, 'email_template'])->name('email_template');
     Route::post('email_setting/test-send', [SettingController::class, 'email_test_send'])->name('email_setting.test_send');
     /* Setting */

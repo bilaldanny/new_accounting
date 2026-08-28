@@ -263,7 +263,6 @@ test('fetchpermenus only returns menus the assigner role is permitted to manage'
         'username' => 'limitedmanager',
         'email' => 'limited@manager.test',
         'password' => bcrypt('Password1!'),
-        'pass' => 'Password1!',
         'is_active' => true,
     ]);
 

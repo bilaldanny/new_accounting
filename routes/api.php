@@ -29,6 +29,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SellApprovalController;
 use App\Http\Controllers\SellController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
@@ -107,8 +108,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/companies/bulk_delete', [CompanyController::class, 'bulk_delete']);
     Route::post('companies/bulk_delete_per', [CompanyController::class, 'bulk_delete_per']);
     Route::post('companies/restore_records', [CompanyController::class, 'restore_records']);
+    Route::post('companies/{id}/send-credentials', [CompanyController::class, 'sendCredentials']);
     Route::get('company-settings/{companyId}', [CompanySettingController::class, 'show']);
     Route::put('company-settings/{companyId}', [CompanySettingController::class, 'update']);
+    Route::get('software-settings', [SettingController::class, 'show']);
+    Route::put('software-settings', [SettingController::class, 'update']);
+    Route::post('software-settings/test-smtp', [SettingController::class, 'testSmtp']);
+    Route::post('software-settings/test-send', [SettingController::class, 'testSend']);
     Route::get('fetchparentaccounts', [ChartOfAccountController::class, 'fetchParentAccounts']);
     Route::get('fetchcontrolaccounts', [ChartOfAccountController::class, 'fetchControlAccounts']);
     Route::get('fetchchildaccounts', [ChartOfAccountController::class, 'fetchChildAccounts']);
@@ -386,5 +392,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/users/bulk_delete', [UserController::class, 'bulk_delete']);
     Route::post('users/bulk_delete_per', [UserController::class, 'bulk_delete_per']);
     Route::post('users/restore_records', [UserController::class, 'restore_records']);
+    Route::post('users/{id}/send-credentials', [UserController::class, 'sendCredentials']);
     /* User */
 });

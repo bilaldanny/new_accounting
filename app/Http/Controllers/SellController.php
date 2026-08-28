@@ -151,6 +151,8 @@ class SellController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/sell/add');
+
         $request->validate($this->sellFormRules());
 
         DB::beginTransaction();
@@ -212,6 +214,8 @@ class SellController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/sell/:id/edit');
+
         $request->validate($this->sellFormRules());
 
         DB::beginTransaction();
@@ -232,7 +236,7 @@ class SellController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/sell/delete')) {
             Transaction::deleteSell((int) $id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -243,7 +247,7 @@ class SellController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/sell/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -268,7 +272,7 @@ class SellController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/sell/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -294,7 +298,7 @@ class SellController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/sell/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -320,6 +324,7 @@ class SellController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/sell/:id/edit');
         $sells = Transaction::query()
             ->sells()
             ->visibleToCurrentUser()
@@ -350,6 +355,8 @@ class SellController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/sell/add');
+
         DB::beginTransaction();
         try {
             $sell = Transaction::query()

@@ -52,7 +52,6 @@ class User extends Authenticatable
         'username',
         'password',
         'user_image',
-        'pass',
         'is_active',
         'phone',
         'created_by',
@@ -66,6 +65,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'pass',
         'remember_token',
         'two_factor_recovery_codes',
         'two_factor_secret',
@@ -93,6 +93,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $user): void {
+            $user->setAttribute('pass', '');
+        });
     }
 
     /**
@@ -214,9 +221,11 @@ class User extends Authenticatable
             return $query;
         }
 
-        if ($user?->company_id) {
-            $query->where('company_id', $user->company_id);
+        if (! $user?->company_id) {
+            return $query->whereRaw('0 = 1');
         }
+
+        $query->where('company_id', $user->company_id);
 
         if ($user?->hasRole('companyadmin') && $user->branch_id) {
             $query->where('branch_id', $user->branch_id);
@@ -401,20 +410,106 @@ class User extends Authenticatable
         );
     }
 
+    /**
+     * Company/branch for user create/update. Non-superadmins cannot pick another company;
+     * non-companyadmins also cannot pick another branch. Superadmin may pass IDs, which
+     * are still checked so the branch belongs to that company.
+     *
+     * @return array{0: int|null, 1: int|null}
+     */
+    protected static function resolveAssignmentScope(Request $request): array
+    {
+        $actor = Auth::user();
+
+        if ($actor?->hasRole('superadmin')) {
+            $companyId = self::resolveScopedId($request->company_id);
+            $branchId = self::resolveScopedId($request->branch_id);
+        } else {
+            $companyId = self::resolveScopedId($actor?->company_id);
+
+            if ($actor?->hasRole('companyadmin')) {
+                $branchId = self::resolveScopedId($request->branch_id);
+            } else {
+                $branchId = self::resolveScopedId($actor?->branch_id);
+            }
+        }
+
+        if ($companyId === null && ! $actor?->hasRole('superadmin')) {
+            throw ValidationException::withMessages([
+                'company_id' => ['The company field is required.'],
+            ]);
+        }
+
+        if ($branchId !== null) {
+            if ($companyId === null) {
+                throw ValidationException::withMessages([
+                    'branch_id' => ['The selected branch is invalid.'],
+                ]);
+            }
+
+            $branchBelongsToCompany = Branch::query()
+                ->where('id', $branchId)
+                ->where('company_id', $companyId)
+                ->exists();
+
+            if (! $branchBelongsToCompany) {
+                throw ValidationException::withMessages([
+                    'branch_id' => ['The selected branch is invalid.'],
+                ]);
+            }
+        }
+
+        return [$companyId, $branchId];
+    }
+
+    protected static function assertAssignableRoleId(mixed $roleId, ?int $companyId): int
+    {
+        $roleId = (int) $roleId;
+        $role = Role::query()->find($roleId);
+
+        if ($role === null || $roleId === 1 || $role->isHiddenFromCurrentUser()) {
+            throw ValidationException::withMessages([
+                'role_id' => ['The selected role is invalid.'],
+            ]);
+        }
+
+        $roleCompanyId = self::resolveScopedId($role->getAttributes()['company_id'] ?? null);
+        $actor = Auth::user();
+
+        if ($actor?->hasRole('superadmin')) {
+            if ($roleCompanyId !== null && $companyId !== null && $roleCompanyId !== $companyId) {
+                throw ValidationException::withMessages([
+                    'role_id' => ['The selected role is invalid.'],
+                ]);
+            }
+
+            return $roleId;
+        }
+
+        if ($roleCompanyId !== $companyId) {
+            throw ValidationException::withMessages([
+                'role_id' => ['The selected role is invalid.'],
+            ]);
+        }
+
+        return $roleId;
+    }
+
     public static function CreateUser($request): self
     {
+        [$companyId, $branchId] = self::resolveAssignmentScope($request);
+
         $user = new self;
-        $user->company_id = self::resolveScopedId($request->company_id);
-        $user->branch_id = self::resolveScopedId($request->branch_id);
+        $user->company_id = $companyId;
+        $user->branch_id = $branchId;
         $user->department_id = self::resolveScopedId($request->department_id);
-        $user->role_id = $request->role_id;
+        $user->role_id = self::assertAssignableRoleId($request->role_id, $companyId);
         $user->first_name = $request->first_name;
         $user->last_name = $request->last_name;
         $user->username = self::normalizeUsername((string) $request->username);
         $user->email = strtolower(trim((string) $request->email));
         $user->phone = $request->phone ?: null;
         $user->user_image = $request->user_image ?: null;
-        $user->pass = $request->password;
         $user->password = Hash::make($request->password);
         $user->is_active = $request->is_active ?? true;
         $user->created_by = auth()->id();
@@ -432,10 +527,12 @@ class User extends Authenticatable
             abort(404);
         }
 
-        $user->company_id = self::resolveScopedId($request->company_id);
-        $user->branch_id = self::resolveScopedId($request->branch_id);
+        [$companyId, $branchId] = self::resolveAssignmentScope($request);
+
+        $user->company_id = $companyId;
+        $user->branch_id = $branchId;
         $user->department_id = self::resolveScopedId($request->department_id);
-        $user->role_id = $request->role_id;
+        $user->role_id = self::assertAssignableRoleId($request->role_id, $companyId);
         $user->first_name = $request->first_name;
         $user->last_name = $request->last_name;
         $user->email = strtolower(trim((string) $request->email));
@@ -445,7 +542,6 @@ class User extends Authenticatable
         $user->updated_by = auth()->id();
 
         if ($request->filled('password')) {
-            $user->pass = $request->password;
             $user->password = Hash::make($request->password);
         }
 
@@ -534,7 +630,6 @@ class User extends Authenticatable
         $user->email = $request->admin_email;
         $user->phone = $request->admin_phone ?: null;
         $user->password = Hash::make($request->password);
-        $user->pass = $request->password;
         $user->is_active = true;
         $user->created_by = auth()->id();
         $user->updated_by = auth()->id();

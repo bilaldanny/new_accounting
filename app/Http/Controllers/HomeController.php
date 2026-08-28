@@ -19,6 +19,7 @@ use App\Models\OrderDetail;
 use App\Models\Program;
 use App\Models\ProgramContentType;
 use App\Models\ProgramFinal;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Models\StudentCourse;
 use App\Models\StudentLectureProgress;
@@ -255,49 +256,42 @@ class HomeController extends Controller
         return '';
     }
 
-    public function check_smtp(Request $request)
+    public function check_smtp()
     {
-        $request->validate([
-            'smtp_host' => 'required|string',
-            'smtp_port' => 'required|numeric',
-            'smtp_encryption' => 'nullable|string|in:ssl,tls,null',
-            'smtp_username' => 'required|string',
-            'smtp_password' => 'required|string',
-        ]);
+        $setting = Setting::query()->first();
+        $mailer = config('mail.mailers.smtp', []);
+
+        $host = $setting?->smtp_host ?: ($mailer['host'] ?? null);
+        $port = $setting?->smtp_port ?: ($mailer['port'] ?? null);
+        $username = $setting?->smtp_username ?: ($mailer['username'] ?? null);
+        $password = $setting?->smtp_password ?: ($mailer['password'] ?? null);
+        $encryption = $setting?->smtp_encryption ?: ($mailer['scheme'] ?? null);
+
+        if ($encryption === 'null' || $encryption === '') {
+            $encryption = null;
+        }
+
+        if (! filled($host) || ! filled($username) || $password === null || $password === '') {
+            return response()->json([
+                'status' => 'alert',
+                'message' => 'SMTP settings are not configured.',
+            ], 400);
+        }
 
         try {
-            // Handle null encryption (no ssl/tls)
-            $encryption = $request->smtp_encryption === 'null' ? null : $request->smtp_encryption;
-
-            // Set default SSL context options to disable certificate verification for TLS/SSL
-            // This will be used for all SSL/TLS connections made during this request
-            if ($encryption === 'tls' || $encryption === 'ssl') {
-                stream_context_set_default([
-                    'ssl' => [
-                        'verify_peer' => false,
-                        'verify_peer_name' => false,
-                        'allow_self_signed' => true,
-                    ],
-                ]);
-            }
-
-            // Build DSN (Data Source Name)
             $dsn = sprintf(
                 'smtp://%s:%s@%s:%d',
-                urlencode($request->smtp_username),
-                urlencode($request->smtp_password),
-                $request->smtp_host,
-                $request->smtp_port
+                urlencode((string) $username),
+                urlencode((string) $password),
+                $host,
+                (int) $port
             );
 
-            if ($encryption) {
+            if (in_array($encryption, ['tls', 'ssl'], true)) {
                 $dsn .= '?encryption='.$encryption;
             }
 
-            // Create transport
             $transport = Transport::fromDsn($dsn);
-
-            // Start connection test
             $transport->start();
 
             return response()->json([

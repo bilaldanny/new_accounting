@@ -97,6 +97,8 @@ class BrandController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/brand/add');
+
         $request->validate($this->brandFormRules());
 
         DB::beginTransaction();
@@ -117,6 +119,8 @@ class BrandController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/brand/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string|min:3|max:200',
@@ -174,6 +178,8 @@ class BrandController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/brand/:id/edit');
+
         $request->validate($this->brandFormRules());
 
         DB::beginTransaction();
@@ -194,7 +200,7 @@ class BrandController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/brand/delete')) {
             $brand = Brand::findVisibleToCurrentUser((int) $id);
 
             if ($brand === null) {
@@ -211,7 +217,7 @@ class BrandController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/brand/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Brand::query()
@@ -238,7 +244,7 @@ class BrandController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/brand/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Brand::query()
@@ -263,6 +269,8 @@ class BrandController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/brand/:id/edit');
+
         $brands = Brand::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -298,7 +306,7 @@ class BrandController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/brand/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Brand::query()
@@ -323,6 +331,8 @@ class BrandController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/brand/add');
+
         DB::beginTransaction();
         try {
             $brand = Brand::findVisibleToCurrentUser((int) $request->id);

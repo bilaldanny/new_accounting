@@ -96,7 +96,6 @@ test('companies check-admin-identity api reports when admin email or username al
         'username' => 'existingadmin',
         'email' => 'existing@example.com',
         'password' => bcrypt('password'),
-        'pass' => 'password',
         'is_active' => true,
     ]);
 
@@ -127,7 +126,6 @@ test('companies check-admin-identity api ignores the current admin user when edi
         'username' => 'currentadmin',
         'email' => 'current@example.com',
         'password' => bcrypt('password'),
-        'pass' => 'password',
         'is_active' => true,
     ]);
 
@@ -171,7 +169,6 @@ test('companies index includes owner and usage columns for the list', function (
         'email' => 'owner@example.com',
         'phone' => '03002222222',
         'password' => bcrypt('password'),
-        'pass' => 'password',
         'company_id' => $company->id,
         'is_active' => true,
     ]);

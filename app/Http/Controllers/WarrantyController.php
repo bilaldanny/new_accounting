@@ -100,6 +100,8 @@ class WarrantyController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/warranty/add');
+
         $request->validate($this->warrantyFormRules());
 
         DB::beginTransaction();
@@ -120,6 +122,8 @@ class WarrantyController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/warranty/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string|min:2|max:200',
@@ -179,6 +183,8 @@ class WarrantyController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/warranty/:id/edit');
+
         $request->validate($this->warrantyFormRules());
 
         DB::beginTransaction();
@@ -199,7 +205,7 @@ class WarrantyController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/warranty/delete')) {
             $warranty = Warranty::findVisibleToCurrentUser((int) $id);
 
             if ($warranty === null) {
@@ -216,7 +222,7 @@ class WarrantyController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/warranty/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Warranty::query()
@@ -243,7 +249,7 @@ class WarrantyController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/warranty/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Warranty::query()
@@ -268,6 +274,7 @@ class WarrantyController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/warranty/:id/edit');
         $warranties = Warranty::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -303,7 +310,7 @@ class WarrantyController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/warranty/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Warranty::query()
@@ -328,6 +335,8 @@ class WarrantyController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/warranty/add');
+
         DB::beginTransaction();
         try {
             $warranty = Warranty::findVisibleToCurrentUser((int) $request->id);

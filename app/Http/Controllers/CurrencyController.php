@@ -90,6 +90,8 @@ class CurrencyController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/currency/add');
+
         $request->merge([
             'code' => Currency::normalizeCode($request->input('code')),
         ]);
@@ -121,6 +123,8 @@ class CurrencyController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/currency/:id/edit');
+
         $request->merge([
             'code' => Currency::normalizeCode($request->input('code')),
         ]);
@@ -146,7 +150,7 @@ class CurrencyController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/currency/delete')) {
             Currency::deleteCurrency($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -157,7 +161,7 @@ class CurrencyController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/currency/delete')) {
             DB::beginTransaction();
             try {
                 Currency::query()->whereIn('id', $request->all())->delete();
@@ -176,7 +180,7 @@ class CurrencyController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/currency/delete')) {
             DB::beginTransaction();
             try {
                 Currency::query()->whereIn('id', (array) $request->all())->forceDelete();
@@ -195,7 +199,7 @@ class CurrencyController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/currency/restore')) {
             DB::beginTransaction();
             try {
                 Currency::query()->whereIn('id', $request->all())->restore();
@@ -214,6 +218,7 @@ class CurrencyController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/currency/:id/edit');
         $currencies = Currency::query()->whereIn('id', $request->ids)->get();
 
         if ($currencies->isEmpty()) {

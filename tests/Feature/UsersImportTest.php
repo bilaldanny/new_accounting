@@ -28,7 +28,6 @@ function createImportUser(array $attributes = []): User
         'username' => 'existinguser',
         'email' => 'existing@example.com',
         'password' => Hash::make('password123'),
-        'pass' => 'password123',
         'is_active' => true,
     ], $attributes));
 }

@@ -105,6 +105,8 @@ class CustomerGroupController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/customer-group/add');
+
         $request->validate($this->customerGroupFormRules());
 
         DB::beginTransaction();
@@ -136,6 +138,7 @@ class CustomerGroupController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/customer-group/:id/edit');
         $request->validate($this->customerGroupFormRules());
 
         DB::beginTransaction();
@@ -156,7 +159,7 @@ class CustomerGroupController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer-group/delete')) {
             $customerGroup = CustomerGroup::findVisibleToCurrentUser((int) $id);
 
             if ($customerGroup === null) {
@@ -173,7 +176,7 @@ class CustomerGroupController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer-group/delete')) {
             DB::beginTransaction();
             try {
                 $ids = CustomerGroup::query()
@@ -197,7 +200,7 @@ class CustomerGroupController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer-group/delete')) {
             DB::beginTransaction();
             try {
                 $ids = CustomerGroup::query()
@@ -222,6 +225,7 @@ class CustomerGroupController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/customer-group/:id/edit');
         $customerGroups = CustomerGroup::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -257,7 +261,7 @@ class CustomerGroupController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer-group/restore')) {
             DB::beginTransaction();
             try {
                 $ids = CustomerGroup::query()
@@ -282,6 +286,8 @@ class CustomerGroupController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/customer-group/add');
+
         DB::beginTransaction();
         try {
             $customerGroup = CustomerGroup::findVisibleToCurrentUser((int) $request->id);

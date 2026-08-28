@@ -152,6 +152,8 @@ class SupplierController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/supplier/add');
+
         $request->validate($this->supplierFormRules());
 
         DB::beginTransaction();
@@ -186,6 +188,7 @@ class SupplierController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/supplier/:id/edit');
         $request->validate($this->supplierFormRules());
 
         DB::beginTransaction();
@@ -206,7 +209,7 @@ class SupplierController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/supplier/delete')) {
             Contact::deleteSupplier($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -217,6 +220,7 @@ class SupplierController extends Controller
 
     public function linkCoa(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/supplier/:id/edit');
         $request->validate([
             'opening_balance' => 'nullable|numeric',
         ]);
@@ -246,7 +250,7 @@ class SupplierController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/supplier/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
@@ -271,7 +275,7 @@ class SupplierController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/supplier/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
@@ -297,6 +301,7 @@ class SupplierController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/supplier/:id/edit');
         $suppliers = Contact::query()
             ->suppliers()
             ->visibleToCurrentUser()
@@ -329,7 +334,7 @@ class SupplierController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/supplier/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
@@ -355,6 +360,7 @@ class SupplierController extends Controller
 
     public function duplicate(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/supplier/add');
         DB::beginTransaction();
         try {
             $supplier = Contact::findVisibleSupplier((int) $request->id);

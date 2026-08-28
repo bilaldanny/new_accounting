@@ -154,6 +154,8 @@ class CustomerController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer/add');
+
         $request->validate($this->customerFormRules());
 
         DB::beginTransaction();
@@ -189,6 +191,7 @@ class CustomerController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer/:id/edit');
         $request->validate($this->customerFormRules());
 
         DB::beginTransaction();
@@ -209,7 +212,7 @@ class CustomerController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer/delete')) {
             Contact::deleteCustomer($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -220,6 +223,7 @@ class CustomerController extends Controller
 
     public function linkCoa(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer/:id/edit');
         $request->validate([
             'opening_balance' => 'nullable|numeric',
         ]);
@@ -249,7 +253,7 @@ class CustomerController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
@@ -274,7 +278,7 @@ class CustomerController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
@@ -300,6 +304,7 @@ class CustomerController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer/:id/edit');
         $customers = Contact::query()
             ->customers()
             ->visibleToCurrentUser()
@@ -332,7 +337,7 @@ class CustomerController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/customer/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Contact::query()
@@ -358,6 +363,7 @@ class CustomerController extends Controller
 
     public function duplicate(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer/add');
         DB::beginTransaction();
         try {
             $customer = Contact::findVisibleCustomer((int) $request->id);

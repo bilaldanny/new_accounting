@@ -101,6 +101,8 @@ class UnitController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/unit/add');
+
         $request->validate($this->unitFormRules());
 
         DB::beginTransaction();
@@ -121,6 +123,8 @@ class UnitController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/unit/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string|min:3|max:200',
@@ -180,6 +184,8 @@ class UnitController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/unit/:id/edit');
+
         $request->validate($this->unitFormRules());
 
         DB::beginTransaction();
@@ -200,7 +206,7 @@ class UnitController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/unit/delete')) {
             $unit = Unit::findVisibleToCurrentUser((int) $id);
 
             if ($unit === null) {
@@ -217,7 +223,7 @@ class UnitController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/unit/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Unit::query()
@@ -244,7 +250,7 @@ class UnitController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/unit/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Unit::query()
@@ -269,6 +275,7 @@ class UnitController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/unit/:id/edit');
         $units = Unit::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -304,7 +311,7 @@ class UnitController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/unit/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Unit::query()
@@ -329,6 +336,8 @@ class UnitController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/unit/add');
+
         DB::beginTransaction();
         try {
             $unit = Unit::findVisibleToCurrentUser((int) $request->id);

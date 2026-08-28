@@ -89,7 +89,6 @@ test('companies import updates records when id is provided', function () {
         'username' => 'existingadmin',
         'email' => 'existing@admin.test',
         'password' => bcrypt('Password1!'),
-        'pass' => 'Password1!',
         'is_active' => true,
     ]);
 

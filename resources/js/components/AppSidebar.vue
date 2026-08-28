@@ -60,6 +60,18 @@
     const renderableMenuChildren = (item: SidebarMenuItem): SidebarMenuItem[] =>
         (item.children ?? []).filter(shouldRenderMenuBranch);
 
+    const appName = computed(() => String(page.props.name ?? ''));
+
+    const softwareLogo = computed(() => {
+        const setting = page.props.setting as {
+            system_logo_url?: string | null;
+            system_logo?: string | null;
+        } | null | undefined;
+        const url = String(setting?.system_logo_url ?? setting?.system_logo ?? '').trim();
+
+        return url !== '' ? url : '/assets/images/logo-icon.png';
+    });
+
     const currentRouteName = computed(() => String(page.props.routeName ?? ''));
 
     const currentPath = computed(() => {
@@ -176,10 +188,10 @@
             <div>
                 <div class="sidebar-header">
                     <div>
-                        <img src="assets/images/logo-icon.png" class="logo-icon" alt="logo icon">
+                        <img :src="softwareLogo" class="logo-icon" :alt="appName">
                     </div>
                     <div>
-                        <h4 class="logo-text">Synadmin</h4>
+                        <h4 class="logo-text">{{ appName }}</h4>
                     </div>
                     <div class="toggle-icon ms-auto"><i class='bx bx-first-page'></i>
                     </div>

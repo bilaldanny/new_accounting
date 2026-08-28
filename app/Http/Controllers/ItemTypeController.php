@@ -97,6 +97,8 @@ class ItemTypeController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/itemtype/add');
+
         $request->validate($this->itemTypeFormRules());
 
         DB::beginTransaction();
@@ -117,6 +119,8 @@ class ItemTypeController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/itemtype/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string|min:3|max:200',
@@ -174,6 +178,8 @@ class ItemTypeController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/itemtype/:id/edit');
+
         $request->validate($this->itemTypeFormRules());
 
         DB::beginTransaction();
@@ -194,7 +200,7 @@ class ItemTypeController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/itemtype/delete')) {
             $itemType = ItemType::findVisibleToCurrentUser((int) $id);
 
             if ($itemType === null) {
@@ -211,7 +217,7 @@ class ItemTypeController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/itemtype/delete')) {
             DB::beginTransaction();
             try {
                 $ids = ItemType::query()
@@ -238,7 +244,7 @@ class ItemTypeController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/itemtype/delete')) {
             DB::beginTransaction();
             try {
                 $ids = ItemType::query()
@@ -263,6 +269,7 @@ class ItemTypeController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/itemtype/:id/edit');
         $itemTypes = ItemType::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -298,7 +305,7 @@ class ItemTypeController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/itemtype/restore')) {
             DB::beginTransaction();
             try {
                 $ids = ItemType::query()
@@ -323,6 +330,8 @@ class ItemTypeController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/itemtype/add');
+
         DB::beginTransaction();
         try {
             $itemType = ItemType::findVisibleToCurrentUser((int) $request->id);
