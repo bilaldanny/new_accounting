@@ -62,7 +62,6 @@ function createUserForDepartmentRole(Role $role): User
         'username' => 'testuser_'.$role->id,
         'email' => 'testuser_'.$role->id.'@example.com',
         'password' => Hash::make('password'),
-        'pass' => 'password',
         'is_active' => true,
     ]);
 }
@@ -175,6 +174,8 @@ test('companyadmin must provide branch_id when creating a department', function 
     $companyAdmin->company_id = $scope['company_id'];
     $companyAdmin->branch_id = $scope['branch_one_id'];
     $companyAdmin->save();
+
+    grantMenuPermission((int) $companyAdminRole->id, '/department/add');
 
     Sanctum::actingAs($companyAdmin);
 

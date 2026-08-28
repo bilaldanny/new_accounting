@@ -109,6 +109,8 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/role/add');
+
         $request->validate($this->roleFormRules());
 
         DB::beginTransaction();
@@ -140,6 +142,8 @@ class RoleController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/role/:id/edit');
+
         $request->validate($this->roleFormRules());
 
         DB::beginTransaction();
@@ -160,6 +164,8 @@ class RoleController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/role/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string',
@@ -206,7 +212,7 @@ class RoleController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/role/delete')) {
             $role = Role::findVisibleToCurrentUser((int) $id);
 
             if ($role === null) {
@@ -224,7 +230,7 @@ class RoleController extends Controller
     /* Bulk Record Delete */
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/role/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Role::query()
@@ -249,7 +255,7 @@ class RoleController extends Controller
     /* Bulk Record Permanently Delete */
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/role/delete')) {
 
             DB::beginTransaction();
             try {
@@ -276,6 +282,7 @@ class RoleController extends Controller
     /* Update Status */
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/role/:id/edit');
         $roles = Role::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -324,7 +331,7 @@ class RoleController extends Controller
     /* Bulk Record Permanently Delete */
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/role/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Role::query()
@@ -349,6 +356,8 @@ class RoleController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/role/add');
+
         DB::beginTransaction();
         try {
             $role = Role::findVisibleToCurrentUser((int) $request->id);

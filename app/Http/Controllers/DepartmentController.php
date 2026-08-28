@@ -104,6 +104,8 @@ class DepartmentController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/department/add');
+
         $request->validate($this->departmentFormRules());
 
         DB::beginTransaction();
@@ -124,6 +126,8 @@ class DepartmentController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/department/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string',
@@ -181,6 +185,8 @@ class DepartmentController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/department/:id/edit');
+
         $request->validate($this->departmentFormRules());
 
         DB::beginTransaction();
@@ -201,7 +207,7 @@ class DepartmentController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/department/delete')) {
             $department = Department::findVisibleToCurrentUser((int) $id);
 
             if ($department === null) {
@@ -218,7 +224,7 @@ class DepartmentController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/department/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Department::query()
@@ -242,7 +248,7 @@ class DepartmentController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/department/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Department::query()
@@ -267,6 +273,7 @@ class DepartmentController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/department/:id/edit');
         $departments = Department::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -302,7 +309,7 @@ class DepartmentController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/department/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Department::query()
@@ -327,6 +334,8 @@ class DepartmentController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/department/add');
+
         DB::beginTransaction();
         try {
             $department = Department::findVisibleToCurrentUser((int) $request->id);

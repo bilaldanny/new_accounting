@@ -131,6 +131,8 @@ class ProductController extends Controller
 
     public function generateVariants(Request $request)
     {
+        $this->authorizeMenuPermission('/product/add');
+
         $request->validate([
             'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
             'category_id' => 'required',
@@ -176,6 +178,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/product/add');
+
         $request->validate($this->productFormRules());
 
         DB::beginTransaction();
@@ -196,6 +200,8 @@ class ProductController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/product/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string|min:2|max:200',
@@ -268,6 +274,7 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/product/:id/edit');
         $request->validate($this->productFormRules());
 
         DB::beginTransaction();
@@ -288,7 +295,7 @@ class ProductController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/product/delete')) {
             $product = Product::findVisibleToCurrentUser((int) $id);
 
             if ($product === null) {
@@ -305,7 +312,7 @@ class ProductController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/product/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Product::query()
@@ -332,7 +339,7 @@ class ProductController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/product/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Product::query()
@@ -357,6 +364,7 @@ class ProductController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/product/:id/edit');
         $products = Product::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -392,7 +400,7 @@ class ProductController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/product/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Product::query()
@@ -417,6 +425,8 @@ class ProductController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/product/add');
+
         DB::beginTransaction();
         try {
             $product = Product::query()

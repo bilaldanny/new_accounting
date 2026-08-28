@@ -115,4 +115,10 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    'privacy_url' => env('MAIL_PRIVACY_URL'),
+
+    'terms_url' => env('MAIL_TERMS_URL'),
+
+    'accent_color' => env('MAIL_ACCENT_COLOR', '#199683'),
+
 ];

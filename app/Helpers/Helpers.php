@@ -3,7 +3,7 @@
 use App\Mail\DynamicEmail;
 use App\Models\ChartOfAccount;
 use App\Models\ChartOfAccountMapping;
-use App\Models\Permission;
+use App\Models\Menu;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -14,28 +14,76 @@ use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\URL;
 use Torann\GeoIP\Facades\GeoIP;
 
-function deletepermission()
+/**
+ * Normalize a menu path or route name so `/brand/add`, `brand/add`, and `brand.add` compare equal.
+ */
+function normalizeMenuPermissionKey(string $key): string
 {
+    $key = strtolower(trim($key));
+    $key = str_replace('.', '/', $key);
+    $key = preg_replace('#/+#', '/', $key) ?? $key;
+    $key = '/'.ltrim($key, '/');
+    $trimmed = rtrim($key, '/');
 
-    if (Auth::check()) {
-        if (Auth::user()->role_id == 1) {
-            return true;
-        } else {
-            $permissions = Permission::join('menus', 'menus.id', '=', 'permissions.menu_id')
-                ->select('permissions.*', 'menus.route_name')
-                ->where('role_id', '=', Auth::user()->role_id)  // Filter by user's role ID
-                ->where('permissions.status', '=', 1)  // Only active permissions
-                ->pluck('route_name')  // Get the route names
-                ->toArray();  // Convert the collection to an array
+    return $trimmed === '' ? '/' : $trimmed;
+}
 
-            // Check if the current route's name is in the list of permitted route names
-            if (in_array(request()->route()->getName(), $permissions)) {
-                return true;  // If permitted, return true
-            }
-        }
-
+/**
+ * Whether the current user may use a sidebar menu path or route name.
+ * Superadmin (role_id 1 or the superadmin role) is always allowed.
+ * Everyone else is checked against the same menus.route_path / route_name
+ * lists already loaded for the sidebar — not a separate permissions table.
+ */
+function hasMenuPermission(string $key): bool
+{
+    if (! Auth::check() || $key === '') {
         return false;
     }
+
+    $user = Auth::user();
+
+    if ((int) $user->role_id === 1 || $user->hasRole('superadmin')) {
+        return true;
+    }
+
+    $wanted = normalizeMenuPermissionKey($key);
+    $granted = array_merge(
+        $user->getPermissionPaths(),
+        Menu::permittedRouteNamesForRole((int) $user->role_id),
+    );
+
+    foreach ($granted as $permission) {
+        if ($permission === null || $permission === '') {
+            continue;
+        }
+
+        if (normalizeMenuPermissionKey((string) $permission) === $wanted) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function abortUnlessMenuPermission(string $key): void
+{
+    if (! hasMenuPermission($key)) {
+        abort(403);
+    }
+}
+
+/**
+ * Explicit menu/permission key check for delete (and restore) actions.
+ * Callers must pass a sidebar path such as `/brand/delete` — the current
+ * web route name is never used, because API routes in routes/api.php are unnamed.
+ */
+function deletepermission(?string $key = null): bool
+{
+    if ($key === null || $key === '') {
+        return false;
+    }
+
+    return hasMenuPermission($key);
 }
 
 function getUserDialCode()
@@ -69,8 +117,21 @@ function getUserIpAddress()
 function getSetting(): ?array
 {
     try {
-        return Cache::remember('app.settings', now()->addMinutes(15), function () {
-            return Setting::first()?->toArray();
+        return Cache::remember('app.settings.public', now()->addMinutes(15), function () {
+            $setting = Setting::query()->first()?->toArray();
+
+            if ($setting === null) {
+                return null;
+            }
+
+            unset(
+                $setting['smtp_password'],
+                $setting['authorize_api_login_id'],
+                $setting['authorize_transaction_key'],
+                $setting['authorize_signature_key'],
+            );
+
+            return $setting;
         });
     } catch (Throwable) {
         return null;
@@ -80,6 +141,7 @@ function getSetting(): ?array
 function forgetSettingCache(): void
 {
     Cache::forget('app.settings');
+    Cache::forget('app.settings.public');
 }
 
 function forgetUserPermissionsCache(?int $roleId = null): void

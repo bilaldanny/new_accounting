@@ -145,6 +145,8 @@ class VariationController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/variation/add');
+
         $this->normalizeVariationRequest($request);
         $request->validate($this->variationFormRules());
 
@@ -166,6 +168,8 @@ class VariationController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeMenuPermission('/variation/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.category' => 'nullable',
@@ -240,6 +244,8 @@ class VariationController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/variation/:id/edit');
+
         $this->normalizeVariationRequest($request);
         $request->validate($this->variationFormRules());
 
@@ -261,7 +267,7 @@ class VariationController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/variation/delete')) {
             $variation = Variation::findVisibleToCurrentUser((int) $id);
 
             if ($variation === null) {
@@ -278,7 +284,7 @@ class VariationController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/variation/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Variation::query()
@@ -305,7 +311,7 @@ class VariationController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/variation/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Variation::query()
@@ -330,6 +336,7 @@ class VariationController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/variation/:id/edit');
         $variations = Variation::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -365,7 +372,7 @@ class VariationController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/variation/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Variation::query()
@@ -390,6 +397,8 @@ class VariationController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/variation/add');
+
         DB::beginTransaction();
         try {
             $variation = Variation::findVisibleToCurrentUser((int) $request->id);

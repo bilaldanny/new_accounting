@@ -46,26 +46,29 @@ class PermissionController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/role/:id/permission');
 
         if (! Menu::assignerCanManageMenu((int) $request->user()->role_id, (int) $request->menuid)) {
             return response()->json(['message' => 'You are not allowed to manage this permission.'], 403);
         }
 
-        $raw = 'role_id = '.$request->get('role_id');
+        $applyScope = function ($query) use ($request) {
+            $query->where('role_id', $request->integer('role_id'));
 
-        if ($request->filled('department_id')) {
-            $raw .= ' AND department_id = '.$request->get('department_id');
-        }
+            if ($request->filled('department_id')) {
+                $query->where('department_id', $request->integer('department_id'));
+            }
 
-        if ($request->filled('company_id')) {
-            $raw .= ' AND company_id = '.$request->get('company_id');
-        }
+            if ($request->filled('company_id')) {
+                $query->where('company_id', $request->integer('company_id'));
+            }
 
-        if ($request->filled('branch_id')) {
-            $raw .= ' AND branch_id = '.$request->get('branch_id');
-        }
+            if ($request->filled('branch_id')) {
+                $query->where('branch_id', $request->integer('branch_id'));
+            }
+        };
 
-        $permission = Permission::whereRaw($raw)->get();
+        $permission = Permission::query()->tap($applyScope)->get();
 
         if (count($permission) === 0) {
 
@@ -84,7 +87,7 @@ class PermissionController extends Controller
             if (isset($menus) && $menus !== null) {
 
                 $permission = Permission::where('menu_id', '=', $menus->id)
-                    ->whereRaw($raw)
+                    ->tap($applyScope)
                     ->first();
 
                 if ($permission->status === 1) {
@@ -110,7 +113,7 @@ class PermissionController extends Controller
                     foreach ($menus->children as $k => $menu1) {
 
                         $childpermission = Permission::where('menu_id', '=', $menu1->id)
-                            ->whereRaw($raw)
+                            ->tap($applyScope)
                             ->first();
 
                         if (isset($childpermission)) {
@@ -126,7 +129,7 @@ class PermissionController extends Controller
                             foreach ($menu1->children as $k2 => $menu2) {
 
                                 $subchildpermission = Permission::where('menu_id', '=', $menu2->id)
-                                    ->whereRaw($raw)
+                                    ->tap($applyScope)
                                     ->first();
 
                                 if (isset($subchildpermission)) {
@@ -166,7 +169,7 @@ class PermissionController extends Controller
             if (isset($menus) && $menus !== null) {
 
                 $permission = Permission::where('menu_id', '=', $menus->id)
-                    ->whereRaw($raw)
+                    ->tap($applyScope)
                     ->first();
 
                 if (isset($permission)) {
@@ -186,7 +189,7 @@ class PermissionController extends Controller
                     foreach ($menus->children as $k => $menu1) {
 
                         $childpermission = Permission::where('menu_id', '=', $menu1->id)
-                            ->whereRaw($raw)
+                            ->tap($applyScope)
                             ->first();
 
                         if (isset($childpermission)) {
@@ -206,7 +209,7 @@ class PermissionController extends Controller
                             foreach ($menu1->children as $k2 => $menu2) {
 
                                 $subchildpermission = Permission::where('menu_id', '=', $menu2->id)
-                                    ->whereRaw($raw)
+                                    ->tap($applyScope)
                                     ->first();
 
                                 if (isset($subchildpermission)) {
@@ -302,25 +305,25 @@ class PermissionController extends Controller
     public function fetch(Request $request)
     {
 
-        $raw = 'status = 1';
+        $query = Permission::query()->where('status', 1);
 
         if ($request->filled('company_id')) {
-            $raw .= ' and company_id = '.$request->company_id;
+            $query->where('company_id', $request->integer('company_id'));
         }
 
         if ($request->filled('branch_id')) {
-            $raw .= ' and branch_id = '.$request->branch_id;
+            $query->where('branch_id', $request->integer('branch_id'));
         }
 
         if ($request->filled('department_id')) {
-            $raw .= ' and department_id = '.$request->department_id;
+            $query->where('department_id', $request->integer('department_id'));
         }
 
         if ($request->filled('role_id')) {
-            $raw .= ' and role_id = '.$request->role_id;
+            $query->where('role_id', $request->integer('role_id'));
         }
 
-        $permission = Permission::whereRaw($raw)->pluck('menu_id')->toArray();
+        $permission = $query->pluck('menu_id')->toArray();
 
         return response()->json($permission);
 

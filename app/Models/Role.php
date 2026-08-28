@@ -77,8 +77,20 @@ class Role extends Model
 
     public function scopeVisibleToCurrentUser(Builder $query): Builder
     {
-        if (Auth::user()?->hasRole('superadmin')) {
+        $user = Auth::user();
+
+        if ($user?->hasRole('superadmin')) {
             return $query;
+        }
+
+        if (! $user?->company_id) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        $query->where('company_id', $user->company_id);
+
+        if ($user?->branch_id && ! $user?->hasRole('companyadmin')) {
+            $query->where('branch_id', $user->branch_id);
         }
 
         return $query->whereRaw("LOWER(REPLACE(name, ' ', '')) != ?", [self::normalizeName(self::HIDDEN_ROLE_NAME)]);

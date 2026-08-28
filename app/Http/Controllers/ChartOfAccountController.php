@@ -100,6 +100,8 @@ class ChartOfAccountController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/chart-of-account/add');
+
         $this->normalizeBooleanFields($request);
         $request->validate($this->storeRules());
 
@@ -127,6 +129,8 @@ class ChartOfAccountController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/chart-of-account/:id/edit');
+
         $this->normalizeBooleanFields($request);
         $request->validate($this->updateRules());
 

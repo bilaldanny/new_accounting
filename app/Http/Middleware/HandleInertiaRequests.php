@@ -52,7 +52,7 @@ class HandleInertiaRequests extends Middleware
             'routeName' => Route::currentRouteName(),
             'dailCode' => getUserDialCode(),
             'ipAddress' => getUserIpAddress(),
-            'name' => data_get($setting, 'name', config('app.name')),
+            'name' => data_get($setting, 'name') ?: config('app.name'),
             'url' => config('app.url'),
             'timezone' => config('app.timezone'),
             'auth' => [

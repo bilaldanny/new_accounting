@@ -17,16 +17,18 @@ function strongTestPassword(): string
 
 function seedUserScope(): array
 {
+    $suffix = substr(str_replace('.', '', uniqid('', true)), -6);
+
     $companyId = DB::table('companies')->insertGetId([
-        'code' => 'CMP001',
-        'name' => 'Test Company',
+        'code' => 'CMP'.$suffix,
+        'name' => 'Test Company '.$suffix,
         'is_active' => 1,
         'created_at' => now(),
         'updated_at' => now(),
     ]);
 
     $branchOneId = DB::table('branches')->insertGetId([
-        'code' => 'BR001',
+        'code' => 'BR'.$suffix,
         'company_id' => $companyId,
         'name' => 'Branch One',
         'is_active' => 1,
@@ -95,7 +97,6 @@ function createManagedUser(array $attributes = []): User
         'username' => 'janedoe_'.$role->id,
         'email' => 'jane_'.$role->id.'@example.com',
         'password' => Hash::make('password123'),
-        'pass' => 'password123',
         'is_active' => true,
     ], $attributes));
 }
@@ -123,7 +124,6 @@ test('users index excludes companyadmin records', function () {
         'username' => 'companyadminuser',
         'email' => 'companyadmin@example.com',
         'password' => Hash::make('password123'),
-        'pass' => 'password123',
         'is_active' => true,
     ]);
 
@@ -283,4 +283,135 @@ test('users check-identity api ignores the current user when editing', function 
 
 test('guests cannot access users api', function () {
     $this->getJson('/api/users')->assertUnauthorized();
+});
+
+test('companyadmin cannot assign another company or a foreign role when creating a user', function () {
+    $own = seedUserScope();
+    $other = seedUserScope();
+
+    $ownRole = createUserRole(['name' => 'staff', 'company_id' => $own['company_id']]);
+    $foreignRole = createUserRole(['name' => 'otherstaff', 'company_id' => $other['company_id']]);
+    $department = createUserDepartment([
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_one_id'],
+    ]);
+
+    $adminRole = createUserRole(['name' => 'companyadmin', 'company_id' => $own['company_id']]);
+    $companyAdmin = User::query()->create([
+        'role_id' => $adminRole->id,
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_one_id'],
+        'first_name' => 'Company',
+        'last_name' => 'Admin',
+        'username' => 'ownadmin',
+        'email' => 'ownadmin@example.com',
+        'password' => Hash::make('password'),
+        'is_active' => true,
+    ]);
+
+    grantMenuPermission((int) $adminRole->id, '/user/add');
+    Sanctum::actingAs($companyAdmin);
+
+    $this->postJson('/api/users', [
+        'company_id' => $other['company_id'],
+        'branch_id' => $own['branch_one_id'],
+        'department_id' => $department->id,
+        'role_id' => $ownRole->id,
+        'first_name' => 'Locked',
+        'last_name' => 'User',
+        'username' => 'lockeduser',
+        'email' => 'locked@example.com',
+        'password' => strongTestPassword(),
+        'password_confirmation' => strongTestPassword(),
+        'is_active' => true,
+    ])->assertSuccessful();
+
+    $created = User::query()->where('email', 'locked@example.com')->first();
+
+    expect($created)->not->toBeNull()
+        ->and((int) $created->company_id)->toBe($own['company_id'])
+        ->and((int) $created->branch_id)->toBe($own['branch_one_id'])
+        ->and((int) $created->role_id)->toBe($ownRole->id);
+
+    $this->postJson('/api/users', [
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_one_id'],
+        'department_id' => $department->id,
+        'role_id' => $foreignRole->id,
+        'first_name' => 'Foreign',
+        'last_name' => 'Role',
+        'username' => 'foreignrole',
+        'email' => 'foreignrole@example.com',
+        'password' => strongTestPassword(),
+        'password_confirmation' => strongTestPassword(),
+        'is_active' => true,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['role_id']);
+
+    $this->postJson('/api/users', [
+        'company_id' => $own['company_id'],
+        'branch_id' => $other['branch_one_id'],
+        'department_id' => $department->id,
+        'role_id' => $ownRole->id,
+        'first_name' => 'Foreign',
+        'last_name' => 'Branch',
+        'username' => 'foreignbranch',
+        'email' => 'foreignbranch@example.com',
+        'password' => strongTestPassword(),
+        'password_confirmation' => strongTestPassword(),
+        'is_active' => true,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['branch_id']);
+});
+
+test('branch staff cannot move a created user to another branch via the payload', function () {
+    $scope = seedUserScope();
+    $otherBranchId = DB::table('branches')->insertGetId([
+        'code' => 'BRX'.$scope['company_id'],
+        'company_id' => $scope['company_id'],
+        'name' => 'Branch Two',
+        'is_active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $staffRole = createUserRole(['name' => 'clerk', 'company_id' => $scope['company_id']]);
+    $department = createUserDepartment([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_one_id'],
+    ]);
+
+    $actor = User::query()->create([
+        'role_id' => $staffRole->id,
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_one_id'],
+        'first_name' => 'Branch',
+        'last_name' => 'Clerk',
+        'username' => 'branchclerk',
+        'email' => 'branchclerk@example.com',
+        'password' => Hash::make('password'),
+        'is_active' => true,
+    ]);
+
+    grantMenuPermission((int) $staffRole->id, '/user/add');
+    Sanctum::actingAs($actor);
+
+    $this->postJson('/api/users', [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $otherBranchId,
+        'department_id' => $department->id,
+        'role_id' => $staffRole->id,
+        'first_name' => 'Same',
+        'last_name' => 'Branch',
+        'username' => 'samebranch',
+        'email' => 'samebranch@example.com',
+        'password' => strongTestPassword(),
+        'password_confirmation' => strongTestPassword(),
+        'is_active' => true,
+    ])->assertSuccessful();
+
+    $created = User::query()->where('email', 'samebranch@example.com')->first();
+
+    expect($created)->not->toBeNull()
+        ->and((int) $created->branch_id)->toBe($scope['branch_one_id']);
 });

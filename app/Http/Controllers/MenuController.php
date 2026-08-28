@@ -14,6 +14,7 @@ class MenuController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorizeSuperadmin($request);
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'desc';
         $show_record = $request->show_record ?? 10;
@@ -59,6 +60,8 @@ class MenuController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/menu/add');
         $request->validate([
             'name' => 'bail|required',
             'type' => 'bail|required',
@@ -77,8 +80,9 @@ class MenuController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $this->authorizeSuperadmin($request);
         $menu = Menu::find($id);
 
         return response()->json($menu);
@@ -86,6 +90,8 @@ class MenuController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/menu/:id/edit');
         $request->validate([
             'name' => 'bail|required',
         ]);
@@ -104,9 +110,10 @@ class MenuController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/menu/delete')) {
             Menu::DeleteMenu($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -118,7 +125,8 @@ class MenuController extends Controller
     /* Bulk Record Delete */
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/menu/delete')) {
             DB::beginTransaction();
             try {
                 // Perform the deletion
@@ -139,7 +147,8 @@ class MenuController extends Controller
     /* Bulk Record Permanently Delete */
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/menu/delete')) {
 
             DB::beginTransaction();
             try {
@@ -162,6 +171,8 @@ class MenuController extends Controller
     /* Update Status */
     public function updatestatus(Request $request)
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/menu/:id/edit');
         $menus = Menu::whereIn('id', $request->ids)->get();
 
         if (isset($menus)) {
@@ -192,8 +203,9 @@ class MenuController extends Controller
         return response()->json(['message' => 'Successfully Saved']);
     }
 
-    public function fetchmenus()
+    public function fetchmenus(Request $request)
     {
+        $this->authorizeSuperadmin($request);
         $menu = Menu::with('children.children')
             ->where('is_active', '=', 1)
             ->where('is_hidden', '=', 0)
@@ -206,6 +218,7 @@ class MenuController extends Controller
 
     public function fetchpermenus(Request $request)
     {
+        $this->authorizeSuperadmin($request);
         $roleId = (int) $request->user()->role_id;
 
         return response()->json(Menu::permissionMenusForAssigner($roleId));
@@ -214,10 +227,10 @@ class MenuController extends Controller
     /* Bulk Record Permanently Delete */
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        $this->authorizeSuperadmin($request);
+        if (deletepermission('/menu/restore')) {
             DB::beginTransaction();
             try {
-                // Perform the deletion
                 Menu::whereIn('id', $request->all())->restore();
                 DB::commit();
 
@@ -234,6 +247,8 @@ class MenuController extends Controller
 
     public function import(Request $request)
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/menu/import');
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string',
@@ -281,6 +296,8 @@ class MenuController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/menu/add');
         DB::beginTransaction();
         try {
             $menu = Menu::find($request->id);
@@ -299,6 +316,7 @@ class MenuController extends Controller
 
     public function trash(Request $request)
     {
+        $this->authorizeSuperadmin($request);
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'desc';
         $show_record = $request->show_record ?? 10;
@@ -337,5 +355,20 @@ class MenuController extends Controller
         }
 
         return response()->json(['data' => $menus]);
+    }
+
+    private function isSuperadmin(Request $request): bool
+    {
+        $user = $request->user();
+        $roleName = strtolower(str_replace(' ', '', (string) ($user?->rolename ?? '')));
+
+        return $roleName === 'superadmin';
+    }
+
+    private function authorizeSuperadmin(Request $request): void
+    {
+        if (! $this->isSuperadmin($request)) {
+            abort(403);
+        }
     }
 }

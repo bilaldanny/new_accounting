@@ -499,7 +499,6 @@
         label="Company Logo"
         placeholder="Select logo image"
         :columns="colThird"
-        :rules="logoRules"
         :add-classes="{
             ElementAddon: {
                 container: 'p-0',

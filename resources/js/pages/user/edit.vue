@@ -3,8 +3,10 @@
     import ModalComponent from '@/components/ModalComponent.vue';
     import { usePage } from '@inertiajs/vue3';
     import TheForm from '@/components/theForm.vue';
-    import { ref, watch } from 'vue';
+    import { computed, ref, watch } from 'vue';
     import Fields from './Fields.vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import { useSendCredentials } from '@/composables/sendCredentials';
 
     const {props} = usePage();
 
@@ -23,6 +25,15 @@
 
     const formRef = ref(null)
     const isSaving = ref(false)
+    const { isSending, sendCredentials } = useSendCredentials()
+
+    const credentialsUrl = computed(() => {
+        if (! modalProps.recordId) {
+            return '';
+        }
+
+        return API_ENDPOINTS.userSendCredentials(modalProps.recordId);
+    });
 
     watch(() => modalProps.showLoader, (loading) => {
         if (loading) {
@@ -76,12 +87,28 @@
         </TheForm>
 
         <template #footer>
+            <button
+                type="button"
+                class="btn btn-outline-primary d-inline-flex align-items-center me-auto"
+                :disabled="modalProps.showLoader || isSaving || isSending || !credentialsUrl"
+                :aria-busy="isSending"
+                @click="sendCredentials(credentialsUrl)"
+            >
+                <span
+                    v-if="isSending"
+                    class="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                ></span>
+                {{ isSending ? 'Sending…' : 'Send Credentials' }}
+            </button>
+
             <button type="button" class="btn btn-light waves-effect" data-bs-dismiss="modal">Close</button>
 
             <button
                 type="button"
                 class="btn btn-primary d-inline-flex align-items-center"
-                :disabled="modalProps.showLoader || isSaving"
+                :disabled="modalProps.showLoader || isSaving || isSending"
                 :aria-busy="isSaving"
                 @click="formRef?.submitForm()"
             >

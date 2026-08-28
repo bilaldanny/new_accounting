@@ -35,7 +35,6 @@ test('shared auth user includes company name', function () {
         'username' => 'companyadmin',
         'email' => 'companyadmin@example.com',
         'password' => Hash::make('password'),
-        'pass' => 'password',
         'is_active' => 1,
         'created_at' => now(),
         'updated_at' => now(),

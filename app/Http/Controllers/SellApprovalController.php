@@ -45,6 +45,8 @@ class SellApprovalController extends Controller
 
     public function approve(int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/sell/approval');
+
         Transaction::approveSell($id);
 
         return response()->json(['message' => 'Successfully Approved']);

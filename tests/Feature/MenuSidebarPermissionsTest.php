@@ -74,7 +74,6 @@ test('sidebar menus include ancestor items for permitted role menus', function (
         'username' => 'branchmanager',
         'email' => 'branchmanager@example.com',
         'password' => bcrypt('password'),
-        'pass' => 'password',
         'role_id' => $roleId,
         'is_active' => true,
     ]);

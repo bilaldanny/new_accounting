@@ -84,6 +84,8 @@ class PurchaseReturnController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/purchase/return/add');
+
         $request->validate($this->purchaseReturnRules());
 
         DB::beginTransaction();
@@ -115,6 +117,7 @@ class PurchaseReturnController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/purchase/return/:id/edit');
         $request->validate([
             'purchaselines' => 'bail|required|array|min:1',
             'purchaselines.*.id' => 'bail|required',
@@ -139,7 +142,7 @@ class PurchaseReturnController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/return/delete')) {
             Transaction::deletePurchaseReturn($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -150,7 +153,7 @@ class PurchaseReturnController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/return/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -178,7 +181,7 @@ class PurchaseReturnController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/return/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -204,7 +207,7 @@ class PurchaseReturnController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/return/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()

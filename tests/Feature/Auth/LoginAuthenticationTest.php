@@ -13,7 +13,6 @@ function createLoginUser(array $overrides = []): User
         'username' => 'testuser',
         'email' => 'test@example.com',
         'password' => bcrypt('password'),
-        'pass' => 'password',
         'is_active' => true,
     ], $overrides));
 }

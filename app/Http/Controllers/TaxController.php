@@ -21,6 +21,7 @@ class TaxController extends Controller
         $curPage = (int) $request->input('cur_page', 1);
 
         $query = Tax::query()
+            ->visibleToCurrentUser()
             ->with('company:id,name')
             ->when($request->filled('company_id'), fn ($q) => $q->where('company_id', $request->integer('company_id')))
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->integer('type')))
@@ -52,6 +53,8 @@ class TaxController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/company/setting');
+
         if ((int) $request->input('type') === 1) {
             $request->validate([
                 'name' => 'bail|required|min:3|max:200',
@@ -71,12 +74,13 @@ class TaxController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        return response()->json(Tax::query()->findOrFail($id));
+        return response()->json(Tax::query()->visibleToCurrentUser()->findOrFail($id));
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $tax = Tax::query()->findOrFail($id);
+        $this->authorizeMenuPermission('/company/setting');
+        $tax = Tax::query()->visibleToCurrentUser()->findOrFail($id);
 
         if ((int) $request->input('type', $tax->type) === 1) {
             $request->validate([
@@ -97,18 +101,18 @@ class TaxController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (! deletepermission()) {
+        if (! deletepermission('/company/setting')) {
             return response()->json('406');
         }
 
-        Tax::query()->findOrFail($id)->delete();
+        Tax::query()->visibleToCurrentUser()->findOrFail($id)->delete();
 
         return response()->json(['message' => 'Successfully Deleted']);
     }
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (! deletepermission()) {
+        if (! deletepermission('/company/setting')) {
             return response()->json('406');
         }
 
@@ -116,6 +120,7 @@ class TaxController extends Controller
 
         try {
             Tax::query()
+                ->visibleToCurrentUser()
                 ->whereIn('id', (array) $request->all())
                 ->delete();
 
@@ -131,6 +136,7 @@ class TaxController extends Controller
 
     public function updateStatus(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/company/setting');
         $ids = $request->input('ids');
 
         if (! is_array($ids) || $ids === []) {
@@ -140,7 +146,7 @@ class TaxController extends Controller
             $ids = [$request->integer('id')];
         }
 
-        $taxes = Tax::query()->whereIn('id', $ids)->get();
+        $taxes = Tax::query()->visibleToCurrentUser()->whereIn('id', $ids)->get();
 
         if ($taxes->isEmpty()) {
             return response()->json(['errormessage' => 'Something went wrong']);
@@ -172,6 +178,7 @@ class TaxController extends Controller
     public function fetch(Request $request): JsonResponse
     {
         $taxes = Tax::query()
+            ->visibleToCurrentUser()
             ->where('status', true)
             ->where('type', 0)
             ->when($request->filled('company_id'), fn ($q) => $q->where('company_id', $request->integer('company_id')))

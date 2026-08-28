@@ -46,3 +46,4 @@ expect()->extend('toBeOne', function () {
 
 require __DIR__.'/Support/purchase.php';
 require __DIR__.'/Support/sell.php';
+require __DIR__.'/Support/menuPermission.php';

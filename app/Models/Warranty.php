@@ -90,11 +90,11 @@ class Warranty extends Model
             return $query;
         }
 
-        if ($user?->company_id) {
-            return $query->where('company_id', $user->company_id);
+        if (! $user?->company_id) {
+            return $query->whereRaw('0 = 1');
         }
 
-        return $query;
+        return $query->where('company_id', $user->company_id);
     }
 
     public static function findVisibleToCurrentUser(int $id): ?self

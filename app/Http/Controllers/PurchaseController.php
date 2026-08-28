@@ -145,6 +145,8 @@ class PurchaseController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeMenuPermission('/purchase/add');
+
         $request->validate($this->purchaseFormRules());
 
         DB::beginTransaction();
@@ -192,6 +194,8 @@ class PurchaseController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeMenuPermission('/purchase/:id/edit');
+
         $request->validate($this->purchaseFormRules());
 
         DB::beginTransaction();
@@ -212,7 +216,7 @@ class PurchaseController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/delete')) {
             Transaction::deletePurchase((int) $id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -223,7 +227,7 @@ class PurchaseController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -248,7 +252,7 @@ class PurchaseController extends Controller
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/delete')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -274,7 +278,7 @@ class PurchaseController extends Controller
 
     public function restore_records(Request $request)
     {
-        if (deletepermission()) {
+        if (deletepermission('/purchase/restore')) {
             DB::beginTransaction();
             try {
                 $ids = Transaction::query()
@@ -300,6 +304,7 @@ class PurchaseController extends Controller
 
     public function updatestatus(Request $request)
     {
+        $this->authorizeMenuPermission('/purchase/:id/edit');
         $purchases = Transaction::query()
             ->purchases()
             ->visibleToCurrentUser()
@@ -330,6 +335,8 @@ class PurchaseController extends Controller
 
     public function duplicate(Request $request)
     {
+        $this->authorizeMenuPermission('/purchase/add');
+
         DB::beginTransaction();
         try {
             $purchase = Transaction::query()

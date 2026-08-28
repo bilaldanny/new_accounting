@@ -19,6 +19,7 @@ class FinancialYearController extends Controller
         $search = $request->input('search', '');
 
         $query = FinancialYear::query()
+            ->visibleToCurrentUser()
             ->when($request->filled('company_id'), fn ($q) => $q->where('company_id', $request->integer('company_id')))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
@@ -37,6 +38,8 @@ class FinancialYearController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/company/setting');
+
         $request->validate([
             'start_date' => 'required|string',
             'end_date' => 'required|string',
@@ -49,12 +52,13 @@ class FinancialYearController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        return response()->json(FinancialYear::query()->findOrFail($id));
+        return response()->json(FinancialYear::query()->visibleToCurrentUser()->findOrFail($id));
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $financialYear = FinancialYear::query()->findOrFail($id);
+        $this->authorizeMenuPermission('/company/setting');
+        $financialYear = FinancialYear::query()->visibleToCurrentUser()->findOrFail($id);
 
         if ($request->input('updatetype') !== 'status') {
             $request->validate([
@@ -70,7 +74,11 @@ class FinancialYearController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        FinancialYear::query()->findOrFail($id)->delete();
+        if (! deletepermission('/company/setting')) {
+            return response()->json('406');
+        }
+
+        FinancialYear::query()->visibleToCurrentUser()->findOrFail($id)->delete();
 
         return response()->json(['message' => 'Successfully Deleted']);
     }
@@ -78,6 +86,7 @@ class FinancialYearController extends Controller
     public function fetch(Request $request): JsonResponse
     {
         $years = FinancialYear::query()
+            ->visibleToCurrentUser()
             ->where('status', true)
             ->when($request->filled('company_id'), fn ($q) => $q->where('company_id', $request->integer('company_id')))
             ->select('financial_years.*', DB::raw("CONCAT(start_date, ' - ', end_date) AS text"))

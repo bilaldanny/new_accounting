@@ -44,6 +44,7 @@ class CompanySettingController extends Controller
     public function update(Request $request, int $companyId): JsonResponse
     {
         $this->authorizeCompanyAccess($request, $companyId);
+        $this->authorizeMenuPermission('/company/setting');
 
         $company = Company::query()->findOrFail($companyId);
 

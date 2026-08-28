@@ -91,6 +91,8 @@ class BranchController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/branch/add');
+
         $request->validate([
             'name' => 'bail|required|min:3|max:200',
             'email' => 'bail|required|email',
@@ -116,6 +118,8 @@ class BranchController extends Controller
 
     public function import(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/branch/import');
+
         $request->validate([
             'rows' => 'required|array|min:1',
             'rows.*.name' => 'bail|required|string',
@@ -174,6 +178,8 @@ class BranchController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->authorizeMenuPermission('/branch/:id/edit');
+
         $request->validate([
             'name' => 'bail|required|min:3|max:200',
             'email' => 'bail|required|email',
@@ -198,7 +204,7 @@ class BranchController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/branch/delete')) {
             Branch::deleteBranch($id);
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -209,7 +215,7 @@ class BranchController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/branch/delete')) {
             DB::beginTransaction();
             try {
                 Branch::query()
@@ -231,7 +237,7 @@ class BranchController extends Controller
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/branch/delete')) {
             DB::beginTransaction();
             try {
                 $ids = (array) $request->all();
@@ -254,6 +260,7 @@ class BranchController extends Controller
 
     public function updatestatus(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/branch/:id/edit');
         $branches = Branch::query()
             ->visibleToCurrentUser()
             ->whereIn('id', $request->ids)
@@ -285,7 +292,7 @@ class BranchController extends Controller
 
     public function restore_records(Request $request): JsonResponse
     {
-        if (deletepermission()) {
+        if (deletepermission('/branch/restore')) {
             DB::beginTransaction();
             try {
                 Branch::onlyTrashed()
@@ -307,6 +314,7 @@ class BranchController extends Controller
 
     public function duplicate(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/branch/add');
         DB::beginTransaction();
         try {
             $branch = Branch::query()->visibleToCurrentUser()->findOrFail($request->id);

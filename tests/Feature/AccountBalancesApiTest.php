@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -9,16 +10,18 @@ uses(RefreshDatabase::class);
 
 function seedOpeningBalanceScope(): array
 {
+    $suffix = substr(str_replace('.', '', uniqid('', true)), -6);
+
     $companyId = DB::table('companies')->insertGetId([
-        'code' => 'OB001',
-        'name' => 'Opening Balance Company',
+        'code' => 'OB'.$suffix,
+        'name' => 'Opening Balance Company '.$suffix,
         'is_active' => 1,
         'created_at' => now(),
         'updated_at' => now(),
     ]);
 
     $branchId = DB::table('branches')->insertGetId([
-        'code' => 'OBB001',
+        'code' => 'OBB'.$suffix,
         'company_id' => $companyId,
         'name' => 'Main Branch',
         'is_active' => 1,
@@ -198,4 +201,100 @@ test('opening balance menu migration updates route path', function () {
     expect($menu->route_name)->toBe('opening-balance')
         ->and($menu->route_path)->toBe('/opening-balance')
         ->and($menu->is_hidden)->toBe(0);
+});
+
+test('company user cannot upsert opening balances for another company', function () {
+    $own = seedOpeningBalanceScope();
+    $other = seedOpeningBalanceScope();
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $own['company_id'],
+        'is_active' => true,
+    ]);
+    $user = User::query()->create([
+        'role_id' => $role->id,
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_id'],
+        'first_name' => 'Company',
+        'last_name' => 'Admin',
+        'username' => 'obadmin',
+        'email' => 'obadmin@example.com',
+        'password' => bcrypt('password'),
+        'is_active' => true,
+    ]);
+
+    grantMenuPermission((int) $role->id, '/opening-balance/add');
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/account-balances', [
+        'company_id' => $other['company_id'],
+        'branch_id' => $other['branch_id'],
+        'financial_id' => $other['financial_id'],
+        'accounts' => [
+            [
+                'id' => $other['cash_id'],
+                'opening_balance' => 9999,
+                'acc_nature' => 'dr',
+            ],
+        ],
+    ])->assertForbidden();
+
+    $this->assertDatabaseMissing('account_balances', [
+        'coa_id' => $other['cash_id'],
+        'opening_balance' => 9999,
+    ]);
+});
+
+test('opening balance store rejects accounts that do not belong to the resolved company and branch', function () {
+    $own = seedOpeningBalanceScope();
+    $other = seedOpeningBalanceScope();
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/account-balances', [
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_id'],
+        'financial_id' => $own['financial_id'],
+        'accounts' => [
+            [
+                'id' => $other['cash_id'],
+                'opening_balance' => 1500,
+                'acc_nature' => 'dr',
+            ],
+        ],
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['accounts']);
+});
+
+test('company user cannot fetch opening balances for another company account', function () {
+    $own = seedOpeningBalanceScope();
+    $other = seedOpeningBalanceScope();
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $own['company_id'],
+        'is_active' => true,
+    ]);
+    $user = User::query()->create([
+        'role_id' => $role->id,
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_id'],
+        'first_name' => 'Company',
+        'last_name' => 'Admin',
+        'username' => 'obfetch',
+        'email' => 'obfetch@example.com',
+        'password' => bcrypt('password'),
+        'is_active' => true,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/account-balances/fetch-balance?'.http_build_query([
+        'company_id' => $other['company_id'],
+        'branch_id' => $other['branch_id'],
+        'financial_id' => $other['financial_id'],
+        'account_id' => $other['assets_id'],
+    ]))->assertForbidden();
 });
