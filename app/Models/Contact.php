@@ -224,6 +224,13 @@ class Contact extends Model
             ->find($id);
     }
 
+    public static function findVisibleContact(int $id): ?self
+    {
+        return self::query()
+            ->visibleToCurrentUser()
+            ->find($id);
+    }
+
     public static function resolveScopedId(mixed $value): ?int
     {
         if ($value === null || $value === '' || $value === 'undefined') {

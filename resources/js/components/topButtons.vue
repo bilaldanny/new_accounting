@@ -3,6 +3,7 @@ import useCommons from '@/composables/common';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
+    Cloud,
     EyeAlt,
     EyeClosed,
     Filter,
@@ -22,6 +23,9 @@ const buttonProps = defineProps({
     showFilter: { type: Boolean, default: true },
     showAdd: { type: Boolean, default: true },
     showImport: { type: Boolean, default: false },
+    showFetchApi: { type: Boolean, default: false },
+    fetchApi: { type: Function, default: null },
+    fetchingApi: { type: Boolean, default: false },
     addHref: { type: String, default: '' },
     filterOpen: { type: Boolean, default: false },
     showStatus: { type: Boolean, default: true },
@@ -203,6 +207,28 @@ const { formatedText } = useCommons();
             >
                 <FilePlus size="sm" class="top-btn-icon top-btn-icon-inline" />
                 Import
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-sm btn-outline-primary top-btn"
+                v-if="
+                    buttonProps.showFetchApi &&
+                    props.auth.user.permission_paths.includes(`/${buttonProps.url}/add`)
+                "
+                :disabled="buttonProps.fetchingApi"
+                :aria-busy="buttonProps.fetchingApi"
+                title="Fetch from API"
+                @click="buttonProps.fetchApi?.()"
+            >
+                <span
+                    v-if="buttonProps.fetchingApi"
+                    class="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                ></span>
+                <Cloud v-else size="sm" class="top-btn-icon top-btn-icon-inline" />
+                {{ buttonProps.fetchingApi ? 'Fetching…' : 'Fetch from API' }}
             </button>
 
             <Link

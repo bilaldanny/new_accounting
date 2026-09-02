@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
+use App\Services\SellJournal;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +43,8 @@ class SellController extends Controller
             'bilty_image' => 'nullable',
             'additional_note' => 'nullable|string',
             'final_amount' => 'nullable|numeric|min:0',
+            'tax_id' => 'nullable|integer',
+            'tax_amount' => 'nullable|numeric|min:0',
             'total_item' => 'nullable|integer|min:0',
             'is_direct' => 'nullable|boolean',
             'direct_contact_id' => 'required_if:is_direct,1,true|nullable',
@@ -256,6 +259,7 @@ class SellController extends Controller
                     ->whereIn('id', $request->all())
                     ->pluck('id');
 
+                app(SellJournal::class)->deleteForIds($ids);
                 Transaction::whereIn('id', $ids)->delete();
                 DB::commit();
 
@@ -282,6 +286,7 @@ class SellController extends Controller
                     ->whereIn('id', (array) $request->all())
                     ->pluck('id');
 
+                app(SellJournal::class)->deleteForIds($ids);
                 Transaction::whereIn('id', $ids)->forceDelete();
                 DB::commit();
 
@@ -309,6 +314,13 @@ class SellController extends Controller
                     ->pluck('id');
 
                 Transaction::whereIn('id', $ids)->restore();
+
+                Transaction::query()
+                    ->sells()
+                    ->whereIn('id', $ids)
+                    ->get()
+                    ->each(fn (Transaction $sell) => app(SellJournal::class)->sync($sell));
+
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);

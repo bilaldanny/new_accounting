@@ -38,7 +38,7 @@ class FinancialYearController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeMenuPermission('/company/setting');
+        $this->authorizeCompanySettingMenuPermission();
 
         $request->validate([
             'start_date' => 'required|string',
@@ -57,7 +57,7 @@ class FinancialYearController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $this->authorizeMenuPermission('/company/setting');
+        $this->authorizeCompanySettingMenuPermission();
         $financialYear = FinancialYear::query()->visibleToCurrentUser()->findOrFail($id);
 
         if ($request->input('updatetype') !== 'status') {
@@ -74,7 +74,7 @@ class FinancialYearController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (! deletepermission('/company/setting')) {
+        if (! hasCompanySettingMenuPermission()) {
             return response()->json('406');
         }
 

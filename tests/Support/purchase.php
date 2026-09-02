@@ -99,7 +99,7 @@ function seedPurchaseScope(): array
         'active' => true,
     ]);
 
-    return [
+    $scope = [
         'company_id' => $companyId,
         'branch_id' => $branchId,
         'unit_id' => $unit->id,
@@ -109,6 +109,119 @@ function seedPurchaseScope(): array
         'category_id' => $category->id,
         'contact_id' => $supplier->id,
     ];
+
+    return seedPurchaseChartAccounts($scope, $supplier);
+}
+
+/**
+ * @param  array<string, mixed>  $scope
+ * @return array<string, mixed>
+ */
+function seedPurchaseChartAccounts(array $scope, Contact $supplier): array
+{
+    if (! DB::table('financial_years')->where('company_id', $scope['company_id'])->exists()) {
+        DB::table('financial_years')->insert([
+            'company_id' => $scope['company_id'],
+            'name' => 'FY 2026',
+            'start_date' => '2026-07-01',
+            'end_date' => '2027-07-01',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    $localPurchaseId = insertPurchaseChartAccount($scope, '501-00001', 'Purchase - Local', 'dr', true);
+    $exportPurchaseId = insertPurchaseChartAccount($scope, '501-00002', 'Purchase - Export', 'dr', true);
+    $inputTaxId = insertPurchaseChartAccount($scope, '201-00010', 'Input Tax', 'dr', false);
+    $supplierAccountId = insertPurchaseChartAccount($scope, '311-00001', 'Acme Supplies', 'cr', false);
+
+    insertPurchaseAccountMapping($scope, 'Local Purchase', 'localpurchase', $localPurchaseId);
+    insertPurchaseAccountMapping($scope, 'Import Purchase', 'importpurchase', $exportPurchaseId);
+    insertPurchaseAccountMapping($scope, 'Purchase', 'purchase', $localPurchaseId);
+    insertPurchaseAccountMapping($scope, 'Input Tax', 'inputtax', $inputTaxId);
+
+    $supplier->forceFill([
+        'supplier_gl_id' => '311-00001',
+        'gl_id' => '311-00001',
+        'link_account' => true,
+    ])->save();
+
+    return array_merge($scope, [
+        'local_purchase_coa_id' => $localPurchaseId,
+        'local_purchase_code' => '501-00001',
+        'export_purchase_coa_id' => $exportPurchaseId,
+        'export_purchase_code' => '501-00002',
+        'input_tax_coa_id' => $inputTaxId,
+        'input_tax_code' => '201-00010',
+        'supplier_coa_id' => $supplierAccountId,
+        'supplier_code' => '311-00001',
+    ]);
+}
+
+/**
+ * @param  array<string, mixed>  $scope
+ */
+function insertPurchaseChartAccount(array $scope, string $code, string $name, string $nature, bool $isProfitAndLoss): int
+{
+    return (int) DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'code' => $code,
+        'name' => $name,
+        'acc_type' => 't',
+        'acc_nature' => $nature,
+        'pl' => $isProfitAndLoss ? 1 : 0,
+        'bs' => $isProfitAndLoss ? 0 : 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
+/**
+ * @param  array<string, mixed>  $scope
+ */
+function insertPurchaseAccountMapping(array $scope, string $name, string $key, int $accountId): void
+{
+    DB::table('chart_of_account_mappings')->insert([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'name' => $name,
+        'key' => $key,
+        'value' => (string) $accountId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
+/**
+ * @param  array<string, mixed>  $scope
+ */
+function createExportSupplier(array $scope): Contact
+{
+    $code = '311-00002';
+
+    insertPurchaseChartAccount($scope, $code, 'Export Supplies', 'cr', false);
+
+    return Contact::query()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Export Supplies',
+        'first_name' => 'Amina',
+        'mobile' => '03007654321',
+        'address' => 'Port address',
+        'code' => 'SU-00002',
+        'user_type' => 'supplier',
+        'type' => 'export',
+        'ntn_number' => '7654321',
+        'pay_term' => 15,
+        'pay_type' => 'day',
+        'active' => true,
+        'link_account' => true,
+        'supplier_gl_id' => $code,
+        'gl_id' => $code,
+    ]);
 }
 
 function validPurchasePayload(array $scope, array $overrides = []): array

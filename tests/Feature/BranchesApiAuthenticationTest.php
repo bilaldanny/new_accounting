@@ -48,7 +48,7 @@ test('branch store creates chart of accounts and mappings', function () {
 
     expect($branchCode)->toBe('BR-00001')
         ->and(DB::table('chart_of_accounts')->where('branch_id', $branchId)->count())->toBe(6)
-        ->and(DB::table('chart_of_account_mappings')->where('branch_id', $branchId)->count())->toBe(17);
+        ->and(DB::table('chart_of_account_mappings')->where('branch_id', $branchId)->count())->toBe(19);
 });
 
 test('branches generate-code api returns the next sequential code', function () {

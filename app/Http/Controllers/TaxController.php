@@ -53,7 +53,7 @@ class TaxController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeMenuPermission('/company/setting');
+        $this->authorizeCompanySettingMenuPermission();
 
         if ((int) $request->input('type') === 1) {
             $request->validate([
@@ -79,7 +79,7 @@ class TaxController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $this->authorizeMenuPermission('/company/setting');
+        $this->authorizeCompanySettingMenuPermission();
         $tax = Tax::query()->visibleToCurrentUser()->findOrFail($id);
 
         if ((int) $request->input('type', $tax->type) === 1) {
@@ -101,7 +101,7 @@ class TaxController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        if (! deletepermission('/company/setting')) {
+        if (! hasCompanySettingMenuPermission()) {
             return response()->json('406');
         }
 
@@ -112,7 +112,7 @@ class TaxController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (! deletepermission('/company/setting')) {
+        if (! hasCompanySettingMenuPermission()) {
             return response()->json('406');
         }
 
@@ -136,7 +136,7 @@ class TaxController extends Controller
 
     public function updateStatus(Request $request): JsonResponse
     {
-        $this->authorizeMenuPermission('/company/setting');
+        $this->authorizeCompanySettingMenuPermission();
         $ids = $request->input('ids');
 
         if (! is_array($ids) || $ids === []) {

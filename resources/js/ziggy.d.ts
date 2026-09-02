@@ -126,30 +126,399 @@ declare module 'ziggy-js' {
             "required": true
         }
     ],
+    "branches.index": [],
+    "branches.create": [],
+    "branches.store": [],
+    "branches.show": [
+        {
+            "name": "branch",
+            "required": true
+        }
+    ],
+    "branches.edit": [
+        {
+            "name": "branch",
+            "required": true
+        }
+    ],
+    "branches.update": [
+        {
+            "name": "branch",
+            "required": true
+        }
+    ],
+    "branches.destroy": [
+        {
+            "name": "branch",
+            "required": true
+        }
+    ],
+    "companies.index": [],
+    "companies.create": [],
+    "companies.store": [],
+    "companies.show": [
+        {
+            "name": "company",
+            "required": true
+        }
+    ],
+    "companies.edit": [
+        {
+            "name": "company",
+            "required": true
+        }
+    ],
+    "companies.update": [
+        {
+            "name": "company",
+            "required": true
+        }
+    ],
+    "companies.destroy": [
+        {
+            "name": "company",
+            "required": true
+        }
+    ],
+    "chart-of-accounts.index": [],
+    "chart-of-accounts.store": [],
+    "chart-of-accounts.show": [
+        {
+            "name": "chart_of_account",
+            "required": true
+        }
+    ],
+    "chart-of-accounts.update": [
+        {
+            "name": "chart_of_account",
+            "required": true
+        }
+    ],
+    "taxes.index": [],
+    "taxes.create": [],
+    "taxes.store": [],
+    "taxes.show": [
+        {
+            "name": "tax",
+            "required": true
+        }
+    ],
+    "taxes.edit": [
+        {
+            "name": "tax",
+            "required": true
+        }
+    ],
+    "taxes.update": [
+        {
+            "name": "tax",
+            "required": true
+        }
+    ],
+    "taxes.destroy": [
+        {
+            "name": "tax",
+            "required": true
+        }
+    ],
+    "financialyears.index": [],
+    "financialyears.create": [],
+    "financialyears.store": [],
+    "financialyears.show": [
+        {
+            "name": "financialyear",
+            "required": true
+        }
+    ],
+    "financialyears.edit": [
+        {
+            "name": "financialyear",
+            "required": true
+        }
+    ],
+    "financialyears.update": [
+        {
+            "name": "financialyear",
+            "required": true
+        }
+    ],
+    "financialyears.destroy": [
+        {
+            "name": "financialyear",
+            "required": true
+        }
+    ],
     "permissions.index": [],
     "permissions.create": [],
     "permissions.store": [],
     "permissions.show": [
         {
             "name": "permission",
-            "required": true
+            "required": true,
+            "binding": "id"
         }
     ],
     "permissions.edit": [
         {
             "name": "permission",
-            "required": true
+            "required": true,
+            "binding": "id"
         }
     ],
     "permissions.update": [
         {
             "name": "permission",
-            "required": true
+            "required": true,
+            "binding": "id"
         }
     ],
     "permissions.destroy": [
         {
             "name": "permission",
+            "required": true,
+            "binding": "id"
+        }
+    ],
+    "currencies.index": [],
+    "currencies.create": [],
+    "currencies.store": [],
+    "currencies.show": [
+        {
+            "name": "currency",
+            "required": true
+        }
+    ],
+    "currencies.edit": [
+        {
+            "name": "currency",
+            "required": true
+        }
+    ],
+    "currencies.update": [
+        {
+            "name": "currency",
+            "required": true
+        }
+    ],
+    "currencies.destroy": [
+        {
+            "name": "currency",
+            "required": true
+        }
+    ],
+    "timezones.index": [],
+    "timezones.create": [],
+    "timezones.store": [],
+    "timezones.show": [
+        {
+            "name": "timezone",
+            "required": true
+        }
+    ],
+    "timezones.edit": [
+        {
+            "name": "timezone",
+            "required": true
+        }
+    ],
+    "timezones.update": [
+        {
+            "name": "timezone",
+            "required": true
+        }
+    ],
+    "timezones.destroy": [
+        {
+            "name": "timezone",
+            "required": true
+        }
+    ],
+    "countries.index": [],
+    "countries.create": [],
+    "countries.store": [],
+    "countries.show": [
+        {
+            "name": "country",
+            "required": true
+        }
+    ],
+    "countries.edit": [
+        {
+            "name": "country",
+            "required": true
+        }
+    ],
+    "countries.update": [
+        {
+            "name": "country",
+            "required": true
+        }
+    ],
+    "countries.destroy": [
+        {
+            "name": "country",
+            "required": true
+        }
+    ],
+    "states.index": [],
+    "states.create": [],
+    "states.store": [],
+    "states.show": [
+        {
+            "name": "state",
+            "required": true
+        }
+    ],
+    "states.edit": [
+        {
+            "name": "state",
+            "required": true
+        }
+    ],
+    "states.update": [
+        {
+            "name": "state",
+            "required": true
+        }
+    ],
+    "states.destroy": [
+        {
+            "name": "state",
+            "required": true
+        }
+    ],
+    "cities.index": [],
+    "cities.create": [],
+    "cities.store": [],
+    "cities.show": [
+        {
+            "name": "city",
+            "required": true
+        }
+    ],
+    "cities.edit": [
+        {
+            "name": "city",
+            "required": true
+        }
+    ],
+    "cities.update": [
+        {
+            "name": "city",
+            "required": true
+        }
+    ],
+    "cities.destroy": [
+        {
+            "name": "city",
+            "required": true
+        }
+    ],
+    "suppliers.index": [],
+    "suppliers.create": [],
+    "suppliers.store": [],
+    "suppliers.show": [
+        {
+            "name": "supplier",
+            "required": true
+        }
+    ],
+    "suppliers.edit": [
+        {
+            "name": "supplier",
+            "required": true
+        }
+    ],
+    "suppliers.update": [
+        {
+            "name": "supplier",
+            "required": true
+        }
+    ],
+    "suppliers.destroy": [
+        {
+            "name": "supplier",
+            "required": true
+        }
+    ],
+    "banks.index": [],
+    "banks.create": [],
+    "banks.store": [],
+    "banks.show": [
+        {
+            "name": "bank",
+            "required": true
+        }
+    ],
+    "banks.edit": [
+        {
+            "name": "bank",
+            "required": true
+        }
+    ],
+    "banks.update": [
+        {
+            "name": "bank",
+            "required": true
+        }
+    ],
+    "banks.destroy": [
+        {
+            "name": "bank",
+            "required": true
+        }
+    ],
+    "customers.index": [],
+    "customers.create": [],
+    "customers.store": [],
+    "customers.show": [
+        {
+            "name": "customer",
+            "required": true
+        }
+    ],
+    "customers.edit": [
+        {
+            "name": "customer",
+            "required": true
+        }
+    ],
+    "customers.update": [
+        {
+            "name": "customer",
+            "required": true
+        }
+    ],
+    "customers.destroy": [
+        {
+            "name": "customer",
+            "required": true
+        }
+    ],
+    "customer-groups.index": [],
+    "customer-groups.create": [],
+    "customer-groups.store": [],
+    "customer-groups.show": [
+        {
+            "name": "customer_group",
+            "required": true
+        }
+    ],
+    "customer-groups.edit": [
+        {
+            "name": "customer_group",
+            "required": true
+        }
+    ],
+    "customer-groups.update": [
+        {
+            "name": "customer_group",
+            "required": true
+        }
+    ],
+    "customer-groups.destroy": [
+        {
+            "name": "customer_group",
             "required": true
         }
     ],
@@ -177,6 +546,330 @@ declare module 'ziggy-js' {
     "departments.destroy": [
         {
             "name": "department",
+            "required": true
+        }
+    ],
+    "categories.index": [],
+    "categories.create": [],
+    "categories.store": [],
+    "categories.show": [
+        {
+            "name": "category",
+            "required": true
+        }
+    ],
+    "categories.edit": [
+        {
+            "name": "category",
+            "required": true
+        }
+    ],
+    "categories.update": [
+        {
+            "name": "category",
+            "required": true
+        }
+    ],
+    "categories.destroy": [
+        {
+            "name": "category",
+            "required": true
+        }
+    ],
+    "brands.index": [],
+    "brands.create": [],
+    "brands.store": [],
+    "brands.show": [
+        {
+            "name": "brand",
+            "required": true
+        }
+    ],
+    "brands.edit": [
+        {
+            "name": "brand",
+            "required": true
+        }
+    ],
+    "brands.update": [
+        {
+            "name": "brand",
+            "required": true
+        }
+    ],
+    "brands.destroy": [
+        {
+            "name": "brand",
+            "required": true
+        }
+    ],
+    "warranties.index": [],
+    "warranties.create": [],
+    "warranties.store": [],
+    "warranties.show": [
+        {
+            "name": "warranty",
+            "required": true
+        }
+    ],
+    "warranties.edit": [
+        {
+            "name": "warranty",
+            "required": true
+        }
+    ],
+    "warranties.update": [
+        {
+            "name": "warranty",
+            "required": true
+        }
+    ],
+    "warranties.destroy": [
+        {
+            "name": "warranty",
+            "required": true
+        }
+    ],
+    "item-types.index": [],
+    "item-types.create": [],
+    "item-types.store": [],
+    "item-types.show": [
+        {
+            "name": "item_type",
+            "required": true
+        }
+    ],
+    "item-types.edit": [
+        {
+            "name": "item_type",
+            "required": true
+        }
+    ],
+    "item-types.update": [
+        {
+            "name": "item_type",
+            "required": true
+        }
+    ],
+    "item-types.destroy": [
+        {
+            "name": "item_type",
+            "required": true
+        }
+    ],
+    "purchases.index": [],
+    "purchases.create": [],
+    "purchases.store": [],
+    "purchases.show": [
+        {
+            "name": "purchase",
+            "required": true
+        }
+    ],
+    "purchases.edit": [
+        {
+            "name": "purchase",
+            "required": true
+        }
+    ],
+    "purchases.update": [
+        {
+            "name": "purchase",
+            "required": true
+        }
+    ],
+    "purchases.destroy": [
+        {
+            "name": "purchase",
+            "required": true
+        }
+    ],
+    "receiving-notes.index": [],
+    "receiving-notes.create": [],
+    "receiving-notes.store": [],
+    "receiving-notes.show": [
+        {
+            "name": "receiving_note",
+            "required": true
+        }
+    ],
+    "receiving-notes.edit": [
+        {
+            "name": "receiving_note",
+            "required": true
+        }
+    ],
+    "receiving-notes.update": [
+        {
+            "name": "receiving_note",
+            "required": true
+        }
+    ],
+    "receiving-notes.destroy": [
+        {
+            "name": "receiving_note",
+            "required": true
+        }
+    ],
+    "purchase-returns.index": [],
+    "purchase-returns.create": [],
+    "purchase-returns.store": [],
+    "purchase-returns.show": [
+        {
+            "name": "purchase_return",
+            "required": true
+        }
+    ],
+    "purchase-returns.edit": [
+        {
+            "name": "purchase_return",
+            "required": true
+        }
+    ],
+    "purchase-returns.update": [
+        {
+            "name": "purchase_return",
+            "required": true
+        }
+    ],
+    "purchase-returns.destroy": [
+        {
+            "name": "purchase_return",
+            "required": true
+        }
+    ],
+    "sells.index": [],
+    "sells.create": [],
+    "sells.store": [],
+    "sells.show": [
+        {
+            "name": "sell",
+            "required": true
+        }
+    ],
+    "sells.edit": [
+        {
+            "name": "sell",
+            "required": true
+        }
+    ],
+    "sells.update": [
+        {
+            "name": "sell",
+            "required": true
+        }
+    ],
+    "sells.destroy": [
+        {
+            "name": "sell",
+            "required": true
+        }
+    ],
+    "issue-notes.index": [],
+    "issue-notes.create": [],
+    "issue-notes.store": [],
+    "issue-notes.show": [
+        {
+            "name": "issue_note",
+            "required": true
+        }
+    ],
+    "issue-notes.edit": [
+        {
+            "name": "issue_note",
+            "required": true
+        }
+    ],
+    "issue-notes.update": [
+        {
+            "name": "issue_note",
+            "required": true
+        }
+    ],
+    "issue-notes.destroy": [
+        {
+            "name": "issue_note",
+            "required": true
+        }
+    ],
+    "products.index": [],
+    "products.create": [],
+    "products.store": [],
+    "products.show": [
+        {
+            "name": "product",
+            "required": true
+        }
+    ],
+    "products.edit": [
+        {
+            "name": "product",
+            "required": true
+        }
+    ],
+    "products.update": [
+        {
+            "name": "product",
+            "required": true
+        }
+    ],
+    "products.destroy": [
+        {
+            "name": "product",
+            "required": true
+        }
+    ],
+    "variations.index": [],
+    "variations.create": [],
+    "variations.store": [],
+    "variations.show": [
+        {
+            "name": "variation",
+            "required": true
+        }
+    ],
+    "variations.edit": [
+        {
+            "name": "variation",
+            "required": true
+        }
+    ],
+    "variations.update": [
+        {
+            "name": "variation",
+            "required": true
+        }
+    ],
+    "variations.destroy": [
+        {
+            "name": "variation",
+            "required": true
+        }
+    ],
+    "units.index": [],
+    "units.create": [],
+    "units.store": [],
+    "units.show": [
+        {
+            "name": "unit",
+            "required": true
+        }
+    ],
+    "units.edit": [
+        {
+            "name": "unit",
+            "required": true
+        }
+    ],
+    "units.update": [
+        {
+            "name": "unit",
+            "required": true
+        }
+    ],
+    "units.destroy": [
+        {
+            "name": "unit",
             "required": true
         }
     ],
@@ -224,10 +917,161 @@ declare module 'ziggy-js' {
     "user.trash": [],
     "company": [],
     "company.trash": [],
+    "company.setting": [],
+    "business.settings": [],
+    "software.setting": [],
     "branch": [],
     "branch.trash": [],
     "department": [],
     "department.trash": [],
+    "supplier": [],
+    "supplier.trash": [],
+    "supplier.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "bank": [],
+    "bank.trash": [],
+    "bank.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "chart-of-account": [],
+    "opening-balance": [],
+    "brand": [],
+    "brand.trash": [],
+    "unit": [],
+    "unit.trash": [],
+    "warranty": [],
+    "warranty.trash": [],
+    "category": [],
+    "category.trash": [],
+    "itemtype": [],
+    "itemtype.trash": [],
+    "purchase": [],
+    "purchase.add": [],
+    "purchase.return": [],
+    "purchase.return.add": [],
+    "purchase.return.trash": [],
+    "purchase.return.edit": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "purchase.return.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "purchase.approval": [],
+    "purchase.approval.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "purchase.edit": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "purchase.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "purchase.trash": [],
+    "receivingnote": [],
+    "receivingnote.add": [],
+    "receivingnote.trash": [],
+    "receivingnote.edit": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "receivingnote.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "sell": [],
+    "sell.add": [],
+    "sell.trash": [],
+    "sell.approval": [],
+    "sell.approval.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "sell.edit": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "sell.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "issuenote": [],
+    "issuenote.add": [],
+    "issuenote.trash": [],
+    "issuenote.edit": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "issuenote.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "product": [],
+    "product.add": [],
+    "product.edit": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "product.trash": [],
+    "variation": [],
+    "variation.trash": [],
+    "customer-group": [],
+    "customer-group.trash": [],
+    "customer": [],
+    "customer.trash": [],
+    "customer.view": [
+        {
+            "name": "id",
+            "required": true
+        }
+    ],
+    "currency": [],
+    "currency.trash": [],
+    "timezone": [],
+    "timezone.trash": [],
+    "country": [],
+    "country.trash": [],
+    "state": [],
+    "state.trash": [],
+    "city": [],
+    "city.trash": [],
     "setting": [],
     "email_template": [],
     "email_setting.test_send": [],

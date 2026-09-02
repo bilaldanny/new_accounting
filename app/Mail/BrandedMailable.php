@@ -71,7 +71,23 @@ abstract class BrandedMailable extends Mailable implements ShouldQueue
     protected function resolvedMessageData(): MailMessageData
     {
         return $this->resolvedMessage ??= $this->messageData()->applyBranding(
-            CompanyBranding::resolve($this->company()),
+            $this->branding(),
         );
+    }
+
+    /**
+     * @return array{
+     *     companyName: string,
+     *     companyLogo: string|null,
+     *     supportEmail: string,
+     *     companyEmail: string|null,
+     *     privacyUrl: string|null,
+     *     termsUrl: string|null,
+     *     accentColor: string
+     * }
+     */
+    protected function branding(): array
+    {
+        return CompanyBranding::resolve($this->company());
     }
 }

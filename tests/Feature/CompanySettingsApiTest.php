@@ -265,3 +265,104 @@ test('company user can access their own company settings', function () {
         ->assertSuccessful()
         ->assertJsonPath('companySetting.company_id', $company->id);
 });
+
+test('company admin can update their own company settings without a settings menu path', function () {
+    $company = Company::query()->create([
+        'code' => 'CO-00005',
+        'name' => 'Admin Corp',
+        'is_active' => true,
+        'max_users' => 10,
+        'max_branches' => 2,
+    ]);
+
+    $branchId = Branch::query()->create([
+        'code' => 'BR-00003',
+        'company_id' => $company->id,
+        'name' => 'Main Branch',
+        'is_active' => true,
+    ])->id;
+
+    $roleId = Role::query()->create([
+        'company_id' => $company->id,
+        'branch_id' => $branchId,
+        'name' => 'companyadmin',
+        'is_active' => true,
+    ])->id;
+
+    $user = User::query()->create([
+        'first_name' => 'Company',
+        'last_name' => 'Admin',
+        'username' => 'companyadmin_put',
+        'email' => 'companyadmin_put@example.com',
+        'password' => bcrypt('password'),
+        'is_active' => true,
+        'company_id' => $company->id,
+        'branch_id' => $branchId,
+        'role_id' => $roleId,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->putJson("/api/company-settings/{$company->id}", [
+        'business_name' => 'Admin Corp Updated',
+    ])
+        ->assertSuccessful()
+        ->assertJsonPath('message', 'Successfully Saved')
+        ->assertJsonPath('companySetting.business_name', 'Admin Corp Updated');
+});
+
+test('staff with the legacy /setting menu path can update their company settings', function () {
+    $company = Company::query()->create([
+        'code' => 'CO-00006',
+        'name' => 'Legacy Menu Corp',
+        'is_active' => true,
+        'max_users' => 10,
+        'max_branches' => 2,
+    ]);
+
+    $role = Role::query()->create([
+        'company_id' => $company->id,
+        'name' => 'clerk',
+        'is_active' => true,
+    ]);
+    grantMenuPermission((int) $role->id, '/setting', 'setting');
+    $user = createStaffUserForRole($role, [
+        'company_id' => $company->id,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->putJson("/api/company-settings/{$company->id}", [
+        'business_name' => 'Legacy Menu Updated',
+    ])
+        ->assertSuccessful()
+        ->assertJsonPath('message', 'Successfully Saved')
+        ->assertJsonPath('companySetting.business_name', 'Legacy Menu Updated');
+});
+
+test('staff without a company settings menu path cannot update company settings', function () {
+    $company = Company::query()->create([
+        'code' => 'CO-00007',
+        'name' => 'Denied Corp',
+        'is_active' => true,
+        'max_users' => 10,
+        'max_branches' => 2,
+    ]);
+
+    $role = Role::query()->create([
+        'company_id' => $company->id,
+        'name' => 'clerk',
+        'is_active' => true,
+    ]);
+    $user = createStaffUserForRole($role, [
+        'company_id' => $company->id,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->putJson("/api/company-settings/{$company->id}", [
+        'business_name' => 'Should Fail',
+    ])
+        ->assertForbidden()
+        ->assertJsonPath('message', 'You do not have permission to update company settings.');
+});

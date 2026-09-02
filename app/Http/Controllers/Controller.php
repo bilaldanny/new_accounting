@@ -8,4 +8,9 @@ abstract class Controller
     {
         abortUnlessMenuPermission($key);
     }
+
+    protected function authorizeCompanySettingMenuPermission(): void
+    {
+        abortUnlessCompanySettingMenuPermission();
+    }
 }

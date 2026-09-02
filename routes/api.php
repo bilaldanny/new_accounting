@@ -162,6 +162,40 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('timezones/restore_records', [TimezoneController::class, 'restore_records']);
     /* Timezone */
 
+    /* Country */
+    Route::post('countries/check-name', [CountryController::class, 'checkName']);
+    Route::post('countries/check-iso2', [CountryController::class, 'checkIso2']);
+    Route::post('countries/fetch-from-api', [CountryController::class, 'fetchFromApi']);
+    Route::get('countries/trash', [CountryController::class, 'trash']);
+    Route::resource('countries', CountryController::class);
+    Route::post('/countries/statusupdate', [CountryController::class, 'updatestatus']);
+    Route::post('/countries/bulk_delete', [CountryController::class, 'bulk_delete']);
+    Route::post('countries/bulk_delete_per', [CountryController::class, 'bulk_delete_per']);
+    Route::post('countries/restore_records', [CountryController::class, 'restore_records']);
+    /* Country */
+
+    /* State */
+    Route::post('states/check-name', [StateController::class, 'checkName']);
+    Route::post('states/fetch-from-api', [StateController::class, 'fetchFromApi']);
+    Route::get('states/trash', [StateController::class, 'trash']);
+    Route::resource('states', StateController::class);
+    Route::post('/states/statusupdate', [StateController::class, 'updatestatus']);
+    Route::post('/states/bulk_delete', [StateController::class, 'bulk_delete']);
+    Route::post('states/bulk_delete_per', [StateController::class, 'bulk_delete_per']);
+    Route::post('states/restore_records', [StateController::class, 'restore_records']);
+    /* State */
+
+    /* City */
+    Route::post('cities/check-name', [CityController::class, 'checkName']);
+    Route::post('cities/fetch-from-api', [CityController::class, 'fetchFromApi']);
+    Route::get('cities/trash', [CityController::class, 'trash']);
+    Route::resource('cities', CityController::class);
+    Route::post('/cities/statusupdate', [CityController::class, 'updatestatus']);
+    Route::post('/cities/bulk_delete', [CityController::class, 'bulk_delete']);
+    Route::post('cities/bulk_delete_per', [CityController::class, 'bulk_delete_per']);
+    Route::post('cities/restore_records', [CityController::class, 'restore_records']);
+    /* City */
+
     /* Supplier */
     Route::get('suppliers/trash', [SupplierController::class, 'trash']);
     Route::get('suppliers/generate-code', [SupplierController::class, 'generateCode']);
@@ -175,6 +209,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/fetchsuppliers', [SupplierController::class, 'fetch']);
     Route::get('/fetchcontactdetail', [SupplierController::class, 'contactDetail']);
     Route::get('/fetchledger', [ReportController::class, 'fetchLedger']);
+    Route::post('/contact-ledger-watches', [ReportController::class, 'saveLedgerWatch']);
     /* Supplier */
 
     /* Bank */

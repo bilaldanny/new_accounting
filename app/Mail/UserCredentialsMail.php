@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
-use App\Mail\Support\CompanyBranding;
 use App\Mail\Support\MailMessageData;
+use App\Mail\Support\SoftwareBranding;
 use App\Models\Company;
 
 class UserCredentialsMail extends BrandedMailable
@@ -25,6 +25,11 @@ class UserCredentialsMail extends BrandedMailable
         return $this->company;
     }
 
+    protected function branding(): array
+    {
+        return SoftwareBranding::resolve();
+    }
+
     protected function emailView(): string
     {
         return 'emails.user-credentials';
@@ -32,7 +37,7 @@ class UserCredentialsMail extends BrandedMailable
 
     protected function messageData(): MailMessageData
     {
-        $companyName = CompanyBranding::resolve($this->company())['companyName'];
+        $softwareName = SoftwareBranding::resolve()['companyName'];
 
         return new MailMessageData(
             title: 'Your login credentials',
@@ -40,7 +45,7 @@ class UserCredentialsMail extends BrandedMailable
             icon: 'security',
             userName: $this->recipientName,
             paragraphs: [
-                'An administrator has generated a new password for your '.$companyName.' account. Your previous password will no longer work.',
+                'An administrator has generated a new password for your '.$softwareName.' account. Your previous password will no longer work.',
             ],
             buttonText: 'Login to Dashboard',
             buttonUrl: $this->loginUrl,

@@ -28,7 +28,71 @@ function seedSellScope(): array
     $scope['customer_id'] = $customer->id;
     $scope['contact_id'] = $customer->id;
 
-    return $scope;
+    return seedSellChartAccounts($scope, $customer);
+}
+
+/**
+ * @param  array<string, mixed>  $scope
+ * @return array<string, mixed>
+ */
+function seedSellChartAccounts(array $scope, Contact $customer): array
+{
+    $localSalesId = insertPurchaseChartAccount($scope, '401-00001', 'Local Sales', 'cr', true);
+    $exportSalesId = insertPurchaseChartAccount($scope, '401-00002', 'Export Sales', 'cr', true);
+    $outputTaxId = insertPurchaseChartAccount($scope, '201-00020', 'Output Tax', 'cr', false);
+    $customerAccountId = insertPurchaseChartAccount($scope, '101-00001', 'Acme Retail', 'dr', false);
+
+    insertPurchaseAccountMapping($scope, 'Local Sales', 'localsales', $localSalesId);
+    insertPurchaseAccountMapping($scope, 'Export Sales', 'exportsale', $exportSalesId);
+    insertPurchaseAccountMapping($scope, 'Sales', 'sale', $localSalesId);
+    insertPurchaseAccountMapping($scope, 'Output Tax', 'outputtax', $outputTaxId);
+
+    $customer->forceFill([
+        'customer_gl_id' => '101-00001',
+        'gl_id' => '101-00001',
+        'link_account' => true,
+    ])->save();
+
+    return array_merge($scope, [
+        'local_sales_coa_id' => $localSalesId,
+        'local_sales_code' => '401-00001',
+        'export_sales_coa_id' => $exportSalesId,
+        'export_sales_code' => '401-00002',
+        'output_tax_coa_id' => $outputTaxId,
+        'output_tax_code' => '201-00020',
+        'customer_coa_id' => $customerAccountId,
+        'customer_code' => '101-00001',
+    ]);
+}
+
+/**
+ * @param  array<string, mixed>  $scope
+ */
+function createExportCustomer(array $scope): Contact
+{
+    $code = '101-00002';
+
+    insertPurchaseChartAccount($scope, $code, 'Export Retail', 'dr', false);
+
+    return Contact::query()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Export Retail',
+        'first_name' => 'Noor',
+        'mobile' => '03001112233',
+        'address' => 'Port address',
+        'code' => 'CU-00002',
+        'user_type' => 'customer',
+        'type' => 'export',
+        'ntn_number' => '9988776',
+        'pay_term' => 10,
+        'pay_type' => 'day',
+        'credit_limit' => 25000,
+        'active' => true,
+        'link_account' => true,
+        'customer_gl_id' => $code,
+        'gl_id' => $code,
+    ]);
 }
 
 function validSellPayload(array $scope, array $overrides = []): array

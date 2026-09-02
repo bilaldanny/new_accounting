@@ -20,6 +20,10 @@ const enExtended = {
         itemtype_name_unique: 'An item type with this name already exists.',
         chart_of_account_code_unique: 'This account code is already taken.',
         timezone_name_unique: 'A timezone with this name already exists.',
+        country_name_unique: 'A country with this name already exists.',
+        country_iso2_unique: 'This ISO2 code is already taken.',
+        state_name_unique: 'A state with this name already exists in the selected country.',
+        city_name_unique: 'A city with this name already exists in the selected state.',
         company_code_unique: 'This company code is already taken.',
         currency_code_unique: 'This currency code is already taken.',
         company_admin_email_unique: 'This admin email is already taken.',
@@ -142,6 +146,82 @@ async function postCheckUserIdentity(payload: Record<string, string | number>) {
         throw new Error(`HTTP ${res.status}`)
     }
     return res.json() as Promise<{ email_taken?: boolean; username_taken?: boolean }>
+}
+
+async function postCheckCountryName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/countries/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckCountryIso2(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/countries/check-iso2', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ iso2_taken: boolean }>
+}
+
+async function postCheckStateName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/states/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
+}
+
+async function postCheckCityName(payload: Record<string, string | number>) {
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    const res = await fetch('/api/cities/check-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+    }
+    return res.json() as Promise<{ name_taken: boolean }>
 }
 
 async function postCheckTimezoneName(payload: Record<string, string | number>) {
@@ -566,6 +646,120 @@ class UserUsernameUnique extends Validator {
     }
 }
 
+class CountryNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        return postCheckCountryName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class CountryIso2Unique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const iso2 = String(value ?? '').trim()
+        if (!iso2) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const payload: Record<string, string | number> = { iso2 }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        return postCheckCountryIso2(payload)
+            .then((data) => !data.iso2_taken)
+            .catch(() => true)
+    }
+}
+
+class StateNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.country_id !== undefined && formData.country_id !== null && formData.country_id !== '') {
+            payload.country_id = Number(formData.country_id)
+        }
+
+        return postCheckStateName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
+class CityNameUnique extends Validator {
+    get isAsync() {
+        return true
+    }
+    get debounce() {
+        return 400
+    }
+    check(value: unknown) {
+        const name = String(value ?? '').trim()
+        if (!name) {
+            return Promise.resolve(true)
+        }
+
+        const exceptId = ruleExceptId(this)
+        const formData = (this as ValidatorWithAttributes).form$?.data ?? {}
+        const payload: Record<string, string | number> = { name }
+
+        if (exceptId !== undefined) {
+            payload.except_id = exceptId
+        }
+
+        if (formData.state_id !== undefined && formData.state_id !== null && formData.state_id !== '') {
+            payload.state_id = Number(formData.state_id)
+        }
+
+        return postCheckCityName(payload)
+            .then((data) => !data.name_taken)
+            .catch(() => true)
+    }
+}
+
 class TimezoneNameUnique extends Validator {
     get isAsync() {
         return true
@@ -949,6 +1143,10 @@ export default defineConfig({
         itemtype_name_unique: ItemTypeNameUnique,
         chart_of_account_code_unique: ChartOfAccountCodeUnique,
         timezone_name_unique: TimezoneNameUnique,
+        country_name_unique: CountryNameUnique,
+        country_iso2_unique: CountryIso2Unique,
+        state_name_unique: StateNameUnique,
+        city_name_unique: CityNameUnique,
     },
     // Vueform merges `axios` into its bundled axios (the old `http` key is not read by the installer).
     axios: {

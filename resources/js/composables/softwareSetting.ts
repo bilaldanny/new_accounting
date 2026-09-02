@@ -31,6 +31,8 @@ export default function useSoftwareSettings() {
         address: '',
         system_logo: '',
         system_logo_url: '',
+        email_logo: '',
+        email_logo_url: '',
         smtp_host: '',
         smtp_port: '',
         smtp_username: '',

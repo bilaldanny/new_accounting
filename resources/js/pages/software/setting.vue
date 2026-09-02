@@ -41,6 +41,7 @@
     const pageReady = ref(false);
 
     const logoUrl = computed(() => String(formData.value?.system_logo_url ?? ''));
+    const emailLogoUrl = computed(() => String(formData.value?.email_logo_url ?? ''));
     const hasSmtpPassword = computed(() => Boolean(formData.value?.has_smtp_password));
 
     const activeTabMeta = computed(() =>
@@ -103,8 +104,11 @@
     });
 
     watch(activeTab, async () => {
+        const snapshot = { ...formData.value };
+
         await nextTick();
-        formRef.value?.update?.({ ...formData.value });
+        await nextTick();
+        formRef.value?.update?.(snapshot);
     });
 </script>
 
@@ -145,6 +149,7 @@
                             <Fields
                                 :active-tab="activeTab"
                                 :logo-url="logoUrl"
+                                :email-logo-url="emailLogoUrl"
                                 :testing-smtp="testingSmtp"
                                 :sending-test="sendingTest"
                                 :has-smtp-password="hasSmtpPassword"
