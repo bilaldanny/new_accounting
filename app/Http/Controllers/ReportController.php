@@ -3,16 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\ContactLedgerWatch;
+use App\Models\FinancialYear;
+use App\Services\ContactLedger;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class ReportController extends Controller
 {
-    public function fetchLedger(Request $request): JsonResponse
+    public function fetchLedger(Request $request, ContactLedger $ledger): JsonResponse
     {
         $request->validate([
             'contact_id' => 'required|integer',
@@ -22,85 +23,64 @@ class ReportController extends Controller
             'end_date' => 'nullable|string',
         ]);
 
-        $contact = Contact::findVisibleSupplier((int) $request->contact_id);
+        $contact = Contact::findVisibleContact((int) $request->contact_id);
 
         if ($contact === null) {
             abort(404);
         }
 
-        $fromDate = $this->parseLedgerDate($request->start_date, now()->startOfMonth());
-        $toDate = $this->parseLedgerDate($request->end_date, now());
+        $financialYear = $this->activeFinancialYear($contact);
+        $fromDate = $this->parseLedgerDate(
+            $request->start_date,
+            $financialYear?->start_date?->copy() ?? now()->startOfMonth(),
+        );
+        $toDate = $this->parseLedgerDate(
+            $request->end_date,
+            $financialYear?->end_date?->copy() ?? now(),
+        );
 
-        $transactionRaw = $this->transactionScopeRaw($contact, $fromDate, $toDate);
+        [$fromDate, $toDate] = $this->constrainToFinancialYear($fromDate, $toDate, $financialYear);
 
-        $totalPurchase = $this->sumTransactions($transactionRaw, 'purchaseorder');
-        $totalPaidPurchase = $this->sumPaidTransactions($transactionRaw, 'purchaseorder');
-        $totalSell = $this->sumTransactions($transactionRaw, 'sell');
-        $totalPaidSell = $this->sumPaidTransactions($transactionRaw, 'sell');
+        $payload = $ledger->forContact(
+            $contact,
+            $fromDate,
+            $toDate,
+            $request->filled('branch_id') ? (string) $request->branch_id : null,
+        );
+        $payload['watched_until'] = ContactLedgerWatch::payloadFor($request->user(), $contact);
 
-        $taccount = [];
+        return response()->json($payload);
+    }
 
-        if (
-            Schema::hasTable('t_account_details')
-            && Schema::hasTable('t_accounts')
-            && filled($contact->supplier_gl_id)
-        ) {
-            $taccountQuery = DB::table('t_account_details')
-                ->join('t_accounts as taccount', 'taccount.id', '=', 't_account_details.t_account_id')
-                ->leftJoin('branches', 'branches.id', '=', 't_account_details.branch_id')
-                ->where('taccount.company_id', $contact->company_id)
-                ->whereBetween('taccount.voucher_date', [$fromDate->toDateString(), $toDate->toDateString()])
-                ->where('taccount.status', 'approved')
-                ->where('t_account_details.account_code', $contact->supplier_gl_id);
+    public function saveLedgerWatch(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'contact_id' => ['required', 'integer'],
+            'row_id' => ['nullable', 'string', 'max:64'],
+            'voucher_date' => ['nullable', 'required_with:row_id', 'date'],
+            'voucher_no' => ['nullable', 'string', 'max:191'],
+        ]);
 
-            if ($request->filled('branch_id') && $request->branch_id !== 'all') {
-                $taccountQuery->where('taccount.branch_id', $request->branch_id);
-            }
+        $contact = Contact::findVisibleContact((int) $validated['contact_id']);
 
-            $taccount = $taccountQuery
-                ->orderBy('taccount.voucher_date')
-                ->select([
-                    't_account_details.id',
-                    't_account_details.debit',
-                    't_account_details.credit',
-                    't_account_details.description',
-                    't_account_details.acc_nature',
-                    't_account_details.highlight',
-                    'taccount.voucher_date',
-                    'taccount.voucher_no',
-                    'taccount.ref_no',
-                    'branches.name as branch_name',
-                ])
-                ->get()
-                ->map(function ($row) {
-                    return [
-                        'id' => $row->id,
-                        'voucher_date' => $row->voucher_date,
-                        'voucher_no' => $row->voucher_no,
-                        'ref_no' => $row->ref_no,
-                        'description' => $row->description,
-                        'debit' => $row->debit,
-                        'credit' => $row->credit,
-                        'acc_nature' => $row->acc_nature,
-                        'highlight' => (int) $row->highlight,
-                        'balance_amount' => 0,
-                        'branch' => ['name' => $row->branch_name],
-                        'transaction' => ['parent' => ['payment_status' => '-']],
-                        'type' => '-',
-                        'cheque_no' => '-',
-                    ];
-                })
-                ->values()
-                ->all();
+        if ($contact === null) {
+            abort(404);
+        }
+
+        $user = $request->user();
+
+        if ($user === null) {
+            abort(401);
         }
 
         return response()->json([
-            'taccount' => $taccount,
-            'openingbalance' => 0,
-            'total_purchase' => $totalPurchase,
-            'total_paid_purchase' => $totalPaidPurchase,
-            'total_sell' => $totalSell,
-            'total_paid_sell' => $totalPaidSell,
+            'watched_until' => ContactLedgerWatch::markUntil(
+                $user,
+                $contact,
+                $validated['row_id'] ?? null,
+                isset($validated['voucher_date']) ? substr((string) $validated['voucher_date'], 0, 10) : null,
+                $validated['voucher_no'] ?? null,
+            ),
         ]);
     }
 
@@ -115,70 +95,42 @@ class ReportController extends Controller
         return Carbon::parse($normalized);
     }
 
-    /**
-     * @return array{company_id: int|string, branch_id: int|string, contact_id: int, from: string, to: string}
-     */
-    private function transactionScopeRaw(Contact $contact, CarbonInterface $fromDate, CarbonInterface $toDate): array
+    private function activeFinancialYear(Contact $contact): ?FinancialYear
     {
-        return [
-            'company_id' => $contact->company_id,
-            'branch_id' => $contact->branch_id,
-            'contact_id' => $contact->id,
-            'from' => $fromDate->toDateString(),
-            'to' => $toDate->toDateString(),
-        ];
+        return FinancialYear::query()
+            ->where('company_id', $contact->company_id)
+            ->where('status', true)
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
-     * @param  array{company_id: int|string, branch_id: int|string, contact_id: int, from: string, to: string}  $scope
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
      */
-    private function sumTransactions(array $scope, string $type): float
-    {
-        if (! Schema::hasTable('transactions')) {
-            return 0;
+    private function constrainToFinancialYear(
+        CarbonInterface $fromDate,
+        CarbonInterface $toDate,
+        ?FinancialYear $financialYear,
+    ): array {
+        if ($financialYear?->start_date === null || $financialYear->end_date === null) {
+            return [$fromDate, $toDate];
         }
 
-        return (float) DB::table('transactions')
-            ->where('company_id', $scope['company_id'])
-            ->where('branch_id', $scope['branch_id'])
-            ->where('contact_id', $scope['contact_id'])
-            ->where('type', $type)
-            ->whereBetween('transaction_date', [$scope['from'], $scope['to']])
-            ->sum('final_amount');
-    }
+        $yearStart = $financialYear->start_date->copy()->startOfDay();
+        $yearEnd = $financialYear->end_date->copy()->startOfDay();
 
-    /**
-     * @param  array{company_id: int|string, branch_id: int|string, contact_id: int, from: string, to: string}  $scope
-     */
-    private function sumPaidTransactions(array $scope, string $type): float
-    {
-        if (! Schema::hasTable('transactions')) {
-            return 0;
+        if ($fromDate->lt($yearStart)) {
+            $fromDate = $yearStart->copy();
         }
 
-        $paid = (float) DB::table('transactions')
-            ->where('company_id', $scope['company_id'])
-            ->where('branch_id', $scope['branch_id'])
-            ->where('contact_id', $scope['contact_id'])
-            ->where('type', $type)
-            ->where('payment_status', 'paid')
-            ->whereBetween('transaction_date', [$scope['from'], $scope['to']])
-            ->sum('final_amount');
-
-        $partial = 0.0;
-
-        if (Schema::hasTable('payments')) {
-            $partial = (float) DB::table('transactions')
-                ->join('payments', 'payments.transaction_id', '=', 'transactions.id')
-                ->where('transactions.company_id', $scope['company_id'])
-                ->where('transactions.branch_id', $scope['branch_id'])
-                ->where('transactions.contact_id', $scope['contact_id'])
-                ->where('transactions.type', $type)
-                ->where('transactions.payment_status', 'partial')
-                ->whereBetween('transactions.transaction_date', [$scope['from'], $scope['to']])
-                ->sum('payments.amount');
+        if ($toDate->gt($yearEnd)) {
+            $toDate = $yearEnd->copy();
         }
 
-        return $paid + $partial;
+        if ($fromDate->gt($toDate)) {
+            return [$yearStart->copy(), $yearEnd->copy()];
+        }
+
+        return [$fromDate, $toDate];
     }
 }

@@ -68,7 +68,50 @@ function hasMenuPermission(string $key): bool
 function abortUnlessMenuPermission(string $key): void
 {
     if (! hasMenuPermission($key)) {
-        abort(403);
+        abort(403, 'You do not have permission to perform this action.');
+    }
+}
+
+function hasAnyMenuPermission(string ...$keys): bool
+{
+    foreach ($keys as $key) {
+        if ($key !== '' && hasMenuPermission($key)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Company settings have used several sidebar paths over time
+ * (`/company/setting`, `/setting`, `/business/settings`). Company admins
+ * may always manage settings for their own company.
+ */
+function hasCompanySettingMenuPermission(): bool
+{
+    $user = Auth::user();
+
+    if ($user === null) {
+        return false;
+    }
+
+    if ($user->hasRole('companyadmin')) {
+        return true;
+    }
+
+    return hasAnyMenuPermission(
+        '/company/setting',
+        '/setting',
+        '/business/settings',
+        '/setting/index',
+    );
+}
+
+function abortUnlessCompanySettingMenuPermission(): void
+{
+    if (! hasCompanySettingMenuPermission()) {
+        abort(403, 'You do not have permission to update company settings.');
     }
 }
 
@@ -270,9 +313,11 @@ function accountMapping(int $companyId, int $branchId): void
         ['name' => 'Purchase', 'key' => 'purchase', 'value' => null],
         ['name' => 'Import Purchase', 'key' => 'importpurchase', 'value' => null],
         ['name' => 'Local Purchase', 'key' => 'localpurchase', 'value' => null],
+        ['name' => 'Input Tax', 'key' => 'inputtax', 'value' => null],
         ['name' => 'Sales', 'key' => 'sale', 'value' => null],
         ['name' => 'Local Sales', 'key' => 'localsales', 'value' => null],
         ['name' => 'Export Sales', 'key' => 'exportsale', 'value' => null],
+        ['name' => 'Output Tax', 'key' => 'outputtax', 'value' => null],
         ['name' => 'Profit And Loss', 'key' => 'pnl', 'value' => null],
     ];
 

@@ -8,19 +8,21 @@
 
     const props = defineProps({
         logoUrl: { type: String, default: '' },
+        emailLogoUrl: { type: String, default: '' },
     });
 
     const page = usePage();
     const defaultDialCode = computed(() => String(page.props.dailCode ?? ''));
     const appUrl = resolvePublicAppBaseUrl();
     const logoInputId = 'SoftwareSettingLogo';
+    const emailLogoInputId = 'SoftwareSettingEmailLogo';
 
     function chooseLogo(event: MouseEvent) {
         openLfmImagePicker(event, appUrl);
     }
 
-    function renderLogoPreview() {
-        const holder = document.getElementById('software-setting-logo-holder');
+    function renderLogoPreview(holderId: string, url: string, alt: string) {
+        const holder = document.getElementById(holderId);
 
         if (!holder) {
             return;
@@ -28,20 +30,28 @@
 
         holder.innerHTML = '';
 
-        if (!props.logoUrl) {
+        if (!url) {
             return;
         }
 
         const img = document.createElement('img');
         img.className = 'company-logo-preview-img d-block rounded object-fit-contain';
         img.style.height = '2.75rem';
-        img.alt = 'Software logo preview';
-        img.src = props.logoUrl;
+        img.alt = alt;
+        img.src = url;
         holder.appendChild(img);
     }
 
-    watch(() => props.logoUrl, renderLogoPreview);
-    onMounted(renderLogoPreview);
+    watch(() => props.logoUrl, (url) => {
+        renderLogoPreview('software-setting-logo-holder', url, 'Software logo preview');
+    });
+    watch(() => props.emailLogoUrl, (url) => {
+        renderLogoPreview('software-setting-email-logo-holder', url, 'Email logo preview');
+    });
+    onMounted(() => {
+        renderLogoPreview('software-setting-logo-holder', props.logoUrl, 'Software logo preview');
+        renderLogoPreview('software-setting-email-logo-holder', props.emailLogoUrl, 'Email logo preview');
+    });
 </script>
 
 <template>
@@ -120,6 +130,37 @@
         </template>
         <template #after>
             <div id="software-setting-logo-holder" class="company-logo-preview"></div>
+        </template>
+    </TextElement>
+
+    <TextElement
+        :id="emailLogoInputId"
+        field-name="EmailLogo"
+        name="email_logo"
+        label="Email Logo"
+        placeholder="Select email logo"
+        :columns="colThird"
+        :add-classes="{
+            ElementAddon: {
+                container: 'p-0',
+            },
+        }"
+    >
+        <template #addon-before>
+            <button
+                :data-input="emailLogoInputId"
+                data-field-name="email_logo"
+                data-preview="software-setting-email-logo-holder"
+                type="button"
+                class="company-logo-choose"
+                @click="chooseLogo"
+            >
+                <ImagePlus size="xs" />
+                <span>Choose</span>
+            </button>
+        </template>
+        <template #after>
+            <div id="software-setting-email-logo-holder" class="company-logo-preview"></div>
         </template>
     </TextElement>
 </template>

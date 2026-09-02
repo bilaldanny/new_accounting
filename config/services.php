@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'countrystatecity' => [
+        'key' => env('CSCAPI_KEY'),
+        'base_url' => env('CSCAPI_BASE_URL', 'https://api.countrystatecity.in/v1'),
+    ],
+
 ];

@@ -44,7 +44,7 @@ class CompanySettingController extends Controller
     public function update(Request $request, int $companyId): JsonResponse
     {
         $this->authorizeCompanyAccess($request, $companyId);
-        $this->authorizeMenuPermission('/company/setting');
+        $this->authorizeCompanySettingMenuPermission();
 
         $company = Company::query()->findOrFail($companyId);
 
@@ -151,14 +151,13 @@ class CompanySettingController extends Controller
     private function authorizeCompanyAccess(Request $request, int $companyId): void
     {
         $user = $request->user();
-        $roleName = strtolower(str_replace(' ', '', (string) ($user?->rolename ?? '')));
 
-        if ($roleName === 'superadmin') {
+        if ($user !== null && ((int) $user->role_id === 1 || $user->hasRole('superadmin'))) {
             return;
         }
 
         if ((int) ($user?->company_id ?? 0) !== $companyId) {
-            abort(403);
+            abort(403, 'You are not allowed to access this company.');
         }
     }
 }

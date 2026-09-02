@@ -27,7 +27,6 @@
             .email-container { width: 100% !important; }
             .email-section { padding-left: 24px !important; padding-right: 24px !important; }
             .email-hero-title { font-size: 20px !important; line-height: 26px !important; }
-            .header-meta { text-align: left !important; }
         }
     </style>
 </head>
@@ -88,8 +87,6 @@
                                     @include('emails.components.button')
                                 </div>
                             @endif
-
-                            @include('emails.components.security-note')
                         </td>
                     </tr>
                     <tr>

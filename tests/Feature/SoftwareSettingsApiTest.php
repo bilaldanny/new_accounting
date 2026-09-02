@@ -60,6 +60,7 @@ test('superadmin can view and update software settings', function () {
         'contact_no' => '03001234567',
         'address' => 'Software HQ',
         'system_logo' => 'assets/images/logo-light.png',
+        'email_logo' => 'photos/email-logo.png',
         'smtp_host' => 'smtp.example.com',
         'smtp_port' => 587,
         'smtp_username' => 'mailer@example.com',
@@ -73,6 +74,8 @@ test('superadmin can view and update software settings', function () {
         ->assertJsonPath('message', 'Successfully Saved')
         ->assertJsonPath('softwareSetting.name', 'Ledger Desk')
         ->assertJsonPath('softwareSetting.email', 'support@ledger.test')
+        ->assertJsonPath('softwareSetting.email_logo', 'photos/email-logo.png')
+        ->assertJsonPath('softwareSetting.email_logo_url', Setting::logoUrl('photos/email-logo.png'))
         ->assertJsonPath('softwareSetting.smtp_host', 'smtp.example.com')
         ->assertJsonPath('softwareSetting.smtp_port', 587)
         ->assertJsonPath('softwareSetting.smtp_scheme', 'smtp')
@@ -85,6 +88,18 @@ test('superadmin can view and update software settings', function () {
         ->and($setting->name)->toBe('Ledger Desk')
         ->and($setting->smtp_password)->toBe('secret-pass')
         ->and(config('app.name'))->toBe('Ledger Desk');
+
+    $this->getJson('/api/software-settings')
+        ->assertSuccessful()
+        ->assertJsonPath('softwareSetting.smtp_host', 'smtp.example.com')
+        ->assertJsonPath('softwareSetting.smtp_port', 587)
+        ->assertJsonPath('softwareSetting.smtp_username', 'mailer@example.com')
+        ->assertJsonPath('softwareSetting.smtp_scheme', 'smtp')
+        ->assertJsonPath('softwareSetting.smtp_encryption', 'tls')
+        ->assertJsonPath('softwareSetting.smtp_from_address', 'noreply@example.com')
+        ->assertJsonPath('softwareSetting.smtp_from_name', 'Ledger Desk')
+        ->assertJsonPath('softwareSetting.has_smtp_password', true)
+        ->assertJsonPath('softwareSetting.smtp_password', '');
 });
 
 test('blank smtp password does not overwrite the stored password', function () {

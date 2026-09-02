@@ -439,6 +439,36 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('timezone.trash');
     /* Timezone */
 
+    /* Country */
+    Route::get('country', function () {
+        return Inertia::render('country/index');
+    })->name('country');
+
+    Route::get('country/trash', function () {
+        return Inertia::render('country/trash');
+    })->name('country.trash');
+    /* Country */
+
+    /* State */
+    Route::get('state', function () {
+        return Inertia::render('state/index');
+    })->name('state');
+
+    Route::get('state/trash', function () {
+        return Inertia::render('state/trash');
+    })->name('state.trash');
+    /* State */
+
+    /* City */
+    Route::get('city', function () {
+        return Inertia::render('city/index');
+    })->name('city');
+
+    Route::get('city/trash', function () {
+        return Inertia::render('city/trash');
+    })->name('city.trash');
+    /* City */
+
     /* Setting */
     Route::get('setting', function () {
         return Inertia::render('company/setting');

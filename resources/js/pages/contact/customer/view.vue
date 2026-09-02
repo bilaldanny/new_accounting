@@ -1,7 +1,10 @@
 <script setup lang="ts">
+    import FiscalYearDateRange from '@/components/FiscalYearDateRange.vue';
     import Loader from '@/components/Loader.vue';
+    import useActiveFinancialYear from '@/composables/activeFinancialYear';
     import useCommons from '@/composables/common';
     import useCustomers from '@/composables/customer';
+    import useLedgerWatch from '@/composables/ledgerWatch';
     import { formatNumber } from '@/utils/numberFormat';
     import { Head, Link, usePage } from '@inertiajs/vue3';
     import {
@@ -71,6 +74,10 @@
         linkCustomerCoa,
     } = useCustomers();
 
+    const { fiscalYear, fetchActiveFinancialYear, clampToFiscalYear } = useActiveFinancialYear();
+    const { applyWatchedUntil, isRowWatched, toggleRowWatch, watchSaving } = useLedgerWatch();
+    const applyingFiscalYear = ref(false);
+
     type ContactDetail = {
         id?: number | string;
         company_id?: number | string;
@@ -109,7 +116,7 @@
     };
 
     type LedgerRow = {
-        id: number;
+        id: number | string;
         voucher_date?: string;
         voucher_no?: string;
         ref_no?: string;
@@ -130,6 +137,11 @@
         openingbalance: number;
         total_sell: number;
         total_paid_sell: number;
+        watched_until?: {
+            row_id: string;
+            voucher_date: string;
+            voucher_no?: string | null;
+        } | null;
     };
 
     type StatCard = {
@@ -168,6 +180,7 @@
     const refreshing = ref(false);
     const linkCoaLoading = ref(false);
     const scopeOpen = ref(false);
+    const detailsOpen = ref(false);
     const tabs = [
         { id: 'ledger', label: 'Ledger', icon: Receipt },
         { id: 'sales', label: 'Sales', icon: Cart },
@@ -182,7 +195,9 @@
     function resolveTabFromUrl(url?: string): string {
         const search = url
             ? (url.includes('?') ? url.slice(url.indexOf('?')) : '')
-            : window.location.search;
+            : typeof window !== 'undefined'
+                ? window.location.search
+                : '';
         const tab = new URLSearchParams(search).get('tab');
 
         if (tab && validTabIds.has(tab)) {
@@ -192,7 +207,7 @@
         return 'ledger';
     }
 
-    const activeTab = ref(resolveTabFromUrl());
+    const activeTab = ref(resolveTabFromUrl(page.url));
 
     const scopeFilters = reactive({
         company_id: '',
@@ -210,13 +225,17 @@
         total_paid_sell: 0,
     });
 
+    const formatInputDate = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
     const today = new Date();
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    const formatInputDate = (date: Date): string => date.toISOString().slice(0, 10);
-
     const ledgerFilters = reactive({
-        start_date: formatInputDate(monthStart),
+        start_date: formatInputDate(new Date(today.getFullYear(), today.getMonth(), 1)),
         end_date: formatInputDate(today),
     });
 
@@ -393,6 +412,33 @@
 
     const ledgerEntryCount = computed(() => ledgerRows.value.length);
 
+    const ledgerDebitTotal = computed(() =>
+        ledgerRows.value.reduce((sum, row) => sum + Number(row.debit ?? 0), 0),
+    );
+
+    const ledgerCreditTotal = computed(() =>
+        ledgerRows.value.reduce((sum, row) => sum + Number(row.credit ?? 0), 0),
+    );
+
+    function documentTypeLabel(type: string | undefined): string {
+        const labels: Record<string, string> = {
+            purchaseorder: 'Purchase order',
+            purchasereturn: 'Purchase return',
+            recieving_note: 'Receiving note',
+            sell: 'Sale',
+            issue_note: 'Issue note',
+            cash: 'Cash',
+            bank: 'Bank',
+            online: 'Online',
+            cheque: 'Cheque',
+            bank_transfer: 'Bank transfer',
+            card: 'Card',
+            other: 'Other',
+        };
+
+        return labels[String(type ?? '')] ?? (type && type !== '-' ? type : '-');
+    }
+
     const closingBalance = computed(() => {
         if (ledgerRows.value.length === 0) {
             return Number(ledgerData.value.openingbalance ?? 0);
@@ -470,13 +516,45 @@
                 start_date: ledgerFilters.start_date,
                 end_date: ledgerFilters.end_date,
             });
+            applyWatchedUntil(ledgerData.value.watched_until);
         } finally {
             ledgerLoading.value = false;
         }
     }
 
+    async function applyActiveFiscalYear() {
+        applyingFiscalYear.value = true;
+
+        try {
+            const year = await fetchActiveFinancialYear(scopeFilters.company_id || contact.value.company_id);
+
+            if (year === null) {
+                return;
+            }
+
+            ledgerFilters.start_date = year.start_date;
+            ledgerFilters.end_date = year.end_date;
+        } finally {
+            applyingFiscalYear.value = false;
+        }
+    }
+
+    function constrainLedgerDates(field: 'start_date' | 'end_date') {
+        ledgerFilters.start_date = clampToFiscalYear(ledgerFilters.start_date);
+        ledgerFilters.end_date = clampToFiscalYear(ledgerFilters.end_date);
+
+        if (ledgerFilters.start_date && ledgerFilters.end_date && ledgerFilters.start_date > ledgerFilters.end_date) {
+            if (field === 'start_date') {
+                ledgerFilters.end_date = ledgerFilters.start_date;
+            } else {
+                ledgerFilters.start_date = ledgerFilters.end_date;
+            }
+        }
+    }
+
     async function reloadCustomerView() {
         await loadContactDetail();
+        await applyActiveFiscalYear();
         await loadLedger();
     }
 
@@ -540,9 +618,11 @@
     watch(
         () => [ledgerFilters.start_date, ledgerFilters.end_date],
         async () => {
-            if (scopeFilters.contact_id) {
-                await loadLedger();
+            if (applyingFiscalYear.value || !scopeFilters.contact_id) {
+                return;
             }
+
+            await loadLedger();
         },
     );
 
@@ -598,90 +678,100 @@
                         </button>
                     </div>
 
-                    <div class="customer-view-profile__identity">
-                        <div class="customer-view-profile__avatar">{{ businessInitials }}</div>
+                    <div class="customer-view-profile__body">
+                        <div class="customer-view-profile__identity">
+                            <div class="customer-view-profile__avatar">{{ businessInitials }}</div>
 
-                        <div class="customer-view-profile__meta">
-                            <div class="customer-view-profile__badges">
-                                <span class="customer-view-badge customer-view-badge--primary">{{ userTypeLabel }}</span>
-                                <span v-if="currencyCode" class="customer-view-badge customer-view-badge--muted">{{ currencyCode }}</span>
-                            </div>
-
-                            <h1 class="customer-view-profile__title">{{ contact.business_name || 'Customer' }}</h1>
-                            <p class="customer-view-profile__person">{{ displayName }}</p>
-
-                            <div class="customer-view-profile__chips">
-                                <span v-if="contact.company?.name" class="customer-view-chip">
-                                    <Buildings size="xs" />
-                                    {{ contact.company.name }}
-                                </span>
-                                <span v-if="contact.branch?.name" class="customer-view-chip">
-                                    <GitBranch size="xs" />
-                                    {{ contact.branch.name }}
-                                </span>
-                                <span v-if="locationLine" class="customer-view-chip">
-                                    <LocationPlus size="xs" />
-                                    {{ locationLine }}
-                                </span>
-                            </div>
-
-                            <div
-                                v-if="!isCoaLinked"
-                                class="customer-view-coa-alert"
-                            >
-                                <div class="customer-view-coa-alert__content">
-                                    <Receipt size="xs" />
-                                    <div>
-                                        <strong>Chart of account not linked</strong>
-                                        <p>This customer has no ledger account. Link one to track balances and transactions.</p>
-                                    </div>
+                            <div class="customer-view-profile__meta">
+                                <div class="customer-view-profile__badges">
+                                    <span class="customer-view-badge customer-view-badge--primary">{{ userTypeLabel }}</span>
+                                    <span v-if="currencyCode" class="customer-view-badge customer-view-badge--muted">{{ currencyCode }}</span>
                                 </div>
-                                <button
-                                    type="button"
-                                    class="customer-view-coa-alert__action"
-                                    :disabled="linkCoaLoading || contactLoading"
-                                    @click="handleLinkCoa"
-                                >
-                                    <RefreshCw v-if="linkCoaLoading" size="xs" class="customer-view-spin" />
-                                    {{ linkCoaLoading ? 'Linking…' : 'Link to COA' }}
-                                </button>
-                            </div>
 
-                            <div
-                                v-else
-                                class="customer-view-coa-linked"
-                            >
-                                <Receipt size="xs" />
-                                <span>COA linked</span>
-                                <code>{{ contact.customer_gl_id }}</code>
+                                <h1 class="customer-view-profile__title">{{ contact.business_name || 'Customer' }}</h1>
+                                <p class="customer-view-profile__person">{{ displayName }}</p>
+
+                                <div class="customer-view-profile__chips">
+                                    <span v-if="contact.company?.name" class="customer-view-chip">
+                                        <Buildings size="xs" />
+                                        {{ contact.company.name }}
+                                    </span>
+                                    <span v-if="contact.branch?.name" class="customer-view-chip">
+                                        <GitBranch size="xs" />
+                                        {{ contact.branch.name }}
+                                    </span>
+                                    <span v-if="locationLine" class="customer-view-chip">
+                                        <LocationPlus size="xs" />
+                                        {{ locationLine }}
+                                    </span>
+                                </div>
+
+                                <div
+                                    v-if="!isCoaLinked"
+                                    class="customer-view-coa-alert"
+                                >
+                                    <div class="customer-view-coa-alert__content">
+                                        <Receipt size="xs" />
+                                        <div>
+                                            <strong>Chart of account not linked</strong>
+                                            <p>This customer has no ledger account. Link one to track balances and transactions.</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="customer-view-coa-alert__action"
+                                        :disabled="linkCoaLoading || contactLoading"
+                                        @click="handleLinkCoa"
+                                    >
+                                        <RefreshCw v-if="linkCoaLoading" size="xs" class="customer-view-spin" />
+                                        {{ linkCoaLoading ? 'Linking…' : 'Link to COA' }}
+                                    </button>
+                                </div>
+
+                                <div
+                                    v-else
+                                    class="customer-view-coa-linked"
+                                >
+                                    <Receipt size="xs" />
+                                    <span>COA linked</span>
+                                    <code>{{ contact.customer_gl_id }}</code>
+                                </div>
                             </div>
+                        </div>
+
+                        <div v-if="visibleStatCards.length" class="customer-view-profile__stats">
+                            <article
+                                v-for="stat in visibleStatCards"
+                                :key="stat.label"
+                                class="customer-view-stat"
+                                :class="`customer-view-stat--${stat.tone}`"
+                            >
+                                <span class="customer-view-stat__icon">
+                                    <component :is="stat.icon" size="xs" />
+                                </span>
+                                <div class="customer-view-stat__content">
+                                    <span class="customer-view-stat__label">{{ stat.label }}</span>
+                                    <span class="customer-view-stat__value">
+                                        <small v-if="currencyCode">{{ currencyCode }}</small>
+                                        {{ stat.value }}
+                                    </span>
+                                </div>
+                            </article>
                         </div>
                     </div>
 
-                    <div v-if="visibleStatCards.length" class="customer-view-profile__stats">
-                        <article
-                            v-for="stat in visibleStatCards"
-                            :key="stat.label"
-                            class="customer-view-stat"
-                            :class="`customer-view-stat--${stat.tone}`"
-                        >
-                            <span class="customer-view-stat__icon">
-                                <component :is="stat.icon" size="xs" />
-                            </span>
-                            <div class="customer-view-stat__content">
-                                <span class="customer-view-stat__label">{{ stat.label }}</span>
-                                <span class="customer-view-stat__value">
-                                    <small v-if="currencyCode">{{ currencyCode }}</small>
-                                    {{ stat.value }}
-                                </span>
-                            </div>
-                        </article>
-                    </div>
-
                     <div class="customer-view-profile__details">
-                        <h2 class="customer-view-profile__details-title">Contact details</h2>
+                        <button
+                            type="button"
+                            class="customer-view-profile__details-toggle"
+                            :aria-expanded="detailsOpen"
+                            @click="detailsOpen = !detailsOpen"
+                        >
+                            <h2 class="customer-view-profile__details-title">Contact details</h2>
+                            <ChevronDown size="sm" :class="{ 'customer-view-scope__chevron--open': detailsOpen }" />
+                        </button>
 
-                        <ul class="customer-view-info-list">
+                        <ul v-show="detailsOpen" class="customer-view-info-list">
                             <li v-for="item in contactDetails" :key="item.label" class="customer-view-info-list__item">
                                 <span class="customer-view-info-list__icon">
                                     <component :is="item.icon ?? Store" size="xs" />
@@ -815,74 +905,34 @@
                                     </p>
                                 </div>
 
-                                <div class="customer-view-date-range">
-                                    <div class="customer-view-date-field">
-                                        <label class="customer-view-label" for="ledger-start-date">From</label>
-                                        <input
-                                            id="ledger-start-date"
-                                            v-model="ledgerFilters.start_date"
-                                            type="date"
-                                            class="form-control form-control-sm customer-view-date-input"
-                                        />
-                                    </div>
-                                    <span class="customer-view-date-range__sep" aria-hidden="true">→</span>
-                                    <div class="customer-view-date-field">
-                                        <label class="customer-view-label" for="ledger-end-date">To</label>
-                                        <input
-                                            id="ledger-end-date"
-                                            v-model="ledgerFilters.end_date"
-                                            type="date"
-                                            class="form-control form-control-sm customer-view-date-input"
-                                        />
-                                    </div>
-                                </div>
+                                <FiscalYearDateRange
+                                    v-model:start-date="ledgerFilters.start_date"
+                                    v-model:end-date="ledgerFilters.end_date"
+                                    :fiscal-year="fiscalYear"
+                                    id-prefix="customer-ledger"
+                                    @change="constrainLedgerDates"
+                                />
                             </div>
 
                             <Loader v-if="ledgerLoading" message="Loading ledger…" :fields="4" />
 
                             <template v-else>
-                                <div class="customer-view-ledger-grid">
-                                    <article class="customer-view-summary-card">
-                                        <div class="customer-view-summary-card__head">
-                                            <User size="xs" />
-                                            <h4>Bill to</h4>
-                                        </div>
-                                        <p class="customer-view-summary-card__name">{{ displayName }}</p>
-                                        <p v-if="contact.business_name" class="customer-view-summary-card__line">{{ contact.business_name }}</p>
-                                        <p v-if="contact.address" class="customer-view-summary-card__line">{{ contact.address }}</p>
-                                        <p v-if="locationLine" class="customer-view-summary-card__line">{{ locationLine }}</p>
-                                        <div class="customer-view-summary-card__contacts">
-                                            <span><Envelope size="xs" /> {{ contact.email || '-' }}</span>
-                                            <span><Phone size="xs" /> {{ contact.mobile || '-' }}</span>
-                                        </div>
+                                <div class="customer-view-ledger-kpis">
+                                    <article class="customer-view-ledger-kpi">
+                                        <span>Opening balance</span>
+                                        <strong>{{ currencyCode }} {{ formatAmount(ledgerData.openingbalance) }}</strong>
                                     </article>
-
-                                    <article class="customer-view-summary-card customer-view-summary-card--accent">
-                                        <div class="customer-view-summary-card__head">
-                                            <Receipt size="xs" />
-                                            <h4>Account summary</h4>
-                                        </div>
-                                        <p class="customer-view-summary-card__period">
-                                            {{ ledgerFilters.start_date }} — {{ ledgerFilters.end_date }}
-                                        </p>
-                                        <dl class="customer-view-summary-list">
-                                            <div class="customer-view-summary-list__row">
-                                                <dt>Opening balance</dt>
-                                                <dd>{{ currencyCode }} {{ formatAmount(ledgerData.openingbalance) }}</dd>
-                                            </div>
-                                            <div v-if="showSellStats" class="customer-view-summary-list__row">
-                                                <dt>Total sell</dt>
-                                                <dd>{{ currencyCode }} {{ formatAmount(ledgerData.total_sell) }}</dd>
-                                            </div>
-                                            <div v-if="showSellStats" class="customer-view-summary-list__row">
-                                                <dt>Sell paid</dt>
-                                                <dd>{{ currencyCode }} {{ formatAmount(ledgerData.total_paid_sell) }}</dd>
-                                            </div>
-                                            <div class="customer-view-summary-list__row customer-view-summary-list__row--total">
-                                                <dt>Closing balance</dt>
-                                                <dd>{{ currencyCode }} {{ formatAmount(closingBalance) }}</dd>
-                                            </div>
-                                        </dl>
+                                    <article v-if="showSellStats" class="customer-view-ledger-kpi">
+                                        <span>Total sell</span>
+                                        <strong>{{ currencyCode }} {{ formatAmount(ledgerData.total_sell) }}</strong>
+                                    </article>
+                                    <article v-if="showSellStats" class="customer-view-ledger-kpi">
+                                        <span>Sell paid</span>
+                                        <strong>{{ currencyCode }} {{ formatAmount(ledgerData.total_paid_sell) }}</strong>
+                                    </article>
+                                    <article class="customer-view-ledger-kpi customer-view-ledger-kpi--accent">
+                                        <span>Closing balance</span>
+                                        <strong>{{ currencyCode }} {{ formatAmount(closingBalance) }}</strong>
                                     </article>
                                 </div>
 
@@ -898,6 +948,9 @@
                                     <table class="table customer-view-table">
                                         <thead>
                                             <tr>
+                                                <th class="customer-view-table__check" title="Reviewed up to this transaction">
+                                                    <span class="visually-hidden">Reviewed</span>
+                                                </th>
                                                 <th>Date</th>
                                                 <th>Voucher</th>
                                                 <th>Reference</th>
@@ -913,11 +966,11 @@
                                         </thead>
                                         <tbody>
                                             <tr class="customer-view-table__opening">
+                                                <td class="customer-view-table__check"></td>
                                                 <td>{{ ledgerFilters.start_date }}</td>
-                                                <td colspan="4">Opening balance</td>
-                                                <td></td>
-                                                <td class="text-end customer-view-amount"></td>
-                                                <td class="text-end customer-view-amount"></td>
+                                                <td colspan="5">Opening balance</td>
+                                                <td class="text-end customer-view-amount">-</td>
+                                                <td class="text-end customer-view-amount">-</td>
                                                 <td class="text-end customer-view-amount customer-view-amount--strong">
                                                     {{ formatAmount(ledgerData.openingbalance) }}
                                                 </td>
@@ -927,8 +980,20 @@
                                                 v-for="row in ledgerRows"
                                                 :key="row.id"
                                                 class="customer-view-table__row"
-                                                :class="{ 'customer-view-table__highlight': row.highlight === 1 }"
+                                                :class="{
+                                                    'customer-view-table__highlight': row.highlight === 1,
+                                                    'customer-view-table__watched': isRowWatched(ledgerRows, row),
+                                                }"
                                             >
+                                                <td class="customer-view-table__check">
+                                                    <input
+                                                        type="checkbox"
+                                                        :checked="isRowWatched(ledgerRows, row)"
+                                                        :disabled="watchSaving"
+                                                        :aria-label="`Reviewed through ${row.voucher_no || row.voucher_date || 'this transaction'}`"
+                                                        @change="toggleRowWatch(scopeFilters.contact_id, ledgerRows, row)"
+                                                    />
+                                                </td>
                                                 <td>{{ row.voucher_date || '-' }}</td>
                                                 <td class="customer-view-table__mono">{{ row.voucher_no || '-' }}</td>
                                                 <td class="customer-view-table__mono">{{ row.ref_no || '-' }}</td>
@@ -944,11 +1009,11 @@
                                                 <td class="text-end customer-view-amount customer-view-amount--strong">
                                                     {{ formatAmount(row.balance_amount) }}
                                                 </td>
-                                                <td>{{ row.type || '-' }}</td>
-                                                <td>{{ row.cheque_no || '-' }}</td>
+                                                <td>{{ documentTypeLabel(row.type) }}</td>
+                                                <td>{{ row.cheque_no && row.cheque_no !== '-' ? row.cheque_no : '-' }}</td>
                                             </tr>
                                             <tr v-if="ledgerRows.length === 0">
-                                                <td colspan="11">
+                                                <td colspan="12">
                                                     <div class="customer-view-empty customer-view-empty--inline">
                                                         <Receipt size="sm" />
                                                         <p>No ledger entries for this period.</p>
@@ -956,6 +1021,17 @@
                                                 </td>
                                             </tr>
                                         </tbody>
+                                        <tfoot v-if="ledgerRows.length > 0">
+                                            <tr class="customer-view-table__footer">
+                                                <td colspan="7">Period totals</td>
+                                                <td class="text-end customer-view-amount">{{ formatAmount(ledgerDebitTotal) }}</td>
+                                                <td class="text-end customer-view-amount">{{ formatAmount(ledgerCreditTotal) }}</td>
+                                                <td class="text-end customer-view-amount customer-view-amount--strong">
+                                                    {{ formatAmount(closingBalance) }}
+                                                </td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             </template>
@@ -984,15 +1060,16 @@
 }
 
 .customer-view-layout {
-    display: grid;
-    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
-    align-items: start;
+    width: 100%;
 }
 
-.customer-view-sidebar {
-    position: sticky;
-    top: 1rem;
+.customer-view-sidebar,
+.customer-view-main {
+    width: 100%;
+    min-width: 0;
 }
 
 .customer-view-profile {
@@ -1091,10 +1168,17 @@
     }
 }
 
+.customer-view-profile__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+    gap: 1.25rem;
+    align-items: end;
+    padding: 0 1.25rem 1rem;
+}
+
 .customer-view-profile__identity {
     display: flex;
     gap: 0.875rem;
-    padding: 0 1.125rem 1rem;
     margin-top: -2rem;
     position: relative;
     z-index: 1;
@@ -1263,8 +1347,8 @@
 
 .customer-view-profile__chips {
     display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
 }
 
 .customer-view-chip {
@@ -1276,10 +1360,10 @@
 }
 
 .customer-view-profile__stats {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.625rem;
-    padding: 0 1.125rem 1rem;
+    padding-top: 2.25rem;
 }
 
 .customer-view-stat {
@@ -1358,12 +1442,28 @@
 }
 
 .customer-view-profile__details {
-    padding: 0 1.125rem 1.125rem;
+    padding: 0 1.25rem 1.125rem;
     border-top: 1px solid var(--app-border-subtle, #f1f5f9);
 }
 
+.customer-view-profile__details-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.875rem 0 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+}
+
+.customer-view-profile__details-toggle svg {
+    color: var(--app-text-secondary, #64748b);
+    transition: transform 0.2s ease;
+}
+
 .customer-view-profile__details-title {
-    margin: 1rem 0 0.75rem;
+    margin: 0;
     font-size: 0.6875rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -1373,10 +1473,10 @@
 
 .customer-view-info-list {
     list-style: none;
-    margin: 0;
+    margin: 0.75rem 0 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
 }
 
@@ -1482,8 +1582,7 @@
     color: var(--app-text-secondary, #64748b);
 }
 
-.customer-view-select,
-.customer-view-date-input {
+.customer-view-select {
     border-radius: 0.625rem;
     border-color: var(--app-border, #e5e7eb);
     min-height: 2.375rem;
@@ -1586,7 +1685,20 @@
 }
 
 .customer-view-tabs__panel {
-    padding: 1.125rem 1.25rem 1.25rem;
+    padding: 1.125rem 0 0;
+}
+
+.customer-view-ledger {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.customer-view-ledger-toolbar,
+.customer-view-ledger-kpis,
+.customer-view-table-head {
+    margin-left: 1.25rem;
+    margin-right: 1.25rem;
 }
 
 .customer-view-ledger-toolbar {
@@ -1611,31 +1723,45 @@
     color: var(--app-text-secondary, #64748b);
 }
 
-.customer-view-date-range {
+.customer-view-ledger-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.customer-view-ledger-kpi {
     display: flex;
-    align-items: flex-end;
-    gap: 0.625rem;
-    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.875rem 1rem;
     border-radius: 0.875rem;
     background: #f8fafc;
     border: 1px solid #eef2f7;
 }
 
-.customer-view-date-range__sep {
-    padding-bottom: 0.55rem;
-    color: var(--app-text-muted, #94a3b8);
+.customer-view-ledger-kpi span {
+    font-size: 0.6875rem;
     font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--app-text-muted, #94a3b8);
 }
 
-.customer-view-date-field {
-    min-width: 9.5rem;
+.customer-view-ledger-kpi strong {
+    font-size: 1.0625rem;
+    font-weight: 800;
+    color: var(--app-text, #111827);
+    font-variant-numeric: tabular-nums;
 }
 
-.customer-view-ledger-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.875rem;
-    margin-bottom: 1rem;
+.customer-view-ledger-kpi--accent {
+    background: linear-gradient(135deg, rgba(25, 150, 131, 0.1) 0%, rgba(25, 150, 131, 0.04) 100%);
+    border-color: var(--sv-accent-border);
+}
+
+.customer-view-ledger-kpi--accent strong {
+    color: var(--sv-accent-dark);
 }
 
 .customer-view-summary-card {
@@ -1775,36 +1901,73 @@
 }
 
 .customer-view-table-wrap {
-    overflow: auto;
-    border: 1px solid #eef2f7;
-    border-radius: 0.875rem;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    width: 100%;
+    overflow-x: auto;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
 }
 
 .customer-view-table {
+    width: 100%;
+    min-width: 100%;
     margin: 0;
+    table-layout: auto;
     font-size: 0.8125rem;
+}
+
+.customer-view-table__check {
+    width: 2.5rem;
+    text-align: center;
+}
+
+.customer-view-table__check input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--sv-accent);
+    cursor: pointer;
+}
+
+.customer-view-table__watched:not(.customer-view-table__highlight) {
+    --bs-table-bg: #c6efe8;
+    --bs-table-accent-bg: #c6efe8;
+}
+
+.customer-view-table__watched:not(.customer-view-table__highlight) > td {
+    background-color: #c6efe8 !important;
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.customer-view-table__watched:not(.customer-view-table__highlight) > td:first-child {
+    box-shadow: inset 4px 0 0 var(--sv-accent);
+}
+
+.customer-view-table__row.customer-view-table__watched:hover > td {
+    background-color: #b4e8dd !important;
 }
 
 .customer-view-table thead th {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: #f1f5f9;
+    background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: #64748b;
     white-space: nowrap;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    padding: 0.875rem 1rem;
 }
 
-.customer-view-table tbody td {
+.customer-view-table tbody td,
+.customer-view-table tfoot td {
     vertical-align: middle;
     border-color: #f1f5f9;
+    padding: 0.875rem 1rem;
+    white-space: nowrap;
 }
 
 .customer-view-table__row:hover {
@@ -1831,8 +1994,19 @@
 }
 
 .customer-view-table__narration {
-    max-width: 14rem;
+    min-width: 12rem;
+    max-width: none;
     white-space: normal;
+}
+
+.customer-view-table__footer {
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.customer-view-table__footer td {
+    border-top: 1px solid #e2e8f0;
+    color: var(--app-text, #111827);
 }
 
 .customer-view-amount {
@@ -1884,17 +2058,26 @@
 }
 
 @media (max-width: 1199.98px) {
-    .customer-view-layout {
+    .customer-view-profile__body {
         grid-template-columns: 1fr;
+        align-items: start;
     }
 
-    .customer-view-sidebar {
-        position: static;
+    .customer-view-profile__stats {
+        padding-top: 0;
+    }
+
+    .customer-view-info-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .customer-view-ledger-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 991.98px) {
-    .customer-view-ledger-grid {
+    .customer-view-profile__stats {
         grid-template-columns: 1fr;
     }
 }
@@ -1909,21 +2092,6 @@
         align-items: flex-start;
     }
 
-    .customer-view-date-range {
-        flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-    }
-
-    .customer-view-date-range__sep {
-        display: none;
-    }
-
-    .customer-view-date-field {
-        min-width: 0;
-        width: 100%;
-    }
-
     .customer-view-ledger-toolbar {
         flex-direction: column;
         align-items: stretch;
@@ -1932,6 +2100,11 @@
     .customer-view-table-head {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .customer-view-info-list,
+    .customer-view-ledger-kpis {
+        grid-template-columns: 1fr;
     }
 }
 </style>

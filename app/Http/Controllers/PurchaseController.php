@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
+use App\Services\PurchaseJournal;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,8 @@ class PurchaseController extends Controller
             'shipping_note' => 'nullable|string',
             'additional_note' => 'nullable|string',
             'final_amount' => 'nullable|numeric|min:0',
+            'tax_id' => 'nullable|integer',
+            'tax_amount' => 'nullable|numeric|min:0',
             'total_item' => 'nullable|integer|min:0',
             'is_direct' => 'nullable|boolean',
             'direct_contact_id' => 'required_if:is_direct,1,true|nullable',
@@ -236,6 +239,7 @@ class PurchaseController extends Controller
                     ->whereIn('id', $request->all())
                     ->pluck('id');
 
+                app(PurchaseJournal::class)->deleteForIds($ids);
                 Transaction::whereIn('id', $ids)->delete();
                 DB::commit();
 
@@ -262,6 +266,7 @@ class PurchaseController extends Controller
                     ->whereIn('id', (array) $request->all())
                     ->pluck('id');
 
+                app(PurchaseJournal::class)->deleteForIds($ids);
                 Transaction::whereIn('id', $ids)->forceDelete();
                 DB::commit();
 
@@ -289,6 +294,13 @@ class PurchaseController extends Controller
                     ->pluck('id');
 
                 Transaction::whereIn('id', $ids)->restore();
+
+                Transaction::query()
+                    ->purchases()
+                    ->whereIn('id', $ids)
+                    ->get()
+                    ->each(fn (Transaction $purchase) => app(PurchaseJournal::class)->sync($purchase));
+
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
@@ -365,6 +377,8 @@ class PurchaseController extends Controller
                 $cloned->quantity_adjustment = 0;
                 $cloned->save();
             }
+
+            app(PurchaseJournal::class)->sync($duplicator->fresh(['contact']) ?? $duplicator);
 
             DB::commit();
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ChartOfAccount;
+use App\Services\AccountCurrentBalance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -72,7 +73,7 @@ class ChartOfAccountController extends Controller
         }
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AccountCurrentBalance $balances): JsonResponse
     {
         $status = $request->status ?? 'all';
 
@@ -88,7 +89,7 @@ class ChartOfAccountController extends Controller
             ->get();
 
         if ($request->filled('company_id') && $request->filled('branch_id')) {
-            ChartOfAccount::appendOpeningBalancesToTree(
+            $balances->applyToTree(
                 $accounts,
                 $request->integer('company_id'),
                 $request->integer('branch_id'),

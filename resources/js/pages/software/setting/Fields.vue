@@ -5,6 +5,7 @@
     defineProps({
         activeTab: { type: String, default: 'general' },
         logoUrl: { type: String, default: '' },
+        emailLogoUrl: { type: String, default: '' },
         testingSmtp: { type: Boolean, default: false },
         sendingTest: { type: Boolean, default: false },
         hasSmtpPassword: { type: Boolean, default: false },
@@ -23,6 +24,7 @@
     <GeneralSettingTab
         v-if="activeTab === 'general'"
         :logo-url="logoUrl"
+        :email-logo-url="emailLogoUrl"
     />
 
     <SmtpSettingTab

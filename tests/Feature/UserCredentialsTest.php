@@ -3,6 +3,7 @@
 use App\Mail\UserCredentialsMail;
 use App\Models\Company;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -44,6 +45,41 @@ test('user credentials mailable includes login details', function () {
     $mailable->assertSeeInHtml('jane@example.com');
     $mailable->assertSeeInHtml('Password1!');
     $mailable->assertSeeInHtml('http://localhost/login');
+});
+
+test('user credentials email uses software branding instead of company branding', function () {
+    $setting = Setting::instance();
+    $setting->name = 'Ledger Desk';
+    $setting->email = 'support@ledger.test';
+    $setting->system_logo = 'photos/software-logo.png';
+    $setting->email_logo = 'photos/email-logo.png';
+    $setting->save();
+
+    $company = Company::query()->create([
+        'code' => 'CO-00041',
+        'name' => 'Abstract Connoisseurs',
+        'email' => 'company@abstract.test',
+        'is_active' => true,
+        'max_users' => 10,
+        'max_branches' => 2,
+    ]);
+
+    $mailable = new UserCredentialsMail(
+        recipientName: 'Jane Doe',
+        username: 'janedoe',
+        email: 'jane@example.com',
+        plainPassword: 'Password1!',
+        loginUrl: 'http://localhost/login',
+        company: $company,
+    );
+
+    $mailable->assertSeeInHtml('Ledger Desk');
+    $mailable->assertSeeInHtml('support@ledger.test');
+    $mailable->assertSeeInHtml(Setting::logoUrl('photos/email-logo.png'));
+    $mailable->assertSeeInHtml('max-width:200px');
+    $mailable->assertDontSeeInHtml(Setting::logoUrl('photos/software-logo.png'));
+    $mailable->assertDontSeeInHtml('Abstract Connoisseurs');
+    $mailable->assertDontSeeInHtml('company@abstract.test');
 });
 
 test('guests cannot send user credentials', function () {

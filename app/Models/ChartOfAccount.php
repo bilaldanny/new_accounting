@@ -517,6 +517,42 @@ class ChartOfAccount extends Model
 
     /**
      * @param  Collection<int, ChartOfAccount>  $roots
+     * @return list<string>
+     */
+    public static function transactionalCodes(Collection $roots): array
+    {
+        return self::flattenTreeAccounts($roots)
+            ->filter(fn (self $account): bool => $account->acc_type === 't' && filled($account->code))
+            ->pluck('code')
+            ->map(fn (mixed $code): string => (string) $code)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, ChartOfAccount>  $roots
+     * @param  array<string, float>  $activityByCode
+     */
+    public static function applyActivityToTree(Collection $roots, array $activityByCode): void
+    {
+        foreach (self::flattenTreeAccounts($roots) as $account) {
+            if ($account->acc_type !== 't') {
+                continue;
+            }
+
+            $code = (string) $account->code;
+            $account->opening_balance = round(
+                (float) ($account->opening_balance ?? 0) + (float) ($activityByCode[$code] ?? 0),
+                2,
+            );
+        }
+
+        self::rollupControlOpeningBalances($roots);
+    }
+
+    /**
+     * @param  Collection<int, ChartOfAccount>  $roots
      * @return Collection<int, ChartOfAccount>
      */
     private static function flattenTreeAccounts(Collection $roots): Collection

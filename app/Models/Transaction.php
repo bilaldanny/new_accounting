@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\PurchaseJournal;
+use App\Services\SellJournal;
 use Database\Factories\TransactionFactory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -108,6 +110,7 @@ class Transaction extends Model
             'discount_amount' => 'decimal:2',
             'shipping_charges' => 'decimal:2',
             'final_amount' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
         ];
     }
@@ -479,6 +482,7 @@ class Transaction extends Model
         $transaction->save();
 
         self::syncLines($transaction, $request->purchaselines ?? []);
+        app(PurchaseJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
 
         return $transaction;
     }
@@ -506,6 +510,7 @@ class Transaction extends Model
         $transaction->save();
 
         self::syncLines($transaction, $request->purchaselines ?? []);
+        app(PurchaseJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
 
         return $transaction;
     }
@@ -518,6 +523,7 @@ class Transaction extends Model
             abort(404);
         }
 
+        app(PurchaseJournal::class)->deleteFor($transaction);
         $transaction->delete();
     }
 
@@ -620,6 +626,7 @@ class Transaction extends Model
         $transaction->save();
 
         self::syncSellLines($transaction, $request->selllines ?? []);
+        app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
 
         return $transaction;
     }
@@ -647,6 +654,7 @@ class Transaction extends Model
         $transaction->save();
 
         self::syncSellLines($transaction, $request->selllines ?? []);
+        app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
 
         return $transaction;
     }
@@ -659,6 +667,7 @@ class Transaction extends Model
             abort(404);
         }
 
+        app(SellJournal::class)->deleteFor($transaction);
         $transaction->delete();
     }
 
@@ -739,6 +748,8 @@ class Transaction extends Model
         $this->packing = $request->packing;
         $this->additional_note = $request->additional_note;
         $this->final_amount = SellLine::resolveNumeric($request->final_amount ?? 0);
+        $this->tax_id = self::resolveScopedId($request->tax_id ?? null);
+        $this->tax_amount = SellLine::resolveNumeric($request->tax_amount ?? 0);
         $this->total_item = (int) SellLine::resolveNumeric($request->total_item ?? count($request->selllines ?? []), 0);
         $this->payment_status = in_array($request->payment_status, ['paid', 'due', 'partial'], true)
             ? $request->payment_status
@@ -878,6 +889,8 @@ class Transaction extends Model
         $this->shipping_charges = PurchaseLine::resolveNumeric($request->shipping_charges ?? 0);
         $this->additional_note = $request->additional_note;
         $this->final_amount = PurchaseLine::resolveNumeric($request->final_amount ?? 0);
+        $this->tax_id = self::resolveScopedId($request->tax_id ?? null);
+        $this->tax_amount = PurchaseLine::resolveNumeric($request->tax_amount ?? 0);
         $this->total_item = (int) PurchaseLine::resolveNumeric($request->total_item ?? count($request->purchaselines ?? []), 0);
         $this->payment_status = in_array($request->payment_status, ['paid', 'due', 'partial'], true)
             ? $request->payment_status
