@@ -224,6 +224,11 @@ class MenuController extends Controller
         return response()->json(Menu::permissionMenusForAssigner($roleId));
     }
 
+    public function getpermission(Request $request)
+    {
+        return response()->json($request->user()->getPermissionPaths());
+    }
+
     /* Bulk Record Permanently Delete */
     public function restore_records(Request $request)
     {
