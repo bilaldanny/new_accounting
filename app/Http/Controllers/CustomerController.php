@@ -168,7 +168,7 @@ class CustomerController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -204,7 +204,7 @@ class CustomerController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -241,7 +241,7 @@ class CustomerController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json([
@@ -269,7 +269,7 @@ class CustomerController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         }
 
@@ -295,7 +295,7 @@ class CustomerController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         }
 
@@ -329,7 +329,7 @@ class CustomerController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -354,7 +354,7 @@ class CustomerController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         }
 
@@ -389,7 +389,7 @@ class CustomerController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
     }
 

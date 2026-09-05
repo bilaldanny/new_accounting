@@ -123,7 +123,7 @@ class RoleController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -156,7 +156,7 @@ class RoleController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -199,7 +199,7 @@ class RoleController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return ImportResponse::success(
@@ -245,7 +245,7 @@ class RoleController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json('406');
@@ -272,7 +272,7 @@ class RoleController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json('406');
@@ -307,7 +307,7 @@ class RoleController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json(['errormessage' => 'Something went wrong']);
@@ -347,7 +347,7 @@ class RoleController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json('406');
@@ -375,7 +375,7 @@ class RoleController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
     }
 

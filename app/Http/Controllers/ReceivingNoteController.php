@@ -96,7 +96,7 @@ class ReceivingNoteController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -132,7 +132,7 @@ class ReceivingNoteController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -170,7 +170,7 @@ class ReceivingNoteController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         }
 
@@ -196,7 +196,7 @@ class ReceivingNoteController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         }
 
@@ -222,7 +222,7 @@ class ReceivingNoteController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         }
 
