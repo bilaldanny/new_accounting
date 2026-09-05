@@ -1,0 +1,19 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));const f=(d.tool_input&&d.tool_input.file_path)||'';if(f.toLowerCase().endsWith('.php')){process.exit((require('child_process').spawnSync('vendor/bin/pint',['--dirty','--format','agent'],{stdio:'inherit',shell:true}).status)||0);}\""
+                    },
+                    {
+                        "type": "command",
+                        "command": "node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));const f=(d.tool_input&&d.tool_input.file_path)||'';const l=f.toLowerCase();if(l.endsWith('.vue')||l.endsWith('.ts')){process.exit((require('child_process').spawnSync('npx',['eslint','--fix',f],{stdio:'inherit',shell:true}).status)||0);}\""
+                    }
+                ]
+            }
+        ]
+    }
+}
