@@ -6,6 +6,8 @@ use App\Models\Menu;
 use App\Models\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class PermissionController extends Controller
 {
@@ -300,6 +302,35 @@ class PermissionController extends Controller
 
         //
 
+    }
+
+    public function updatestatus(Request $request)
+    {
+        $this->authorizeMenuPermission('/role/:id/permission');
+        $permissions = Permission::query()->whereIn('id', $request->ids)->get();
+
+        if (isset($permissions)) {
+            DB::beginTransaction();
+            try {
+                foreach ($permissions as $permission) {
+                    if (isset($request->status)) {
+                        $permission->status = $request->status;
+                    } else {
+                        $permission->status = $permission->status ? 0 : 1;
+                    }
+                    $permission->save();
+                }
+                DB::commit();
+            } catch (Throwable $e) {
+                DB::rollBack();
+
+                return response()->json(['errormessage' => $e->getMessage()], 500);
+            }
+        } else {
+            return response()->json(['errormessage' => 'Something went wrong']);
+        }
+
+        return response()->json(['message' => 'Successfully Saved']);
     }
 
     public function fetch(Request $request)
