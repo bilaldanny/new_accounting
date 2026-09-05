@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Product;
-use App\Support\ImportResponse;
 use App\Support\VariantCombiner;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +14,8 @@ use Throwable;
 
 class ProductController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -47,12 +49,8 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Product::query()
             ->visibleToCurrentUser()
@@ -92,21 +90,9 @@ class ProductController extends Controller
             })
             ->when($request->filled('type') && $request->type !== 'all', function ($q) use ($request) {
                 $q->where('type', $request->type);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $products = $query->paginate($show_record);
-
-        if ($cur_page > $products->lastPage()) {
-            Paginator::currentPageResolver(function () use ($products) {
-                return $products->lastPage();
             });
-            $products = $query->paginate($show_record);
-        }
+
+        $products = $this->paginateSorted($query, $request);
 
         $products->getCollection()->transform(function (Product $product) {
             $product->company_name = $product->company?->name;
@@ -217,43 +203,7 @@ class ProductController extends Controller
             'rows.*.type' => 'nullable|in:single,variable',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Product::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'product records'
-        );
+        return $this->importRows($request, Product::class, 'product records');
     }
 
     public function show($id)
@@ -312,54 +262,29 @@ class ProductController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/product/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Product::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/product/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Product::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $productId) {
-                    Product::deleteProduct((int) $productId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $productId) {
+                Product::deleteProduct((int) $productId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/product/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Product::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/product/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Product::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Product::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Product::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -491,12 +416,8 @@ class ProductController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Product::onlyTrashed()
             ->visibleToCurrentUser()
@@ -516,21 +437,9 @@ class ProductController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'sku'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $products = $query->paginate($show_record);
-
-        if ($cur_page > $products->lastPage()) {
-            Paginator::currentPageResolver(function () use ($products) {
-                return $products->lastPage();
             });
-            $products = $query->paginate($show_record);
-        }
+
+        $products = $this->paginateSorted($query, $request);
 
         $products->getCollection()->transform(function (Product $product) {
             $product->category_label = trim(implode(' / ', array_filter([

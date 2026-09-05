@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Contact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class CustomerController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -75,12 +77,8 @@ class CustomerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $query = Contact::query()
             ->customers()
@@ -114,21 +112,9 @@ class CustomerController extends Controller
             })
             ->when($request->filled('branch_id'), function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $customers = $query->paginate($showRecord);
-
-        if ($curPage > $customers->lastPage()) {
-            Paginator::currentPageResolver(function () use ($customers) {
-                return $customers->lastPage();
             });
-            $customers = $query->paginate($showRecord);
-        }
+
+        $customers = $this->paginateSorted($query, $request);
 
         $customers->getCollection()->transform(function (Contact $customer) {
             $customer->company_name = $customer->company?->name;
@@ -253,53 +239,29 @@ class CustomerController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/customer/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Contact::query()
-                    ->customers()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/customer/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Contact::query()
+                ->customers()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                Contact::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Contact::whereIn('id', $ids)->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/customer/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Contact::query()
-                    ->onlyTrashed()
-                    ->customers()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/customer/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Contact::query()
+                ->onlyTrashed()
+                ->customers()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Contact::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Contact::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request): JsonResponse
@@ -413,12 +375,8 @@ class CustomerController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $query = Contact::onlyTrashed()
             ->customers()
@@ -439,21 +397,9 @@ class CustomerController extends Controller
                         'mobile',
                     ], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $customers = $query->paginate($showRecord);
-
-        if ($curPage > $customers->lastPage()) {
-            Paginator::currentPageResolver(function () use ($customers) {
-                return $customers->lastPage();
             });
-            $customers = $query->paginate($showRecord);
-        }
+
+        $customers = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $customers]);
     }

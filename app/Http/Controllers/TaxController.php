@@ -2,23 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Tax;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class TaxController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->input('sort_by', 'created_at');
-        $sortType = $request->input('sort_type', 'desc');
-        $showRecord = (int) $request->input('show_record', 10);
         $status = $request->input('status', 'all');
         $search = $request->input('search', '');
-        $curPage = (int) $request->input('cur_page', 1);
 
         $query = Tax::query()
             ->visibleToCurrentUser()
@@ -27,17 +25,9 @@ class TaxController extends Controller
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->integer('type')))
             ->when($status !== 'all', fn ($q) => $q->where('status', $request->boolean('status')))
             ->when($status === 'all', fn ($q) => $q->whereIn('status', [0, 1]))
-            ->when($search !== '', fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
-            ->orderBy($sortBy, $sortType);
+            ->when($search !== '', fn ($q) => $q->where('name', 'like', '%'.$search.'%'));
 
-        Paginator::currentPageResolver(fn () => $curPage);
-
-        $taxes = $query->paginate($showRecord);
-
-        if ($curPage > $taxes->lastPage()) {
-            Paginator::currentPageResolver(fn () => $taxes->lastPage());
-            $taxes = $query->paginate($showRecord);
-        }
+        $taxes = $this->paginateSorted($query, $request);
 
         $taxes->getCollection()->transform(function (Tax $tax) {
             $tax->company_name = $tax->company?->name;
@@ -116,22 +106,12 @@ class TaxController extends Controller
             return response()->json('406');
         }
 
-        DB::beginTransaction();
-
-        try {
+        return $this->runInTransaction('Successfully Deleted', function () use ($request) {
             Tax::query()
                 ->visibleToCurrentUser()
                 ->whereIn('id', (array) $request->all())
                 ->delete();
-
-            DB::commit();
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return response()->json(['message' => 'Successfully Deleted']);
+        });
     }
 
     public function updateStatus(Request $request): JsonResponse

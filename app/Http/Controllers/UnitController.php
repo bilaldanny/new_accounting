@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Unit;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class UnitController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -28,12 +30,8 @@ class UnitController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Unit::query()
             ->visibleToCurrentUser()
@@ -54,21 +52,9 @@ class UnitController extends Controller
             })
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $units = $query->paginate($show_record);
-
-        if ($cur_page > $units->lastPage()) {
-            Paginator::currentPageResolver(function () use ($units) {
-                return $units->lastPage();
             });
-            $units = $query->paginate($show_record);
-        }
+
+        $units = $this->paginateSorted($query, $request);
 
         $units->getCollection()->transform(function (Unit $unit) {
             $unit->company_name = $unit->company?->name;
@@ -132,43 +118,7 @@ class UnitController extends Controller
             'rows.*.type' => 'nullable|in:large,small',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Unit::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'unit records'
-        );
+        return $this->importRows($request, Unit::class, 'unit records');
     }
 
     public function show($id)
@@ -223,54 +173,29 @@ class UnitController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/unit/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Unit::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/unit/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Unit::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $unitId) {
-                    Unit::deleteUnit((int) $unitId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $unitId) {
+                Unit::deleteUnit((int) $unitId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/unit/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Unit::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/unit/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Unit::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Unit::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Unit::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -394,12 +319,8 @@ class UnitController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Unit::onlyTrashed()
             ->visibleToCurrentUser()
@@ -413,21 +334,9 @@ class UnitController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'short_name'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $units = $query->paginate($show_record);
-
-        if ($cur_page > $units->lastPage()) {
-            Paginator::currentPageResolver(function () use ($units) {
-                return $units->lastPage();
             });
-            $units = $query->paginate($show_record);
-        }
+
+        $units = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $units]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Throwable;
 
 class ReceivingNoteController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -151,56 +154,31 @@ class ReceivingNoteController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/receivingnote/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->receivingNotes()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/receivingnote/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->receivingNotes()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $id) {
-                    Transaction::deleteReceivingNote((int) $id);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $id) {
+                Transaction::deleteReceivingNote((int) $id);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/receivingnote/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->onlyTrashed()
-                    ->receivingNotes()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/receivingnote/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->onlyTrashed()
+                ->receivingNotes()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Transaction::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Transaction::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function restore_records(Request $request): JsonResponse

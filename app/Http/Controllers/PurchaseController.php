@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
 use App\Services\PurchaseJournal;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class PurchaseController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -58,12 +60,8 @@ class PurchaseController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Transaction::query()
             ->purchases()
@@ -97,21 +95,9 @@ class PurchaseController extends Controller
             })
             ->when($request->filled('contact_id'), function ($q) use ($request) {
                 $q->where('contact_id', $request->contact_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $purchases = $query->paginate($show_record);
-
-        if ($cur_page > $purchases->lastPage()) {
-            Paginator::currentPageResolver(function () use ($purchases) {
-                return $purchases->lastPage();
             });
-            $purchases = $query->paginate($show_record);
-        }
+
+        $purchases = $this->paginateSorted($query, $request);
 
         $purchases->getCollection()->transform(function (Transaction $purchase) {
             return $purchase->presentForIndex();
@@ -230,55 +216,31 @@ class PurchaseController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/purchase/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->purchases()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/purchase/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->purchases()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                app(PurchaseJournal::class)->deleteForIds($ids);
-                Transaction::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            app(PurchaseJournal::class)->deleteForIds($ids);
+            Transaction::whereIn('id', $ids)->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/purchase/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->onlyTrashed()
-                    ->purchases()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/purchase/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->onlyTrashed()
+                ->purchases()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                app(PurchaseJournal::class)->deleteForIds($ids);
-                Transaction::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            app(PurchaseJournal::class)->deleteForIds($ids);
+            Transaction::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function restore_records(Request $request)
@@ -392,12 +354,8 @@ class PurchaseController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Transaction::onlyTrashed()
             ->purchases()
@@ -417,21 +375,9 @@ class PurchaseController extends Controller
                             $contact->where('business_name', 'like', "%{$search}%");
                         });
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $purchases = $query->paginate($show_record);
-
-        if ($cur_page > $purchases->lastPage()) {
-            Paginator::currentPageResolver(function () use ($purchases) {
-                return $purchases->lastPage();
             });
-            $purchases = $query->paginate($show_record);
-        }
+
+        $purchases = $this->paginateSorted($query, $request);
 
         $purchases->getCollection()->transform(function (Transaction $purchase) {
             return $purchase->presentForIndex();

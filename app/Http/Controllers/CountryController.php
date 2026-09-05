@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Country;
 use App\Services\CountryStateCityApiSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +15,8 @@ use Throwable;
 
 class CountryController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -45,15 +47,11 @@ class CountryController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $allowedSorts = ['name', 'iso2', 'iso3', 'phonecode', 'capital', 'flag', 'created_at'];
-        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'created_at';
+        $sortBy = in_array($request->sort_by, $allowedSorts, true) ? $request->sort_by : 'created_at';
 
         $query = Country::query()
             ->when($status !== 'all', function ($q) use ($status) {
@@ -66,21 +64,9 @@ class CountryController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'iso2', 'iso3', 'phonecode', 'capital'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $countries = $query->paginate($showRecord);
-
-        if ($curPage > $countries->lastPage()) {
-            Paginator::currentPageResolver(function () use ($countries) {
-                return $countries->lastPage();
             });
-            $countries = $query->paginate($showRecord);
-        }
+
+        $countries = $this->paginateSorted($query, $request->merge(['sort_by' => $sortBy]));
 
         $trashCount = Country::onlyTrashed()->count();
 
@@ -217,40 +203,16 @@ class CountryController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/country/delete')) {
-            DB::beginTransaction();
-            try {
-                Country::query()->whereIn('id', $request->all())->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/country/delete', 'Successfully Deleted', function () use ($request) {
+            Country::query()->whereIn('id', $request->all())->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/country/delete')) {
-            DB::beginTransaction();
-            try {
-                Country::query()->whereIn('id', (array) $request->all())->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/country/delete', 'Successfully Deleted', function () use ($request) {
+            Country::query()->whereIn('id', (array) $request->all())->forceDelete();
+        });
     }
 
     public function restore_records(Request $request): JsonResponse
@@ -303,15 +265,11 @@ class CountryController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $allowedSorts = ['name', 'iso2', 'iso3', 'phonecode', 'capital', 'flag', 'created_at'];
-        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'created_at';
+        $sortBy = in_array($request->sort_by, $allowedSorts, true) ? $request->sort_by : 'created_at';
 
         $query = Country::onlyTrashed()
             ->when($status !== 'all', function ($q) use ($status) {
@@ -324,21 +282,9 @@ class CountryController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'iso2', 'iso3', 'phonecode', 'capital'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $countries = $query->paginate($showRecord);
-
-        if ($curPage > $countries->lastPage()) {
-            Paginator::currentPageResolver(function () use ($countries) {
-                return $countries->lastPage();
             });
-            $countries = $query->paginate($showRecord);
-        }
+
+        $countries = $this->paginateSorted($query, $request->merge(['sort_by' => $sortBy]));
 
         return response()->json(['data' => $countries]);
     }

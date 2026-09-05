@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\SendUserCredentials;
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\User;
-use App\Support\ImportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,6 +16,8 @@ use Throwable;
 
 class UserController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     protected function strongPasswordRule(): string
     {
         return 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/';
@@ -122,31 +124,6 @@ class UserController extends Controller
             });
     }
 
-    protected function paginateQuery($query, Request $request)
-    {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
-        $cur_page = $request->cur_page ?? 1;
-
-        $query->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $users = $query->paginate($show_record);
-
-        if ($cur_page > $users->lastPage()) {
-            Paginator::currentPageResolver(function () use ($users) {
-                return $users->lastPage();
-            });
-            $users = $query->paginate($show_record);
-        }
-
-        return $users;
-    }
-
     protected function transformUserCollection($users): void
     {
         $users->getCollection()->transform(function (User $user) {
@@ -163,7 +140,7 @@ class UserController extends Controller
     {
         $request->merge(['status' => $request->status ?? 'all']);
 
-        $users = $this->paginateQuery($this->baseQuery($request), $request);
+        $users = $this->paginateSorted($this->baseQuery($request), $request);
         $this->transformUserCollection($users);
 
         $trash_count = User::onlyTrashed()->visibleToCurrentUser()->count();
@@ -254,47 +231,23 @@ class UserController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/user/delete')) {
-            DB::beginTransaction();
-            try {
-                User::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/user/delete', 'Successfully Deleted', function () use ($request) {
+            User::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/user/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = (array) $request->all();
-                User::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $ids)
-                    ->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/user/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = (array) $request->all();
+            User::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $ids)
+                ->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -385,43 +338,7 @@ class UserController extends Controller
             'rows.*.role_id' => 'bail|required',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (User::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'user records'
-        );
+        return $this->importRows($request, User::class, 'user records');
     }
 
     public function duplicate(Request $request)
@@ -486,7 +403,7 @@ class UserController extends Controller
 
         $query = User::onlyTrashed()->visibleToCurrentUser();
 
-        $users = $this->paginateQuery(
+        $users = $this->paginateSorted(
             $query
                 ->with([
                     'role:id,name',

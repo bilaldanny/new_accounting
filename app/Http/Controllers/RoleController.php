@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Role;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class RoleController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -26,12 +28,8 @@ class RoleController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         // Base Query
         $query = Role::query()
@@ -57,23 +55,9 @@ class RoleController extends Controller
             })
             ->when($request->filled('branch_id'), function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        // Resolve current page before pagination
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $roles = $query->paginate($show_record);
-
-        // If requested page is greater than last page → set to last page
-        if ($cur_page > $roles->lastPage()) {
-            Paginator::currentPageResolver(function () use ($roles) {
-                return $roles->lastPage();
             });
-            $roles = $query->paginate($show_record);
-        }
+
+        $roles = $this->paginateSorted($query, $request);
 
         $roles->getCollection()->transform(function (Role $role) {
             $role->company_name = $role->company?->name;
@@ -171,43 +155,7 @@ class RoleController extends Controller
             'rows.*.name' => 'bail|required|string',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Role::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'role records'
-        );
+        return $this->importRows($request, Role::class, 'role records');
     }
 
     public function destroy($id)
@@ -230,53 +178,28 @@ class RoleController extends Controller
     /* Bulk Record Delete */
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/role/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Role::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/role/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Role::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                Role::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        } else {
-            return response()->json('406');
-        }
+            Role::whereIn('id', $ids)->delete();
+        });
     }
 
     /* Bulk Record Permanently Delete */
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/role/delete')) {
+        return $this->guardedBulkAction('/role/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Role::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-            DB::beginTransaction();
-            try {
-                $ids = Role::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
-
-                Role::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        } else {
-            return response()->json('406');
-        }
+            Role::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     /* Update Status */
@@ -396,12 +319,8 @@ class RoleController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         // Base Query
         $query = Role::onlyTrashed()
@@ -416,23 +335,9 @@ class RoleController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'sort_order'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        // Resolve current page before pagination
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $roles = $query->paginate($show_record);
-
-        // If requested page is greater than last page → set to last page
-        if ($cur_page > $roles->lastPage()) {
-            Paginator::currentPageResolver(function () use ($roles) {
-                return $roles->lastPage();
             });
-            $roles = $query->paginate($show_record);
-        }
+
+        $roles = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $roles]);
     }

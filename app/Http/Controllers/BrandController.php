@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Brand;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class BrandController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -26,12 +28,8 @@ class BrandController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Brand::query()
             ->visibleToCurrentUser()
@@ -51,21 +49,9 @@ class BrandController extends Controller
             })
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $brands = $query->paginate($show_record);
-
-        if ($cur_page > $brands->lastPage()) {
-            Paginator::currentPageResolver(function () use ($brands) {
-                return $brands->lastPage();
             });
-            $brands = $query->paginate($show_record);
-        }
+
+        $brands = $this->paginateSorted($query, $request);
 
         $brands->getCollection()->transform(function (Brand $brand) {
             $brand->company_name = $brand->company?->name;
@@ -126,43 +112,7 @@ class BrandController extends Controller
             'rows.*.name' => 'bail|required|string|min:3|max:200',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Brand::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'brand records'
-        );
+        return $this->importRows($request, Brand::class, 'brand records');
     }
 
     public function show($id)
@@ -217,54 +167,29 @@ class BrandController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/brand/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Brand::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/brand/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Brand::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $brandId) {
-                    Brand::deleteBrand((int) $brandId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $brandId) {
+                Brand::deleteBrand((int) $brandId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/brand/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Brand::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/brand/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Brand::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Brand::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Brand::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -384,12 +309,8 @@ class BrandController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Brand::onlyTrashed()
             ->visibleToCurrentUser()
@@ -403,21 +324,9 @@ class BrandController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->where('name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $brands = $query->paginate($show_record);
-
-        if ($cur_page > $brands->lastPage()) {
-            Paginator::currentPageResolver(function () use ($brands) {
-                return $brands->lastPage();
             });
-            $brands = $query->paginate($show_record);
-        }
+
+        $brands = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $brands]);
     }

@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Currency;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class CurrencyController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -34,12 +36,8 @@ class CurrencyController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $query = Currency::query()
             ->when($status !== 'all', function ($q) use ($status) {
@@ -52,21 +50,9 @@ class CurrencyController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['currency_name', 'code', 'symbol'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $currencies = $query->paginate($showRecord);
-
-        if ($curPage > $currencies->lastPage()) {
-            Paginator::currentPageResolver(function () use ($currencies) {
-                return $currencies->lastPage();
             });
-            $currencies = $query->paginate($showRecord);
-        }
+
+        $currencies = $this->paginateSorted($query, $request);
 
         $trashCount = Currency::onlyTrashed()->count();
 
@@ -161,40 +147,16 @@ class CurrencyController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/currency/delete')) {
-            DB::beginTransaction();
-            try {
-                Currency::query()->whereIn('id', $request->all())->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/currency/delete', 'Successfully Deleted', function () use ($request) {
+            Currency::query()->whereIn('id', $request->all())->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/currency/delete')) {
-            DB::beginTransaction();
-            try {
-                Currency::query()->whereIn('id', (array) $request->all())->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/currency/delete', 'Successfully Deleted', function () use ($request) {
+            Currency::query()->whereIn('id', (array) $request->all())->forceDelete();
+        });
     }
 
     public function restore_records(Request $request): JsonResponse
@@ -247,12 +209,8 @@ class CurrencyController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $query = Currency::onlyTrashed()
             ->when($status !== 'all', function ($q) use ($status) {
@@ -265,21 +223,9 @@ class CurrencyController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['currency_name', 'code', 'symbol'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $currencies = $query->paginate($showRecord);
-
-        if ($curPage > $currencies->lastPage()) {
-            Paginator::currentPageResolver(function () use ($currencies) {
-                return $currencies->lastPage();
             });
-            $currencies = $query->paginate($showRecord);
-        }
+
+        $currencies = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $currencies]);
     }

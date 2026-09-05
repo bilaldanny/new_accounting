@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Warranty;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class WarrantyController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -28,12 +30,8 @@ class WarrantyController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Warranty::query()
             ->visibleToCurrentUser()
@@ -53,21 +51,9 @@ class WarrantyController extends Controller
             })
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $warranties = $query->paginate($show_record);
-
-        if ($cur_page > $warranties->lastPage()) {
-            Paginator::currentPageResolver(function () use ($warranties) {
-                return $warranties->lastPage();
             });
-            $warranties = $query->paginate($show_record);
-        }
+
+        $warranties = $this->paginateSorted($query, $request);
 
         $warranties->getCollection()->transform(function (Warranty $warranty) {
             $warranty->company_name = $warranty->company?->name;
@@ -131,43 +117,7 @@ class WarrantyController extends Controller
             'rows.*.type' => 'nullable|in:year,month,day',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Warranty::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'warranty records'
-        );
+        return $this->importRows($request, Warranty::class, 'warranty records');
     }
 
     public function show($id)
@@ -222,54 +172,29 @@ class WarrantyController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/warranty/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Warranty::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/warranty/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Warranty::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $warrantyId) {
-                    Warranty::deleteWarranty((int) $warrantyId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $warrantyId) {
+                Warranty::deleteWarranty((int) $warrantyId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/warranty/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Warranty::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/warranty/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Warranty::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Warranty::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Warranty::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -388,12 +313,8 @@ class WarrantyController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Warranty::onlyTrashed()
             ->visibleToCurrentUser()
@@ -407,21 +328,9 @@ class WarrantyController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->where('name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $warranties = $query->paginate($show_record);
-
-        if ($cur_page > $warranties->lastPage()) {
-            Paginator::currentPageResolver(function () use ($warranties) {
-                return $warranties->lastPage();
             });
-            $warranties = $query->paginate($show_record);
-        }
+
+        $warranties = $this->paginateSorted($query, $request);
 
         $warranties->getCollection()->transform(function (Warranty $warranty) {
             $warranty->duration_label = Warranty::formatDurationLabel($warranty->duration, $warranty->type);

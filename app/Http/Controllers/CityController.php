@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\State;
 use App\Services\CountryStateCityApiSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +17,8 @@ use Throwable;
 
 class CityController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -47,12 +49,8 @@ class CityController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $sortColumns = [
             'name' => 'cities.name',
@@ -61,7 +59,7 @@ class CityController extends Controller
             'country_name' => 'countries.name',
             'state_name' => 'states.name',
         ];
-        $sortColumn = $sortColumns[$sortBy] ?? 'cities.created_at';
+        $sortColumn = $sortColumns[$request->sort_by ?? 'created_at'] ?? 'cities.created_at';
 
         $query = City::query()
             ->leftJoin((new Country)->getTable(), function ($join) {
@@ -91,21 +89,9 @@ class CityController extends Controller
                         ->orWhere('countries.name', 'like', "%{$search}%")
                         ->orWhere('states.name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortColumn, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $cities = $query->paginate($showRecord);
-
-        if ($curPage > $cities->lastPage()) {
-            Paginator::currentPageResolver(function () use ($cities) {
-                return $cities->lastPage();
             });
-            $cities = $query->paginate($showRecord);
-        }
+
+        $cities = $this->paginateSorted($query, $request->merge(['sort_by' => $sortColumn]));
 
         $trashCount = City::onlyTrashed()->count();
 
@@ -240,40 +226,16 @@ class CityController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/city/delete')) {
-            DB::beginTransaction();
-            try {
-                City::query()->whereIn('id', $request->all())->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/city/delete', 'Successfully Deleted', function () use ($request) {
+            City::query()->whereIn('id', $request->all())->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/city/delete')) {
-            DB::beginTransaction();
-            try {
-                City::query()->whereIn('id', (array) $request->all())->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/city/delete', 'Successfully Deleted', function () use ($request) {
+            City::query()->whereIn('id', (array) $request->all())->forceDelete();
+        });
     }
 
     public function restore_records(Request $request): JsonResponse
@@ -326,12 +288,8 @@ class CityController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $sortColumns = [
             'name' => 'cities.name',
@@ -340,7 +298,7 @@ class CityController extends Controller
             'country_name' => 'countries.name',
             'state_name' => 'states.name',
         ];
-        $sortColumn = $sortColumns[$sortBy] ?? 'cities.created_at';
+        $sortColumn = $sortColumns[$request->sort_by ?? 'created_at'] ?? 'cities.created_at';
 
         $query = City::onlyTrashed()
             ->leftJoin((new Country)->getTable(), function ($join) {
@@ -364,21 +322,9 @@ class CityController extends Controller
                         ->orWhere('countries.name', 'like', "%{$search}%")
                         ->orWhere('states.name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortColumn, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $cities = $query->paginate($showRecord);
-
-        if ($curPage > $cities->lastPage()) {
-            Paginator::currentPageResolver(function () use ($cities) {
-                return $cities->lastPage();
             });
-            $cities = $query->paginate($showRecord);
-        }
+
+        $cities = $this->paginateSorted($query, $request->merge(['sort_by' => $sortColumn]));
 
         return response()->json(['data' => $cities]);
     }

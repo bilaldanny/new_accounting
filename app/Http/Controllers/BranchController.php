@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Branch;
-use App\Support\ImportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -13,6 +14,8 @@ use Throwable;
 
 class BranchController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     public function index(Request $request): JsonResponse
     {
         $sort_by = $request->sort_by ?? 'created_at';
@@ -127,43 +130,7 @@ class BranchController extends Controller
 
         Branch::assertImportWithinBranchLimit($request->rows);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Branch::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'branch records'
-        );
+        return $this->importRows($request, Branch::class, 'branch records');
     }
 
     public function show($id): JsonResponse
@@ -215,47 +182,23 @@ class BranchController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/branch/delete')) {
-            DB::beginTransaction();
-            try {
-                Branch::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/branch/delete', 'Successfully Deleted', function () use ($request) {
+            Branch::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/branch/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = (array) $request->all();
-                Branch::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $ids)
-                    ->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/branch/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = (array) $request->all();
+            Branch::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $ids)
+                ->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request): JsonResponse

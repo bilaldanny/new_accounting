@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\ItemType;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class ItemTypeController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -26,12 +28,8 @@ class ItemTypeController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = ItemType::query()
             ->visibleToCurrentUser()
@@ -51,21 +49,9 @@ class ItemTypeController extends Controller
             })
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $itemTypes = $query->paginate($show_record);
-
-        if ($cur_page > $itemTypes->lastPage()) {
-            Paginator::currentPageResolver(function () use ($itemTypes) {
-                return $itemTypes->lastPage();
             });
-            $itemTypes = $query->paginate($show_record);
-        }
+
+        $itemTypes = $this->paginateSorted($query, $request);
 
         $itemTypes->getCollection()->transform(function (ItemType $itemType) {
             $itemType->company_name = $itemType->company?->name;
@@ -126,43 +112,7 @@ class ItemTypeController extends Controller
             'rows.*.name' => 'bail|required|string|min:3|max:200',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (ItemType::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'item type records'
-        );
+        return $this->importRows($request, ItemType::class, 'item type records');
     }
 
     public function show($id)
@@ -217,54 +167,29 @@ class ItemTypeController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/itemtype/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = ItemType::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/itemtype/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = ItemType::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $itemTypeId) {
-                    ItemType::deleteItemType((int) $itemTypeId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $itemTypeId) {
+                ItemType::deleteItemType((int) $itemTypeId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/itemtype/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = ItemType::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/itemtype/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = ItemType::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                ItemType::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            ItemType::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -383,12 +308,8 @@ class ItemTypeController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = ItemType::onlyTrashed()
             ->visibleToCurrentUser()
@@ -402,21 +323,9 @@ class ItemTypeController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->where('name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $itemTypes = $query->paginate($show_record);
-
-        if ($cur_page > $itemTypes->lastPage()) {
-            Paginator::currentPageResolver(function () use ($itemTypes) {
-                return $itemTypes->lastPage();
             });
-            $itemTypes = $query->paginate($show_record);
-        }
+
+        $itemTypes = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $itemTypes]);
     }

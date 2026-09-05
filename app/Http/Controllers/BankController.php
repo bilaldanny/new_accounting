@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Bank;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class BankController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -63,12 +65,8 @@ class BankController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $query = Bank::query()
             ->visibleToCurrentUser()
@@ -101,21 +99,9 @@ class BankController extends Controller
             })
             ->when($request->filled('branch_id'), function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $banks = $query->paginate($showRecord);
-
-        if ($curPage > $banks->lastPage()) {
-            Paginator::currentPageResolver(function () use ($banks) {
-                return $banks->lastPage();
             });
-            $banks = $query->paginate($showRecord);
-        }
+
+        $banks = $this->paginateSorted($query, $request);
 
         $banks->getCollection()->transform(function (Bank $bank) {
             $bank->company_name = $bank->company?->name;
@@ -236,51 +222,27 @@ class BankController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/bank/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Bank::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/bank/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Bank::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                Bank::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Bank::whereIn('id', $ids)->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/bank/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Bank::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/bank/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Bank::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Bank::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Bank::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request): JsonResponse
@@ -411,12 +373,8 @@ class BankController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $query = Bank::onlyTrashed()
             ->visibleToCurrentUser()
@@ -436,21 +394,9 @@ class BankController extends Controller
                         'mobile',
                     ], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortBy, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $banks = $query->paginate($showRecord);
-
-        if ($curPage > $banks->lastPage()) {
-            Paginator::currentPageResolver(function () use ($banks) {
-                return $banks->lastPage();
             });
-            $banks = $query->paginate($showRecord);
-        }
+
+        $banks = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $banks]);
     }
