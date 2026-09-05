@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Base64Upload;
 use App\Support\VariantCombiner;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -274,19 +275,14 @@ class Product extends Model
 
     public static function saveImageFromBase64(string $image, string $name): ?string
     {
-        if (! preg_match('/^data:image\/(\w+);base64,/', $image, $matches)) {
+        $decoded = Base64Upload::decode($image);
+
+        if ($decoded === null) {
             return null;
         }
 
-        $extension = $matches[1];
-        $imageData = base64_decode(substr($image, strpos($image, ',') + 1));
-
-        if ($imageData === false) {
-            return null;
-        }
-
-        $filename = time().'.'.str_replace(' ', '', $name).'.'.$extension;
-        file_put_contents(self::imageDirectory().'/'.$filename, $imageData);
+        $filename = time().'.'.str_replace(' ', '', $name).'.'.$decoded['extension'];
+        file_put_contents(self::imageDirectory().'/'.$filename, $decoded['binary']);
 
         return $filename;
     }
