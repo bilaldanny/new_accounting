@@ -3,7 +3,6 @@
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 
@@ -18,45 +17,19 @@ function createRole(string $name, array $attributes = []): Role
     ], $attributes));
 }
 
-function seedCompanyAndBranches(): array
-{
-    $companyId = DB::table('companies')->insertGetId([
-        'code' => 'CMP001',
-        'name' => 'Test Company',
-        'is_active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $branchOneId = DB::table('branches')->insertGetId([
-        'code' => 'BR001',
-        'company_id' => $companyId,
-        'name' => 'Branch One',
-        'is_active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $branchTwoId = DB::table('branches')->insertGetId([
-        'code' => 'BR002',
-        'company_id' => $companyId,
-        'name' => 'Branch Two',
-        'is_active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return [
-        'company_id' => $companyId,
-        'branch_one_id' => $branchOneId,
-        'branch_two_id' => $branchTwoId,
-    ];
-}
-
 function createUserForRole(Role $role): User
 {
+    if ($role->company_id === null) {
+        $scope = seedCompanyAndBranches();
+        $role->company_id = $scope['company_id'];
+        $role->branch_id = $scope['branch_one_id'];
+        $role->save();
+    }
+
     return User::query()->create([
         'role_id' => $role->id,
+        'company_id' => $role->company_id,
+        'branch_id' => $role->branch_id,
         'first_name' => 'Test',
         'last_name' => 'User',
         'username' => 'testuser_'.$role->id,

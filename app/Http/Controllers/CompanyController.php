@@ -158,8 +158,7 @@ class CompanyController extends Controller
             $company = Company::createCompany($request);
             CompanySetting::createCompanySettings($company->id, $request->string('name')->toString());
             $branch = Branch::createCompanyBranch($company->id);
-            // $role = Role::createCompanyRole($company->id);
-            $role = Role::find(2);
+            $role = Role::createCompanyRole($company->id);
             User::createCompanyAdmin($request, $role->id, $company->id, $branch->id);
             DB::commit();
         } catch (ValidationException $e) {
