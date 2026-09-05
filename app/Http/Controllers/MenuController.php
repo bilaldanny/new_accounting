@@ -218,7 +218,6 @@ class MenuController extends Controller
 
     public function fetchpermenus(Request $request)
     {
-        $this->authorizeSuperadmin($request);
         $roleId = (int) $request->user()->role_id;
 
         return response()->json(Menu::permissionMenusForAssigner($roleId));
