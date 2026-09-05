@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\PurchaseJournal;
 use App\Services\SellJournal;
+use App\Support\Base64Upload;
 use Database\Factories\TransactionFactory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -330,19 +331,14 @@ class Transaction extends Model
 
     public static function saveImageFromBase64(string $image): ?string
     {
-        if (! preg_match('/^data:image\/(\w+);base64,/', $image, $matches)) {
+        $decoded = Base64Upload::decode($image);
+
+        if ($decoded === null) {
             return null;
         }
 
-        $extension = $matches[1];
-        $imageData = base64_decode(substr($image, strpos($image, ',') + 1));
-
-        if ($imageData === false) {
-            return null;
-        }
-
-        $filename = time().'.purchase.'.$extension;
-        file_put_contents(self::imageDirectory().'/'.$filename, $imageData);
+        $filename = time().'.purchase.'.$decoded['extension'];
+        file_put_contents(self::imageDirectory().'/'.$filename, $decoded['binary']);
 
         return $filename;
     }

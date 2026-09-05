@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Base64Upload;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -301,19 +302,14 @@ class Company extends Model
 
     protected static function saveLogoFromBase64(string $image, string $companyName): ?string
     {
-        if (! preg_match('/^data:image\/(\w+);base64,/', $image, $matches)) {
+        $decoded = Base64Upload::decode($image);
+
+        if ($decoded === null) {
             return null;
         }
 
-        $extension = $matches[1];
-        $imageData = base64_decode(substr($image, strpos($image, ',') + 1));
-
-        if ($imageData === false) {
-            return null;
-        }
-
-        $filename = time().'.'.str_replace(' ', '', $companyName).'.'.$extension;
-        file_put_contents(self::logoDirectory().'/'.$filename, $imageData);
+        $filename = time().'.'.str_replace(' ', '', $companyName).'.'.$decoded['extension'];
+        file_put_contents(self::logoDirectory().'/'.$filename, $decoded['binary']);
 
         return $filename;
     }
