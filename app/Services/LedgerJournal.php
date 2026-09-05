@@ -8,6 +8,7 @@ use App\Models\TAccount;
 use App\Models\TAccountDetail;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -166,6 +167,27 @@ class LedgerJournal
         int|string|null $contactId,
         int|string|null $branchId,
     ): TAccountDetail {
+        $debit = round($debit, 2);
+        $credit = round($credit, 2);
+
+        if ($debit < 0.0 || $credit < 0.0) {
+            throw ValidationException::withMessages([
+                'final_amount' => ['Journal lines cannot have a negative debit or credit amount.'],
+            ]);
+        }
+
+        if ($debit === 0.0 && $credit === 0.0) {
+            throw ValidationException::withMessages([
+                'final_amount' => ['Each journal line must have a positive debit or credit amount.'],
+            ]);
+        }
+
+        if ($debit > 0.0 && $credit > 0.0) {
+            throw ValidationException::withMessages([
+                'final_amount' => ['A journal line cannot have both a debit and a credit amount.'],
+            ]);
+        }
+
         return $journal->details()->create([
             'branch_id' => $branchId,
             'coa_id' => $account->id,
@@ -190,41 +212,55 @@ class LedgerJournal
         $debits = round((float) ($totals->debit_total ?? 0), 2);
         $credits = round((float) ($totals->credit_total ?? 0), 2);
 
-        if ($debits !== $credits) {
+        if (! self::amountsEqual($debits, $credits) || $debits <= 0.0) {
             throw ValidationException::withMessages([
                 'final_amount' => ['Journal is not balanced. Total debit must equal total credit.'],
             ]);
         }
     }
 
-    private function nextVoucherNo(int $companyId, int $branchId, string $prefix): string
+    /**
+     * Decimal-safe equality for 2dp monetary amounts, comparing whole cents
+     * instead of raw floats (which can differ by rounding noise even when
+     * two independently-summed totals are mathematically equal).
+     */
+    private static function amountsEqual(float $a, float $b): bool
     {
-        $pattern = $prefix.'-%';
+        return (int) round($a * 100) === (int) round($b * 100);
+    }
 
-        $last = TAccount::query()
-            ->where('company_id', $companyId)
-            ->where('branch_id', $branchId)
-            ->where('voucher_no', 'like', $pattern)
-            ->orderByDesc('id')
-            ->value('voucher_no');
+    public function nextVoucherNo(int $companyId, int $branchId, string $prefix): string
+    {
+        return DB::transaction(function () use ($companyId, $branchId, $prefix): string {
+            $pattern = $prefix.'-%';
 
-        $next = 1;
-
-        if (is_string($last) && preg_match('/(\d+)$/', $last, $matches) === 1) {
-            $next = (int) $matches[1] + 1;
-        }
-
-        do {
-            $voucherNo = $prefix.'-'.Str::padLeft((string) $next, 5, '0');
-            $next++;
-        } while (
-            TAccount::query()
+            $last = TAccount::query()
                 ->where('company_id', $companyId)
                 ->where('branch_id', $branchId)
-                ->where('voucher_no', $voucherNo)
-                ->exists()
-        );
+                ->where('voucher_no', 'like', $pattern)
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->value('voucher_no');
 
-        return $voucherNo;
+            $next = 1;
+
+            if (is_string($last) && preg_match('/(\d+)$/', $last, $matches) === 1) {
+                $next = (int) $matches[1] + 1;
+            }
+
+            do {
+                $voucherNo = $prefix.'-'.Str::padLeft((string) $next, 5, '0');
+                $next++;
+            } while (
+                TAccount::query()
+                    ->where('company_id', $companyId)
+                    ->where('branch_id', $branchId)
+                    ->where('voucher_no', $voucherNo)
+                    ->lockForUpdate()
+                    ->exists()
+            );
+
+            return $voucherNo;
+        });
     }
 }

@@ -18,6 +18,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
+use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductController;
@@ -312,6 +313,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('item-types/bulk_delete_per', [ItemTypeController::class, 'bulk_delete_per']);
     Route::post('item-types/restore_records', [ItemTypeController::class, 'restore_records']);
     /* Item Type */
+
+    /* Journal Entry */
+    Route::get('journal-entries/voucher-no', [JournalEntryController::class, 'voucherNo']);
+    Route::resource('journal-entries', JournalEntryController::class);
+    Route::post('/journal-entries/duplicate', [JournalEntryController::class, 'duplicate']);
+    Route::post('/journal-entries/bulk_delete', [JournalEntryController::class, 'bulk_delete']);
+    /* Journal Entry */
 
     /* Purchase */
     Route::get('purchases/search-products', [PurchaseController::class, 'searchProducts']);
