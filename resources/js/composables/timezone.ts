@@ -43,6 +43,7 @@ export default function useTimezones() {
         selectAll: false,
         trash_count: 0,
         loadingIds: new Set(),
+        fetchingApi: false,
     });
 
     const changeOrder = async (event: Event) => {
@@ -92,6 +93,32 @@ export default function useTimezones() {
         return restoreFn(`${API_ENDPOINTS.timezones}/restore_records`, ids, state);
     };
 
+    const fetchFromApi = async () => {
+        if (state.fetchingApi) {
+            return;
+        }
+
+        state.fetchingApi = true;
+        state.loading = true;
+
+        try {
+            const response = await window.axios.post(API_ENDPOINTS.timezoneFetchFromApi, {}, {
+                timeout: 60000,
+            });
+            Notify(response.data?.message || 'Successfully fetched from API', 'success');
+            await getTimezones({ ...state.search });
+        } catch (error: unknown) {
+            if (window.axios.isAxiosError(error)) {
+                Notify(error.response?.data?.errormessage || error.response?.data?.message || 'Failed to fetch from API', 'alert');
+            } else {
+                Notify('Failed to fetch from API', 'alert');
+            }
+        } finally {
+            state.fetchingApi = false;
+            state.loading = false;
+        }
+    };
+
     return {
         state,
         Notify,
@@ -103,6 +130,7 @@ export default function useTimezones() {
         deleteRecord,
         perDeleteBulkRecord,
         restoreBulkRecord,
+        fetchFromApi,
         changeOrder,
         checkAll,
         select_data,

@@ -285,7 +285,7 @@
             </TheFilter>
 
             <div class="admin-list-card__body">
-                <Loader v-if="state.fetchingApi" message="Fetching cities from API…" :fields="6" />
+                <Loader v-if="state.fetchingApi" message="Fetching cities for the next state…" :fields="6" />
                 <div v-else class="admin-list-table">
                     <TheTable
                         :columns="columns"

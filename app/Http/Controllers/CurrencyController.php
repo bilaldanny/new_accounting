@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Currency;
+use App\Services\CountryStateCityApiSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 class CurrencyController extends Controller
@@ -71,6 +73,29 @@ class CurrencyController extends Controller
                 $request->string('code')->toString(),
                 $request->integer('except_id') ?: null,
             ),
+        ]);
+    }
+
+    public function fetchFromApi(CountryStateCityApiSync $sync): JsonResponse
+    {
+        $this->authorizeMenuPermission('/currency/add');
+
+        set_time_limit(180);
+
+        try {
+            $result = $sync->syncCurrencies();
+        } catch (RuntimeException $e) {
+            return response()->json(['errormessage' => $e->getMessage()], 422);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['errormessage' => 'Failed to fetch currencies from the API.'], 422);
+        }
+
+        return response()->json([
+            'message' => "Fetched currencies from API. Created {$result['created']}, updated {$result['updated']}.",
+            'created' => $result['created'],
+            'updated' => $result['updated'],
         ]);
     }
 

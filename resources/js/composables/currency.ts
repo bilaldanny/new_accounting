@@ -46,6 +46,7 @@ export default function useCurrencies() {
             status: 'all',
         },
         loading: false,
+        fetchingApi: false,
         modalLoading: true,
         edit_ids: [],
         selectAll: false,
@@ -104,6 +105,32 @@ export default function useCurrencies() {
         return restoreFn(`${API_ENDPOINTS.currencies}/restore_records`, ids, state);
     };
 
+    const fetchFromApi = async () => {
+        if (state.fetchingApi) {
+            return;
+        }
+
+        state.fetchingApi = true;
+        state.loading = true;
+
+        try {
+            const response = await window.axios.post(API_ENDPOINTS.currencyFetchFromApi, null, {
+                timeout: 180000,
+            });
+            Notify(response.data?.message || 'Successfully fetched from API', 'success');
+            await getCurrencies({ ...state.search });
+        } catch (error: unknown) {
+            if (window.axios.isAxiosError(error)) {
+                Notify(error.response?.data?.errormessage || error.response?.data?.message || 'Failed to fetch from API', 'alert');
+            } else {
+                Notify('Failed to fetch from API', 'alert');
+            }
+        } finally {
+            state.fetchingApi = false;
+            state.loading = false;
+        }
+    };
+
     return {
         state,
         changeStatus,
@@ -116,6 +143,7 @@ export default function useCurrencies() {
         deleteRecord,
         perDeleteBulkRecord,
         restoreBulkRecord,
+        fetchFromApi,
         changeOrder,
         checkAll,
         select_data,
