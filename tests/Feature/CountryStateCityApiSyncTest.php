@@ -2,7 +2,9 @@
 
 use App\Models\City;
 use App\Models\Country;
+use App\Models\Currency;
 use App\Models\State;
+use App\Models\Timezone;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -16,6 +18,19 @@ function fakeCountryStateCityApi(): void
     Http::preventStrayRequests();
 
     Http::fake([
+        'https://api.countrystatecity.in/v1/timezone/IN' => Http::response([
+            'iana' => 'Asia/Kolkata',
+            'abbreviation' => 'IST',
+            'offset_utc' => '+05:30',
+        ]),
+        'https://api.countrystatecity.in/v1/timezone/US' => Http::response([
+            'iana' => 'America/New_York',
+            'abbreviation' => 'EDT',
+            'offset_utc' => '-05:00',
+        ]),
+        'https://api.countrystatecity.in/v1/timezone/*' => Http::response([
+            'iana' => 'UTC',
+        ]),
         'https://api.countrystatecity.in/v1/countries/*/states/*/cities' => Http::response([
             [
                 'name' => 'Lahore',
@@ -76,6 +91,8 @@ test('guests cannot fetch location data from the api', function (string $endpoin
     '/api/countries/fetch-from-api',
     '/api/states/fetch-from-api',
     '/api/cities/fetch-from-api',
+    '/api/currencies/fetch-from-api',
+    '/api/timezones/fetch-from-api',
 ]);
 
 test('fetching countries creates new records and updates existing ones without changing flag', function () {
@@ -185,7 +202,11 @@ test('fetching cities upserts records for the selected country', function () {
     ])
         ->assertSuccessful()
         ->assertJsonPath('created', 1)
-        ->assertJsonPath('updated', 1);
+        ->assertJsonPath('updated', 1)
+        ->assertJsonPath('state_iso2', 'PB')
+        ->assertJsonPath('iso2', 'PK')
+        ->assertJsonPath('remaining', 0)
+        ->assertJsonPath('done', true);
 
     $existing->refresh();
 
@@ -241,15 +262,296 @@ test('fetching states walks each country automatically', function () {
         ->assertJsonPath('done', false);
 });
 
-test('fetching cities requires a country', function () {
+test('fetching cities walks each state one at a time', function () {
+    actingAsSuperadmin();
+    fakeCountryStateCityApi();
+
+    $india = Country::factory()->create([
+        'name' => 'India',
+        'iso2' => 'IN',
+    ]);
+
+    $maharashtra = State::factory()->create([
+        'name' => 'Maharashtra',
+        'country_id' => $india->id,
+        'iso2' => 'MH',
+    ]);
+
+    $punjab = State::factory()->create([
+        'name' => 'Punjab',
+        'country_id' => $india->id,
+        'iso2' => 'PB',
+    ]);
+
+    $this->postJson('/api/cities/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('created', 2)
+        ->assertJsonPath('state_iso2', 'MH')
+        ->assertJsonPath('iso2', 'IN')
+        ->assertJsonPath('remaining', 1)
+        ->assertJsonPath('done', false);
+
+    expect(City::query()->where('state_id', $maharashtra->id)->count())->toBe(2)
+        ->and(City::query()->where('state_id', $punjab->id)->count())->toBe(0);
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://api.countrystatecity.in/v1/countries/IN/states/MH/cities');
+    Http::assertNotSent(fn (Request $request): bool => $request->url() === 'https://api.countrystatecity.in/v1/countries/IN/states/PB/cities');
+
+    $this->postJson('/api/cities/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('created', 2)
+        ->assertJsonPath('state_iso2', 'PB')
+        ->assertJsonPath('remaining', 0)
+        ->assertJsonPath('done', true);
+
+    expect(City::query()->where('state_id', $punjab->id)->count())->toBe(2);
+
+    $this->postJson('/api/cities/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('state_iso2', 'MH')
+        ->assertJsonPath('remaining', 1)
+        ->assertJsonPath('done', false);
+});
+
+test('fetching cities with no states returns an empty result', function () {
     actingAsSuperadmin();
     Http::preventStrayRequests();
 
     $this->postJson('/api/cities/fetch-from-api')
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['country_id']);
+        ->assertSuccessful()
+        ->assertJsonPath('created', 0)
+        ->assertJsonPath('done', true)
+        ->assertJsonPath('state', null);
 
     Http::assertNothingSent();
+});
+
+test('fetching currencies creates unique codes and updates existing ones without changing status', function () {
+    actingAsSuperadmin();
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://api.countrystatecity.in/v1/currency' => Http::response([
+            [
+                'country' => 'US',
+                'currency' => [
+                    'code' => 'USD',
+                    'name' => 'United States dollar',
+                    'symbol' => '$',
+                ],
+            ],
+            [
+                'country' => 'AD',
+                'currency' => [
+                    'code' => 'EUR',
+                    'name' => 'Euro',
+                    'symbol' => '€',
+                ],
+            ],
+            [
+                'country' => 'FR',
+                'currency' => [
+                    'code' => 'EUR',
+                    'name' => 'Euro',
+                    'symbol' => '€',
+                ],
+            ],
+            [
+                'country' => 'PK',
+                'currency' => [
+                    'code' => 'pkr',
+                    'name' => 'Pakistani rupee',
+                    'symbol' => '₨',
+                ],
+            ],
+        ]),
+    ]);
+
+    $existing = Currency::query()->create([
+        'currency_name' => 'Rupee',
+        'code' => 'PKR',
+        'symbol' => 'Rs',
+        'is_active' => false,
+    ]);
+
+    $this->postJson('/api/currencies/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('created', 2)
+        ->assertJsonPath('updated', 1)
+        ->assertJsonPath('message', 'Fetched currencies from API. Created 2, updated 1.');
+
+    $existing->refresh();
+
+    expect($existing->currency_name)->toBe('Pakistani rupee')
+        ->and($existing->symbol)->toBe('₨')
+        ->and($existing->is_active)->toBeFalse()
+        ->and(Currency::query()->where('code', 'USD')->exists())->toBeTrue()
+        ->and(Currency::query()->where('code', 'EUR')->count())->toBe(1);
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://api.countrystatecity.in/v1/currency'
+        && $request->hasHeader('X-CSCAPI-KEY', 'test-csc-key'));
+});
+
+test('fetching currencies restores a matching soft deleted currency', function () {
+    actingAsSuperadmin();
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://api.countrystatecity.in/v1/currency' => Http::response([
+            [
+                'country' => 'US',
+                'currency' => [
+                    'code' => 'USD',
+                    'name' => 'United States dollar',
+                    'symbol' => '$',
+                ],
+            ],
+        ]),
+    ]);
+
+    $deleted = Currency::query()->create([
+        'currency_name' => 'Dollar',
+        'code' => 'USD',
+        'symbol' => 'USD',
+        'is_active' => true,
+    ]);
+    $deleted->delete();
+
+    $this->postJson('/api/currencies/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('updated', 1);
+
+    expect($deleted->fresh()->trashed())->toBeFalse()
+        ->and($deleted->fresh()->currency_name)->toBe('United States dollar');
+});
+
+test('fetching timezones walks each country automatically', function () {
+    actingAsSuperadmin();
+    fakeCountryStateCityApi();
+
+    $unitedStates = Country::factory()->create([
+        'name' => 'United States',
+        'iso2' => 'US',
+    ]);
+
+    $india = Country::factory()->create([
+        'name' => 'India',
+        'iso2' => 'IN',
+    ]);
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('created', 1)
+        ->assertJsonPath('updated', 0)
+        ->assertJsonPath('iso2', 'IN')
+        ->assertJsonPath('remaining', 1)
+        ->assertJsonPath('done', false);
+
+    expect(Timezone::query()->where('name', 'Asia/Kolkata')->exists())->toBeTrue()
+        ->and(Timezone::query()->where('name', 'America/New_York')->exists())->toBeFalse();
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://api.countrystatecity.in/v1/timezone/IN');
+    Http::assertNotSent(fn (Request $request): bool => $request->url() === 'https://api.countrystatecity.in/v1/timezone/US');
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('created', 1)
+        ->assertJsonPath('iso2', 'US')
+        ->assertJsonPath('remaining', 0)
+        ->assertJsonPath('done', true);
+
+    expect(Timezone::query()->where('name', 'America/New_York')->exists())->toBeTrue();
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('iso2', 'IN')
+        ->assertJsonPath('remaining', 1)
+        ->assertJsonPath('done', false);
+
+    expect($unitedStates->iso2)->toBe('US')
+        ->and($india->iso2)->toBe('IN');
+});
+
+test('fetching timezones for one country does not move the saved progress', function () {
+    actingAsSuperadmin();
+    fakeCountryStateCityApi();
+
+    $unitedStates = Country::factory()->create([
+        'name' => 'United States',
+        'iso2' => 'US',
+    ]);
+
+    Country::factory()->create([
+        'name' => 'India',
+        'iso2' => 'IN',
+    ]);
+
+    $this->postJson('/api/timezones/fetch-from-api', [
+        'country_id' => $unitedStates->id,
+    ])
+        ->assertSuccessful()
+        ->assertJsonPath('iso2', 'US')
+        ->assertJsonPath('created', 1)
+        ->assertJsonPath('done', true);
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('iso2', 'IN')
+        ->assertJsonPath('remaining', 1)
+        ->assertJsonPath('done', false);
+});
+
+test('fetching timezones restores a matching soft-deleted record', function () {
+    actingAsSuperadmin();
+    fakeCountryStateCityApi();
+
+    Country::factory()->create([
+        'name' => 'India',
+        'iso2' => 'IN',
+    ]);
+
+    $deleted = Timezone::query()->create([
+        'name' => 'Asia/Kolkata',
+    ]);
+    $deleted->delete();
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('updated', 1);
+
+    expect($deleted->fresh()->trashed())->toBeFalse()
+        ->and($deleted->fresh()->name)->toBe('Asia/Kolkata');
+});
+
+test('fetching timezones continues after a country with no timezone data', function () {
+    actingAsSuperadmin();
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://api.countrystatecity.in/v1/timezone/IN' => Http::response(['error' => 'Not found'], 404),
+        'https://api.countrystatecity.in/v1/timezone/US' => Http::response([
+            'iana' => 'America/New_York',
+        ]),
+    ]);
+
+    Country::factory()->create([
+        'name' => 'India',
+        'iso2' => 'IN',
+    ]);
+
+    Country::factory()->create([
+        'name' => 'United States',
+        'iso2' => 'US',
+    ]);
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('iso2', 'IN')
+        ->assertJsonPath('created', 0)
+        ->assertJsonPath('remaining', 1)
+        ->assertJsonPath('done', false);
+
+    $this->postJson('/api/timezones/fetch-from-api')
+        ->assertSuccessful()
+        ->assertJsonPath('iso2', 'US')
+        ->assertJsonPath('created', 1);
 });
 
 test('fetching from the api fails when the key is missing', function () {

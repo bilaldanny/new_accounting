@@ -7,6 +7,7 @@
     import debounce from '@/utils/debounce';
     import useTimezones from '@/composables/timezone';
     import TheTable from '@/components/theTable.vue';
+    import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
     import AddModal from './add.vue';
@@ -40,6 +41,7 @@
         formData,
         defaultFormData,
         getEditData,
+        fetchFromApi,
     } = useTimezones();
 
     const { select_data, getSavedValue, formatedText, handleError, handleSuccess } = useCommons();
@@ -180,6 +182,9 @@
                     :getData="getData"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
+                    show-fetch-api
+                    :fetch-api="fetchFromApi"
+                    :fetching-api="state.fetchingApi"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
@@ -201,7 +206,8 @@
             </TheFilter>
 
             <div class="admin-list-card__body">
-                <div class="admin-list-table">
+                <Loader v-if="state.fetchingApi" message="Fetching timezones for the next country…" :fields="6" />
+                <div v-else class="admin-list-table">
                     <TheTable
                         :columns="columns"
                         :selectData="select_data"

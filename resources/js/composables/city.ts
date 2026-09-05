@@ -114,19 +114,18 @@ export default function useCities() {
             return;
         }
 
-        if (!state.search.country_id) {
-            Notify('Select a country in the filter before fetching cities from the API.', 'alert');
-            return;
-        }
-
         state.fetchingApi = true;
         state.loading = true;
 
         try {
-            const response = await window.axios.post(API_ENDPOINTS.cityFetchFromApi, {
-                country_id: state.search.country_id,
-            }, {
-                timeout: 300000,
+            const payload: Record<string, string | number> = {};
+
+            if (state.search.country_id) {
+                payload.country_id = state.search.country_id;
+            }
+
+            const response = await window.axios.post(API_ENDPOINTS.cityFetchFromApi, payload, {
+                timeout: 60000,
             });
             Notify(response.data?.message || 'Successfully fetched from API', 'success');
             await getCities({ ...state.search });

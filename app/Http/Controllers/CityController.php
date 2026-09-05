@@ -122,18 +122,22 @@ class CityController extends Controller
         $this->authorizeMenuPermission('/city/add');
 
         $request->validate([
-            'country_id' => ['required', 'integer', 'exists:countries,id'],
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
         ]);
 
-        set_time_limit(300);
+        set_time_limit(60);
 
-        $country = Country::query()->find($request->integer('country_id'));
-        $countryIso2 = Country::normalizeIso2($country?->iso2);
+        $countryIso2 = null;
 
-        if ($countryIso2 === '') {
-            return response()->json([
-                'errormessage' => 'The selected country does not have an ISO2 code.',
-            ], 422);
+        if ($request->filled('country_id')) {
+            $country = Country::query()->find($request->integer('country_id'));
+            $countryIso2 = Country::normalizeIso2($country?->iso2);
+
+            if ($countryIso2 === '') {
+                return response()->json([
+                    'errormessage' => 'The selected country does not have an ISO2 code.',
+                ], 422);
+            }
         }
 
         try {
@@ -146,10 +150,30 @@ class CityController extends Controller
             return response()->json(['errormessage' => 'Failed to fetch cities from the API.'], 422);
         }
 
+        $place = $result['state'] && $result['state_iso2'] && $result['country'] && $result['iso2']
+            ? "{$result['state']} ({$result['state_iso2']}), {$result['country']} ({$result['iso2']})"
+            : 'the next state';
+
+        if ($result['state'] === null) {
+            $message = 'No states with an ISO2 code are available to fetch cities. Fetch states first.';
+        } elseif ($result['done'] && $countryIso2 === null) {
+            $message = "Fetched cities for {$place}. Created {$result['created']}, updated {$result['updated']}. All states are done. Click Fetch again to start from the first state.";
+        } elseif ($result['done']) {
+            $message = "Fetched cities for {$place}. Created {$result['created']}, updated {$result['updated']}. All states in this country are done. Click Fetch again to start from the first state.";
+        } else {
+            $message = "Fetched cities for {$place}. Created {$result['created']}, updated {$result['updated']}. {$result['remaining']} states left. Click Fetch again to continue.";
+        }
+
         return response()->json([
-            'message' => "Fetched cities from API. Created {$result['created']}, updated {$result['updated']}.",
+            'message' => $message,
             'created' => $result['created'],
             'updated' => $result['updated'],
+            'remaining' => $result['remaining'],
+            'done' => $result['done'],
+            'country' => $result['country'],
+            'iso2' => $result['iso2'],
+            'state' => $result['state'],
+            'state_iso2' => $result['state_iso2'],
         ]);
     }
 

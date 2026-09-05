@@ -146,6 +146,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /* Currency */
     Route::post('currencies/check-code', [CurrencyController::class, 'checkCode']);
+    Route::post('currencies/fetch-from-api', [CurrencyController::class, 'fetchFromApi']);
     Route::get('currencies/trash', [CurrencyController::class, 'trash']);
     Route::resource('currencies', CurrencyController::class);
     Route::post('/currencies/statusupdate', [CurrencyController::class, 'updatestatus']);
@@ -156,6 +157,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /* Timezone */
     Route::post('timezones/check-name', [TimezoneController::class, 'checkName']);
+    Route::post('timezones/fetch-from-api', [TimezoneController::class, 'fetchFromApi']);
     Route::get('timezones/trash', [TimezoneController::class, 'trash']);
     Route::resource('timezones', TimezoneController::class);
     Route::post('/timezones/bulk_delete', [TimezoneController::class, 'bulk_delete']);
@@ -321,7 +323,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/journal-entries/bulk_delete', [JournalEntryController::class, 'bulk_delete']);
     /* Journal Entry */
 
-    /* Purchase */
     Route::get('purchases/search-products', [PurchaseController::class, 'searchProducts']);
     Route::get('purchases/trash', [PurchaseController::class, 'trash']);
     Route::resource('purchases', PurchaseController::class);
