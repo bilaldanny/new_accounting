@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
 use App\Services\SellJournal;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class SellController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -65,12 +67,8 @@ class SellController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Transaction::query()
             ->sells()
@@ -103,21 +101,9 @@ class SellController extends Controller
             })
             ->when($request->filled('contact_id'), function ($q) use ($request) {
                 $q->where('contact_id', $request->contact_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $sells = $query->paginate($show_record);
-
-        if ($cur_page > $sells->lastPage()) {
-            Paginator::currentPageResolver(function () use ($sells) {
-                return $sells->lastPage();
             });
-            $sells = $query->paginate($show_record);
-        }
+
+        $sells = $this->paginateSorted($query, $request);
 
         $sells->getCollection()->transform(function (Transaction $sell) {
             return $sell->presentForIndex();
@@ -250,55 +236,31 @@ class SellController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/sell/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->sells()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/sell/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->sells()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                app(SellJournal::class)->deleteForIds($ids);
-                Transaction::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            app(SellJournal::class)->deleteForIds($ids);
+            Transaction::whereIn('id', $ids)->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/sell/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->onlyTrashed()
-                    ->sells()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/sell/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->onlyTrashed()
+                ->sells()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                app(SellJournal::class)->deleteForIds($ids);
-                Transaction::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            app(SellJournal::class)->deleteForIds($ids);
+            Transaction::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function restore_records(Request $request)
@@ -409,12 +371,8 @@ class SellController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Transaction::onlyTrashed()
             ->sells()
@@ -434,21 +392,9 @@ class SellController extends Controller
                             $contact->where('business_name', 'like', "%{$search}%");
                         });
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $sells = $query->paginate($show_record);
-
-        if ($cur_page > $sells->lastPage()) {
-            Paginator::currentPageResolver(function () use ($sells) {
-                return $sells->lastPage();
             });
-            $sells = $query->paginate($show_record);
-        }
+
+        $sells = $this->paginateSorted($query, $request);
 
         $sells->getCollection()->transform(function (Transaction $sell) {
             return $sell->presentForIndex();

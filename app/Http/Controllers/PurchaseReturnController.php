@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Throwable;
 
 class PurchaseReturnController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -153,56 +156,31 @@ class PurchaseReturnController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/purchase/return/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->purchaseReturns()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/purchase/return/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->purchaseReturns()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $id) {
-                    Transaction::deletePurchaseReturn((int) $id);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $id) {
+                Transaction::deletePurchaseReturn((int) $id);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/purchase/return/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Transaction::query()
-                    ->onlyTrashed()
-                    ->purchaseReturns()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/purchase/return/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Transaction::query()
+                ->onlyTrashed()
+                ->purchaseReturns()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Transaction::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Transaction::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function restore_records(Request $request): JsonResponse

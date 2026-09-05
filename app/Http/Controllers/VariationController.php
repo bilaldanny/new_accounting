@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Variation;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class VariationController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -68,12 +70,8 @@ class VariationController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Variation::query()
             ->visibleToCurrentUser()
@@ -108,21 +106,9 @@ class VariationController extends Controller
             })
             ->when($request->filled('itemtype_id'), function ($q) use ($request) {
                 $q->where('itemtype_id', $request->itemtype_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $variations = $query->paginate($show_record);
-
-        if ($cur_page > $variations->lastPage()) {
-            Paginator::currentPageResolver(function () use ($variations) {
-                return $variations->lastPage();
             });
-            $variations = $query->paginate($show_record);
-        }
+
+        $variations = $this->paginateSorted($query, $request);
 
         $variations->getCollection()->transform(function (Variation $variation) {
             $categoryName = $variation->category?->name;
@@ -186,43 +172,7 @@ class VariationController extends Controller
             'rows.*.priority' => 'nullable|integer|min:0',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Variation::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'variation records'
-        );
+        return $this->importRows($request, Variation::class, 'variation records');
     }
 
     public function show($id)
@@ -284,54 +234,29 @@ class VariationController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/variation/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Variation::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/variation/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Variation::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $variationId) {
-                    Variation::deleteVariation((int) $variationId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $variationId) {
+                Variation::deleteVariation((int) $variationId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/variation/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Variation::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/variation/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Variation::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Variation::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Variation::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -444,12 +369,8 @@ class VariationController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Variation::onlyTrashed()
             ->visibleToCurrentUser()
@@ -471,21 +392,9 @@ class VariationController extends Controller
                         ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('itemtype', fn ($itemtypeQuery) => $itemtypeQuery->where('name', 'like', "%{$search}%"));
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $variations = $query->paginate($show_record);
-
-        if ($cur_page > $variations->lastPage()) {
-            Paginator::currentPageResolver(function () use ($variations) {
-                return $variations->lastPage();
             });
-            $variations = $query->paginate($show_record);
-        }
+
+        $variations = $this->paginateSorted($query, $request);
 
         $variations->getCollection()->transform(function (Variation $variation) {
             $categoryName = $variation->category?->name;

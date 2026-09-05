@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\CustomerGroup;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -12,6 +12,8 @@ use Throwable;
 
 class CustomerGroupController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -27,12 +29,8 @@ class CustomerGroupController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = CustomerGroup::query()
             ->visibleToCurrentUser()
@@ -56,21 +54,9 @@ class CustomerGroupController extends Controller
             })
             ->when($request->filled('branch_id'), function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $customerGroups = $query->paginate($show_record);
-
-        if ($cur_page > $customerGroups->lastPage()) {
-            Paginator::currentPageResolver(function () use ($customerGroups) {
-                return $customerGroups->lastPage();
             });
-            $customerGroups = $query->paginate($show_record);
-        }
+
+        $customerGroups = $this->paginateSorted($query, $request);
 
         $customerGroups->getCollection()->transform(function (CustomerGroup $customerGroup) {
             $customerGroup->company_name = $customerGroup->company?->name;
@@ -176,51 +162,27 @@ class CustomerGroupController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/customer-group/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = CustomerGroup::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/customer-group/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = CustomerGroup::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                CustomerGroup::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            CustomerGroup::whereIn('id', $ids)->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/customer-group/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = CustomerGroup::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/customer-group/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = CustomerGroup::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                CustomerGroup::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            CustomerGroup::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -347,12 +309,8 @@ class CustomerGroupController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = CustomerGroup::onlyTrashed()
             ->visibleToCurrentUser()
@@ -366,21 +324,9 @@ class CustomerGroupController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'price_calculation_type'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $customerGroups = $query->paginate($show_record);
-
-        if ($cur_page > $customerGroups->lastPage()) {
-            Paginator::currentPageResolver(function () use ($customerGroups) {
-                return $customerGroups->lastPage();
             });
-            $customerGroups = $query->paginate($show_record);
-        }
+
+        $customerGroups = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $customerGroups]);
     }

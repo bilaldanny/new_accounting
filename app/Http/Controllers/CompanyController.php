@@ -3,30 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Actions\SendUserCredentials;
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Role;
 use App\Models\User;
-use App\Support\ImportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class CompanyController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     public function index(Request $request): JsonResponse
     {
         $this->authorizeSuperadmin($request);
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Company::query()
             ->withCount(['branches', 'users'])
@@ -48,21 +46,9 @@ class CompanyController extends Controller
                             });
                         });
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $companies = $query->paginate($show_record);
-
-        if ($cur_page > $companies->lastPage()) {
-            Paginator::currentPageResolver(function () use ($companies) {
-                return $companies->lastPage();
             });
-            $companies = $query->paginate($show_record);
-        }
+
+        $companies = $this->paginateSorted($query, $request);
 
         Company::enrichIndexCollection($companies);
 
@@ -278,43 +264,7 @@ class CompanyController extends Controller
             'rows.*.name' => 'bail|required|string',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Company::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'company records'
-        );
+        return $this->importRows($request, Company::class, 'company records');
     }
 
     public function destroy(Request $request, $id): JsonResponse
@@ -332,42 +282,20 @@ class CompanyController extends Controller
     public function bulk_delete(Request $request): JsonResponse
     {
         $this->authorizeSuperadmin($request);
-        if (deletepermission('/company/delete')) {
-            DB::beginTransaction();
-            try {
-                Company::whereIn('id', $request->all())->delete();
-                DB::commit();
 
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/company/delete', 'Successfully Deleted', function () use ($request) {
+            Company::whereIn('id', $request->all())->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
         $this->authorizeSuperadmin($request);
-        if (deletepermission('/company/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = (array) $request->all();
-                Company::whereIn('id', $ids)->forceDelete();
-                DB::commit();
 
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/company/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = (array) $request->all();
+            Company::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request): JsonResponse
@@ -461,12 +389,8 @@ class CompanyController extends Controller
     public function trash(Request $request): JsonResponse
     {
         $this->authorizeSuperadmin($request);
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Company::onlyTrashed()
             ->when($status !== 'all', function ($q) use ($status) {
@@ -479,21 +403,9 @@ class CompanyController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'email', 'phone', 'ntn_no'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $companies = $query->paginate($show_record);
-
-        if ($cur_page > $companies->lastPage()) {
-            Paginator::currentPageResolver(function () use ($companies) {
-                return $companies->lastPage();
             });
-            $companies = $query->paginate($show_record);
-        }
+
+        $companies = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $companies]);
     }

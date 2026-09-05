@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Country;
 use App\Models\State;
 use App\Services\CountryStateCityApiSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +16,8 @@ use Throwable;
 
 class StateController extends Controller
 {
+    use HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, mixed>
      */
@@ -40,12 +42,8 @@ class StateController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $sortColumns = [
             'name' => 'states.name',
@@ -54,7 +52,9 @@ class StateController extends Controller
             'created_at' => 'states.created_at',
             'country_name' => 'countries.name',
         ];
-        $sortColumn = $sortColumns[$sortBy] ?? 'states.created_at';
+        $request->merge([
+            'sort_by' => $sortColumns[$request->sort_by ?? 'created_at'] ?? 'states.created_at',
+        ]);
 
         $query = State::query()
             ->leftJoin((new Country)->getTable(), function ($join) {
@@ -77,21 +77,9 @@ class StateController extends Controller
                         ->orWhere('states.iso2', 'like', "%{$search}%")
                         ->orWhere('countries.name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortColumn, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $states = $query->paginate($showRecord);
-
-        if ($curPage > $states->lastPage()) {
-            Paginator::currentPageResolver(function () use ($states) {
-                return $states->lastPage();
             });
-            $states = $query->paginate($showRecord);
-        }
+
+        $states = $this->paginateSorted($query, $request);
 
         $trashCount = State::onlyTrashed()->count();
 
@@ -251,40 +239,16 @@ class StateController extends Controller
 
     public function bulk_delete(Request $request): JsonResponse
     {
-        if (deletepermission('/state/delete')) {
-            DB::beginTransaction();
-            try {
-                State::query()->whereIn('id', $request->all())->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/state/delete', 'Successfully Deleted', function () use ($request) {
+            State::query()->whereIn('id', $request->all())->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request): JsonResponse
     {
-        if (deletepermission('/state/delete')) {
-            DB::beginTransaction();
-            try {
-                State::query()->whereIn('id', (array) $request->all())->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+        return $this->guardedBulkAction('/state/delete', 'Successfully Deleted', function () use ($request) {
+            State::query()->whereIn('id', (array) $request->all())->forceDelete();
+        });
     }
 
     public function restore_records(Request $request): JsonResponse
@@ -337,12 +301,8 @@ class StateController extends Controller
 
     public function trash(Request $request): JsonResponse
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $curPage = $request->cur_page ?? 1;
 
         $sortColumns = [
             'name' => 'states.name',
@@ -351,7 +311,9 @@ class StateController extends Controller
             'created_at' => 'states.created_at',
             'country_name' => 'countries.name',
         ];
-        $sortColumn = $sortColumns[$sortBy] ?? 'states.created_at';
+        $request->merge([
+            'sort_by' => $sortColumns[$request->sort_by ?? 'created_at'] ?? 'states.created_at',
+        ]);
 
         $query = State::onlyTrashed()
             ->leftJoin((new Country)->getTable(), function ($join) {
@@ -371,21 +333,9 @@ class StateController extends Controller
                         ->orWhere('states.iso2', 'like', "%{$search}%")
                         ->orWhere('countries.name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sortColumn, $sortType);
-
-        Paginator::currentPageResolver(function () use ($curPage) {
-            return $curPage;
-        });
-
-        $states = $query->paginate($showRecord);
-
-        if ($curPage > $states->lastPage()) {
-            Paginator::currentPageResolver(function () use ($states) {
-                return $states->lastPage();
             });
-            $states = $query->paginate($showRecord);
-        }
+
+        $states = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $states]);
     }

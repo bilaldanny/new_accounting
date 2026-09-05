@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Department;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class DepartmentController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -26,12 +28,8 @@ class DepartmentController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Department::query()
             ->visibleToCurrentUser()
@@ -55,21 +53,9 @@ class DepartmentController extends Controller
             })
             ->when($request->filled('branch_id'), function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $departments = $query->paginate($show_record);
-
-        if ($cur_page > $departments->lastPage()) {
-            Paginator::currentPageResolver(function () use ($departments) {
-                return $departments->lastPage();
             });
-            $departments = $query->paginate($show_record);
-        }
+
+        $departments = $this->paginateSorted($query, $request);
 
         $departments->getCollection()->transform(function (Department $department) {
             $department->company_name = $department->company?->name;
@@ -133,43 +119,7 @@ class DepartmentController extends Controller
             'rows.*.name' => 'bail|required|string',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Department::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'department records'
-        );
+        return $this->importRows($request, Department::class, 'department records');
     }
 
     public function show($id)
@@ -224,51 +174,27 @@ class DepartmentController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/department/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Department::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/department/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Department::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                Department::whereIn('id', $ids)->delete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Department::whereIn('id', $ids)->delete();
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/department/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Department::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/department/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Department::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Department::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Department::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -395,12 +321,8 @@ class DepartmentController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Department::onlyTrashed()
             ->visibleToCurrentUser()
@@ -414,21 +336,9 @@ class DepartmentController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $departments = $query->paginate($show_record);
-
-        if ($cur_page > $departments->lastPage()) {
-            Paginator::currentPageResolver(function () use ($departments) {
-                return $departments->lastPage();
             });
-            $departments = $query->paginate($show_record);
-        }
+
+        $departments = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $departments]);
     }

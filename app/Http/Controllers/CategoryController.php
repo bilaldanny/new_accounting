@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Category;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +13,8 @@ use Throwable;
 
 class CategoryController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     /**
      * @return array<string, string>
      */
@@ -26,12 +28,8 @@ class CategoryController extends Controller
 
     public function index(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Category::query()
             ->visibleToCurrentUser()
@@ -52,21 +50,9 @@ class CategoryController extends Controller
             })
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $categories = $query->paginate($show_record);
-
-        if ($cur_page > $categories->lastPage()) {
-            Paginator::currentPageResolver(function () use ($categories) {
-                return $categories->lastPage();
             });
-            $categories = $query->paginate($show_record);
-        }
+
+        $categories = $this->paginateSorted($query, $request);
 
         $categories->getCollection()->transform(function (Category $category) {
             $category->company_name = $category->company?->name;
@@ -128,43 +114,7 @@ class CategoryController extends Controller
             'rows.*.name' => 'bail|required|string|min:3|max:200',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Category::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'category records'
-        );
+        return $this->importRows($request, Category::class, 'category records');
     }
 
     public function show($id)
@@ -219,54 +169,29 @@ class CategoryController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        if (deletepermission('/category/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Category::query()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/category/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Category::query()
+                ->visibleToCurrentUser()
+                ->whereIn('id', $request->all())
+                ->pluck('id');
 
-                foreach ($ids as $categoryId) {
-                    Category::deleteCategory((int) $categoryId);
-                }
-
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
+            foreach ($ids as $categoryId) {
+                Category::deleteCategory((int) $categoryId);
             }
-        }
-
-        return response()->json('406');
+        });
     }
 
     public function bulk_delete_per(Request $request)
     {
-        if (deletepermission('/category/delete')) {
-            DB::beginTransaction();
-            try {
-                $ids = Category::query()
-                    ->onlyTrashed()
-                    ->visibleToCurrentUser()
-                    ->whereIn('id', (array) $request->all())
-                    ->pluck('id');
+        return $this->guardedBulkAction('/category/delete', 'Successfully Deleted', function () use ($request) {
+            $ids = Category::query()
+                ->onlyTrashed()
+                ->visibleToCurrentUser()
+                ->whereIn('id', (array) $request->all())
+                ->pluck('id');
 
-                Category::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json('406');
+            Category::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     public function updatestatus(Request $request)
@@ -406,12 +331,8 @@ class CategoryController extends Controller
 
     public function trash(Request $request)
     {
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         $query = Category::onlyTrashed()
             ->visibleToCurrentUser()
@@ -425,21 +346,9 @@ class CategoryController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->where('name', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $categories = $query->paginate($show_record);
-
-        if ($cur_page > $categories->lastPage()) {
-            Paginator::currentPageResolver(function () use ($categories) {
-                return $categories->lastPage();
             });
-            $categories = $query->paginate($show_record);
-        }
+
+        $categories = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $categories]);
     }

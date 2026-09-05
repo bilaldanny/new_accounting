@@ -2,25 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesBulkImport;
+use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Menu;
-use App\Support\ImportResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class MenuController extends Controller
 {
+    use HandlesBulkImport, HandlesIndexAndBulkDelete;
+
     public function index(Request $request)
     {
         $this->authorizeSuperadmin($request);
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         // Base Query
         $query = Menu::query()
@@ -34,23 +31,9 @@ class MenuController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'route_name', 'route_path', 'sort_order'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        // Resolve current page before pagination
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $menus = $query->paginate($show_record);
-
-        // If requested page is greater than last page → set to last page
-        if ($cur_page > $menus->lastPage()) {
-            Paginator::currentPageResolver(function () use ($menus) {
-                return $menus->lastPage();
             });
-            $menus = $query->paginate($show_record);
-        }
+
+        $menus = $this->paginateSorted($query, $request);
 
         $trash_count = Menu::onlyTrashed()->count();
 
@@ -126,46 +109,23 @@ class MenuController extends Controller
     public function bulk_delete(Request $request)
     {
         $this->authorizeSuperadmin($request);
-        if (deletepermission('/menu/delete')) {
-            DB::beginTransaction();
-            try {
-                // Perform the deletion
-                Menu::whereIn('id', $request->all())->delete();
-                DB::commit();
 
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        } else {
-            return response()->json('406');
-        }
+        return $this->guardedBulkAction('/menu/delete', 'Successfully Deleted', function () use ($request) {
+            // Perform the deletion
+            Menu::whereIn('id', $request->all())->delete();
+        });
     }
 
     /* Bulk Record Permanently Delete */
     public function bulk_delete_per(Request $request)
     {
         $this->authorizeSuperadmin($request);
-        if (deletepermission('/menu/delete')) {
 
-            DB::beginTransaction();
-            try {
-                // Perform the deletion
-                $ids = (array) $request->all();
-                Menu::whereIn('id', $ids)->forceDelete();
-                DB::commit();
-
-                return response()->json(['message' => 'Successfully Deleted']);
-            } catch (Throwable $e) {
-                DB::rollBack();
-
-                return response()->json(['errormessage' => $e->getMessage()], 500);
-            }
-        } else {
-            return response()->json('406');
-        }
+        return $this->guardedBulkAction('/menu/delete', 'Successfully Deleted', function () use ($request) {
+            // Perform the deletion
+            $ids = (array) $request->all();
+            Menu::whereIn('id', $ids)->forceDelete();
+        });
     }
 
     /* Update Status */
@@ -259,43 +219,7 @@ class MenuController extends Controller
             'rows.*.type' => 'bail|required',
         ]);
 
-        DB::beginTransaction();
-
-        try {
-            $created = 0;
-            $updated = 0;
-
-            foreach ($request->rows as $index => $row) {
-                if (! is_array($row)) {
-                    throw ValidationException::withMessages([
-                        'rows' => ['Row '.($index + 1).' is invalid.'],
-                    ]);
-                }
-
-                if (Menu::upsertFromImport($row) === 'created') {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            DB::commit();
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            throw $e;
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
-        }
-
-        return ImportResponse::success(
-            count($request->rows),
-            $created,
-            $updated,
-            'menu records'
-        );
+        return $this->importRows($request, Menu::class, 'menu records');
     }
 
     public function duplicate(Request $request)
@@ -321,12 +245,8 @@ class MenuController extends Controller
     public function trash(Request $request)
     {
         $this->authorizeSuperadmin($request);
-        $sort_by = $request->sort_by ?? 'created_at';
-        $sort_type = $request->sort_type ?? 'desc';
-        $show_record = $request->show_record ?? 10;
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
 
         // Base Query
         $query = Menu::onlyTrashed()
@@ -340,23 +260,9 @@ class MenuController extends Controller
                 $q->where(function ($sub) use ($search) {
                     $sub->whereAny(['name', 'route_name', 'route_path', 'sort_order'], 'like', "%{$search}%");
                 });
-            })
-            ->orderBy($sort_by, $sort_type);
-
-        // Resolve current page before pagination
-        Paginator::currentPageResolver(function () use ($cur_page) {
-            return $cur_page;
-        });
-
-        $menus = $query->paginate($show_record);
-
-        // If requested page is greater than last page → set to last page
-        if ($cur_page > $menus->lastPage()) {
-            Paginator::currentPageResolver(function () use ($menus) {
-                return $menus->lastPage();
             });
-            $menus = $query->paginate($show_record);
-        }
+
+        $menus = $this->paginateSorted($query, $request);
 
         return response()->json(['data' => $menus]);
     }
