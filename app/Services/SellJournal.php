@@ -30,11 +30,18 @@ class SellJournal
             ]);
         }
 
+        $gross = round((float) $sell->final_amount, 2);
+
+        if ($gross <= 0.0) {
+            throw ValidationException::withMessages([
+                'final_amount' => ['Sale amount must be greater than zero before posting the journal.'],
+            ]);
+        }
+
         $salesAccount = $this->resolveSalesAccount($sell, $customer);
         $customerAccount = $this->resolveCustomerAccount($sell, $customer);
         $taxAccount = $this->resolveTaxAccount($sell);
 
-        $gross = round((float) $sell->final_amount, 2);
         $tax = $this->ledger->taxAmount($sell);
         $useTaxLeg = $tax > 0.0 && $taxAccount !== null;
         $salesCredit = $useTaxLeg ? round($gross - $tax, 2) : $gross;

@@ -115,6 +115,8 @@ export const API_ENDPOINTS = {
     fetchContactDetail: '/api/fetchcontactdetail',
     fetchLedger: '/api/fetchledger',
     contactLedgerWatches: '/api/contact-ledger-watches',
+    journalEntries: '/api/journal-entries',
+    journalEntryVoucherNo: '/api/journal-entries/voucher-no',
     linkSupplierCoa: (id: number | string) => `/api/suppliers/${id}/link-coa`,
     linkCustomerCoa: (id: number | string) => `/api/customers/${id}/link-coa`,
     notifications: '/api/notifications',

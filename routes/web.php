@@ -385,6 +385,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('product.trash');
     /* Product */
 
+    /* Journal Entry */
+    Route::get('journalentry', function () {
+        return Inertia::render('journalentry/index');
+    })->name('journalentry');
+
+    Route::get('journalentry/add', function () {
+        return Inertia::render('journalentry/add');
+    })->name('journalentry.add');
+
+    Route::get('journalentry/{id}/edit', function ($id) {
+        return Inertia::render('journalentry/edit', ['id' => $id]);
+    })->name('journalentry.edit');
+
+    Route::get('journalentry/{id}/view', function ($id) {
+        return Inertia::render('journalentry/view', ['id' => $id]);
+    })->name('journalentry.view');
+    /* Journal Entry */
+
     /* Variation */
     Route::get('variation', function () {
         return Inertia::render('variation/index');

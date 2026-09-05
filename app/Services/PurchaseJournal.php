@@ -30,11 +30,18 @@ class PurchaseJournal
             ]);
         }
 
+        $gross = round((float) $purchase->final_amount, 2);
+
+        if ($gross <= 0.0) {
+            throw ValidationException::withMessages([
+                'final_amount' => ['Purchase amount must be greater than zero before posting the journal.'],
+            ]);
+        }
+
         $purchaseAccount = $this->resolvePurchaseAccount($purchase, $supplier);
         $supplierAccount = $this->resolveSupplierAccount($purchase, $supplier);
         $taxAccount = $this->resolveTaxAccount($purchase);
 
-        $gross = round((float) $purchase->final_amount, 2);
         $tax = $this->ledger->taxAmount($purchase);
         $useTaxLeg = $tax > 0.0 && $taxAccount !== null;
         $purchaseDebit = $useTaxLeg ? round($gross - $tax, 2) : $gross;

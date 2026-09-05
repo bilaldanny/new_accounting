@@ -12,7 +12,11 @@ import { nextTick, reactive, ref, watch } from 'vue';
         formSize: { type: String, default: 'sm' },
         formId: { type: String },
         formData: { type: Object},
-        floatPlaceholders: {type: Boolean, default: false}
+        floatPlaceholders: {type: Boolean, default: false},
+        showRequired: {
+            type: Array,
+            default: () => ['label', 'placeholder', 'floating'],
+        },
     });
 
     const emit = defineEmits(['update:formData', 'update:submitting'])
@@ -179,7 +183,7 @@ import { nextTick, reactive, ref, watch } from 'vue';
         @finish="handleFinish"
         ref="vueform$"
         method="post"
-        :show-required="['label', 'placeholder', 'floating']"
+        :show-required="params.showRequired"
         :display-errors="false"
         :float-placeholders="params.floatPlaceholders"
         enctype="multipart/form-data"
