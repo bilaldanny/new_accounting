@@ -111,7 +111,7 @@ class ChartOfAccountController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -140,7 +140,7 @@ class ChartOfAccountController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);

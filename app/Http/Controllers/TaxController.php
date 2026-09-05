@@ -128,7 +128,7 @@ class TaxController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e->getMessage()]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Deleted']);
@@ -169,7 +169,7 @@ class TaxController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e->getMessage()]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);

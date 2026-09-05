@@ -74,7 +74,7 @@ class MenuController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -104,7 +104,7 @@ class MenuController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
@@ -137,7 +137,7 @@ class MenuController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json('406');
@@ -161,7 +161,7 @@ class MenuController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json('406');
@@ -194,7 +194,7 @@ class MenuController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json(['errormessage' => 'Something went wrong']);
@@ -242,7 +242,7 @@ class MenuController extends Controller
             } catch (Throwable $e) {
                 DB::rollBack();
 
-                return response()->json(['errormessage' => $e]);
+                return response()->json(['errormessage' => $e->getMessage()], 500);
             }
         } else {
             return response()->json('406');
@@ -287,7 +287,7 @@ class MenuController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
         return ImportResponse::success(
@@ -314,7 +314,7 @@ class MenuController extends Controller
         } catch (Throwable $e) {
             DB::rollBack();
 
-            return response()->json(['errormessage' => $e]);
+            return response()->json(['errormessage' => $e->getMessage()], 500);
         }
     }
 
