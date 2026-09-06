@@ -23,6 +23,8 @@ class TAccount extends Model
 
     public const VOUCHER_TYPES = ['JV', 'JE'];
 
+    public const PAYMENT_VOUCHER_TYPES = ['BP', 'CP', 'OP'];
+
     protected $fillable = [
         'company_id',
         'branch_id',
@@ -148,6 +150,18 @@ class TAccount extends Model
             });
     }
 
+    public function scopeManualPayments(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('transaction_id')
+            ->where(function (Builder $voucherQuery) {
+                $voucherQuery
+                    ->where('voucher_no', 'like', 'BP-%')
+                    ->orWhere('voucher_no', 'like', 'CP-%')
+                    ->orWhere('voucher_no', 'like', 'OP-%');
+            });
+    }
+
     public static function resolveScopedId(mixed $value): ?int
     {
         if ($value === null || $value === '' || $value === 'undefined') {
@@ -159,7 +173,25 @@ class TAccount extends Model
 
     public static function findVisibleManualJournal(int $id): ?self
     {
-        return self::query()->manualJournals()->visibleToCurrentUser()->find($id);
+        return self::findVisibleManualVoucher($id, 'journal');
+    }
+
+    public static function findVisibleManualPayment(int $id): ?self
+    {
+        return self::findVisibleManualVoucher($id, 'payment');
+    }
+
+    public static function findVisibleManualVoucher(int $id, string $family = 'journal'): ?self
+    {
+        $query = self::query()->visibleToCurrentUser();
+
+        if ($family === 'payment') {
+            $query->manualPayments();
+        } else {
+            $query->manualJournals();
+        }
+
+        return $query->find($id);
     }
 
     /**
@@ -177,6 +209,7 @@ class TAccount extends Model
             'branch_name' => $this->branch?->name,
             'voucher_no' => $this->voucher_no,
             'voucher_type' => Str::before((string) $this->voucher_no, '-'),
+            'kind_label' => self::voucherKindLabel((string) $this->voucher_no),
             'voucher_date' => $voucherDate,
             'voucher_date_label' => $voucherDate,
             'total_amount' => $this->total_amount,
@@ -199,9 +232,9 @@ class TAccount extends Model
         return $journal;
     }
 
-    public static function updateJournalEntry(Request $request, int $id): self
+    public static function updateJournalEntry(Request $request, int $id, string $family = 'journal'): self
     {
-        $journal = self::findVisibleManualJournal($id);
+        $journal = self::findVisibleManualVoucher($id, $family);
 
         if ($journal === null) {
             abort(404);
@@ -216,9 +249,9 @@ class TAccount extends Model
         return $journal;
     }
 
-    public static function deleteJournalEntry(int $id): void
+    public static function deleteJournalEntry(int $id, string $family = 'journal'): void
     {
-        $journal = self::findVisibleManualJournal($id);
+        $journal = self::findVisibleManualVoucher($id, $family);
 
         if ($journal === null) {
             abort(404);
@@ -227,9 +260,9 @@ class TAccount extends Model
         $journal->delete();
     }
 
-    public static function duplicateJournalEntry(int $id): self
+    public static function duplicateJournalEntry(int $id, string $family = 'journal'): self
     {
-        $journal = self::findVisibleManualJournal($id);
+        $journal = self::findVisibleManualVoucher($id, $family);
 
         if ($journal === null) {
             abort(404);
@@ -279,6 +312,7 @@ class TAccount extends Model
             'voucher_no' => $this->voucher_no,
             'voucher_date' => $this->voucher_date?->format('Y-m-d'),
             'comments' => $this->comments,
+            'cheque_no' => $this->cheque_no,
             'status' => $this->status,
             'total_amount' => $this->total_amount,
             'total_tax' => $this->total_tax,
@@ -312,18 +346,20 @@ class TAccount extends Model
         $branchId = self::resolveScopedId($request->branch_id);
         $voucherType = strtoupper((string) $request->input('voucher_type', 'JV'));
 
-        if (! in_array($voucherType, self::VOUCHER_TYPES, true)) {
+        if (! in_array($voucherType, self::allVoucherTypes(), true)) {
             $voucherType = 'JV';
         }
 
         $this->company_id = $companyId;
         $this->branch_id = $branchId;
         $this->voucher_date = $request->input('voucher_date');
-        $this->comments = (string) $request->input('comments', '');
+        $this->comments = (string) $request->input('comments', $request->input('comment', ''));
         $this->total_tax = 0;
-        $this->type = 'online';
+        $this->type = self::ledgerTypeForVoucher($voucherType);
         $this->ref_no = (string) $request->input('ref_no', '');
-        $this->cheque_no = '';
+        $this->cheque_no = $voucherType === 'OP'
+            ? 'ONLINE'
+            : (string) $request->input('cheque_no', '');
         $this->account_code = $this->headerAccountCode($request);
         $this->coa_id = $this->headerAccountId($request);
 
@@ -533,10 +569,39 @@ class TAccount extends Model
         return $requiresApproval ? 'pending' : 'approved';
     }
 
+    /**
+     * @return list<string>
+     */
+    public static function allVoucherTypes(): array
+    {
+        return array_merge(self::VOUCHER_TYPES, self::PAYMENT_VOUCHER_TYPES);
+    }
+
     public static function voucherTypeFromNumber(string $voucherNo): string
     {
         $prefix = strtoupper(Str::before($voucherNo, '-'));
 
-        return in_array($prefix, self::VOUCHER_TYPES, true) ? $prefix : 'JV';
+        return in_array($prefix, self::allVoucherTypes(), true) ? $prefix : 'JV';
+    }
+
+    public static function voucherKindLabel(string $voucherNo): string
+    {
+        return match (self::voucherTypeFromNumber($voucherNo)) {
+            'BP' => 'Bank Payment',
+            'CP' => 'Cash Payment',
+            'OP' => 'Online Payment',
+            'JV' => 'Journal Voucher',
+            'JE' => 'Journal Entry',
+            default => 'Voucher',
+        };
+    }
+
+    private static function ledgerTypeForVoucher(string $voucherType): string
+    {
+        return match ($voucherType) {
+            'CP' => 'cash',
+            'BP' => 'bank',
+            default => 'online',
+        };
     }
 }

@@ -25,10 +25,10 @@ test('authenticated users can open location pages', function (string $route, str
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page->component($component));
 })->with([
-    ['country', 'country/index'],
-    ['country.trash', 'country/trash'],
-    ['state', 'state/index'],
-    ['state.trash', 'state/trash'],
-    ['city', 'city/index'],
-    ['city.trash', 'city/trash'],
+    ['country', 'software/country/index'],
+    ['country.trash', 'software/country/trash'],
+    ['state', 'software/state/index'],
+    ['state.trash', 'software/state/trash'],
+    ['city', 'software/city/index'],
+    ['city.trash', 'software/city/trash'],
 ]);

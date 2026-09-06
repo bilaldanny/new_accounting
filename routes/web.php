@@ -179,51 +179,51 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /* Brand */
     Route::get('brand', function () {
-        return Inertia::render('brand/index');
+        return Inertia::render('product/brand/index');
     })->name('brand');
 
     Route::get('brand/trash', function () {
-        return Inertia::render('brand/trash');
+        return Inertia::render('product/brand/trash');
     })->name('brand.trash');
     /* Brand */
 
     /* Unit */
     Route::get('unit', function () {
-        return Inertia::render('unit/index');
+        return Inertia::render('product/unit/index');
     })->name('unit');
 
     Route::get('unit/trash', function () {
-        return Inertia::render('unit/trash');
+        return Inertia::render('product/unit/trash');
     })->name('unit.trash');
     /* Unit */
 
     /* Warranty */
     Route::get('warranty', function () {
-        return Inertia::render('warranty/index');
+        return Inertia::render('product/warranty/index');
     })->name('warranty');
 
     Route::get('warranty/trash', function () {
-        return Inertia::render('warranty/trash');
+        return Inertia::render('product/warranty/trash');
     })->name('warranty.trash');
     /* Warranty */
 
     /* Category */
     Route::get('category', function () {
-        return Inertia::render('category/index');
+        return Inertia::render('product/category/index');
     })->name('category');
 
     Route::get('category/trash', function () {
-        return Inertia::render('category/trash');
+        return Inertia::render('product/category/trash');
     })->name('category.trash');
     /* Category */
 
     /* Item Type */
     Route::get('itemtype', function () {
-        return Inertia::render('itemtype/index');
+        return Inertia::render('product/itemtype/index');
     })->name('itemtype');
 
     Route::get('itemtype/trash', function () {
-        return Inertia::render('itemtype/trash');
+        return Inertia::render('product/itemtype/trash');
     })->name('itemtype.trash');
     /* Item Type */
 
@@ -267,6 +267,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'listTitle' => 'Purchase Approval',
         ]);
     })->name('purchase.approval.view');
+
+    Route::get('purchase/payment', function () {
+        return Inertia::render('purchase/payment/index');
+    })->name('purchase.payment');
 
     Route::get('purchase/{id}/edit', function ($id) {
         return Inertia::render('purchase/edit', ['id' => $id]);
@@ -332,6 +336,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('sell.approval.view');
 
+    Route::get('sell/payment', function () {
+        return Inertia::render('sell/payment/index');
+    })->name('sell.payment');
+
     Route::get('sell/{id}/edit', function ($id) {
         return Inertia::render('sell/edit', ['id' => $id]);
     })->name('sell.edit');
@@ -385,6 +393,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('product.trash');
     /* Product */
 
+    /* Payment */
+    Route::get('acpayment', function () {
+        return Inertia::render('payment/index');
+    })->name('acpayment');
+
+    Route::get('acpayment/add', function () {
+        return Inertia::render('payment/add');
+    })->name('acpayment.add');
+
+    Route::get('acpayment/{id}/edit', function ($id) {
+        return Inertia::render('payment/edit', ['id' => $id]);
+    })->name('acpayment.edit');
+
+    Route::get('acpayment/{id}/view', function ($id) {
+        return Inertia::render('payment/view', ['id' => $id]);
+    })->name('acpayment.view');
+    /* Payment */
+
     /* Journal Entry */
     Route::get('journalentry', function () {
         return Inertia::render('journalentry/index');
@@ -405,11 +431,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /* Variation */
     Route::get('variation', function () {
-        return Inertia::render('variation/index');
+        return Inertia::render('product/variation/index');
     })->name('variation');
 
     Route::get('variation/trash', function () {
-        return Inertia::render('variation/trash');
+        return Inertia::render('product/variation/trash');
     })->name('variation.trash');
     /* Variation */
 
@@ -439,51 +465,51 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /* Currency */
     Route::get('currency', function () {
-        return Inertia::render('currency/index');
+        return Inertia::render('software/currency/index');
     })->name('currency');
 
     Route::get('currency/trash', function () {
-        return Inertia::render('currency/trash');
+        return Inertia::render('software/currency/trash');
     })->name('currency.trash');
     /* Currency */
 
     /* Timezone */
     Route::get('timezone', function () {
-        return Inertia::render('timezone/index');
+        return Inertia::render('software/timezone/index');
     })->name('timezone');
 
     Route::get('timezone/trash', function () {
-        return Inertia::render('timezone/trash');
+        return Inertia::render('software/timezone/trash');
     })->name('timezone.trash');
     /* Timezone */
 
     /* Country */
     Route::get('country', function () {
-        return Inertia::render('country/index');
+        return Inertia::render('software/country/index');
     })->name('country');
 
     Route::get('country/trash', function () {
-        return Inertia::render('country/trash');
+        return Inertia::render('software/country/trash');
     })->name('country.trash');
     /* Country */
 
     /* State */
     Route::get('state', function () {
-        return Inertia::render('state/index');
+        return Inertia::render('software/state/index');
     })->name('state');
 
     Route::get('state/trash', function () {
-        return Inertia::render('state/trash');
+        return Inertia::render('software/state/trash');
     })->name('state.trash');
     /* State */
 
     /* City */
     Route::get('city', function () {
-        return Inertia::render('city/index');
+        return Inertia::render('software/city/index');
     })->name('city');
 
     Route::get('city/trash', function () {
-        return Inertia::render('city/trash');
+        return Inertia::render('software/city/trash');
     })->name('city.trash');
     /* City */
 

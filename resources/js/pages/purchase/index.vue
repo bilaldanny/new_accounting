@@ -71,7 +71,7 @@
         { key: 'payment_status_label', label: 'Payment', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'formatted_amount', label: 'Total', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate', 'approve', 'receivingNote', 'return']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate', 'approve', 'receivingNote', 'return', 'purchasePayment']},
     ]);
 
     const currentUrl = ref('');
