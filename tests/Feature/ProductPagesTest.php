@@ -34,3 +34,23 @@ test('authenticated users can open the product edit page', function () {
             ->component('product/edit')
             ->where('id', '12'));
 });
+
+test('authenticated users can open product catalog pages', function (string $routeName, string $component) {
+    $this->actingAs(User::query()->findOrFail(1))
+        ->get(route($routeName))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component($component));
+})->with([
+    'brand' => ['brand', 'product/brand/index'],
+    'brand trash' => ['brand.trash', 'product/brand/trash'],
+    'category' => ['category', 'product/category/index'],
+    'category trash' => ['category.trash', 'product/category/trash'],
+    'item type' => ['itemtype', 'product/itemtype/index'],
+    'item type trash' => ['itemtype.trash', 'product/itemtype/trash'],
+    'unit' => ['unit', 'product/unit/index'],
+    'unit trash' => ['unit.trash', 'product/unit/trash'],
+    'variation' => ['variation', 'product/variation/index'],
+    'variation trash' => ['variation.trash', 'product/variation/trash'],
+    'warranty' => ['warranty', 'product/warranty/index'],
+    'warranty trash' => ['warranty.trash', 'product/warranty/trash'],
+]);

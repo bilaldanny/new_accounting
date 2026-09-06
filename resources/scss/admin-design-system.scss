@@ -2202,6 +2202,111 @@ body:has(.product-form-page) .back-to-top {
     font-weight: 700;
 }
 
+.payment-kind-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.payment-kind-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.9rem;
+    background: #fff;
+    text-align: left;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.payment-kind-card:hover:not(:disabled) {
+    border-color: #c7d2fe;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.08);
+}
+
+.payment-kind-card.is-active {
+    border-color: #4f46e5;
+    background: linear-gradient(180deg, #eef2ff 0%, #fff 70%);
+    box-shadow: 0 8px 22px rgba(79, 70, 229, 0.12);
+}
+
+.payment-kind-card:disabled {
+    cursor: default;
+}
+
+.payment-kind-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 0.75rem;
+    flex-shrink: 0;
+}
+
+.payment-kind-card__icon.is-bank {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+.payment-kind-card__icon.is-cash {
+    background: rgba(13, 166, 143, 0.12);
+    color: #0f9d88;
+}
+
+.payment-kind-card__icon.is-online {
+    background: rgba(168, 85, 247, 0.12);
+    color: #7e22ce;
+}
+
+.payment-kind-card__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.payment-kind-card__copy strong {
+    color: #0f172a;
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.payment-kind-card__copy small {
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
+.payment-kind-card__code {
+    margin-left: auto;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.payment-kind-card.is-active .payment-kind-card__code {
+    color: #4f46e5;
+}
+
+.payment-voucher-prefix {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #4338ca;
+}
+
+@media (max-width: 991.98px) {
+    .payment-kind-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .journal-voucher-grid {
     display: grid;
     gap: 0.9rem 1rem;

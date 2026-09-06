@@ -5,19 +5,18 @@
     import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
     import debounce from '@/utils/debounce';
-    import useSells from '@/composables/sell';
-    import useSellApprovals from '@/composables/sellApproval';
+    import usePayments from '@/composables/payment';
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
 
     defineOptions({
         layout: {
-            title: 'Sell Management',
-            subtitle: 'Track customer invoices, status, and amounts',
+            title: 'Payment',
+            subtitle: 'Bank, cash, and online payment vouchers',
             breadcrumbs: [
                 {
-                    title: 'Sell Management',
+                    title: 'Payment',
                     href: 'NULL',
                 },
             ],
@@ -28,18 +27,14 @@
 
     const {
         state,
-        getSells,
-        changeStatus,
+        getPayments,
         deleteRecord,
         changeOrder,
         checkAll,
         duplicate,
-    } = useSells();
-    const { approveSell } = useSellApprovals();
+    } = usePayments();
 
     const {select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
-
-    const customersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
 
     const authUser = computed(() => props.auth?.user as {
         rolename?: string;
@@ -65,13 +60,12 @@
         ...(isSuperadmin.value || isCompanyadmin.value ? [
             { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         ] : []),
-        { key: 'transaction_date_label', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'invoice_no', label: 'Invoice No', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
-        { key: 'customer_name', label: 'Customer', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'voucher_no', label: 'Voucher No', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
+        { key: 'kind_label', label: 'Type', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'voucher_date_label', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'formatted_amount', label: 'Total Amount', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'payment_status_label', label: 'Payment', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'formatted_amount', label: 'Total', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate', 'approve', 'issueNote', 'sellPayment']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate']},
     ]);
 
     const currentUrl = ref('');
@@ -107,8 +101,8 @@
         })
     })
 
-    const debouncedGetSells = debounce((params) => {
-        getSells(params);
+    const debouncedGetPayments = debounce((params) => {
+        getPayments(params);
     }, 300);
 
     const getData = async () => {
@@ -118,44 +112,15 @@
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
-            await debouncedGetSells({ ...state.search });
+            await debouncedGetPayments({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching sells:', error);
+            console.error('Error fetching payments:', error);
         }
     };
-
-    async function loadCustomers(companyId: string | number | null | undefined, branchId: string | number | null | undefined) {
-        if (! companyId || ! branchId) {
-            customersdata.value = [];
-
-            return;
-        }
-
-        try {
-            const response = await window.axios.get(API_ENDPOINTS.fetchCustomers, {
-                params: { company_id: companyId, branch_id: branchId },
-            });
-            customersdata.value = response.data ?? [];
-        } catch {
-            customersdata.value = [];
-        }
-    }
-
-    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
-        state.search.branch_id = '';
-        state.search.contact_id = '';
-        await fetchBranch(companyId);
-        customersdata.value = [];
-    }
-
-    async function handleBranchFilterChange() {
-        state.search.contact_id = '';
-        await loadCustomers(state.search.company_id, state.search.branch_id);
-    }
 
     onMounted(async () => {
         state.search.company_id = authUser.value?.company_id ?? '';
@@ -167,10 +132,6 @@
 
         if (isCompanyadmin.value && authUser.value?.company_id) {
             await fetchBranch(authUser.value.company_id);
-        }
-
-        if (state.search.company_id && state.search.branch_id) {
-            await loadCustomers(state.search.company_id, state.search.branch_id);
         }
 
         if(oldcurrentUrl.value === props.routeName){
@@ -193,34 +154,29 @@
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetSells({ ...state.search });
+        debouncedGetPayments({ ...state.search });
     });
+
+    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
+        state.search.branch_id = '';
+        await fetchBranch(companyId);
+    }
 
     function onStateUpdate(newState) {
         Object.assign(state, newState)
     }
 
-    async function handleApprove(id: number) {
-        const approved = await approveSell(id);
-
-        if (approved) {
-            getData();
-        }
-    }
-
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.sells, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.payments, () => state);
 
     const filterOpen = ref(false);
 
     function clearSearch() {
         state.search.status = 'all';
-        state.search.payment_status = 'all';
         state.search.search = '';
         state.search.show_record = 10;
         state.search.page = 1;
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
-        state.search.contact_id = '';
         getData();
     }
 
@@ -236,21 +192,21 @@
                     :state="state"
                     :filter-open="filterOpen"
                     :getData="getData"
-                    :changeStatus="changeStatus"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
-                    add-href="/sell/add"
+                    add-href="/payment/add"
                     :show-filter="showFilter"
                     :show-import="false"
+                    :show-status="false"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
 
             <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="sell-filter-company">Company</label>
+                    <label class="form-label" for="payment-filter-company">Company</label>
                     <select
-                        id="sell-filter-company"
+                        id="payment-filter-company"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -262,13 +218,12 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="sell-filter-branch">Branch</label>
+                    <label class="form-label" for="payment-filter-branch">Branch</label>
                     <select
-                        id="sell-filter-branch"
+                        id="payment-filter-branch"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
-                        @change="handleBranchFilterChange"
                     >
                         <option value="">All</option>
                         <option v-for="branch in branchesdata" :key="branch.id" :value="branch.id">
@@ -277,36 +232,12 @@
                     </select>
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="sell-filter-customer">Customer</label>
-                    <select
-                        id="sell-filter-customer"
-                        class="form-select form-select-sm"
-                        v-model="state.search.contact_id"
-                    >
-                        <option value="">All</option>
-                        <option v-for="customer in customersdata" :key="customer.id" :value="customer.id">
-                            {{ customer.text ?? customer.business_name }}
-                        </option>
-                    </select>
-                </div>
-                <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="sell-filter-status">Sell status</label>
-                    <select id="sell-filter-status" class="form-select form-select-sm" v-model="state.search.status">
+                    <label class="form-label" for="payment-filter-status">Status</label>
+                    <select id="payment-filter-status" class="form-select form-select-sm" v-model="state.search.status">
                         <option value="all">All</option>
-                        <option value="final">Final</option>
-                        <option value="draft">Draft</option>
-                        <option value="quotation">Quotation</option>
+                        <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
-                        <option value="issue">Issue</option>
-                    </select>
-                </div>
-                <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="sell-filter-payment">Payment status</label>
-                    <select id="sell-filter-payment" class="form-select form-select-sm" v-model="state.search.payment_status">
-                        <option value="all">All</option>
-                        <option value="due">Due</option>
-                        <option value="partial">Partial</option>
-                        <option value="paid">Paid</option>
+                        <option value="cancelled">Cancelled</option>
                     </select>
                 </div>
             </TheFilter>
@@ -320,11 +251,9 @@
                         :checkAll="checkAll"
                         :getData="getData"
                         :changeOrder="changeOrder"
-                        :changeStatus="changeStatus"
                         :delete="deleteRecord"
                         :duplicate="duplicate"
-                        :approve="handleApprove"
-                        :view-route="(id) => `/sell/${id}/view`"
+                        :view-route="(id) => `/payment/${id}/view`"
                         actionType="link"
                         :apiUrl="props.routeName?.split('.')[0]"
                         show-export

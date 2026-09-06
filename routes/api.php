@@ -20,16 +20,19 @@ use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseApprovalController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PurchasePaymentController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\ReceivingNoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SellApprovalController;
 use App\Http\Controllers\SellController;
+use App\Http\Controllers\SellPaymentController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\SupplierController;
@@ -323,6 +326,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/journal-entries/bulk_delete', [JournalEntryController::class, 'bulk_delete']);
     /* Journal Entry */
 
+    /* Payment */
+    Route::get('payments/voucher-no', [PaymentController::class, 'voucherNo']);
+    Route::resource('payments', PaymentController::class);
+    Route::post('/payments/duplicate', [PaymentController::class, 'duplicate']);
+    Route::post('/payments/bulk_delete', [PaymentController::class, 'bulk_delete']);
+    /* Payment */
+
     Route::get('purchases/search-products', [PurchaseController::class, 'searchProducts']);
     Route::get('purchases/trash', [PurchaseController::class, 'trash']);
     Route::resource('purchases', PurchaseController::class);
@@ -332,6 +342,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('purchases/bulk_delete_per', [PurchaseController::class, 'bulk_delete_per']);
     Route::post('purchases/restore_records', [PurchaseController::class, 'restore_records']);
     /* Purchase */
+
+    /* Purchase Payment */
+    Route::get('purchase-payments/eligible-purchases', [PurchasePaymentController::class, 'eligiblePurchases']);
+    Route::get('purchase-payments/purchase/{id}', [PurchasePaymentController::class, 'purchase']);
+    Route::get('purchase-payments/accounts', [PurchasePaymentController::class, 'paymentAccounts']);
+    Route::resource('purchase-payments', PurchasePaymentController::class);
+    Route::post('purchase-payments/bulk_delete', [PurchasePaymentController::class, 'bulk_delete']);
+    /* Purchase Payment */
 
     /* Purchase Approval */
     Route::get('purchase-approvals', [PurchaseApprovalController::class, 'index']);
@@ -369,6 +387,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('sells/bulk_delete_per', [SellController::class, 'bulk_delete_per']);
     Route::post('sells/restore_records', [SellController::class, 'restore_records']);
     /* Sell */
+
+    /* Sell Payment */
+    Route::get('sell-payments/eligible-sells', [SellPaymentController::class, 'eligibleSells']);
+    Route::get('sell-payments/sell/{id}', [SellPaymentController::class, 'sell']);
+    Route::get('sell-payments/accounts', [SellPaymentController::class, 'paymentAccounts']);
+    Route::resource('sell-payments', SellPaymentController::class);
+    Route::post('sell-payments/bulk_delete', [SellPaymentController::class, 'bulk_delete']);
+    /* Sell Payment */
 
     /* Sell Approval */
     Route::get('sell-approvals', [SellApprovalController::class, 'index']);

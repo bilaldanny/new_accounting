@@ -393,11 +393,47 @@ import { formatNumber } from '@/utils/numberFormat';
         return !!col.actions?.includes('issueNote');
     }
 
+    function canShowPurchasePaymentAction(col: Column): boolean {
+        return !!col.actions?.includes('purchasePayment');
+    }
+
+    function canShowSellPaymentAction(col: Column): boolean {
+        return !!col.actions?.includes('sellPayment');
+    }
+
+    function canShowAddPurchasePaymentAction(col: Column, row?: Record<string, unknown>): boolean {
+        if (! canShowPurchasePaymentAction(col)) {
+            return false;
+        }
+
+        if (row === undefined) {
+            return true;
+        }
+
+        return String(row.payment_status ?? '').toLowerCase() !== 'paid'
+            && rowStatus(row) === 'received';
+    }
+
+    function canShowAddSellPaymentAction(col: Column, row?: Record<string, unknown>): boolean {
+        if (! canShowSellPaymentAction(col)) {
+            return false;
+        }
+
+        if (row === undefined) {
+            return true;
+        }
+
+        return String(row.payment_status ?? '').toLowerCase() !== 'paid'
+            && rowStatus(row) === 'issue';
+    }
+
     function canShowPurchaseWorkflowDivider(col: Column, row: Record<string, unknown>): boolean {
         return canShowApproveAction(col, row)
             || canShowReceivingNoteAction(col)
             || canShowPurchaseReturnAction(col)
-            || canShowIssueNoteAction(col);
+            || canShowIssueNoteAction(col)
+            || canShowPurchasePaymentAction(col)
+            || canShowSellPaymentAction(col);
     }
 
     function receivingNoteHref(row: Record<string, unknown>): string {
@@ -428,6 +464,22 @@ import { formatNumber } from '@/utils/numberFormat';
         }
 
         return `/issuenote/add?sell_id=${row.id}`;
+    }
+
+    function purchasePaymentHref(row: Record<string, unknown>): string {
+        return `/purchase/payment?transaction_id=${row.id}`;
+    }
+
+    function purchasePaymentAddHref(row: Record<string, unknown>): string {
+        return `/purchase/payment?transaction_id=${row.id}&add=1`;
+    }
+
+    function sellPaymentHref(row: Record<string, unknown>): string {
+        return `/sell/payment?transaction_id=${row.id}`;
+    }
+
+    function sellPaymentAddHref(row: Record<string, unknown>): string {
+        return `/sell/payment?transaction_id=${row.id}&add=1`;
     }
 
     function viewRouteWithTab(rowId: number, tab: string): string {
@@ -486,6 +538,8 @@ import { formatNumber } from '@/utils/numberFormat';
                     case 'reject':
                     case 'receivingNote':
                     case 'return':
+                    case 'purchasePayment':
+                    case 'sellPayment':
                         return true;
                     case 'invoice':
                         return canUseInvoiceAction(apiUrl);
@@ -1240,6 +1294,38 @@ import { formatNumber } from '@/utils/numberFormat';
                                                         :href="issueNoteHref(row)"
                                                     >
                                                         <i class="mdi mdi-package-variant"></i> Issue note
+                                                    </Link>
+
+                                                    <Link
+                                                        v-if="canShowAddPurchasePaymentAction(col, row)"
+                                                        class="dropdown-item"
+                                                        :href="purchasePaymentAddHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-cash-plus"></i> Add Payment
+                                                    </Link>
+
+                                                    <Link
+                                                        v-if="canShowPurchasePaymentAction(col)"
+                                                        class="dropdown-item"
+                                                        :href="purchasePaymentHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-cash"></i> View Payment
+                                                    </Link>
+
+                                                    <Link
+                                                        v-if="canShowAddSellPaymentAction(col, row)"
+                                                        class="dropdown-item"
+                                                        :href="sellPaymentAddHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-cash-plus"></i> Add Payment
+                                                    </Link>
+
+                                                    <Link
+                                                        v-if="canShowSellPaymentAction(col)"
+                                                        class="dropdown-item"
+                                                        :href="sellPaymentHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-cash"></i> View Payment
                                                     </Link>
                                                 </template>
 

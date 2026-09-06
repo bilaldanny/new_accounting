@@ -173,6 +173,14 @@ class Transaction extends Model
     }
 
     /**
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
      * @return HasMany<SellLine, $this>
      */
     public function selllines(): HasMany

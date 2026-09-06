@@ -597,4 +597,43 @@ class ChartOfAccount extends Model
 
         $rollup($roots);
     }
+
+    /**
+     * Cash and bank ledger accounts used as purchase payment accounts.
+     *
+     * @return Collection<int, ChartOfAccount>
+     */
+    public static function bankAndCashAccountOptions(?int $companyId, ?int $branchId): Collection
+    {
+        $parentIds = ChartOfAccountMapping::query()
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->when($branchId !== null, fn (Builder $query) => $query->where('branch_id', $branchId))
+            ->whereIn('key', ['bank', 'cash'])
+            ->whereNotNull('value')
+            ->pluck('value')
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $accounts = self::query()
+            ->where('active', true)
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->when($branchId !== null, fn (Builder $query) => $query->where('branch_id', $branchId))
+            ->when($parentIds !== [], function (Builder $query) use ($parentIds): void {
+                $query->where(function (Builder $inner) use ($parentIds): void {
+                    $inner->whereIn('parent_id', $parentIds)
+                        ->orWhereIn('id', $parentIds);
+                });
+            })
+            ->orderBy('code')
+            ->get();
+
+        return $accounts->map(function (self $account): self {
+            $account->setAttribute('text', trim($account->code.' - '.$account->name));
+
+            return $account;
+        });
+    }
 }
