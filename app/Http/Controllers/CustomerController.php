@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class CustomerController extends Controller
@@ -221,7 +222,7 @@ class CustomerController extends Controller
                 (float) ($request->opening_balance ?? 0),
             );
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

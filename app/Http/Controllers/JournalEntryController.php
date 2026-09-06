@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class JournalEntryController extends Controller
@@ -188,6 +189,9 @@ class JournalEntryController extends Controller
             DB::commit();
 
             return response()->json(['message' => 'Successfully Duplicated']);
+        } catch (HttpExceptionInterface $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Throwable $e) {
             DB::rollBack();
 

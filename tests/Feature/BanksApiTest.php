@@ -2,6 +2,7 @@
 
 use App\Models\Bank;
 use App\Models\ChartOfAccountMapping;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -311,4 +312,103 @@ test('banks api links an existing unlinked bank to chart of account', function (
             'gl_id' => '101-00000',
             'link_account' => true,
         ]);
+});
+
+test('banks api rejects linking bank when already linked', function () {
+    $scope = seedBankScope();
+    seedBankCoaMapping($scope);
+
+    $bank = createBank([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'gl_id' => '101-00000',
+        'link_account' => true,
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->postJson('/api/banks/'.$bank->id.'/link-coa');
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['gl_id']);
+});
+
+test('banks api rejects linking bank when mapping is missing', function () {
+    $scope = seedBankScope();
+
+    $bank = createBank([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'bank_name' => 'Still Unlinked Bank',
+        'gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->postJson('/api/banks/'.$bank->id.'/link-coa');
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['bank_mapping']);
+});
+
+test('banks api link-coa returns not found for a bank outside user scope', function () {
+    $own = seedBankScope();
+    $other = seedBankScope();
+    seedBankCoaMapping($other);
+
+    $bank = createBank([
+        'company_id' => $other['company_id'],
+        'branch_id' => $other['branch_id'],
+        'gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $own['company_id'],
+        'is_active' => true,
+    ]);
+
+    grantMenuPermission((int) $role->id, '/bank/:id/edit');
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/banks/'.$bank->id.'/link-coa')
+        ->assertNotFound();
+});
+
+test('banks api link-coa is forbidden without menu permission', function () {
+    $scope = seedBankScope();
+    seedBankCoaMapping($scope);
+
+    $bank = createBank([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $scope['company_id'],
+        'is_active' => true,
+    ]);
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/banks/'.$bank->id.'/link-coa')
+        ->assertForbidden();
 });

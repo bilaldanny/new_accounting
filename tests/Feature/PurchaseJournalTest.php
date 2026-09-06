@@ -1,11 +1,16 @@
 <?php
 
+use App\Models\ChartOfAccount;
 use App\Models\TAccount;
 use App\Models\TAccountDetail;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\AccountCurrentBalance;
+use App\Services\LedgerJournal;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -147,6 +152,100 @@ test('journals sync-documents backfills an existing purchase without a journal',
         supplierCode: $scope['supplier_code'],
         amount: 23000,
     );
+});
+
+test('a zero-amount purchase is rejected before posting a journal', function () {
+    $scope = seedPurchaseScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/purchases', validPurchasePayload($scope, [
+        'final_amount' => 0,
+    ]))->assertUnprocessable()
+        ->assertJsonValidationErrors(['final_amount']);
+
+    expect(Transaction::query()->purchases()->where('contact_id', $scope['contact_id'])->exists())->toBeFalse()
+        ->and(TAccount::query()->where('company_id', $scope['company_id'])->exists())->toBeFalse();
+});
+
+test('the ledger rejects a negative journal line before posting', function () {
+    $scope = seedPurchaseScope();
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    $purchaseAccount = ChartOfAccount::query()->where('code', $scope['local_purchase_code'])->firstOrFail();
+
+    expect(function () use ($purchase, $purchaseAccount, $scope) {
+        DB::transaction(function () use ($purchase, $purchaseAccount, $scope) {
+            app(LedgerJournal::class)->post(
+                $purchase,
+                $purchaseAccount,
+                'Purchase against '.$purchase->invoice_no,
+                'PE',
+                [
+                    [
+                        'account' => $purchaseAccount,
+                        'debit' => -50.0,
+                        'credit' => 0.0,
+                        'contact_id' => $scope['contact_id'],
+                    ],
+                ],
+                -50.0,
+                0.0,
+            );
+        });
+    })->toThrow(ValidationException::class, 'Journal lines cannot have a negative debit or credit amount.');
+
+    expect(TAccount::query()->where('transaction_id', $purchase->id)->exists())->toBeFalse();
+});
+
+test('sequential purchases receive distinct voucher numbers and the unique constraint rejects a duplicate', function () {
+    $scope = seedPurchaseScope();
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/purchases', validPurchasePayload($scope, ['final_amount' => 100]))->assertSuccessful();
+    $this->postJson('/api/purchases', validPurchasePayload($scope, ['final_amount' => 150]))->assertSuccessful();
+
+    $vouchers = TAccount::query()
+        ->where('company_id', $scope['company_id'])
+        ->where('branch_id', $scope['branch_id'])
+        ->orderBy('id')
+        ->pluck('voucher_no');
+
+    expect($vouchers->all())->toBe(['PE-00001', 'PE-00002'])
+        ->and($vouchers->unique()->count())->toBe($vouchers->count());
+
+    expect(fn () => TAccount::factory()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'voucher_no' => 'PE-00001',
+    ]))->toThrow(QueryException::class);
+});
+
+test('nextVoucherNo skips numbers already in use and scopes independently per branch', function () {
+    $scope = seedPurchaseScope();
+
+    TAccount::factory()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'voucher_no' => 'PE-00001',
+    ]);
+
+    $ledger = app(LedgerJournal::class);
+
+    expect($ledger->nextVoucherNo((int) $scope['company_id'], (int) $scope['branch_id'], 'PE'))
+        ->toBe('PE-00002');
+
+    $otherBranchId = DB::table('branches')->insertGetId([
+        'code' => 'PURB002',
+        'company_id' => $scope['company_id'],
+        'name' => 'Second Branch',
+        'is_active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect($ledger->nextVoucherNo((int) $scope['company_id'], $otherBranchId, 'PE'))
+        ->toBe('PE-00001');
 });
 
 function assertPurchaseJournal(Transaction $purchase, string $purchaseCode, string $supplierCode, float $amount): void

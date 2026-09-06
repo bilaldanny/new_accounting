@@ -3,6 +3,7 @@
 use App\Models\ChartOfAccountMapping;
 use App\Models\Contact;
 use App\Models\CustomerGroup;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -468,6 +469,105 @@ test('customers api links an existing unlinked customer to chart of account', fu
         'customer_gl_id' => '101-00000',
         'link_account' => 1,
     ]);
+});
+
+test('customers api rejects linking customer when already linked', function () {
+    $scope = seedCustomerScope();
+    seedCustomerCoaMapping($scope);
+
+    $customer = createCustomer([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'customer_gl_id' => '101-00000',
+        'link_account' => true,
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->postJson('/api/customers/'.$customer->id.'/link-coa');
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['customer_gl_id']);
+});
+
+test('customers api rejects linking customer when mapping is missing', function () {
+    $scope = seedCustomerScope();
+
+    $customer = createCustomer([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'Still Unlinked Customer',
+        'customer_gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->postJson('/api/customers/'.$customer->id.'/link-coa');
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['customer_mapping']);
+});
+
+test('customers api link-coa returns not found for a customer outside user scope', function () {
+    $own = seedCustomerScope();
+    $other = seedCustomerScope();
+    seedCustomerCoaMapping($other);
+
+    $customer = createCustomer([
+        'company_id' => $other['company_id'],
+        'branch_id' => $other['branch_id'],
+        'customer_gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $own['company_id'],
+        'is_active' => true,
+    ]);
+
+    grantMenuPermission((int) $role->id, '/customer/:id/edit');
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/customers/'.$customer->id.'/link-coa')
+        ->assertNotFound();
+});
+
+test('customers api link-coa is forbidden without menu permission', function () {
+    $scope = seedCustomerScope();
+    seedCustomerCoaMapping($scope);
+
+    $customer = createCustomer([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'customer_gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $scope['company_id'],
+        'is_active' => true,
+    ]);
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/customers/'.$customer->id.'/link-coa')
+        ->assertForbidden();
 });
 
 test('customers generate-code api returns the next contact code', function () {

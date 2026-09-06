@@ -139,7 +139,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     /* Company */
 
     /* Permission */
-    Route::resource('permissions', PermissionController::class);
+    Route::post('permissions', [PermissionController::class, 'store']);
     Route::get('fetchpermissions', [PermissionController::class, 'fetch']);
     Route::post('permissions/statusupdate', [PermissionController::class, 'updatestatus']);
     /* Permission */

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Branch;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -269,6 +270,9 @@ class BranchController extends Controller
             DB::commit();
 
             return response()->json(['message' => 'Successfully Duplicated']);
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Throwable $e) {
             DB::rollBack();
 

@@ -356,9 +356,14 @@ class CompanyController extends Controller
     {
         $this->authorizeSuperadmin($request);
         $this->authorizeMenuPermission('/company/add');
+        $company = Company::find($request->id);
+
+        if ($company === null) {
+            abort(404);
+        }
+
         DB::beginTransaction();
         try {
-            $company = Company::find($request->id);
             $duplicator = $company->replicate();
             $duplicator->name = $company->name.' Copy';
             $duplicator->code = Company::nextCode();
