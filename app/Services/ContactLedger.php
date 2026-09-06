@@ -83,9 +83,9 @@ class ContactLedger
     private function statementTypes(Contact $contact): array
     {
         return match ($contact->user_type) {
-            'customer' => [Transaction::TYPE_SELL],
+            'customer' => [Transaction::TYPE_SELL, Transaction::TYPE_SELL_RETURN],
             'supplier' => [Transaction::TYPE_PURCHASE, Transaction::TYPE_PURCHASE_RETURN],
-            default => [Transaction::TYPE_PURCHASE, Transaction::TYPE_PURCHASE_RETURN, Transaction::TYPE_SELL],
+            default => [Transaction::TYPE_PURCHASE, Transaction::TYPE_PURCHASE_RETURN, Transaction::TYPE_SELL, Transaction::TYPE_SELL_RETURN],
         };
     }
 
@@ -463,7 +463,7 @@ class ContactLedger
 
             $net += match ($type) {
                 Transaction::TYPE_PURCHASE, Transaction::TYPE_SELL => $amount,
-                Transaction::TYPE_PURCHASE_RETURN => -$amount,
+                Transaction::TYPE_PURCHASE_RETURN, Transaction::TYPE_SELL_RETURN => -$amount,
                 default => 0.0,
             };
         }
@@ -498,7 +498,7 @@ class ContactLedger
     private function documentSides(string $type, float $amount): array
     {
         return match ($type) {
-            Transaction::TYPE_PURCHASE => [null, $amount],
+            Transaction::TYPE_PURCHASE, Transaction::TYPE_SELL_RETURN => [null, $amount],
             Transaction::TYPE_PURCHASE_RETURN, Transaction::TYPE_SELL => [$amount, null],
             default => [null, $amount],
         };
@@ -634,6 +634,7 @@ class ContactLedger
             Transaction::TYPE_PURCHASE => 'Purchase order',
             Transaction::TYPE_PURCHASE_RETURN => 'Purchase return',
             Transaction::TYPE_SELL => 'Sale',
+            Transaction::TYPE_SELL_RETURN => 'Sell return',
             default => Str::headline($type),
         };
     }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { onMounted, ref, watchEffect, computed } from 'vue';
+    import { onMounted, ref, watchEffect, computed, nextTick } from 'vue';
     import TopButtons from '@/components/topButtons.vue';
     import TheFilter from '@/components/theFilter.vue';
     import useCommons from '@/composables/common';
@@ -7,9 +7,12 @@
     import debounce from '@/utils/debounce';
     import useSells from '@/composables/sell';
     import useSellApprovals from '@/composables/sellApproval';
+    import useSellPayments from '@/composables/sellPayment';
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import ShippingModal from './shipping.vue';
+    import AddPaymentModal from './payment/add.vue';
 
     defineOptions({
         layout: {
@@ -36,10 +39,18 @@
         duplicate,
     } = useSells();
     const { approveSell } = useSellApprovals();
+    const {
+        formData: paymentFormData,
+        defaultFormData: defaultPaymentFormData,
+        emptyForm: emptyPaymentForm,
+    } = useSellPayments();
 
-    const {select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
+    const {select_data, getSavedValue, formatedText, handleError, handleSuccess, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
 
     const customersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
+    const paymentForm$ = ref(null);
+    const paymentModalLoading = ref(true);
+    const selectedPaymentSellId = ref('');
 
     const authUser = computed(() => props.auth?.user as {
         rolename?: string;
@@ -71,7 +82,7 @@
         { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'payment_status_label', label: 'Payment', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'formatted_amount', label: 'Total', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate', 'approve', 'issueNote', 'sellPayment']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate', 'approve', 'issueNote', 'sellReturn', 'sellPayment', 'sellInvoice', 'editShipping']},
     ]);
 
     const currentUrl = ref('');
@@ -208,6 +219,96 @@
         }
     }
 
+    const shippingModal = ref<{ open: (id: number) => void } | null>(null);
+
+    function editShipping(id: number) {
+        shippingModal.value?.open(id);
+    }
+
+    function showModal(id: string) {
+        const el = document.getElementById(id);
+
+        if (! el) {
+            return;
+        }
+
+        (window as any).bootstrap?.Modal.getOrCreateInstance(el)?.show();
+    }
+
+    async function addSellPayment(id: number) {
+        selectedPaymentSellId.value = String(id);
+        await nextTick();
+        showModal('AddSellPaymentModal');
+    }
+
+    async function openAddPaymentModal() {
+        paymentModalLoading.value = true;
+        paymentForm$.value?.reset();
+
+        const sellId = selectedPaymentSellId.value;
+        let sellPatch: Record<string, unknown> = {};
+
+        if (sellId) {
+            try {
+                const response = await window.axios.get(API_ENDPOINTS.sellPaymentSell(sellId));
+                const sell = response.data ?? {};
+                const remaining = sell.remaining_amount ?? 0;
+
+                sellPatch = {
+                    company_id: sell.company_id ?? '',
+                    branch_id: sell.branch_id ?? '',
+                    contact_id: sell.contact_id ?? '',
+                    transaction_id: sell.id ?? Number(sellId),
+                    invoice_no: sell.invoice_no ?? '',
+                    customer_name: sell.customer_name ?? '',
+                    business_name: sell.business_name ?? '',
+                    branch_name: sell.branch_name ?? '',
+                    final_amount: sell.final_amount ?? '',
+                    remaining_amount: remaining,
+                    amount: remaining,
+                };
+            } catch {
+                sellPatch = { transaction_id: Number(sellId) || sellId };
+            }
+        }
+
+        paymentFormData.value = {
+            ...emptyPaymentForm(),
+            ...defaultPaymentFormData.value,
+            ...(isSuperadmin.value
+                ? {}
+                : isCompanyadmin.value
+                    ? { company_id: authUser.value?.company_id ?? '' }
+                    : {
+                        company_id: authUser.value?.company_id ?? '',
+                        branch_id: authUser.value?.branch_id ?? '',
+                    }),
+            ...sellPatch,
+        };
+
+        if (showCompanyFilter.value) {
+            await fetchCompany();
+        }
+
+        const companyId = paymentFormData.value.company_id || (isCompanyadmin.value ? authUser.value?.company_id : null);
+
+        if (companyId) {
+            await fetchBranch(companyId);
+        }
+
+        paymentModalLoading.value = false;
+    }
+
+    function handleAddPaymentModalClose() {
+        paymentModalLoading.value = true;
+        selectedPaymentSellId.value = '';
+    }
+
+    function handlePaymentSuccess(response: unknown) {
+        handleSuccess(response, paymentForm$);
+        getData();
+    }
+
     const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.sells, () => state);
 
     const filterOpen = ref(false);
@@ -324,6 +425,8 @@
                         :delete="deleteRecord"
                         :duplicate="duplicate"
                         :approve="handleApprove"
+                        :edit-shipping="editShipping"
+                        :add-sell-payment="addSellPayment"
                         :view-route="(id) => `/sell/${id}/view`"
                         actionType="link"
                         :apiUrl="props.routeName?.split('.')[0]"
@@ -336,5 +439,19 @@
                 </div>
             </div>
         </div>
+        <ShippingModal ref="shippingModal" @saved="getData" />
+
+        <AddPaymentModal
+            modal-id="AddSellPaymentModal"
+            title="Add Sell Payment"
+            :showLoader="paymentModalLoading"
+            :formData="paymentFormData"
+            :formRef="paymentForm$"
+            :endpoint="API_ENDPOINTS.sellPayments"
+            :onOpen="openAddPaymentModal"
+            :onClose="handleAddPaymentModalClose"
+            :success="handlePaymentSuccess"
+            :error="(error, details) => handleError(error, details, paymentForm$)"
+        />
     </div>
 </template>

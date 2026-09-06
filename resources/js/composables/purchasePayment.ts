@@ -20,7 +20,7 @@ export default function usePurchasePayments(){
       paid_on: new Date().toISOString().slice(0, 10),
       method: 'cash',
       payment_account: '',
-      document: '',
+      attachment: '',
       file_name: '',
       card_number: '',
       card_holder_name: '',
@@ -98,10 +98,14 @@ export default function usePurchasePayments(){
 
         try {
             const response = await fetchWithRetry(window.axios.get, `${API_ENDPOINTS.purchasePayments}/${id}`);
+            const payload = response.data ?? {};
+            const { document, ...rest } = payload;
+
             formData.value = {
                 ...emptyForm(),
-                ...response.data,
-                paid_on: String(response.data?.paid_on ?? '').slice(0, 10),
+                ...rest,
+                paid_on: String(payload?.paid_on ?? '').slice(0, 10),
+                attachment: rest.attachment || document || '',
             };
         } catch (error: unknown) {
             if (window.axios.isAxiosError(error)) {

@@ -203,6 +203,31 @@
         form$.value?.reset();
         const params = new URLSearchParams(window.location.search);
         const transactionId = params.get('transaction_id') ?? '';
+        let purchasePatch: Record<string, unknown> = {};
+
+        if (transactionId) {
+            try {
+                const response = await window.axios.get(API_ENDPOINTS.purchasePaymentPurchase(transactionId));
+                const purchase = response.data ?? {};
+                const remaining = purchase.remaining_amount ?? 0;
+
+                purchasePatch = {
+                    company_id: purchase.company_id ?? '',
+                    branch_id: purchase.branch_id ?? '',
+                    contact_id: purchase.contact_id ?? '',
+                    transaction_id: purchase.id ?? Number(transactionId),
+                    invoice_no: purchase.invoice_no ?? '',
+                    supplier_name: purchase.supplier_name ?? '',
+                    business_name: purchase.business_name ?? '',
+                    branch_name: purchase.branch_name ?? '',
+                    final_amount: purchase.final_amount ?? '',
+                    remaining_amount: remaining,
+                    amount: remaining,
+                };
+            } catch {
+                purchasePatch = { transaction_id: Number(transactionId) || transactionId };
+            }
+        }
 
         formData.value = {
             ...emptyForm(),
@@ -215,15 +240,17 @@
                         company_id: authUser.value?.company_id ?? '',
                         branch_id: authUser.value?.branch_id ?? '',
                     }),
-            ...(transactionId ? { transaction_id: transactionId } : {}),
+            ...purchasePatch,
         };
 
         if (showCompanyFilter.value) {
             await fetchCompany();
         }
 
-        if (isCompanyadmin.value && authUser.value?.company_id) {
-            await fetchBranch(authUser.value.company_id);
+        const companyId = formData.value.company_id || (isCompanyadmin.value ? authUser.value?.company_id : null);
+
+        if (companyId) {
+            await fetchBranch(companyId);
         }
 
         state.modalLoading = false;
@@ -353,6 +380,7 @@
     </div>
 
     <AddModal
+        title="Add Purchase Payment"
         :showLoader="state.modalLoading"
         :formData="formData"
         :formRef="form$"
@@ -364,6 +392,7 @@
     />
 
     <EditModal
+        title="Edit Purchase Payment"
         :showLoader="state.modalLoading"
         :formData="formData"
         :formRef="form$"

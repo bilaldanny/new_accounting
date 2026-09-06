@@ -130,3 +130,61 @@ test('sells api updates line items and can soft delete a sell', function () {
     expect(Transaction::query()->find($sell->id))->toBeNull()
         ->and(Transaction::onlyTrashed()->find($sell->id))->not->toBeNull();
 });
+
+test('sells index can filter drafts and shipments with shipping status', function () {
+    $scope = seedSellScope();
+    createSellRecord($scope, ['invoice_no' => 'INV-DRAFT', 'status' => 'draft', 'shipping_status' => null]);
+    createSellRecord($scope, ['invoice_no' => 'INV-SHIP', 'status' => 'issue', 'shipping_status' => 'packed']);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $drafts = $this->getJson('/api/sells?status=draft');
+    $drafts->assertSuccessful();
+    expect(collect($drafts->json('data.data'))->pluck('invoice_no')->all())->toContain('INV-DRAFT')
+        ->and(collect($drafts->json('data.data'))->pluck('invoice_no')->all())->not->toContain('INV-SHIP');
+
+    $shipments = $this->getJson('/api/sells?order_status=notnull');
+    $shipments->assertSuccessful();
+    expect(collect($shipments->json('data.data'))->pluck('invoice_no')->all())->toContain('INV-SHIP')
+        ->and($shipments->json('data.data.0.shipping_status_label'))->toBe('Packed');
+});
+
+test('sells shipping update does not require line items', function () {
+    $scope = seedSellScope();
+    $sell = createSellRecord($scope, ['status' => 'issue', 'shipping_status' => 'ordered']);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->putJson('/api/sells/'.$sell->id.'/shipping', [
+        'shipping_details' => 'Leave at gate',
+        'shipping_address' => 'Warehouse 2',
+        'shipping_status' => 'shipped',
+        'delivered_to' => 'Ali',
+        'shipping_note' => 'Handle with care',
+    ])->assertSuccessful();
+
+    $sell->refresh();
+
+    expect($sell->shipping_details)->toBe('Leave at gate')
+        ->and($sell->shipping_address)->toBe('Warehouse 2')
+        ->and($sell->shipping_status)->toBe('shipped')
+        ->and($sell->delivered_to)->toBe('Ali')
+        ->and($sell->shipping_note)->toBe('Handle with care');
+});
+
+test('sells show includes invoice totals paid and previous balance', function () {
+    $scope = seedSellScope();
+    createSellRecord($scope, ['invoice_no' => 'INV-OLD', 'final_amount' => 80, 'payment_status' => 'due']);
+    $sell = createSellRecord($scope, ['invoice_no' => 'INV-NEW', 'final_amount' => 120, 'payment_status' => 'due']);
+
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $response = $this->getJson('/api/sells/'.$sell->id);
+
+    $response->assertSuccessful();
+    expect((float) $response->json('previous_balance'))->toBe(80.0)
+        ->and((float) $response->json('paid'))->toBe(0.0)
+        ->and((float) $response->json('bill_total'))->toBe(120.0);
+});

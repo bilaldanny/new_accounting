@@ -65,3 +65,34 @@ test('authenticated users can open the sell trash page', function () {
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page->component('sell/trash'));
 });
+
+test('authenticated users can open sell draft quotation shipment pos and invoice pages', function () {
+    $superadmin = User::query()->findOrFail(1);
+
+    $this->actingAs($superadmin)
+        ->get(route('sell.draft'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('sell/draft'));
+
+    $this->actingAs($superadmin)
+        ->get(route('sell.quotation'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('sell/quotation'));
+
+    $this->actingAs($superadmin)
+        ->get(route('sell.shipment'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('sell/shipment'));
+
+    $this->actingAs($superadmin)
+        ->get(route('sell.pos.add'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('sell/addpos'));
+
+    $this->actingAs($superadmin)
+        ->get(route('sell.invoice', 12))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page
+            ->component('sell/invoice')
+            ->where('id', '12'));
+});

@@ -32,6 +32,7 @@ class SellPaymentController extends Controller
             'method' => 'bail|required|in:'.implode(',', Payment::METHODS),
             'payment_account' => 'bail|required|integer|exists:chart_of_accounts,id',
             'document' => 'nullable',
+            'attachment' => 'nullable',
             'note' => 'nullable|string',
             'card_number' => 'required_if:method,card|nullable|string|max:255',
             'card_holder_name' => 'required_if:method,card|nullable|string|max:255',

@@ -1,26 +1,24 @@
 <script setup lang="ts">
-    import { onMounted, ref, watchEffect, computed, nextTick } from 'vue';
+    import { onMounted, ref, watchEffect, computed } from 'vue';
     import TopButtons from '@/components/topButtons.vue';
     import TheFilter from '@/components/theFilter.vue';
     import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
     import debounce from '@/utils/debounce';
-    import usePurchases from '@/composables/purchase';
-    import usePurchaseApprovals from '@/composables/purchaseApproval';
-    import usePurchasePayments from '@/composables/purchasePayment';
+    import useSells from '@/composables/sell';
+    import useSellApprovals from '@/composables/sellApproval';
     import TheTable from '@/components/theTable.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
-    import AddPaymentModal from './payment/add.vue';
-    import ViewPaymentModal from './payment/view.vue';
+    import ShippingModal from './shipping.vue';
 
     defineOptions({
         layout: {
-            title: 'Purchase Management',
-            subtitle: 'Track supplier purchases, status, and amounts',
+            title: 'Shipments',
+            subtitle: 'Track order shipping status for customer invoices',
             breadcrumbs: [
                 {
-                    title: 'Purchase Management',
+                    title: 'Shipments',
                     href: 'NULL',
                 },
             ],
@@ -31,23 +29,18 @@
 
     const {
         state,
-        getPurchases,
+        getSells,
         changeStatus,
         deleteRecord,
         changeOrder,
         checkAll,
         duplicate,
-    } = usePurchases();
-    const { approvePurchase } = usePurchaseApprovals();
-    const {
-        formData: paymentFormData,
-        defaultFormData: defaultPaymentFormData,
-        emptyForm: emptyPaymentForm,
-    } = usePurchasePayments();
+    } = useSells();
+    const { approveSell } = useSellApprovals();
 
-    const {select_data, getSavedValue, formatedText, handleError, handleSuccess, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
+    const {select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
 
-    const suppliersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
+    const customersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
 
     const authUser = computed(() => props.auth?.user as {
         rolename?: string;
@@ -74,12 +67,12 @@
             { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         ] : []),
         { key: 'transaction_date_label', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'invoice_no', label: 'Ref No', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
-        { key: 'supplier_name', label: 'Supplier', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'invoice_no', label: 'Invoice No', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
+        { key: 'customer_name', label: 'Customer', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'shipping_status_label', label: 'Order Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'payment_status_label', label: 'Payment', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'formatted_amount', label: 'Total', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate', 'approve', 'receivingNote', 'return', 'purchasePayment']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'sellInvoice', 'editShipping']},
     ]);
 
     const currentUrl = ref('');
@@ -115,8 +108,8 @@
         })
     })
 
-    const debouncedGetPurchases = debounce((params) => {
-        getPurchases(params);
+    const debouncedGetSells = debounce((params) => {
+        getSells(params);
     }, 300);
 
     const getData = async () => {
@@ -126,30 +119,30 @@
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
-            await debouncedGetPurchases({ ...state.search });
+            await debouncedGetSells({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching purchases:', error);
+            console.error('Error fetching sells:', error);
         }
     };
 
-    async function loadSuppliers(companyId: string | number | null | undefined, branchId: string | number | null | undefined) {
+    async function loadCustomers(companyId: string | number | null | undefined, branchId: string | number | null | undefined) {
         if (! companyId || ! branchId) {
-            suppliersdata.value = [];
+            customersdata.value = [];
 
             return;
         }
 
         try {
-            const response = await window.axios.get(API_ENDPOINTS.fetchSuppliers, {
+            const response = await window.axios.get(API_ENDPOINTS.fetchCustomers, {
                 params: { company_id: companyId, branch_id: branchId },
             });
-            suppliersdata.value = response.data ?? [];
+            customersdata.value = response.data ?? [];
         } catch {
-            suppliersdata.value = [];
+            customersdata.value = [];
         }
     }
 
@@ -157,17 +150,25 @@
         state.search.branch_id = '';
         state.search.contact_id = '';
         await fetchBranch(companyId);
-        suppliersdata.value = [];
+        customersdata.value = [];
     }
 
     async function handleBranchFilterChange() {
         state.search.contact_id = '';
-        await loadSuppliers(state.search.company_id, state.search.branch_id);
+        await loadCustomers(state.search.company_id, state.search.branch_id);
+    }
+
+    const shippingModal = ref<{ open: (id: number) => void } | null>(null);
+
+    function editShipping(id: number) {
+        shippingModal.value?.open(id);
     }
 
     onMounted(async () => {
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
+
+        state.search.order_status = 'notnull';
 
         if (showCompanyFilter.value) {
             await fetchCompany();
@@ -178,7 +179,7 @@
         }
 
         if (state.search.company_id && state.search.branch_id) {
-            await loadSuppliers(state.search.company_id, state.search.branch_id);
+            await loadCustomers(state.search.company_id, state.search.branch_id);
         }
 
         if(oldcurrentUrl.value === props.routeName){
@@ -196,12 +197,14 @@
             });
         }
 
+        state.search.order_status = 'notnull';
+
         currentPage.value = state.search.page;
         currentSearch.value = state.search.search;
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetPurchases({ ...state.search });
+        debouncedGetSells({ ...state.search });
     });
 
     function onStateUpdate(newState) {
@@ -209,107 +212,14 @@
     }
 
     async function handleApprove(id: number) {
-        const approved = await approvePurchase(id);
+        const approved = await approveSell(id);
 
         if (approved) {
             getData();
         }
     }
 
-    const paymentForm$ = ref(null);
-    const paymentModalLoading = ref(true);
-    const selectedPaymentPurchaseId = ref('');
-    const viewPaymentModal = ref<{ open: (id: number) => void } | null>(null);
-
-    function showModal(id: string) {
-        const el = document.getElementById(id);
-
-        if (! el) {
-            return;
-        }
-
-        (window as any).bootstrap?.Modal.getOrCreateInstance(el)?.show();
-    }
-
-    async function addPurchasePayment(id: number) {
-        selectedPaymentPurchaseId.value = String(id);
-        await nextTick();
-        showModal('AddPurchasePaymentModal');
-    }
-
-    function viewPurchasePayment(id: number) {
-        viewPaymentModal.value?.open(id);
-    }
-
-    async function openAddPaymentModal() {
-        paymentModalLoading.value = true;
-        paymentForm$.value?.reset();
-
-        const purchaseId = selectedPaymentPurchaseId.value;
-        let purchasePatch: Record<string, unknown> = {};
-
-        if (purchaseId) {
-            try {
-                const response = await window.axios.get(API_ENDPOINTS.purchasePaymentPurchase(purchaseId));
-                const purchase = response.data ?? {};
-                const remaining = purchase.remaining_amount ?? 0;
-
-                purchasePatch = {
-                    company_id: purchase.company_id ?? '',
-                    branch_id: purchase.branch_id ?? '',
-                    contact_id: purchase.contact_id ?? '',
-                    transaction_id: purchase.id ?? Number(purchaseId),
-                    invoice_no: purchase.invoice_no ?? '',
-                    supplier_name: purchase.supplier_name ?? '',
-                    business_name: purchase.business_name ?? '',
-                    branch_name: purchase.branch_name ?? '',
-                    final_amount: purchase.final_amount ?? '',
-                    remaining_amount: remaining,
-                    amount: remaining,
-                };
-            } catch {
-                purchasePatch = { transaction_id: Number(purchaseId) || purchaseId };
-            }
-        }
-
-        paymentFormData.value = {
-            ...emptyPaymentForm(),
-            ...defaultPaymentFormData.value,
-            ...(isSuperadmin.value
-                ? {}
-                : isCompanyadmin.value
-                    ? { company_id: authUser.value?.company_id ?? '' }
-                    : {
-                        company_id: authUser.value?.company_id ?? '',
-                        branch_id: authUser.value?.branch_id ?? '',
-                    }),
-            ...purchasePatch,
-        };
-
-        if (showCompanyFilter.value) {
-            await fetchCompany();
-        }
-
-        const companyId = paymentFormData.value.company_id || (isCompanyadmin.value ? authUser.value?.company_id : null);
-
-        if (companyId) {
-            await fetchBranch(companyId);
-        }
-
-        paymentModalLoading.value = false;
-    }
-
-    function handleAddPaymentModalClose() {
-        paymentModalLoading.value = true;
-        selectedPaymentPurchaseId.value = '';
-    }
-
-    function handlePaymentSuccess(response: unknown) {
-        handleSuccess(response, paymentForm$);
-        getData();
-    }
-
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.purchases, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.sells, () => state);
 
     const filterOpen = ref(false);
 
@@ -322,6 +232,8 @@
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
         state.search.contact_id = '';
+        state.search.transaction_date = '';
+        state.search.order_status = 'notnull';
         getData();
     }
 
@@ -340,7 +252,7 @@
                     :changeStatus="changeStatus"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
-                    add-href="/purchase/add"
+                    :show-add="false"
                     :show-filter="showFilter"
                     :show-import="false"
                     @toggle-filter="filterOpen = !filterOpen"
@@ -349,9 +261,9 @@
 
             <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="purchase-filter-company">Company</label>
+                    <label class="form-label" for="sell-filter-company">Company</label>
                     <select
-                        id="purchase-filter-company"
+                        id="sell-filter-company"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -363,9 +275,9 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="purchase-filter-branch">Branch</label>
+                    <label class="form-label" for="sell-filter-branch">Branch</label>
                     <select
-                        id="purchase-filter-branch"
+                        id="sell-filter-branch"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
@@ -378,31 +290,30 @@
                     </select>
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="purchase-filter-supplier">Supplier</label>
+                    <label class="form-label" for="sell-filter-customer">Customer</label>
                     <select
-                        id="purchase-filter-supplier"
+                        id="sell-filter-customer"
                         class="form-select form-select-sm"
                         v-model="state.search.contact_id"
                     >
                         <option value="">All</option>
-                        <option v-for="supplier in suppliersdata" :key="supplier.id" :value="supplier.id">
-                            {{ supplier.text ?? supplier.business_name }}
+                        <option v-for="customer in customersdata" :key="customer.id" :value="customer.id">
+                            {{ customer.text ?? customer.business_name }}
                         </option>
                     </select>
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="purchase-filter-status">Purchase status</label>
-                    <select id="purchase-filter-status" class="form-select form-select-sm" v-model="state.search.status">
-                        <option value="all">All</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="ordered">Ordered</option>
-                        <option value="received">Received</option>
-                    </select>
+                    <label class="form-label" for="sell-filter-date">Date</label>
+                    <input
+                        id="sell-filter-date"
+                        type="date"
+                        class="form-control form-control-sm"
+                        v-model="state.search.transaction_date"
+                    >
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="purchase-filter-payment">Payment status</label>
-                    <select id="purchase-filter-payment" class="form-select form-select-sm" v-model="state.search.payment_status">
+                    <label class="form-label" for="sell-filter-payment">Payment status</label>
+                    <select id="sell-filter-payment" class="form-select form-select-sm" v-model="state.search.payment_status">
                         <option value="all">All</option>
                         <option value="due">Due</option>
                         <option value="partial">Partial</option>
@@ -424,9 +335,8 @@
                         :delete="deleteRecord"
                         :duplicate="duplicate"
                         :approve="handleApprove"
-                        :add-purchase-payment="addPurchasePayment"
-                        :view-purchase-payment="viewPurchasePayment"
-                        :view-route="(id) => `/purchase/${id}/view`"
+                        :edit-shipping="editShipping"
+                        :view-route="(id) => `/sell/${id}/view`"
                         actionType="link"
                         :apiUrl="props.routeName?.split('.')[0]"
                         show-export
@@ -438,20 +348,6 @@
                 </div>
             </div>
         </div>
+        <ShippingModal ref="shippingModal" @saved="getData" />
     </div>
-
-    <AddPaymentModal
-        modal-id="AddPurchasePaymentModal"
-        title="Add Purchase Payment"
-        :showLoader="paymentModalLoading"
-        :formData="paymentFormData"
-        :formRef="paymentForm$"
-        :endpoint="API_ENDPOINTS.purchasePayments"
-        :onOpen="openAddPaymentModal"
-        :onClose="handleAddPaymentModalClose"
-        :success="handlePaymentSuccess"
-        :error="(error, details) => handleError(error, details, paymentForm$)"
-    />
-
-    <ViewPaymentModal ref="viewPaymentModal" />
 </template>

@@ -104,6 +104,8 @@ export default function useSells(){
         company_id: '',
         branch_id: '',
         contact_id: '',
+        transaction_date: '',
+        order_status: 'all',
       },
       loading: false,
       modalLoading: true,

@@ -3,25 +3,31 @@
     import ModalComponent from '@/components/ModalComponent.vue';
     import { usePage } from '@inertiajs/vue3';
     import TheForm from '@/components/theForm.vue';
-    import { ref, watch } from 'vue';
+    import { computed, ref, watch } from 'vue';
     import Fields from './Fields.vue';
 
-    const {props} = usePage();
+    const { props } = usePage();
 
     const modalProps = defineProps({
-        showLoader:{type: Boolean,default:false},
-        formData:{type: Object},
-        formRef:{type: Object},
-        endpoint:{type: String},
-        onOpen:{type: Function},
-        onClose:{type: Function},
-        onSubmit:{type: Function},
-        success:{type: Function},
-        error:{type: Function},
+        showLoader: { type: Boolean, default: false },
+        formData: { type: Object },
+        formRef: { type: Object },
+        endpoint: { type: String },
+        title: { type: String, default: '' },
+        modalId: { type: String, default: 'AddModal' },
+        onOpen: { type: Function },
+        onClose: { type: Function },
+        onSubmit: { type: Function },
+        success: { type: Function },
+        error: { type: Function },
     });
 
-    const formRef = ref(null)
-    const isSaving = ref(false)
+    const formRef = ref(null);
+    const isSaving = ref(false);
+
+    const modalTitle = computed(() =>
+        modalProps.title || `Add ${props.routeName}`,
+    );
 
     watch(() => modalProps.showLoader, (loading) => {
         if (loading) {
@@ -36,20 +42,20 @@
     });
 
     function reset() {
-        if(formRef.value){
-            formRef.value.reset()
+        if (formRef.value) {
+            formRef.value.reset();
         }
     }
 
     defineExpose({
-    reset,
-    })
+        reset,
+    });
 </script>
 
 <template>
     <ModalComponent
-        id="AddModal"
-        :title="`Add ${props.routeName}`"
+        :id="modalProps.modalId"
+        :title="modalTitle"
         :onOpen="modalProps.onOpen"
         :onClose="modalProps.onClose"
         size="xl"

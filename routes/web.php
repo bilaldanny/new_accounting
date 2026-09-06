@@ -340,6 +340,46 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('sell/payment/index');
     })->name('sell.payment');
 
+    Route::get('sell/return', function () {
+        return Inertia::render('sell/return/index');
+    })->name('sell.return');
+
+    Route::get('sell/return/add', function () {
+        return Inertia::render('sell/return/add');
+    })->name('sell.return.add');
+
+    Route::get('sell/return/trash', function () {
+        return Inertia::render('sell/return/trash');
+    })->name('sell.return.trash');
+
+    Route::get('sell/return/{id}/edit', function ($id) {
+        return Inertia::render('sell/return/edit', ['id' => $id]);
+    })->name('sell.return.edit');
+
+    Route::get('sell/return/{id}/view', function ($id) {
+        return Inertia::render('sell/return/view', ['id' => $id]);
+    })->name('sell.return.view');
+
+    Route::get('sell/draft', function () {
+        return Inertia::render('sell/draft');
+    })->name('sell.draft');
+
+    Route::get('sell/quotation', function () {
+        return Inertia::render('sell/quotation');
+    })->name('sell.quotation');
+
+    Route::get('sell/shipment', function () {
+        return Inertia::render('sell/shipment');
+    })->name('sell.shipment');
+
+    Route::get('sell/pos/add', function () {
+        return Inertia::render('sell/addpos');
+    })->name('sell.pos.add');
+
+    Route::get('sell/{id}/invoice', function ($id) {
+        return Inertia::render('sell/invoice', ['id' => $id]);
+    })->name('sell.invoice');
+
     Route::get('sell/{id}/edit', function ($id) {
         return Inertia::render('sell/edit', ['id' => $id]);
     })->name('sell.edit');

@@ -222,7 +222,7 @@ class Payment extends Model
         $transaction->paid_amount = $paid;
         $transaction->save();
 
-        if (! in_array($transaction->type, [Transaction::TYPE_PURCHASE_RETURN], true)) {
+        if (! in_array($transaction->type, [Transaction::TYPE_PURCHASE_RETURN, Transaction::TYPE_SELL_RETURN], true)) {
             Transaction::query()
                 ->where('parent_id', $transaction->id)
                 ->get()
@@ -263,11 +263,17 @@ class Payment extends Model
 
     public static function storeDocument(object $request, ?string $existing = null): ?string
     {
-        if (is_object($request) && method_exists($request, 'hasFile') && $request->hasFile('document') && $request->file('document') instanceof UploadedFile) {
-            return self::saveDocumentFile($request->file('document'));
+        if (is_object($request) && method_exists($request, 'hasFile')) {
+            if ($request->hasFile('attachment') && $request->file('attachment') instanceof UploadedFile) {
+                return self::saveDocumentFile($request->file('attachment'));
+            }
+
+            if ($request->hasFile('document') && $request->file('document') instanceof UploadedFile) {
+                return self::saveDocumentFile($request->file('document'));
+            }
         }
 
-        $document = $request->document ?? null;
+        $document = $request->attachment ?? $request->document ?? null;
 
         if (is_string($document) && str_starts_with($document, 'data:')) {
             return self::saveDocumentFromBase64($document);
@@ -578,7 +584,10 @@ class Payment extends Model
             : 0;
         $contactName = $this->contact?->business_name ?? $this->contact?->first_name;
 
-        return array_merge($this->toArray(), [
+        $data = $this->toArray();
+        unset($data['document']);
+
+        return array_merge($data, [
             'company_name' => $this->company?->name,
             'branch_name' => $this->branch?->name,
             'supplier_name' => $contactName,
@@ -586,6 +595,7 @@ class Payment extends Model
             'invoice_no' => $transaction?->invoice_no,
             'final_amount' => $transaction?->final_amount,
             'remaining_amount' => $remaining,
+            'attachment' => $this->document,
             'document_url' => self::imageUrl($this->document),
         ]);
     }

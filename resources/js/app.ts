@@ -18,8 +18,8 @@ import axios from 'axios';
 
 const VueformSsrStub = defineComponent({
     inheritAttrs: false,
-    setup(_, { slots, attrs }) {
-        return () => h('div', { ...attrs, 'data-vueform-ssr': '' }, slots.default?.());
+    setup(_, { attrs }) {
+        return () => h('div', { ...attrs, 'data-vueform-ssr': '' });
     },
 });
 
