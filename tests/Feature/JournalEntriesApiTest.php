@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Role;
 use App\Models\TAccount;
 use App\Models\TAccountDetail;
 use App\Models\User;
@@ -215,4 +216,79 @@ test('journal entries voucher number endpoint returns the next jv number', funct
     $this->getJson('/api/journal-entries/voucher-no?company_id='.$scope['company_id'].'&branch_id='.$scope['branch_id'].'&type=JV')
         ->assertSuccessful()
         ->assertSee('JV-');
+});
+
+test('journal entries duplicate creates a fresh pending voucher with copied lines', function () {
+    $scope = seedJournalScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/journal-entries', validJournalPayload($scope))->assertSuccessful();
+
+    $original = TAccount::query()->manualJournals()->firstOrFail();
+    $original->update(['status' => 'approved']);
+
+    $this->postJson('/api/journal-entries/duplicate', ['id' => $original->id])
+        ->assertSuccessful()
+        ->assertJsonPath('message', 'Successfully Duplicated');
+
+    $journals = TAccount::query()->manualJournals()->orderBy('id')->get();
+
+    expect($journals)->toHaveCount(2);
+
+    $duplicate = $journals->last();
+
+    expect($duplicate->id)->not->toBe($original->id)
+        ->and($duplicate->voucher_no)->not->toBe($original->voucher_no)
+        ->and($duplicate->voucher_no)->toStartWith('JV-')
+        ->and($duplicate->status)->toBe('pending')
+        ->and($duplicate->approved_by)->toBeNull()
+        ->and($duplicate->approved_at)->toBeNull()
+        ->and($duplicate->transaction_id)->toBeNull()
+        ->and((float) $duplicate->total_amount)->toBe((float) $original->total_amount)
+        ->and($duplicate->comments)->toBe($original->comments);
+
+    $originalLines = TAccountDetail::query()->where('t_account_id', $original->id)->orderBy('id')->get();
+    $duplicateLines = TAccountDetail::query()->where('t_account_id', $duplicate->id)->orderBy('id')->get();
+
+    expect($duplicateLines)->toHaveCount($originalLines->count());
+
+    foreach ($originalLines->values() as $index => $line) {
+        expect((float) $duplicateLines[$index]->debit)->toBe((float) $line->debit)
+            ->and((float) $duplicateLines[$index]->credit)->toBe((float) $line->credit)
+            ->and($duplicateLines[$index]->account_code)->toBe($line->account_code);
+    }
+});
+
+test('journal entries duplicate returns not found for a nonexistent voucher', function () {
+    seedJournalScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/journal-entries/duplicate', ['id' => 999999])
+        ->assertNotFound();
+});
+
+test('journal entries duplicate is forbidden without menu permission', function () {
+    $scope = seedJournalScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/journal-entries', validJournalPayload($scope))->assertSuccessful();
+    $original = TAccount::query()->manualJournals()->firstOrFail();
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $scope['company_id'],
+        'is_active' => true,
+    ]);
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/journal-entries/duplicate', ['id' => $original->id])
+        ->assertForbidden();
+
+    expect(TAccount::query()->manualJournals()->count())->toBe(1);
 });

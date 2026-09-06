@@ -5,47 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Menu;
 use App\Models\Permission;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class PermissionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-
-     *
-
-     * @return Response
-     */
-    public function index()
-    {
-
-        //
-
-    }
-
-    /**
-     * Show the form for creating a new resource.
-
-     *
-
-     * @return Response
-     */
-    public function create()
-    {
-
-        //
-
-    }
-
-    /**
-     * Store a newly created resource in storage.
-
-     *
-
-     * @return Response
-     */
     public function store(Request $request)
     {
         $this->authorizeMenuPermission('/role/:id/permission');
@@ -245,62 +209,6 @@ class PermissionController extends Controller
         forgetUserPermissionsCache((int) $request->get('role_id'));
 
         return response()->json(['message' => 'Successfully Saved']);
-
-    }
-
-    /**
-     * Display the specified resource.
-
-     *
-
-     * @return Response
-     */
-    public function show(Permission $permission)
-    {
-
-        //
-
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-
-     *
-
-     * @return Response
-     */
-    public function edit(Permission $permission)
-    {
-
-        //
-
-    }
-
-    /**
-     * Update the specified resource in storage.
-
-     *
-
-     * @return Response
-     */
-    public function update(Request $request, Permission $permission)
-    {
-
-        //
-
-    }
-
-    /**
-     * Remove the specified resource from storage.
-
-     *
-
-     * @return Response
-     */
-    public function destroy(Permission $permission)
-    {
-
-        //
 
     }
 

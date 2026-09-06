@@ -2,6 +2,7 @@
 
 use App\Models\ChartOfAccountMapping;
 use App\Models\Contact;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -574,6 +575,65 @@ test('suppliers api rejects linking supplier when mapping is missing', function 
 
     $response->assertUnprocessable()
         ->assertJsonValidationErrors(['supplier_mapping']);
+});
+
+test('suppliers api link-coa returns not found for a supplier outside user scope', function () {
+    $own = seedSupplierScope();
+    $other = seedSupplierScope();
+    seedSupplierCoaMapping($other);
+
+    $supplier = createSupplier([
+        'company_id' => $other['company_id'],
+        'branch_id' => $other['branch_id'],
+        'supplier_gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $own['company_id'],
+        'is_active' => true,
+    ]);
+
+    grantMenuPermission((int) $role->id, '/supplier/:id/edit');
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $own['company_id'],
+        'branch_id' => $own['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/suppliers/'.$supplier->id.'/link-coa')
+        ->assertNotFound();
+});
+
+test('suppliers api link-coa is forbidden without menu permission', function () {
+    $scope = seedSupplierScope();
+    seedSupplierCoaMapping($scope);
+
+    $supplier = createSupplier([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'supplier_gl_id' => null,
+        'link_account' => false,
+    ]);
+
+    $role = Role::query()->create([
+        'name' => 'companyadmin',
+        'company_id' => $scope['company_id'],
+        'is_active' => true,
+    ]);
+
+    $user = createStaffUserForRole($role, [
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/suppliers/'.$supplier->id.'/link-coa')
+        ->assertForbidden();
 });
 
 test('suppliers api accepts optional contact id and date of birth', function () {
