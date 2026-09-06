@@ -1,11 +1,11 @@
 <script setup lang="ts">
+    import { Head, router, usePage } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import TheForm from '@/components/theForm.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import usePayments from '@/composables/payment';
-    import { Head, router, usePage } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
     import Fields from './Fields.vue';
 
     defineOptions({
@@ -15,7 +15,7 @@
             breadcrumbs: [
                 {
                     title: 'Payment',
-                    href: '/payment',
+                    href: '/acpayment',
                 },
                 {
                     title: 'Add Payment',
@@ -103,7 +103,7 @@
         }
 
         isLeaving.value = true;
-        await router.visit('/payment');
+        await router.visit('/acpayment');
 
         return response;
     }
@@ -149,7 +149,7 @@
                         type="button"
                         class="btn btn-light"
                         :disabled="isBusy"
-                        @click="router.visit('/payment')"
+                        @click="router.visit('/acpayment')"
                     >
                         Cancel
                     </button>

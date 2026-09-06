@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use App\Models\TAccount;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -226,6 +227,80 @@ test('sell payments api does not list purchase payments', function () {
     $response->assertSuccessful();
     expect($response->json('data.data'))->toHaveCount(1)
         ->and($response->json('data.data.0.invoice_no'))->toBe('INV-ONLY');
+});
+
+test('sell payments api posts a balanced ledger voucher debiting cash and crediting the customer', function () {
+    $scope = seedSellPaymentAccount(seedSellScope());
+    $sell = createSellRecord($scope, ['final_amount' => 100]);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/sell-payments', validSellPaymentPayload($scope, $sell))
+        ->assertSuccessful();
+
+    $payment = Payment::query()->first();
+    expect($payment->t_account_id)->not->toBeNull();
+
+    $journal = TAccount::query()->with('details')->findOrFail($payment->t_account_id);
+
+    expect($journal->voucher_no)->toStartWith('SP-')
+        ->and((float) $journal->total_amount)->toBe(40.0)
+        ->and($journal->details)->toHaveCount(2);
+
+    $debit = $journal->details->firstWhere('coa_id', $scope['payment_account_id']);
+    $credit = $journal->details->firstWhere('coa_id', $scope['customer_coa_id']);
+
+    expect((float) $debit->debit)->toBe(40.0)
+        ->and((float) $debit->credit)->toBe(0.0)
+        ->and((float) $credit->credit)->toBe(40.0)
+        ->and((float) $credit->debit)->toBe(0.0);
+
+    $totalDebit = (float) $journal->details->sum('debit');
+    $totalCredit = (float) $journal->details->sum('credit');
+    expect($totalDebit)->toBe($totalCredit);
+});
+
+test('sell payments api rewrites the ledger voucher when the payment amount is updated', function () {
+    $scope = seedSellPaymentAccount(seedSellScope());
+    $sell = createSellRecord($scope, ['final_amount' => 100]);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/sell-payments', validSellPaymentPayload($scope, $sell))
+        ->assertSuccessful();
+
+    $payment = Payment::query()->first();
+    $originalTAccountId = $payment->t_account_id;
+
+    $this->putJson('/api/sell-payments/'.$payment->id, validSellPaymentPayload($scope, $sell, [
+        'amount' => 100,
+    ]))->assertSuccessful();
+
+    expect(TAccount::query()->count())->toBe(1);
+
+    $journal = TAccount::query()->with('details')->findOrFail($originalTAccountId);
+
+    expect((float) $journal->total_amount)->toBe(100.0)
+        ->and((float) $journal->details->sum('debit'))->toBe(100.0)
+        ->and((float) $journal->details->sum('credit'))->toBe(100.0);
+});
+
+test('sell payments api removes the ledger voucher when the payment is deleted', function () {
+    $scope = seedSellPaymentAccount(seedSellScope());
+    $sell = createSellRecord($scope, ['final_amount' => 100]);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/sell-payments', validSellPaymentPayload($scope, $sell))
+        ->assertSuccessful();
+
+    $payment = Payment::query()->first();
+    $tAccountId = $payment->t_account_id;
+
+    $this->postJson('/api/sell-payments/bulk_delete', [$payment->id])->assertSuccessful();
+
+    $this->assertDatabaseMissing('t_accounts', ['id' => $tAccountId]);
+    $this->assertDatabaseMissing('t_account_details', ['t_account_id' => $tAccountId]);
 });
 
 test('sell payments index can filter by transaction id', function () {

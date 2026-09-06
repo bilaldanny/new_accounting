@@ -50,4 +50,15 @@ class Base64Upload
             'mime' => $mime,
         ];
     }
+
+    /**
+     * Map a server-verified MIME type (e.g. from `UploadedFile::getMimeType()`,
+     * which inspects the real file content rather than the client-supplied
+     * filename or Content-Type header) to a safe extension. Returns null for
+     * anything outside the whitelist.
+     */
+    public static function extensionForMime(string $mime): ?string
+    {
+        return self::ALLOWED_MIME_EXTENSIONS[$mime] ?? null;
+    }
 }

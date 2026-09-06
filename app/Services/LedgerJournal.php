@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ChartOfAccount;
 use App\Models\ChartOfAccountMapping;
+use App\Models\Payment;
 use App\Models\TAccount;
 use App\Models\TAccountDetail;
 use App\Models\Transaction;
@@ -40,6 +41,84 @@ class LedgerJournal
         }
 
         TAccount::query()->whereIn('transaction_id', $ids)->delete();
+    }
+
+    /**
+     * Post (or rewrite) the ledger voucher backing a purchase/sell Payment.
+     * Unlike post(), this is keyed by $payment->t_account_id rather than a
+     * transaction_id, because a single purchase/sell can have many payments
+     * and each needs its own voucher.
+     *
+     * @param  list<array{account: ChartOfAccount, debit: float, credit: float, contact_id?: int|null}>  $lines
+     */
+    public function postPayment(
+        Payment $payment,
+        ChartOfAccount $headerAccount,
+        string $description,
+        string $voucherPrefix,
+        array $lines,
+    ): TAccount {
+        $journal = $payment->t_account_id !== null
+            ? TAccount::query()->find($payment->t_account_id)
+            : null;
+        $journal ??= new TAccount;
+        $isNew = ! $journal->exists;
+
+        $amount = round((float) $payment->amount, 2);
+
+        $journal->company_id = $payment->company_id;
+        $journal->branch_id = $payment->branch_id;
+        $journal->coa_id = $headerAccount->id;
+        $journal->transaction_id = null;
+        $journal->created_by = $journal->created_by ?: Auth::id();
+        $journal->approved_by = Auth::id();
+        $journal->account_code = (string) $headerAccount->code;
+        $journal->ref_no = (string) $payment->payment_ref_no;
+        $journal->cheque_no = (string) ($payment->cheque_number ?? '');
+        $journal->voucher_date = $payment->paid_on;
+        $journal->total_amount = $amount;
+        $journal->total_tax = 0.0;
+        $journal->net_total = $amount;
+        $journal->comments = (string) ($payment->note ?? '');
+        $journal->status = 'approved';
+        $journal->type = 'online';
+        $journal->approved_at = $journal->approved_at ?? now();
+
+        if ($isNew || blank($journal->voucher_no)) {
+            $journal->voucher_no = $this->nextVoucherNo(
+                (int) $payment->company_id,
+                (int) $payment->branch_id,
+                $voucherPrefix,
+            );
+        }
+
+        $journal->save();
+        $journal->details()->delete();
+
+        foreach ($lines as $line) {
+            $this->addLine(
+                $journal,
+                $line['account'],
+                $description,
+                $line['debit'],
+                $line['credit'],
+                $line['contact_id'] ?? $payment->contact_id,
+                $payment->branch_id,
+            );
+        }
+
+        $this->assertBalanced($journal);
+
+        return $journal->fresh('details') ?? $journal;
+    }
+
+    public function deleteForPayment(Payment $payment): void
+    {
+        if ($payment->t_account_id === null) {
+            return;
+        }
+
+        TAccount::query()->whereKey($payment->t_account_id)->delete();
     }
 
     /**

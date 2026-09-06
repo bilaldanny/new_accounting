@@ -25,6 +25,13 @@ class TAccount extends Model
 
     public const PAYMENT_VOUCHER_TYPES = ['BP', 'CP', 'OP'];
 
+    /**
+     * Voucher prefixes for system-generated purchase/sell payment postings.
+     * Kept separate from PAYMENT_VOUCHER_TYPES so manual journal entry (see
+     * PaymentController) can't be used to create these directly.
+     */
+    public const TRANSACTION_PAYMENT_VOUCHER_TYPES = ['PP', 'SP'];
+
     protected $fillable = [
         'company_id',
         'branch_id',
@@ -574,7 +581,7 @@ class TAccount extends Model
      */
     public static function allVoucherTypes(): array
     {
-        return array_merge(self::VOUCHER_TYPES, self::PAYMENT_VOUCHER_TYPES);
+        return array_merge(self::VOUCHER_TYPES, self::PAYMENT_VOUCHER_TYPES, self::TRANSACTION_PAYMENT_VOUCHER_TYPES);
     }
 
     public static function voucherTypeFromNumber(string $voucherNo): string
@@ -592,6 +599,8 @@ class TAccount extends Model
             'OP' => 'Online Payment',
             'JV' => 'Journal Voucher',
             'JE' => 'Journal Entry',
+            'PP' => 'Purchase Payment',
+            'SP' => 'Sell Payment',
             default => 'Voucher',
         };
     }
