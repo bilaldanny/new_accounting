@@ -87,6 +87,10 @@ import { formatNumber } from '@/utils/numberFormat';
         downloadInvoice?: (id: number) => void | Promise<void>;
         /** When set to a row id, invoice action shows loading for that row (PDF download in progress). */
         invoiceDownloadingId?: number | null;
+        addPurchasePayment?: (id: number) => void;
+        viewPurchasePayment?: (id: number) => void;
+        addSellPayment?: (id: number) => void;
+        editShipping?: (id: number) => void;
         /** Same certificate download pattern as enrolled courses (blob + programmatic &lt;a download&gt;). */
         certificateDownload?: (row: Record<string, unknown>) => void | Promise<void>;
         certificateDownloadRowBusy?: (row: Record<string, unknown>) => boolean;
@@ -389,6 +393,10 @@ import { formatNumber } from '@/utils/numberFormat';
         return !!col.actions?.includes('return');
     }
 
+    function canShowSellReturnAction(col: Column): boolean {
+        return !!col.actions?.includes('sellReturn');
+    }
+
     function canShowIssueNoteAction(col: Column): boolean {
         return !!col.actions?.includes('issueNote');
     }
@@ -397,8 +405,44 @@ import { formatNumber } from '@/utils/numberFormat';
         return !!col.actions?.includes('purchasePayment');
     }
 
+    function canShowViewPurchasePaymentAction(col: Column, row?: Record<string, unknown>): boolean {
+        if (! canShowPurchasePaymentAction(col)) {
+            return false;
+        }
+
+        if (row === undefined) {
+            return true;
+        }
+
+        return rowStatus(row) === 'received';
+    }
+
     function canShowSellPaymentAction(col: Column): boolean {
         return !!col.actions?.includes('sellPayment');
+    }
+
+    function canShowSellInvoiceAction(col: Column, row?: Record<string, unknown>): boolean {
+        if (! col.actions?.includes('sellInvoice')) {
+            return false;
+        }
+
+        if (row === undefined) {
+            return true;
+        }
+
+        return rowStatus(row) === 'issue';
+    }
+
+    function canShowEditShippingAction(col: Column, row?: Record<string, unknown>): boolean {
+        if (! (col.actions?.includes('editShipping') && tableData.editShipping)) {
+            return false;
+        }
+
+        if (row === undefined) {
+            return true;
+        }
+
+        return rowStatus(row) === 'issue';
     }
 
     function canShowAddPurchasePaymentAction(col: Column, row?: Record<string, unknown>): boolean {
@@ -431,9 +475,12 @@ import { formatNumber } from '@/utils/numberFormat';
         return canShowApproveAction(col, row)
             || canShowReceivingNoteAction(col)
             || canShowPurchaseReturnAction(col)
+            || canShowSellReturnAction(col)
             || canShowIssueNoteAction(col)
             || canShowPurchasePaymentAction(col)
-            || canShowSellPaymentAction(col);
+            || canShowSellPaymentAction(col)
+            || canShowSellInvoiceAction(col, row)
+            || canShowEditShippingAction(col, row);
     }
 
     function receivingNoteHref(row: Record<string, unknown>): string {
@@ -454,6 +501,16 @@ import { formatNumber } from '@/utils/numberFormat';
         }
 
         return `/purchase/return/add?purchase_id=${row.id}`;
+    }
+
+    function sellReturnHref(row: Record<string, unknown>): string {
+        const returnId = row.sell_return_id;
+
+        if (returnId) {
+            return `/sell/return/${returnId}/edit`;
+        }
+
+        return `/sell/return/add?sell_id=${row.id}`;
     }
 
     function issueNoteHref(row: Record<string, unknown>): string {
@@ -1289,6 +1346,14 @@ import { formatNumber } from '@/utils/numberFormat';
                                                     </Link>
 
                                                     <Link
+                                                        v-if="canShowSellReturnAction(col)"
+                                                        class="dropdown-item"
+                                                        :href="sellReturnHref(row)"
+                                                    >
+                                                        <i class="mdi mdi-undo"></i> Return
+                                                    </Link>
+
+                                                    <Link
                                                         v-if="canShowIssueNoteAction(col)"
                                                         class="dropdown-item"
                                                         :href="issueNoteHref(row)"
@@ -1296,24 +1361,48 @@ import { formatNumber } from '@/utils/numberFormat';
                                                         <i class="mdi mdi-package-variant"></i> Issue note
                                                     </Link>
 
+                                                    <a
+                                                        v-if="canShowAddPurchasePaymentAction(col, row) && tableData.addPurchasePayment"
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.addPurchasePayment?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-cash-plus"></i> Add Payment
+                                                    </a>
                                                     <Link
-                                                        v-if="canShowAddPurchasePaymentAction(col, row)"
+                                                        v-else-if="canShowAddPurchasePaymentAction(col, row)"
                                                         class="dropdown-item"
                                                         :href="purchasePaymentAddHref(row)"
                                                     >
                                                         <i class="mdi mdi-cash-plus"></i> Add Payment
                                                     </Link>
 
+                                                    <a
+                                                        v-if="canShowViewPurchasePaymentAction(col, row) && tableData.viewPurchasePayment"
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.viewPurchasePayment?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-cash"></i> View Payment
+                                                    </a>
                                                     <Link
-                                                        v-if="canShowPurchasePaymentAction(col)"
+                                                        v-else-if="canShowViewPurchasePaymentAction(col, row)"
                                                         class="dropdown-item"
                                                         :href="purchasePaymentHref(row)"
                                                     >
                                                         <i class="mdi mdi-cash"></i> View Payment
                                                     </Link>
 
+                                                    <a
+                                                        v-if="canShowAddSellPaymentAction(col, row) && tableData.addSellPayment"
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.addSellPayment?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-cash-plus"></i> Add Payment
+                                                    </a>
                                                     <Link
-                                                        v-if="canShowAddSellPaymentAction(col, row)"
+                                                        v-else-if="canShowAddSellPaymentAction(col, row)"
                                                         class="dropdown-item"
                                                         :href="sellPaymentAddHref(row)"
                                                     >
@@ -1327,6 +1416,24 @@ import { formatNumber } from '@/utils/numberFormat';
                                                     >
                                                         <i class="mdi mdi-cash"></i> View Payment
                                                     </Link>
+
+                                                    <Link
+                                                        v-if="canShowSellInvoiceAction(col, row)"
+                                                        class="dropdown-item"
+                                                        :href="`/sell/${row.id}/invoice`"
+                                                        target="_blank"
+                                                    >
+                                                        <i class="mdi mdi-file-document-outline"></i> Invoice
+                                                    </Link>
+
+                                                    <a
+                                                        v-if="canShowEditShippingAction(col, row)"
+                                                        class="dropdown-item"
+                                                        href="javascript:void(0)"
+                                                        @click="tableData.editShipping?.(row.id)"
+                                                    >
+                                                        <i class="mdi mdi-truck-delivery-outline"></i> Edit Shipping
+                                                    </a>
                                                 </template>
 
                                                 <!-- Permission -->

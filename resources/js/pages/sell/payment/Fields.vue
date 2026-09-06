@@ -48,10 +48,11 @@
     const sellsdata = ref<Array<{ id: number | string; text?: string; invoice_no?: string; remaining_amount?: number | string }>>([]);
     const accountsdata = ref<Array<{ id: number | string; text?: string; name?: string }>>([]);
     const lastFetchedCompanyId = ref('');
-    const lastFetchedSupplierKey = ref('');
-    const lastFetchedPurchaseKey = ref('');
+    const lastFetchedCustomerKey = ref('');
+    const lastFetchedSellKey = ref('');
     const lastAccountScope = ref('');
     const lastLoadedTransactionId = ref('');
+    const isHydrating = ref(false);
 
     const methodItems = [
         { id: 'cash', text: 'Cash' },
@@ -81,6 +82,28 @@
     const companyRules = computed(() => (isSuperadmin.value ? 'required' : ''));
     const supplierDisabled = computed(() => isEdit.value || ! scopeReady.value);
     const sellDisabled = computed(() => isEdit.value || ! normalizeId(selectedContactId.value));
+    const showSummary = computed(() => Boolean(params.formData?.invoice_no || params.formData?.final_amount));
+    const maxPaymentAmount = computed(() => {
+        const remaining = toNumber(params.formData?.remaining_amount, NaN);
+
+        return Number.isFinite(remaining) && remaining > 0 ? remaining : null;
+    });
+    const amountRules = computed(() => {
+        if (maxPaymentAmount.value === null) {
+            return 'required|numeric|min:0.01';
+        }
+
+        return `required|numeric|min:0.01|max:${maxPaymentAmount.value}`;
+    });
+    const amountMessages = computed(() => {
+        if (maxPaymentAmount.value === null) {
+            return {};
+        }
+
+        return {
+            max: `Amount cannot be greater than the remaining balance of ${maxPaymentAmount.value}.`,
+        };
+    });
 
     function toNumber(value: unknown, fallback = 0): number {
         const amount = Number(value);
@@ -95,12 +118,53 @@
         });
     }
 
+    function trimSellLabel(invoiceNo: unknown, remaining: unknown): string {
+        const ref = String(invoiceNo ?? '').trim() || `#${normalizeId(selectedTransactionId.value) || ''}`;
+
+        return `${ref} (${remaining ?? 0} due)`;
+    }
+
     function persist(patch: Record<string, unknown>) {
         if (params.formData) {
             Object.assign(params.formData, patch);
         }
 
         params.formRef?.update?.(patch);
+    }
+
+    async function hydrateFromTransaction(transactionId: string) {
+        if (! transactionId || isEdit.value) {
+            return;
+        }
+
+        isHydrating.value = true;
+
+        try {
+            await loadSell(transactionId);
+
+            if (showCompanyField.value) {
+                await fetchCompany();
+            }
+
+            if (normalizeId(selectedCompanyId.value)) {
+                lastFetchedCompanyId.value = '';
+                await loadBranchOptions(selectedCompanyId.value);
+            }
+
+            lastFetchedCustomerKey.value = '';
+            lastFetchedSellKey.value = '';
+            lastAccountScope.value = '';
+
+            await loadCustomers(selectedCompanyId.value, selectedBranchId.value);
+            await loadPaymentAccounts();
+            await loadEligibleSells();
+
+            const selectedId = params.formData?.transaction_id ?? Number(transactionId);
+
+            persist({ transaction_id: selectedId });
+        } finally {
+            isHydrating.value = false;
+        }
     }
 
     function applyScopedDefaults() {
@@ -153,11 +217,11 @@
             return;
         }
 
-        if (key === lastFetchedSupplierKey.value) {
+        if (key === lastFetchedCustomerKey.value) {
             return;
         }
 
-        lastFetchedSupplierKey.value = key;
+        lastFetchedCustomerKey.value = key;
 
         try {
             const response = await window.axios.get(API_ENDPOINTS.fetchCustomers, {
@@ -178,11 +242,11 @@
             return;
         }
 
-        if (key === lastFetchedPurchaseKey.value) {
+        if (key === lastFetchedSellKey.value) {
             return;
         }
 
-        lastFetchedPurchaseKey.value = key;
+        lastFetchedSellKey.value = key;
 
         try {
             const response = await window.axios.get(API_ENDPOINTS.sellPaymentEligibleSells, {
@@ -192,7 +256,23 @@
                     contact_id: selectedContactId.value,
                 },
             });
-            sellsdata.value = response.data ?? [];
+            const rows = response.data ?? [];
+            const selectedId = normalizeId(selectedTransactionId.value);
+
+            if (
+                selectedId
+                && ! rows.some((row: { id?: number | string }) => String(row.id) === selectedId)
+                && params.formData?.invoice_no
+            ) {
+                rows.unshift({
+                    id: Number(selectedId),
+                    text: trimSellLabel(params.formData.invoice_no, params.formData.remaining_amount),
+                    invoice_no: params.formData.invoice_no,
+                    remaining_amount: params.formData.remaining_amount,
+                });
+            }
+
+            sellsdata.value = rows;
         } catch {
             sellsdata.value = [];
         }
@@ -256,6 +336,7 @@
                 company_id: response.data?.company_id ?? params.formData?.company_id,
                 branch_id: response.data?.branch_id ?? params.formData?.branch_id,
                 contact_id: response.data?.contact_id ?? params.formData?.contact_id,
+                transaction_id: response.data?.id ?? id,
                 invoice_no: response.data?.invoice_no ?? '',
                 customer_name: response.data?.customer_name ?? '',
                 business_name: response.data?.business_name ?? '',
@@ -266,6 +347,17 @@
                     : remaining,
                 amount: isEdit.value ? params.formData?.amount : remaining,
             });
+
+            const sellOption = {
+                id: response.data?.id ?? Number(id),
+                text: trimSellLabel(response.data?.invoice_no, remaining),
+                invoice_no: response.data?.invoice_no,
+                remaining_amount: remaining,
+            };
+
+            if (! sellsdata.value.some((row) => String(row.id) === String(sellOption.id))) {
+                sellsdata.value = [sellOption, ...sellsdata.value];
+            }
         } catch {
             persist({
                 invoice_no: '',
@@ -275,7 +367,7 @@
     }
 
     async function handleCompanyChange(companyId: string | number | null | undefined) {
-        if (! isSuperadmin.value || isEdit.value) {
+        if (! isSuperadmin.value || isEdit.value || isHydrating.value) {
             return;
         }
 
@@ -286,8 +378,8 @@
             payment_account: '',
         });
         lastFetchedCompanyId.value = '';
-        lastFetchedSupplierKey.value = '';
-        lastFetchedPurchaseKey.value = '';
+        lastFetchedCustomerKey.value = '';
+        lastFetchedSellKey.value = '';
         lastAccountScope.value = '';
         lastLoadedTransactionId.value = '';
         await loadBranchOptions(companyId);
@@ -304,7 +396,7 @@
         const reader = new FileReader();
         reader.onload = () => {
             persist({
-                document: String(reader.result ?? ''),
+                attachment: String(reader.result ?? ''),
                 file_name: file.name,
             });
         };
@@ -314,6 +406,14 @@
 
     onMounted(async () => {
         applyScopedDefaults();
+
+        const transactionId = normalizeId(selectedTransactionId.value);
+
+        if (transactionId && ! isEdit.value) {
+            await hydrateFromTransaction(transactionId);
+
+            return;
+        }
 
         if (showCompanyField.value) {
             await fetchCompany();
@@ -336,15 +436,15 @@
             await loadEligibleSells();
         }
 
-        if (normalizeId(selectedTransactionId.value)) {
-            await loadSell(selectedTransactionId.value);
+        if (transactionId) {
+            await loadSell(transactionId);
         }
     });
 
     watch(
         () => normalizeId(params.formData?.company_id),
         async (companyId, previousCompanyId) => {
-            if (companyId === previousCompanyId) {
+            if (companyId === previousCompanyId || isHydrating.value) {
                 return;
             }
 
@@ -355,8 +455,12 @@
     watch(
         () => `${normalizeId(selectedCompanyId.value)}:${normalizeId(selectedBranchId.value)}`,
         async () => {
-            lastFetchedSupplierKey.value = '';
-            lastFetchedPurchaseKey.value = '';
+            if (isHydrating.value) {
+                return;
+            }
+
+            lastFetchedCustomerKey.value = '';
+            lastFetchedSellKey.value = '';
             lastAccountScope.value = '';
             await loadCustomers(selectedCompanyId.value, selectedBranchId.value);
             await loadPaymentAccounts();
@@ -366,7 +470,7 @@
     watch(
         () => normalizeId(selectedContactId.value),
         async (contactId, previous) => {
-            if (contactId === previous) {
+            if (contactId === previous || isHydrating.value) {
                 return;
             }
 
@@ -375,7 +479,7 @@
                 lastLoadedTransactionId.value = '';
             }
 
-            lastFetchedPurchaseKey.value = '';
+            lastFetchedSellKey.value = '';
             await loadEligibleSells();
         },
     );
@@ -383,6 +487,10 @@
     watch(
         () => normalizeId(selectedTransactionId.value),
         async (transactionId) => {
+            if (isHydrating.value) {
+                return;
+            }
+
             await loadSell(transactionId);
         },
     );
@@ -471,8 +579,8 @@
     />
 
     <StaticElement
-        v-if="params.formData?.invoice_no || params.formData?.final_amount"
-        name="purchase_summary"
+        v-if="showSummary"
+        name="sell_summary"
         :columns="colFull"
         tag="div"
     >
@@ -507,7 +615,10 @@
         placeholder="Payment amount"
         :columns="colQuarter"
         autocomplete="off"
-        rules="required|numeric|min:0.01"
+        :rules="amountRules"
+        :messages="amountMessages"
+        :attrs="maxPaymentAmount === null ? undefined : { max: maxPaymentAmount }"
+        info="Cannot exceed the sell remaining balance."
     />
 
     <DateElement
@@ -563,9 +674,9 @@
             accept="image/*,.pdf"
             @change="onDocumentSelected"
         >
-        <TextElement name="document" hidden="true" />
+        <TextElement name="attachment" hidden="true" />
         <TextElement name="file_name" hidden="true" />
-        <small v-if="params.formData?.file_name || params.formData?.document" class="text-muted">
+        <small v-if="params.formData?.file_name || params.formData?.attachment" class="text-muted">
             {{ params.formData?.file_name || 'Attachment selected' }}
         </small>
     </StaticElement>

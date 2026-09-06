@@ -52,6 +52,7 @@
     const lastFetchedPurchaseKey = ref('');
     const lastAccountScope = ref('');
     const lastLoadedTransactionId = ref('');
+    const isHydrating = ref(false);
 
     const methodItems = [
         { id: 'cash', text: 'Cash' },
@@ -75,12 +76,33 @@
     const selectedBranchId = computed(() => params.formData?.branch_id ?? '');
     const selectedContactId = computed(() => params.formData?.contact_id ?? '');
     const selectedTransactionId = computed(() => params.formData?.transaction_id ?? '');
-    const selectedMethod = computed(() => String(params.formData?.method ?? 'cash'));
     const scopeReady = computed(() => Boolean(normalizeId(selectedCompanyId.value) && normalizeId(selectedBranchId.value)));
     const branchDisabled = computed(() => isEdit.value || (isSuperadmin.value && ! selectedCompanyId.value));
     const companyRules = computed(() => (isSuperadmin.value ? 'required' : ''));
     const supplierDisabled = computed(() => isEdit.value || ! scopeReady.value);
     const purchaseDisabled = computed(() => isEdit.value || ! normalizeId(selectedContactId.value));
+    const showSummary = computed(() => Boolean(params.formData?.invoice_no || params.formData?.final_amount));
+    const maxPaymentAmount = computed(() => {
+        const remaining = toNumber(params.formData?.remaining_amount, NaN);
+
+        return Number.isFinite(remaining) && remaining > 0 ? remaining : null;
+    });
+    const amountRules = computed(() => {
+        if (maxPaymentAmount.value === null) {
+            return 'required|numeric|min:0.01';
+        }
+
+        return `required|numeric|min:0.01|max:${maxPaymentAmount.value}`;
+    });
+    const amountMessages = computed(() => {
+        if (maxPaymentAmount.value === null) {
+            return {};
+        }
+
+        return {
+            max: `Amount cannot be greater than the remaining balance of ${maxPaymentAmount.value}.`,
+        };
+    });
 
     function toNumber(value: unknown, fallback = 0): number {
         const amount = Number(value);
@@ -95,12 +117,54 @@
         });
     }
 
+    function trimPurchaseLabel(invoiceNo: unknown, remaining: unknown): string {
+        const ref = String(invoiceNo ?? '').trim() || `#${normalizeId(selectedTransactionId.value) || ''}`;
+
+        return `${ref} (${remaining ?? 0} due)`;
+    }
+
     function persist(patch: Record<string, unknown>) {
         if (params.formData) {
             Object.assign(params.formData, patch);
         }
 
         params.formRef?.update?.(patch);
+    }
+
+    async function hydrateFromTransaction(transactionId: string) {
+        if (! transactionId || isEdit.value) {
+            return;
+        }
+
+        isHydrating.value = true;
+
+        try {
+            await loadPurchase(transactionId);
+
+            if (showCompanyField.value) {
+                await fetchCompany();
+            }
+
+            if (normalizeId(selectedCompanyId.value)) {
+                lastFetchedCompanyId.value = '';
+                await loadBranchOptions(selectedCompanyId.value);
+            }
+
+            lastFetchedSupplierKey.value = '';
+            lastFetchedPurchaseKey.value = '';
+            lastAccountScope.value = '';
+
+            await loadSuppliers(selectedCompanyId.value, selectedBranchId.value);
+            await loadPaymentAccounts();
+            await loadEligiblePurchases();
+
+            // Re-assert selection after options reload (numeric id for SelectElement match).
+            const selectedId = params.formData?.transaction_id ?? Number(transactionId);
+
+            persist({ transaction_id: selectedId });
+        } finally {
+            isHydrating.value = false;
+        }
     }
 
     function applyScopedDefaults() {
@@ -192,7 +256,23 @@
                     contact_id: selectedContactId.value,
                 },
             });
-            purchasesdata.value = response.data ?? [];
+            const rows = response.data ?? [];
+            const selectedId = normalizeId(selectedTransactionId.value);
+
+            if (
+                selectedId
+                && ! rows.some((row: { id?: number | string }) => String(row.id) === selectedId)
+                && params.formData?.invoice_no
+            ) {
+                rows.unshift({
+                    id: Number(selectedId),
+                    text: trimPurchaseLabel(params.formData.invoice_no, params.formData.remaining_amount),
+                    invoice_no: params.formData.invoice_no,
+                    remaining_amount: params.formData.remaining_amount,
+                });
+            }
+
+            purchasesdata.value = rows;
         } catch {
             purchasesdata.value = [];
         }
@@ -256,6 +336,7 @@
                 company_id: response.data?.company_id ?? params.formData?.company_id,
                 branch_id: response.data?.branch_id ?? params.formData?.branch_id,
                 contact_id: response.data?.contact_id ?? params.formData?.contact_id,
+                transaction_id: response.data?.id ?? id,
                 invoice_no: response.data?.invoice_no ?? '',
                 supplier_name: response.data?.supplier_name ?? '',
                 business_name: response.data?.business_name ?? '',
@@ -266,6 +347,17 @@
                     : remaining,
                 amount: isEdit.value ? params.formData?.amount : remaining,
             });
+
+            const purchaseOption = {
+                id: response.data?.id ?? Number(id),
+                text: trimPurchaseLabel(response.data?.invoice_no, remaining),
+                invoice_no: response.data?.invoice_no,
+                remaining_amount: remaining,
+            };
+
+            if (! purchasesdata.value.some((row) => String(row.id) === String(purchaseOption.id))) {
+                purchasesdata.value = [purchaseOption, ...purchasesdata.value];
+            }
         } catch {
             persist({
                 invoice_no: '',
@@ -275,7 +367,7 @@
     }
 
     async function handleCompanyChange(companyId: string | number | null | undefined) {
-        if (! isSuperadmin.value || isEdit.value) {
+        if (! isSuperadmin.value || isEdit.value || isHydrating.value) {
             return;
         }
 
@@ -304,7 +396,7 @@
         const reader = new FileReader();
         reader.onload = () => {
             persist({
-                document: String(reader.result ?? ''),
+                attachment: String(reader.result ?? ''),
                 file_name: file.name,
             });
         };
@@ -314,6 +406,14 @@
 
     onMounted(async () => {
         applyScopedDefaults();
+
+        const transactionId = normalizeId(selectedTransactionId.value);
+
+        if (transactionId && ! isEdit.value) {
+            await hydrateFromTransaction(transactionId);
+
+            return;
+        }
 
         if (showCompanyField.value) {
             await fetchCompany();
@@ -336,15 +436,15 @@
             await loadEligiblePurchases();
         }
 
-        if (normalizeId(selectedTransactionId.value)) {
-            await loadPurchase(selectedTransactionId.value);
+        if (transactionId) {
+            await loadPurchase(transactionId);
         }
     });
 
     watch(
         () => normalizeId(params.formData?.company_id),
         async (companyId, previousCompanyId) => {
-            if (companyId === previousCompanyId) {
+            if (companyId === previousCompanyId || isHydrating.value) {
                 return;
             }
 
@@ -355,6 +455,10 @@
     watch(
         () => `${normalizeId(selectedCompanyId.value)}:${normalizeId(selectedBranchId.value)}`,
         async () => {
+            if (isHydrating.value) {
+                return;
+            }
+
             lastFetchedSupplierKey.value = '';
             lastFetchedPurchaseKey.value = '';
             lastAccountScope.value = '';
@@ -366,7 +470,7 @@
     watch(
         () => normalizeId(selectedContactId.value),
         async (contactId, previous) => {
-            if (contactId === previous) {
+            if (contactId === previous || isHydrating.value) {
                 return;
             }
 
@@ -383,6 +487,10 @@
     watch(
         () => normalizeId(selectedTransactionId.value),
         async (transactionId) => {
+            if (isHydrating.value) {
+                return;
+            }
+
             await loadPurchase(transactionId);
         },
     );
@@ -391,10 +499,38 @@
 <template>
     <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
 
-    <TextElement v-if="showHiddenCompanyField || isEdit" name="company_id" hidden="true" />
-    <TextElement v-if="showHiddenBranchField || isEdit" name="branch_id" hidden="true" />
-    <TextElement v-if="isEdit" name="contact_id" hidden="true" />
-    <TextElement v-if="isEdit" name="transaction_id" hidden="true" />
+    <TextElement
+        v-if="showHiddenCompanyField || isEdit"
+        name="company_id"
+        hidden="true"
+    />
+
+    <TextElement
+        v-if="showHiddenBranchField || isEdit"
+        name="branch_id"
+        hidden="true"
+    />
+
+    <TextElement
+        v-if="isEdit"
+        name="contact_id"
+        hidden="true"
+    />
+
+    <TextElement
+        v-if="isEdit"
+        name="transaction_id"
+        hidden="true"
+    />
+
+    <TextElement name="attachment" hidden="true" />
+    <TextElement name="file_name" hidden="true" />
+    <TextElement name="invoice_no" hidden="true" />
+    <TextElement name="supplier_name" hidden="true" />
+    <TextElement name="business_name" hidden="true" />
+    <TextElement name="branch_name" hidden="true" />
+    <TextElement name="final_amount" hidden="true" />
+    <TextElement name="remaining_amount" hidden="true" />
 
     <SelectElement
         v-if="showCompanyField && !isEdit"
@@ -411,8 +547,8 @@
         :search="true"
         :floating="false"
         :can-clear="true"
-        :disabled="isEdit"
         :rules="companyRules"
+        info="Select the company for this payment."
     />
 
     <SelectElement
@@ -431,6 +567,7 @@
         :floating="false"
         :disabled="branchDisabled"
         rules="required"
+        info="Required. Select a company first when creating a payment."
     />
 
     <SelectElement
@@ -471,7 +608,7 @@
     />
 
     <StaticElement
-        v-if="params.formData?.invoice_no || params.formData?.final_amount"
+        v-if="showSummary"
         name="purchase_summary"
         :columns="colFull"
         tag="div"
@@ -507,7 +644,10 @@
         placeholder="Payment amount"
         :columns="colQuarter"
         autocomplete="off"
-        rules="required|numeric|min:0.01"
+        :rules="amountRules"
+        :messages="amountMessages"
+        :attrs="maxPaymentAmount === null ? undefined : { max: maxPaymentAmount }"
+        info="Cannot exceed the purchase remaining balance."
     />
 
     <DateElement
@@ -534,6 +674,7 @@
         value-prop="id"
         :search="false"
         :floating="false"
+        :can-clear="false"
         rules="required"
     />
 
@@ -563,92 +704,100 @@
             accept="image/*,.pdf"
             @change="onDocumentSelected"
         >
-        <TextElement name="document" hidden="true" />
-        <TextElement name="file_name" hidden="true" />
-        <small v-if="params.formData?.file_name || params.formData?.document" class="text-muted">
+        <small v-if="params.formData?.file_name || params.formData?.attachment" class="text-muted d-block mt-1">
             {{ params.formData?.file_name || 'Attachment selected' }}
         </small>
     </StaticElement>
 
-    <template v-if="selectedMethod === 'card'">
-        <TextElement
-            id="CardNumber"
-            field-name="CardNumber"
-            name="card_number"
-            label="Card number"
-            placeholder="Card number"
-            :columns="colQuarter"
-            autocomplete="off"
-            rules="required"
-        />
-        <TextElement
-            id="CardHolderName"
-            field-name="CardHolderName"
-            name="card_holder_name"
-            label="Card holder name"
-            placeholder="Card holder name"
-            :columns="colQuarter"
-            autocomplete="off"
-            rules="required"
-        />
-        <SelectElement
-            name="card_type"
-            :native="false"
-            :items="cardTypeItems"
-            id="CardType"
-            field-name="CardType"
-            placeholder="Select card type"
-            label="Card type"
-            :columns="colQuarter"
-            label-prop="text"
-            value-prop="id"
-            :floating="false"
-            rules="required"
-        />
-        <TextElement
-            id="CardTransactionNumber"
-            field-name="CardTransactionNumber"
-            name="card_transaction_number"
-            label="Card transaction no."
-            placeholder="Card transaction no."
-            :columns="colQuarter"
-            autocomplete="off"
-            rules="required"
-        />
-        <TextElement
-            id="CardMonth"
-            field-name="CardMonth"
-            name="card_month"
-            label="Month"
-            placeholder="MM"
-            :columns="colQuarter"
-            autocomplete="off"
-            rules="required"
-        />
-        <TextElement
-            id="CardYear"
-            field-name="CardYear"
-            name="card_year"
-            label="Year"
-            placeholder="YYYY"
-            :columns="colQuarter"
-            autocomplete="off"
-            rules="required"
-        />
-        <TextElement
-            id="CardSecurity"
-            field-name="CardSecurity"
-            name="card_security"
-            label="Security code"
-            placeholder="CVV"
-            :columns="colQuarter"
-            autocomplete="off"
-            rules="required"
-        />
-    </template>
+    <TextElement
+        id="CardNumber"
+        field-name="CardNumber"
+        name="card_number"
+        label="Card number"
+        placeholder="Card number"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
 
     <TextElement
-        v-if="selectedMethod === 'cheque'"
+        id="CardHolderName"
+        field-name="CardHolderName"
+        name="card_holder_name"
+        label="Card holder name"
+        placeholder="Card holder name"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
+
+    <SelectElement
+        name="card_type"
+        :native="false"
+        :items="cardTypeItems"
+        id="CardType"
+        field-name="CardType"
+        placeholder="Select card type"
+        label="Card type"
+        :columns="colQuarter"
+        label-prop="text"
+        value-prop="id"
+        :floating="false"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
+
+    <TextElement
+        id="CardTransactionNumber"
+        field-name="CardTransactionNumber"
+        name="card_transaction_number"
+        label="Card transaction no."
+        placeholder="Card transaction no."
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
+
+    <TextElement
+        id="CardMonth"
+        field-name="CardMonth"
+        name="card_month"
+        label="Month"
+        placeholder="MM"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
+
+    <TextElement
+        id="CardYear"
+        field-name="CardYear"
+        name="card_year"
+        label="Year"
+        placeholder="YYYY"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
+
+    <TextElement
+        id="CardSecurity"
+        field-name="CardSecurity"
+        name="card_security"
+        label="Security code"
+        placeholder="CVV"
+        :columns="colQuarter"
+        autocomplete="off"
+        rules="required"
+        :conditions="[['method', 'card']]"
+    />
+
+    <TextElement
         id="ChequeNumber"
         field-name="ChequeNumber"
         name="cheque_number"
@@ -657,10 +806,10 @@
         :columns="colQuarter"
         autocomplete="off"
         rules="required"
+        :conditions="[['method', 'cheque']]"
     />
 
     <TextElement
-        v-if="selectedMethod === 'bank_transfer'"
         id="BankAccountNumber"
         field-name="BankAccountNumber"
         name="bank_account_number"
@@ -669,7 +818,10 @@
         :columns="colQuarter"
         autocomplete="off"
         rules="required"
+        :conditions="[['method', 'bank_transfer']]"
     />
+
+    <StaticElement tag="br" name="payment_note_break" />
 
     <TextareaElement
         id="PaymentNote"

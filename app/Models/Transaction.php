@@ -36,6 +36,8 @@ class Transaction extends Model
 
     public const TYPE_ISSUE_NOTE = 'issue_note';
 
+    public const TYPE_SELL_RETURN = 'sellreturn';
+
     protected $fillable = [
         'company_id',
         'branch_id',
@@ -220,6 +222,14 @@ class Transaction extends Model
         return $this->hasMany(self::class, 'parent_id')->where('type', self::TYPE_ISSUE_NOTE);
     }
 
+    /**
+     * @return HasMany<Transaction, $this>
+     */
+    public function sellreturn(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id')->where('type', self::TYPE_SELL_RETURN);
+    }
+
     public function scopePurchases(Builder $query): Builder
     {
         return $query->where('type', self::TYPE_PURCHASE);
@@ -243,6 +253,11 @@ class Transaction extends Model
     public function scopeIssueNotes(Builder $query): Builder
     {
         return $query->where('type', self::TYPE_ISSUE_NOTE);
+    }
+
+    public function scopeSellReturns(Builder $query): Builder
+    {
+        return $query->where('type', self::TYPE_SELL_RETURN);
     }
 
     public function scopeVisibleToCurrentUser(Builder $query): Builder
@@ -663,6 +678,40 @@ class Transaction extends Model
         return $transaction;
     }
 
+    public static function updateSellShipping(object $request, int $id): self
+    {
+        $transaction = self::findVisibleSell($id);
+
+        if ($transaction === null) {
+            abort(404);
+        }
+
+        $allowedShipping = ['ordered', 'packed', 'shipped', 'delivered', 'cancelled'];
+        $shippingStatus = $request->shipping_status ?: null;
+
+        $transaction->shipping_details = $request->shipping_details;
+        $transaction->shipping_address = $request->shipping_address;
+        $transaction->shipping_note = $request->shipping_note;
+        $transaction->delivered_to = $request->delivered_to;
+        $transaction->shipping_status = in_array($shippingStatus, $allowedShipping, true)
+            ? $shippingStatus
+            : $transaction->shipping_status;
+        $transaction->updated_by = Auth::id();
+        $transaction->save();
+
+        return $transaction;
+    }
+
+    public static function previousDueBalanceForContact(int $contactId, int $beforeId): float
+    {
+        return round((float) self::query()
+            ->sells()
+            ->where('contact_id', $contactId)
+            ->where('id', '<', $beforeId)
+            ->where('payment_status', 'due')
+            ->sum('final_amount'), 2);
+    }
+
     public static function deleteSell(int $id): void
     {
         $transaction = self::findVisibleSell($id);
@@ -815,6 +864,7 @@ class Transaction extends Model
                         self::resolveScopedId($this->branch_id),
                     ),
                     'unit_name' => $line->unit?->short_name ?? $line->unit?->name,
+                    'weight' => SellLine::resolveNumeric($line->product?->weight ?? 0),
                     'brand_name' => $line->product?->brand?->name,
                     'itemtype_name' => $line->product?->itemtype?->name,
                     'variation_name' => $this->variationDisplayName($line->productdetail?->variation_name),
@@ -1029,17 +1079,19 @@ class Transaction extends Model
         $subcategoryId = self::resolveScopedId($filters['subcategory_id'] ?? null);
         $itemTypeId = self::resolveScopedId($filters['itemtype_id'] ?? null);
         $productId = self::resolveScopedId($filters['product_id'] ?? null);
+        $brandId = self::resolveScopedId($filters['brand_id'] ?? null);
 
         $details = ProductDetail::query()
             ->with(['product.unit.childrenUnits'])
-            ->whereHas('product', function (Builder $query) use ($companyId, $categoryId, $subcategoryId, $itemTypeId, $productId) {
+            ->whereHas('product', function (Builder $query) use ($companyId, $categoryId, $subcategoryId, $itemTypeId, $productId, $brandId) {
                 $query->visibleToCurrentUser()
                     ->where('active', 1)
                     ->when($companyId !== null, fn (Builder $companyQuery) => $companyQuery->where('company_id', $companyId))
                     ->when($categoryId !== null, fn (Builder $categoryQuery) => $categoryQuery->where('category_id', $categoryId))
                     ->when($subcategoryId !== null, fn (Builder $subcategoryQuery) => $subcategoryQuery->where('subcategory_id', $subcategoryId))
                     ->when($itemTypeId !== null, fn (Builder $itemTypeQuery) => $itemTypeQuery->where('itemtype_id', $itemTypeId))
-                    ->when($productId !== null, fn (Builder $productQuery) => $productQuery->where('id', $productId));
+                    ->when($productId !== null, fn (Builder $productQuery) => $productQuery->where('id', $productId))
+                    ->when($brandId !== null, fn (Builder $brandQuery) => $brandQuery->where('brand_id', $brandId));
             })
             ->when($search !== '', function (Builder $query) use ($search) {
                 $query->where(function (Builder $sub) use ($search) {
@@ -1058,10 +1110,22 @@ class Transaction extends Model
             $product = $detail->product;
             $unitId = (int) ($product?->unit_id ?? 0);
 
+            $units = $unitId > 0
+                ? self::unitsForProduct(
+                    (int) $detail->product_id,
+                    (int) $detail->id,
+                    $unitId,
+                    $branchId,
+                    (int) $detail->smallquantity,
+                    (int) $detail->largequantity,
+                )
+                : [];
+
             return [
                 'id' => $detail->id,
                 'product_id' => $detail->product_id,
                 'itemtype_id' => $product?->itemtype_id,
+                'brand_id' => $product?->brand_id,
                 'category_id' => $product?->category_id,
                 'subcategory_id' => $product?->subcategory_id,
                 'product_name' => $product?->name,
@@ -1069,21 +1133,16 @@ class Transaction extends Model
                 'name' => $detail->name ?: $product?->name,
                 'sku' => $detail->sku ?: $product?->sku,
                 'unit_id' => $unitId,
+                'weight' => SellLine::resolveNumeric($product?->weight ?? 0),
+                'product_image' => $product?->product_image,
+                'product_image_url' => Product::imageUrl($product?->product_image),
                 'default_purchase_price' => $detail->default_purchase_price,
                 'default_sell_price' => $detail->default_sell_price,
                 'profit_percent' => $detail->profit_percent,
                 'smallquantity' => $detail->smallquantity,
                 'largequantity' => $detail->largequantity,
-                'units' => $unitId > 0
-                    ? self::unitsForProduct(
-                        (int) $detail->product_id,
-                        (int) $detail->id,
-                        $unitId,
-                        $branchId,
-                        (int) $detail->smallquantity,
-                        (int) $detail->largequantity,
-                    )
-                    : [],
+                'current_stock' => $units[0]['unit_qty'] ?? 0,
+                'units' => $units,
             ];
         })->values()->all();
     }
@@ -1098,6 +1157,9 @@ class Transaction extends Model
         $this->payment_status_label = Str::headline((string) $this->payment_status);
         $this->transaction_date_label = $this->transaction_date?->format('d M Y');
         $this->formatted_amount = number_format((float) $this->final_amount, 2);
+        $this->shipping_status_label = $this->shipping_status
+            ? Str::headline((string) $this->shipping_status)
+            : null;
         $this->attachment_url = self::imageUrl($this->attachment);
 
         if ($this->relationLoaded('childReceivingNotes')) {
@@ -1110,6 +1172,10 @@ class Transaction extends Model
 
         if ($this->relationLoaded('childIssueNotes')) {
             $this->issue_note_id = $this->childIssueNotes->first()?->id;
+        }
+
+        if ($this->relationLoaded('sellreturn')) {
+            $this->sell_return_id = $this->sellreturn->first()?->id;
         }
 
         return $this;
@@ -2624,5 +2690,396 @@ class Transaction extends Model
         }
 
         return $variationName;
+    }
+
+    public static function findVisibleSellReturn(int $id): ?self
+    {
+        return self::query()->sellReturns()->visibleToCurrentUser()->find($id);
+    }
+
+    public static function generateSellReturnNo(?int $companyId, ?string $requested = null): string
+    {
+        $requestedInvoice = trim((string) $requested);
+
+        if ($requestedInvoice !== '') {
+            return $requestedInvoice;
+        }
+
+        $prefix = 'SR';
+
+        if ($companyId !== null) {
+            $settingPrefix = CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->value('sell_return');
+
+            if (is_string($settingPrefix) && trim($settingPrefix) !== '') {
+                $prefix = trim($settingPrefix);
+            }
+        }
+
+        $lastId = (int) self::query()
+            ->withTrashed()
+            ->sellReturns()
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->max('id');
+
+        $next = $lastId + 1;
+
+        do {
+            $invoiceNo = $prefix.'-'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+            $next++;
+        } while (
+            self::query()
+                ->withTrashed()
+                ->sellReturns()
+                ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+                ->where('invoice_no', $invoiceNo)
+                ->exists()
+        );
+
+        return $invoiceNo;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function eligibleReturnSells(?int $companyId, ?int $branchId, ?int $contactId): array
+    {
+        return self::query()
+            ->sells()
+            ->visibleToCurrentUser()
+            ->where('status', 'issue')
+            ->whereDoesntHave('sellreturn')
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->when($branchId !== null, fn (Builder $query) => $query->where('branch_id', $branchId))
+            ->when($contactId !== null, fn (Builder $query) => $query->where('contact_id', $contactId))
+            ->orderByDesc('id')
+            ->get(['id', 'invoice_no', 'transaction_date', 'final_amount', 'status'])
+            ->map(fn (self $sell): array => [
+                'id' => $sell->id,
+                'text' => $sell->invoice_no,
+                'invoice_no' => $sell->invoice_no,
+                'transaction_date' => $sell->transaction_date?->format('Y-m-d'),
+                'final_amount' => $sell->final_amount,
+                'status' => $sell->status,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function sellReturnLines(): array
+    {
+        $sell = $this->parent ?? $this;
+
+        $sell->loadMissing([
+            'selllines.product:id,name,sku',
+            'selllines.productdetail:id,product_id,name,sku,variation_name',
+            'selllines.unit:id,name,short_name',
+        ]);
+
+        return $sell->selllines
+            ->map(function (SellLine $line): array {
+                $quantity = SellLine::resolveNumeric($line->quantity, 1);
+                $issued = SellLine::resolveNumeric($line->quantity_issue);
+                $returned = SellLine::resolveNumeric($line->quantity_returned);
+                $rate = SellLine::resolveNumeric($line->unit_price_after_discount);
+
+                return [
+                    'id' => $line->id,
+                    'product_id' => $line->product_id,
+                    'variation_id' => $line->variation_id,
+                    'unit_id' => $line->unit_id,
+                    'product_name' => $line->product?->name ?? $line->productdetail?->name,
+                    'sku' => $line->productdetail?->sku ?? $line->product?->sku,
+                    'unit_name' => $line->unit?->name,
+                    'unit_short_name' => $line->unit?->short_name,
+                    'unit_price_after_discount' => $rate,
+                    'quantity' => $quantity,
+                    'quantity_issue' => $issued,
+                    'quantity_returned' => $returned,
+                    'remaining_qty' => max($issued - $returned, 0),
+                    'row_subtotal' => round($rate * $returned, 2),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<int, self>
+     */
+    public static function paginateSellReturns(array $filters = []): LengthAwarePaginator
+    {
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortType = $filters['sort_type'] ?? 'desc';
+        $showRecord = $filters['show_record'] ?? 10;
+        $status = $filters['status'] ?? 'all';
+        $search = $filters['search'] ?? '';
+        $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
+
+        $query = self::query()
+            ->sellReturns()
+            ->visibleToCurrentUser()
+            ->with([
+                'company:id,name',
+                'branch:id,name',
+                'contact:id,business_name',
+                'parent:id,invoice_no',
+            ])
+            ->when($status !== 'all', function ($query) use ($status) {
+                $query->where('status', $status);
+            })
+            ->when(! empty($filters['payment_status']) && $filters['payment_status'] !== 'all', function ($query) use ($filters) {
+                $query->where('payment_status', $filters['payment_status']);
+            })
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->whereAny(['invoice_no', 'sup_ref_no'], 'like', "%{$search}%")
+                        ->orWhereHas('contact', function ($contact) use ($search) {
+                            $contact->where('business_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('parent', function ($parent) use ($search) {
+                            $parent->where('invoice_no', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when(! empty($filters['company_id']), function ($query) use ($filters) {
+                $query->where('company_id', $filters['company_id']);
+            })
+            ->when(! empty($filters['branch_id']), function ($query) use ($filters) {
+                $query->where('branch_id', $filters['branch_id']);
+            })
+            ->when(! empty($filters['contact_id']), function ($query) use ($filters) {
+                $query->where('contact_id', $filters['contact_id']);
+            })
+            ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
+                $query->whereDate('transaction_date', $filters['transaction_date']);
+            })
+            ->orderBy($sortBy, $sortType);
+
+        Paginator::currentPageResolver(function () use ($curPage) {
+            return $curPage;
+        });
+
+        $returns = $query->paginate($showRecord);
+
+        if ($curPage > $returns->lastPage()) {
+            Paginator::currentPageResolver(function () use ($returns) {
+                return $returns->lastPage();
+            });
+            $returns = $query->paginate($showRecord);
+        }
+
+        $returns->getCollection()->transform(function (self $note) {
+            $note->presentForIndex();
+            $note->sell_order_no = $note->parent?->invoice_no;
+
+            return $note;
+        });
+
+        return $returns;
+    }
+
+    public static function createSellReturn(object $request): self
+    {
+        $user = Auth::user();
+        $companyId = self::resolveScopedId($request->company_id) ?? self::resolveScopedId($user?->company_id);
+        $branchId = self::resolveScopedId($request->branch_id) ?? self::resolveScopedId($user?->branch_id);
+        $sellId = (int) self::resolveScopedId($request->transaction_id ?? $request->parent_id);
+
+        $sell = self::findVisibleSell($sellId);
+
+        if ($sell === null || $sell->status !== 'issue') {
+            throw ValidationException::withMessages([
+                'transaction_id' => 'Select an issued sell invoice.',
+            ]);
+        }
+
+        if ($sell->sellreturn()->exists()) {
+            throw ValidationException::withMessages([
+                'transaction_id' => 'A sell return already exists for this invoice.',
+            ]);
+        }
+
+        if ($companyId !== null && (int) $sell->company_id !== $companyId) {
+            throw ValidationException::withMessages([
+                'company_id' => 'The sell invoice does not belong to this company.',
+            ]);
+        }
+
+        if ($branchId !== null && (int) $sell->branch_id !== $branchId) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'The sell invoice does not belong to this branch.',
+            ]);
+        }
+
+        $total = self::applySellReturnedQuantities($sell, $request->selllines ?? []);
+
+        $note = new self;
+        $note->company_id = $companyId ?? $sell->company_id;
+        $note->branch_id = $branchId ?? $sell->branch_id;
+        $note->contact_id = $sell->contact_id;
+        $note->parent_id = $sell->id;
+        $note->type = self::TYPE_SELL_RETURN;
+        $note->status = 'pending';
+        $note->payment_status = 'due';
+        $note->pay_term = $sell->pay_term;
+        $note->pay_type = $sell->pay_type ?: 'day';
+        $note->invoice_no = self::generateSellReturnNo($companyId, $request->invoice_no ?? null);
+        $note->transaction_date = self::parseTransactionDate($request->transaction_date ?? now());
+        $note->attachment = self::storeImage($request);
+        $note->final_amount = $total;
+        $note->total_item = collect($request->selllines ?? [])
+            ->filter(fn ($row) => is_array($row) && SellLine::resolveNumeric($row['quantity_returned'] ?? 0) > 0)
+            ->count();
+        $note->created_by = Auth::id();
+        $note->save();
+
+        return $note;
+    }
+
+    public static function updateSellReturn(object $request, int $id): self
+    {
+        $note = self::findVisibleSellReturn($id);
+
+        if ($note === null) {
+            abort(404);
+        }
+
+        $sell = self::findVisibleSell((int) $note->parent_id);
+
+        if ($sell === null) {
+            abort(404);
+        }
+
+        $total = self::applySellReturnedQuantities($sell, $request->selllines ?? []);
+
+        $note->final_amount = $total;
+        $note->total_item = collect($request->selllines ?? [])
+            ->filter(fn ($row) => is_array($row) && SellLine::resolveNumeric($row['quantity_returned'] ?? 0) > 0)
+            ->count();
+        $note->updated_by = Auth::id();
+        $note->save();
+
+        return $note;
+    }
+
+    public static function deleteSellReturn(int $id): void
+    {
+        $note = self::findVisibleSellReturn($id);
+
+        if ($note === null) {
+            abort(404);
+        }
+
+        $sell = self::findVisibleSell((int) $note->parent_id);
+
+        if ($sell !== null) {
+            $sell->selllines()->update(['quantity_returned' => 0]);
+        }
+
+        $note->delete();
+    }
+
+    /**
+     * @param  array<int, mixed>  $lines
+     */
+    public static function applySellReturnedQuantities(self $sell, array $lines): float
+    {
+        self::assertValidLines($lines);
+
+        $sell->loadMissing('selllines');
+        $indexed = $sell->selllines->keyBy('id');
+        $updatedIds = [];
+        $total = 0.0;
+        $returnedCount = 0;
+
+        foreach ($lines as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $lineId = (int) ($row['id'] ?? 0);
+            $line = $indexed->get($lineId);
+
+            if ($line === null) {
+                throw ValidationException::withMessages([
+                    'selllines' => 'One or more lines do not belong to this sell.',
+                ]);
+            }
+
+            $issued = SellLine::resolveNumeric($line->quantity_issue);
+            $returned = SellLine::resolveNumeric($row['quantity_returned'] ?? 0);
+
+            if ($returned < 0 || $returned > $issued) {
+                throw ValidationException::withMessages([
+                    'selllines' => 'Return quantity must be between 0 and the issued quantity.',
+                ]);
+            }
+
+            $line->quantity_returned = $returned;
+            $line->save();
+            $updatedIds[] = $lineId;
+            $total += SellLine::resolveNumeric($line->unit_price_after_discount) * $returned;
+
+            if ($returned > 0) {
+                $returnedCount++;
+            }
+        }
+
+        if ($updatedIds === [] || $returnedCount === 0) {
+            throw ValidationException::withMessages([
+                'selllines' => ['Enter a return quantity for at least one item.'],
+            ]);
+        }
+
+        return round($total, 2);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function presentSellReturn(): array
+    {
+        $this->loadMissing([
+            'company:id,name,address',
+            'branch:id,name',
+            'contact:id,business_name,address,mobile',
+            'parent:id,invoice_no,status,payment_status,transaction_date',
+        ]);
+
+        $lines = $this->sellReturnLines();
+
+        return [
+            'id' => $this->id,
+            'company_id' => $this->company_id,
+            'branch_id' => $this->branch_id,
+            'contact_id' => $this->contact_id,
+            'transaction_id' => $this->parent_id,
+            'parent_id' => $this->parent_id,
+            'invoice_no' => $this->invoice_no,
+            'sell_order_no' => $this->parent?->invoice_no,
+            'transaction_date' => $this->transaction_date?->format('Y-m-d'),
+            'transaction_date_label' => $this->transaction_date?->format('d M Y'),
+            'status' => $this->status,
+            'status_label' => Str::headline((string) $this->status),
+            'payment_status' => $this->payment_status,
+            'payment_status_label' => Str::headline((string) $this->payment_status),
+            'business_name' => $this->contact?->business_name,
+            'address' => $this->contact?->address,
+            'mobile' => $this->contact?->mobile,
+            'company_name' => $this->company?->name,
+            'company_address' => $this->company?->address,
+            'branch_name' => $this->branch?->name,
+            'attachment' => $this->attachment,
+            'attachment_url' => self::imageUrl($this->attachment),
+            'formatted_amount' => number_format((float) $this->final_amount, 2),
+            'final_amount' => $this->final_amount,
+            'selllines' => $lines,
+        ];
     }
 }

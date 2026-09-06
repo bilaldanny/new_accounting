@@ -169,6 +169,41 @@ function createSellRecord(array $scope, array $attributes = []): Transaction
     return $sell;
 }
 
+function createIssuedSell(array $scope, array $attributes = []): Transaction
+{
+    $sell = createSellRecord($scope, array_merge([
+        'status' => 'issue',
+    ], $attributes));
+
+    $line = $sell->selllines()->first();
+
+    if ($line !== null) {
+        $line->quantity_issue = $line->quantity;
+        $line->save();
+    }
+
+    return $sell->fresh(['selllines']);
+}
+
+function validSellReturnPayload(array $scope, Transaction $sell, array $overrides = []): array
+{
+    $line = $sell->selllines()->first();
+
+    return array_merge([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'contact_id' => $scope['contact_id'],
+        'transaction_id' => $sell->id,
+        'transaction_date' => '2026-08-24',
+        'selllines' => [
+            [
+                'id' => $line?->id,
+                'quantity_returned' => 1,
+            ],
+        ],
+    ], $overrides);
+}
+
 function validIssueNotePayload(array $scope, Transaction $sell, array $overrides = []): array
 {
     $line = $sell->selllines()->first();

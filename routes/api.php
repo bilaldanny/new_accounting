@@ -33,6 +33,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SellApprovalController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\SellPaymentController;
+use App\Http\Controllers\SellReturnController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\SupplierController;
@@ -380,6 +381,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     /* Sell */
     Route::get('sells/search-products', [SellController::class, 'searchProducts']);
     Route::get('sells/trash', [SellController::class, 'trash']);
+    Route::put('sells/{id}/shipping', [SellController::class, 'updateShipping']);
     Route::resource('sells', SellController::class);
     Route::post('/sells/statusupdate', [SellController::class, 'updatestatus']);
     Route::post('/sells/duplicate', [SellController::class, 'duplicate']);
@@ -411,6 +413,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('issue-notes/bulk_delete_per', [IssueNoteController::class, 'bulk_delete_per']);
     Route::post('issue-notes/restore_records', [IssueNoteController::class, 'restore_records']);
     /* Issue Note */
+
+    /* Sell Return */
+    Route::get('sell-returns/eligible-sells', [SellReturnController::class, 'eligibleSells']);
+    Route::get('sell-returns/sell/{id}', [SellReturnController::class, 'sellLines']);
+    Route::get('sell-returns/trash', [SellReturnController::class, 'trash']);
+    Route::resource('sell-returns', SellReturnController::class);
+    Route::post('sell-returns/bulk_delete', [SellReturnController::class, 'bulk_delete']);
+    Route::post('sell-returns/bulk_delete_per', [SellReturnController::class, 'bulk_delete_per']);
+    Route::post('sell-returns/restore_records', [SellReturnController::class, 'restore_records']);
+    /* Sell Return */
 
     /* Product */
     Route::post('/products/import', [ProductController::class, 'import']);

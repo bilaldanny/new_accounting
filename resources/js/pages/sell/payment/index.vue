@@ -203,6 +203,31 @@
         form$.value?.reset();
         const params = new URLSearchParams(window.location.search);
         const transactionId = params.get('transaction_id') ?? '';
+        let sellPatch: Record<string, unknown> = {};
+
+        if (transactionId) {
+            try {
+                const response = await window.axios.get(API_ENDPOINTS.sellPaymentSell(transactionId));
+                const sell = response.data ?? {};
+                const remaining = sell.remaining_amount ?? 0;
+
+                sellPatch = {
+                    company_id: sell.company_id ?? '',
+                    branch_id: sell.branch_id ?? '',
+                    contact_id: sell.contact_id ?? '',
+                    transaction_id: sell.id ?? Number(transactionId),
+                    invoice_no: sell.invoice_no ?? '',
+                    customer_name: sell.customer_name ?? '',
+                    business_name: sell.business_name ?? '',
+                    branch_name: sell.branch_name ?? '',
+                    final_amount: sell.final_amount ?? '',
+                    remaining_amount: remaining,
+                    amount: remaining,
+                };
+            } catch {
+                sellPatch = { transaction_id: Number(transactionId) || transactionId };
+            }
+        }
 
         formData.value = {
             ...emptyForm(),
@@ -215,15 +240,17 @@
                         company_id: authUser.value?.company_id ?? '',
                         branch_id: authUser.value?.branch_id ?? '',
                     }),
-            ...(transactionId ? { transaction_id: transactionId } : {}),
+            ...sellPatch,
         };
 
         if (showCompanyFilter.value) {
             await fetchCompany();
         }
 
-        if (isCompanyadmin.value && authUser.value?.company_id) {
-            await fetchBranch(authUser.value.company_id);
+        const companyId = formData.value.company_id || (isCompanyadmin.value ? authUser.value?.company_id : null);
+
+        if (companyId) {
+            await fetchBranch(companyId);
         }
 
         state.modalLoading = false;

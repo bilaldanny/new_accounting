@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
+use App\Models\Company;
+use App\Models\Payment;
 use App\Models\Transaction;
 use App\Services\SellJournal;
 use Illuminate\Http\Request;
@@ -78,6 +80,7 @@ class SellController extends Controller
                 'branch:id,name',
                 'contact:id,business_name',
                 'childIssueNotes' => fn ($query) => $query->select('id', 'parent_id')->latest('id'),
+                'sellreturn' => fn ($query) => $query->select('id', 'parent_id')->latest('id'),
             ])
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('status', $status);
@@ -101,6 +104,16 @@ class SellController extends Controller
             })
             ->when($request->filled('contact_id'), function ($q) use ($request) {
                 $q->where('contact_id', $request->contact_id);
+            })
+            ->when($request->filled('transaction_date'), function ($q) use ($request) {
+                $q->whereDate('transaction_date', $request->transaction_date);
+            })
+            ->when($request->filled('order_status') && $request->order_status !== 'all', function ($q) use ($request) {
+                if ($request->order_status === 'notnull') {
+                    $q->whereNotNull('shipping_status');
+                } else {
+                    $q->where('shipping_status', $request->order_status);
+                }
             });
 
         $sells = $this->paginateSorted($query, $request);
@@ -124,6 +137,7 @@ class SellController extends Controller
             'subcategory_id' => 'nullable|integer',
             'itemtype_id' => 'nullable|integer',
             'product_id' => 'nullable|integer',
+            'brand_id' => 'nullable|integer',
         ]);
 
         $companyId = Auth::user()?->hasRole('superadmin')
@@ -134,7 +148,7 @@ class SellController extends Controller
             $companyId,
             Transaction::resolveScopedId($request->branch_id),
             $request->input('search'),
-            $request->only(['category_id', 'subcategory_id', 'itemtype_id', 'product_id']),
+            $request->only(['category_id', 'subcategory_id', 'itemtype_id', 'product_id', 'brand_id']),
         ));
     }
 
@@ -166,13 +180,15 @@ class SellController extends Controller
             ->sells()
             ->visibleToCurrentUser()
             ->with([
-                'selllines.product:id,name,sku,unit_id,itemtype_id',
+                'selllines.product:id,name,sku,unit_id,itemtype_id,weight,product_image',
                 'selllines.productdetail:id,product_id,name,sku,smallquantity,largequantity',
                 'selllines.unit:id,name,short_name',
-                'contact:id,business_name,pay_term,pay_type,credit_limit,address,mobile',
+                'contact:id,business_name,first_name,middle_name,last_name,pay_term,pay_type,credit_limit,address,mobile',
                 'directContact:id,business_name',
-                'company:id,name,address',
+                'company:id,name,address,phone,cell,email,fb_link,logo',
+                'company.companySetting:id,company_id,business_name,address,logo',
                 'branch:id,name',
+                'createdBy:id,full_name,name',
             ])
             ->find((int) $id);
 
@@ -197,6 +213,32 @@ class SellController extends Controller
         $payload['payment_status_label'] = $sell->payment_status_label;
         $payload['transaction_date_label'] = $sell->transaction_date_label;
         $payload['formatted_amount'] = $sell->formatted_amount;
+        $payload['company_phone'] = $sell->company?->phone;
+        $payload['company_cell'] = $sell->company?->cell;
+        $payload['company_email'] = $sell->company?->email;
+        $payload['company_fb_link'] = $sell->company?->fb_link;
+        $payload['company_logo_url'] = Company::logoUrl(
+            $sell->company?->companySetting?->logo ?? $sell->company?->logo
+        );
+        $payload['company_business_name'] = $sell->company?->companySetting?->business_name
+            ?: $sell->company?->name;
+        $payload['company_setting_address'] = $sell->company?->companySetting?->address
+            ?: $sell->company?->address;
+        $payload['created_by_name'] = $sell->createdBy?->full_name ?: $sell->createdBy?->name;
+        $payload['customer_full_name'] = trim(implode(' ', array_filter([
+            $sell->contact?->first_name,
+            $sell->contact?->middle_name,
+            $sell->contact?->last_name,
+        ]))) ?: $sell->contact?->business_name;
+        $billTotal = collect($payload['selllines'])->sum(fn (array $line) => (float) ($line['row_subtotal'] ?? $line['subtotal'] ?? 0));
+        $paid = Payment::paidAmountForTransaction((int) $sell->id);
+        $payload['bill_total'] = round($billTotal, 2);
+        $payload['paid'] = $paid;
+        $payload['previous_balance'] = Transaction::previousDueBalanceForContact(
+            (int) $sell->contact_id,
+            (int) $sell->id,
+        );
+        $payload['balance'] = round((float) $sell->final_amount - $paid, 2);
 
         return response()->json($payload);
     }
@@ -214,6 +256,31 @@ class SellController extends Controller
         } catch (ValidationException $e) {
             DB::rollBack();
             throw $e;
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return response()->json(['errormessage' => $e->getMessage()], 500);
+        }
+
+        return response()->json(['message' => 'Successfully Saved']);
+    }
+
+    public function updateShipping(Request $request, $id)
+    {
+        $this->authorizeMenuPermission('/sell/shipment');
+
+        $request->validate([
+            'shipping_details' => 'nullable|string|max:255',
+            'shipping_address' => 'nullable|string',
+            'shipping_status' => 'nullable|in:ordered,packed,shipped,delivered,cancelled',
+            'delivered_to' => 'nullable|string|max:255',
+            'shipping_note' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            Transaction::updateSellShipping($request, (int) $id);
+            DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();
 

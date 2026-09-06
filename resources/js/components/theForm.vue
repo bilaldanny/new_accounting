@@ -25,12 +25,22 @@ import { nextTick, reactive, ref, watch } from 'vue';
     const isSubmitting = ref(false)
     let skipParentSync = false
 
+    function vueformSafeData(data: Record<string, unknown> | null | undefined) {
+        if (! data) {
+            return {};
+        }
+
+        const { document, ...rest } = data;
+
+        return rest;
+    }
+
     watch(isSubmitting, (value) => {
         emit('update:submitting', value)
     })
 
     // make a local copy of formData
-    const localValue = reactive({ ...(params.formData ?? {}) })
+    const localValue = reactive({ ...vueformSafeData(params.formData) })
 
     watch(
         () => params.formData,
@@ -39,7 +49,7 @@ import { nextTick, reactive, ref, watch } from 'vue';
                 return;
             }
 
-            Object.assign(localValue, newData);
+            Object.assign(localValue, vueformSafeData(newData));
             vueform$.value?.update(localValue);
         },
         { deep: true },
