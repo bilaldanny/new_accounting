@@ -101,7 +101,7 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeMenuPermission('/payment/add');
+        $this->authorizeMenuPermission('/acpayment/add');
 
         $request->validate($this->paymentFormRules());
         $this->assertLinesAreBalanced($request);
@@ -135,7 +135,7 @@ class PaymentController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeMenuPermission('/payment/:id/edit');
+        $this->authorizeMenuPermission('/acpayment/:id/edit');
 
         $request->validate($this->paymentFormRules());
         $this->assertLinesAreBalanced($request);
@@ -158,7 +158,7 @@ class PaymentController extends Controller
 
     public function destroy($id)
     {
-        if (deletepermission('/payment/delete')) {
+        if (deletepermission('/acpayment/delete')) {
             TAccount::deleteJournalEntry((int) $id, 'payment');
 
             return response()->json(['message' => 'Successfully Deleted']);
@@ -169,7 +169,7 @@ class PaymentController extends Controller
 
     public function bulk_delete(Request $request)
     {
-        return $this->guardedBulkAction('/payment/delete', 'Successfully Deleted', function () use ($request) {
+        return $this->guardedBulkAction('/acpayment/delete', 'Successfully Deleted', function () use ($request) {
             $ids = TAccount::query()
                 ->manualPayments()
                 ->visibleToCurrentUser()
@@ -182,7 +182,7 @@ class PaymentController extends Controller
 
     public function duplicate(Request $request)
     {
-        $this->authorizeMenuPermission('/payment/add');
+        $this->authorizeMenuPermission('/acpayment/add');
 
         DB::beginTransaction();
         try {

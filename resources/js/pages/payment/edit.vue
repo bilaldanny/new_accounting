@@ -1,11 +1,11 @@
 <script setup lang="ts">
+    import { Head, router } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import TheForm from '@/components/theForm.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import usePayments from '@/composables/payment';
-    import { Head, router } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
     import Fields from './Fields.vue';
 
     const pageProps = defineProps({
@@ -22,7 +22,7 @@
             breadcrumbs: [
                 {
                     title: 'Payment',
-                    href: '/payment',
+                    href: '/acpayment',
                 },
                 {
                     title: 'Edit Payment',
@@ -76,7 +76,7 @@
 
         Notify(response.data?.message || 'Successfully Saved', 'success');
         isLeaving.value = true;
-        await router.visit(saveAction.value === 'add-new' ? '/payment/add' : '/payment');
+        await router.visit(saveAction.value === 'add-new' ? '/acpayment/add' : '/acpayment');
 
         return response;
     }
@@ -90,7 +90,7 @@
         const loaded = await getEditData(recordId.value);
 
         if (! loaded) {
-            router.visit('/payment');
+            router.visit('/acpayment');
 
             return;
         }
@@ -134,7 +134,7 @@
                         type="button"
                         class="btn btn-light"
                         :disabled="isBusy"
-                        @click="router.visit('/payment')"
+                        @click="router.visit('/acpayment')"
                     >
                         Cancel
                     </button>

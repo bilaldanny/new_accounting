@@ -1,14 +1,14 @@
 <script setup lang="ts">
-    import { onMounted, ref, watchEffect, computed } from 'vue';
-    import TopButtons from '@/components/topButtons.vue';
-    import TheFilter from '@/components/theFilter.vue';
-    import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
-    import debounce from '@/utils/debounce';
-    import usePayments from '@/composables/payment';
+    import { onMounted, ref, watchEffect, computed } from 'vue';
+    import TheFilter from '@/components/theFilter.vue';
     import TheTable from '@/components/theTable.vue';
+    import TopButtons from '@/components/topButtons.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useCommons from '@/composables/common';
+    import usePayments from '@/composables/payment';
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import debounce from '@/utils/debounce';
 
     defineOptions({
         layout: {
@@ -74,6 +74,7 @@
     const currentSearch = ref(getSavedValue('currentSearch') || '');
     const currentStatus = ref(getSavedValue('currentStatus') || 'all');
     const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
+
     if(getSavedValue('currentUrl') === props.routeName){
         currentUrl.value = (getSavedValue('currentUrl') || props.routeName);
     }else{
@@ -95,6 +96,7 @@
 
         ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
             const val = stateRefMap[key as keyof typeof stateRefMap]?.value
+
             if (val !== undefined && val !== null) {
             localStorage.setItem(key, val)
             }
@@ -112,6 +114,7 @@
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
+
             await debouncedGetPayments({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
@@ -194,7 +197,7 @@
                     :getData="getData"
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
-                    add-href="/payment/add"
+                    add-href="/acpayment/add"
                     :show-filter="showFilter"
                     :show-import="false"
                     :show-status="false"
@@ -253,7 +256,7 @@
                         :changeOrder="changeOrder"
                         :delete="deleteRecord"
                         :duplicate="duplicate"
-                        :view-route="(id) => `/payment/${id}/view`"
+                        :view-route="(id) => `/acpayment/${id}/view`"
                         actionType="link"
                         :apiUrl="props.routeName?.split('.')[0]"
                         show-export

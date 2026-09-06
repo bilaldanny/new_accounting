@@ -1,9 +1,9 @@
 <script setup lang="ts">
+    import { Head, router, setLayoutProps } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import useCommons from '@/composables/common';
     import usePayments from '@/composables/payment';
-    import { Head, router, setLayoutProps } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
 
     const pageProps = defineProps({
         id: {
@@ -18,7 +18,7 @@
         breadcrumbs: [
             {
                 title: 'Payment',
-                href: '/payment',
+                href: '/acpayment',
             },
             {
                 title: 'View Payment',
@@ -180,14 +180,14 @@
 
             <div class="product-form-page__footer purchase-approval-page__footer">
                 <div class="product-form-page__actions">
-                    <button type="button" class="btn btn-light" @click="router.visit('/payment')">Close</button>
+                    <button type="button" class="btn btn-light" @click="router.visit('/acpayment')">Close</button>
                     <button type="button" class="btn btn-outline-secondary" :disabled="!pageReady" @click="printDocument">Print</button>
                     <button
                         v-if="formData.status === 'pending'"
                         type="button"
                         class="btn btn-outline-primary"
                         :disabled="!pageReady"
-                        @click="router.visit(`/payment/${recordId}/edit`)"
+                        @click="router.visit(`/acpayment/${recordId}/edit`)"
                     >
                         Edit
                     </button>

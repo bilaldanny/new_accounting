@@ -24,8 +24,10 @@ class SellPaymentController extends Controller
     {
         return [
             'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
-            'branch_id' => 'bail|required',
-            'contact_id' => 'bail|required',
+            // branch_id/contact_id are not persisted from the request: they are
+            // always derived from the looked-up transaction (see Payment::createSellPayment).
+            'branch_id' => 'nullable',
+            'contact_id' => 'nullable',
             'transaction_id' => 'bail|required|integer',
             'amount' => 'bail|required|numeric|min:0.01',
             'paid_on' => 'bail|required',

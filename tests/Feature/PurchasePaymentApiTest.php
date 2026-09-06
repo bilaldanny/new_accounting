@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use App\Models\TAccount;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -197,6 +198,80 @@ test('purchase payments cheque method requires a cheque number', function () {
         'method' => 'cheque',
     ]))->assertUnprocessable()
         ->assertJsonValidationErrors(['cheque_number']);
+});
+
+test('purchase payments api posts a balanced ledger voucher debiting the supplier and crediting cash', function () {
+    $scope = seedPurchasePaymentAccount(seedPurchaseScope());
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase))
+        ->assertSuccessful();
+
+    $payment = Payment::query()->first();
+    expect($payment->t_account_id)->not->toBeNull();
+
+    $journal = TAccount::query()->with('details')->findOrFail($payment->t_account_id);
+
+    expect($journal->voucher_no)->toStartWith('PP-')
+        ->and((float) $journal->total_amount)->toBe(40.0)
+        ->and($journal->details)->toHaveCount(2);
+
+    $debit = $journal->details->firstWhere('coa_id', $scope['supplier_coa_id']);
+    $credit = $journal->details->firstWhere('coa_id', $scope['payment_account_id']);
+
+    expect((float) $debit->debit)->toBe(40.0)
+        ->and((float) $debit->credit)->toBe(0.0)
+        ->and((float) $credit->credit)->toBe(40.0)
+        ->and((float) $credit->debit)->toBe(0.0);
+
+    $totalDebit = (float) $journal->details->sum('debit');
+    $totalCredit = (float) $journal->details->sum('credit');
+    expect($totalDebit)->toBe($totalCredit);
+});
+
+test('purchase payments api rewrites the ledger voucher when the payment amount is updated', function () {
+    $scope = seedPurchasePaymentAccount(seedPurchaseScope());
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase))
+        ->assertSuccessful();
+
+    $payment = Payment::query()->first();
+    $originalTAccountId = $payment->t_account_id;
+
+    $this->putJson('/api/purchase-payments/'.$payment->id, validPurchasePaymentPayload($scope, $purchase, [
+        'amount' => 100,
+    ]))->assertSuccessful();
+
+    expect(TAccount::query()->count())->toBe(1);
+
+    $journal = TAccount::query()->with('details')->findOrFail($originalTAccountId);
+
+    expect((float) $journal->total_amount)->toBe(100.0)
+        ->and((float) $journal->details->sum('debit'))->toBe(100.0)
+        ->and((float) $journal->details->sum('credit'))->toBe(100.0);
+});
+
+test('purchase payments api removes the ledger voucher when the payment is deleted', function () {
+    $scope = seedPurchasePaymentAccount(seedPurchaseScope());
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    $superadmin = User::query()->findOrFail(1);
+    Sanctum::actingAs($superadmin);
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase))
+        ->assertSuccessful();
+
+    $payment = Payment::query()->first();
+    $tAccountId = $payment->t_account_id;
+
+    $this->postJson('/api/purchase-payments/bulk_delete', [$payment->id])->assertSuccessful();
+
+    $this->assertDatabaseMissing('t_accounts', ['id' => $tAccountId]);
+    $this->assertDatabaseMissing('t_account_details', ['t_account_id' => $tAccountId]);
 });
 
 test('purchase payments index can filter by transaction id', function () {

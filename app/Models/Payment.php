@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\LedgerJournal;
 use App\Support\Base64Upload;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +24,7 @@ class Payment extends Model
         'transaction_id',
         'contact_id',
         'payment_account',
+        't_account_id',
         'is_return',
         'amount',
         'method',
@@ -94,6 +97,14 @@ class Payment extends Model
     public function paymentAccount(): BelongsTo
     {
         return $this->belongsTo(ChartOfAccount::class, 'payment_account');
+    }
+
+    /**
+     * @return BelongsTo<TAccount, $this>
+     */
+    public function tAccount(): BelongsTo
+    {
+        return $this->belongsTo(TAccount::class, 't_account_id');
     }
 
     public function scopeVisibleToCurrentUser(Builder $query): Builder
@@ -174,7 +185,12 @@ class Payment extends Model
      */
     public static function assertAmountWithinRemaining(Transaction $transaction, float $amount, ?int $exceptPaymentId = null): void
     {
-        $remaining = self::remainingAmountForTransaction($transaction, $exceptPaymentId);
+        // Lock the parent transaction row so two concurrent payment
+        // submissions against it serialize instead of both reading the same
+        // "remaining" balance and jointly overpaying it.
+        $locked = Transaction::query()->whereKey($transaction->id)->lockForUpdate()->first() ?? $transaction;
+
+        $remaining = self::remainingAmountForTransaction($locked, $exceptPaymentId);
 
         if ($amount > $remaining) {
             throw ValidationException::withMessages([
@@ -194,14 +210,37 @@ class Payment extends Model
 
         $prefix = is_string($prefix) && trim($prefix) !== '' ? trim($prefix) : $defaultPrefix;
         $period = Carbon::now()->format('Y-m');
+        $pattern = $prefix.$period.'-';
 
-        $count = self::query()
-            ->where('company_id', $companyId)
-            ->where('branch_id', $branchId)
-            ->where('payment_ref_no', 'like', $prefix.'%')
-            ->count();
+        return DB::transaction(function () use ($companyId, $branchId, $pattern): string {
+            $last = self::query()
+                ->where('company_id', $companyId)
+                ->where('branch_id', $branchId)
+                ->where('payment_ref_no', 'like', $pattern.'%')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->value('payment_ref_no');
 
-        return $prefix.$period.'-'.str_pad((string) ($count + 1), 5, '0', STR_PAD_LEFT);
+            $next = 1;
+
+            if (is_string($last) && preg_match('/(\d+)$/', $last, $matches) === 1) {
+                $next = (int) $matches[1] + 1;
+            }
+
+            do {
+                $refNo = $pattern.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+                $next++;
+            } while (
+                self::query()
+                    ->where('company_id', $companyId)
+                    ->where('branch_id', $branchId)
+                    ->where('payment_ref_no', $refNo)
+                    ->lockForUpdate()
+                    ->exists()
+            );
+
+            return $refNo;
+        });
     }
 
     public static function syncTransactionPaymentStatus(int $transactionId): Transaction
@@ -239,7 +278,7 @@ class Payment extends Model
     public static function imageDirectory(): string
     {
         $path = public_path('images/payment_images');
-        File::isDirectory($path) or File::makeDirectory($path, 0777, true, true);
+        File::isDirectory($path) or File::makeDirectory($path, 0755, true, true);
 
         return $path;
     }
@@ -286,9 +325,20 @@ class Payment extends Model
         return $existing;
     }
 
+    /**
+     * @throws ValidationException
+     */
     public static function saveDocumentFile(UploadedFile $file): string
     {
-        $filename = time().'.payment.'.$file->getClientOriginalExtension();
+        $extension = Base64Upload::extensionForMime((string) $file->getMimeType());
+
+        if ($extension === null) {
+            throw ValidationException::withMessages([
+                'document' => ['The document must be a JPEG, PNG, or PDF file.'],
+            ]);
+        }
+
+        $filename = time().'.payment.'.$extension;
         $file->move(self::imageDirectory(), $filename);
 
         return $filename;
@@ -382,6 +432,7 @@ class Payment extends Model
         $payment->note = $request->note;
         $payment->document = self::storeDocument($request);
         $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'purchase');
+        self::postLedgerEntry($purchase, $payment);
         $payment->save();
 
         self::syncTransactionPaymentStatus((int) $purchase->id);
@@ -416,6 +467,7 @@ class Payment extends Model
         $payment->note = $request->note;
         $payment->document = self::storeDocument($request);
         $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'sell');
+        self::postLedgerEntry($sell, $payment);
         $payment->save();
 
         self::syncTransactionPaymentStatus((int) $sell->id);
@@ -452,6 +504,7 @@ class Payment extends Model
         $payment->paid_on = self::parsePaidOn($request->paid_on);
         $payment->note = $request->note;
         $payment->document = self::storeDocument($request, $payment->document);
+        self::postLedgerEntry($purchase, $payment);
         $payment->save();
 
         if ($originalTransactionId !== (int) $purchase->id) {
@@ -492,6 +545,7 @@ class Payment extends Model
         $payment->paid_on = self::parsePaidOn($request->paid_on);
         $payment->note = $request->note;
         $payment->document = self::storeDocument($request, $payment->document);
+        self::postLedgerEntry($sell, $payment);
         $payment->save();
 
         if ($originalTransactionId !== (int) $sell->id) {
@@ -512,6 +566,7 @@ class Payment extends Model
         }
 
         $transactionId = (int) $payment->transaction_id;
+        self::deleteLedgerEntry($payment);
         $payment->delete();
         self::syncTransactionPaymentStatus($transactionId);
     }
@@ -530,6 +585,7 @@ class Payment extends Model
         $transactionIds = $payments->pluck('transaction_id')->unique()->filter()->all();
 
         foreach ($payments as $payment) {
+            self::deleteLedgerEntry($payment);
             $payment->delete();
         }
 
@@ -547,6 +603,7 @@ class Payment extends Model
         }
 
         $transactionId = (int) $payment->transaction_id;
+        self::deleteLedgerEntry($payment);
         $payment->delete();
         self::syncTransactionPaymentStatus($transactionId);
     }
@@ -565,6 +622,7 @@ class Payment extends Model
         $transactionIds = $payments->pluck('transaction_id')->unique()->filter()->all();
 
         foreach ($payments as $payment) {
+            self::deleteLedgerEntry($payment);
             $payment->delete();
         }
 
@@ -598,6 +656,83 @@ class Payment extends Model
             'attachment' => $this->document,
             'document_url' => self::imageUrl($this->document),
         ]);
+    }
+
+    /**
+     * Post (or rewrite) the ledger voucher for a purchase/sell payment:
+     * cash/bank vs. the contact's payable/receivable account.
+     *
+     * @throws ValidationException
+     */
+    private static function postLedgerEntry(Transaction $document, self $payment): void
+    {
+        $document->loadMissing('contact');
+        $contact = $document->contact;
+
+        if ($contact === null) {
+            throw ValidationException::withMessages([
+                'contact_id' => ['The contact for this payment could not be found.'],
+            ]);
+        }
+
+        $cashOrBankAccount = ChartOfAccount::query()->find($payment->payment_account);
+
+        if ($cashOrBankAccount === null) {
+            throw ValidationException::withMessages([
+                'payment_account' => ['Select a valid cash or bank account before saving the payment.'],
+            ]);
+        }
+
+        $isPurchase = $document->type === Transaction::TYPE_PURCHASE;
+        $ledger = app(LedgerJournal::class);
+
+        $contactCode = $isPurchase
+            ? ($contact->supplier_gl_id ?: $contact->gl_id)
+            : ($contact->customer_gl_id ?: $contact->gl_id);
+
+        $contactAccount = $ledger->accountByCode($document, (string) $contactCode);
+
+        if ($contactAccount === null) {
+            throw ValidationException::withMessages([
+                'contact_id' => [$isPurchase
+                    ? 'Link the supplier to a chart of account before recording a payment.'
+                    : 'Link the customer to a chart of account before recording a payment.'],
+            ]);
+        }
+
+        $amount = round((float) $payment->amount, 2);
+        $contactName = $contact->business_name ?: trim($contact->first_name.' '.$contact->last_name);
+
+        // Paying a supplier debits payable (reduces the liability) and
+        // credits cash/bank (reduces the asset). Receiving from a customer
+        // debits cash/bank (increases the asset) and credits receivable
+        // (reduces the asset).
+        $lines = $isPurchase
+            ? [
+                ['account' => $contactAccount, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $contact->id],
+                ['account' => $cashOrBankAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $contact->id],
+            ]
+            : [
+                ['account' => $cashOrBankAccount, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $contact->id],
+                ['account' => $contactAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $contact->id],
+            ];
+
+        $description = ($isPurchase ? 'Payment to ' : 'Payment from ').$contactName.' against '.$document->invoice_no;
+
+        $journal = $ledger->postPayment(
+            $payment,
+            $cashOrBankAccount,
+            $description,
+            $isPurchase ? 'PP' : 'SP',
+            $lines,
+        );
+
+        $payment->t_account_id = $journal->id;
+    }
+
+    private static function deleteLedgerEntry(self $payment): void
+    {
+        app(LedgerJournal::class)->deleteForPayment($payment);
     }
 
     private static function visiblePurchaseFromRequest(object $request): Transaction
