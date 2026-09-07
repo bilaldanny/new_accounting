@@ -78,7 +78,7 @@ function onPanelAfterLeave(el: Element): void {
             </div>
             <div v-if="props.showFooter" class="the-filter-panel__footer">
                 <button
-                    class="btn btn-sm btn-outline-dark d-inline-flex align-items-center"
+                    class="btn btn-sm btn-outline-dark modern-filter-btn modern-filter-btn--clear d-inline-flex align-items-center"
                     type="button"
                     :disabled="props.loading"
                     @click="emit('clear')"
@@ -89,10 +89,10 @@ function onPanelAfterLeave(el: Element): void {
                         role="status"
                         aria-hidden="true"
                     ></span>
-                    Clear
+                    Reset Filters
                 </button>
                 <button
-                    class="btn btn-sm btn-outline-success d-inline-flex align-items-center"
+                    class="btn btn-sm btn-primary modern-filter-btn modern-filter-btn--search d-inline-flex align-items-center"
                     type="button"
                     :disabled="props.loading"
                     @click="emit('search')"
@@ -103,7 +103,7 @@ function onPanelAfterLeave(el: Element): void {
                         role="status"
                         aria-hidden="true"
                     ></span>
-                    Search
+                    Apply Filters
                 </button>
             </div>
         </div>
