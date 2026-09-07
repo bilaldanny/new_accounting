@@ -864,26 +864,60 @@ import { formatNumber } from '@/utils/numberFormat';
 <template>
     <div class="table-responsive modern-table">
         <div class="dataTables_wrapper dt-bootstrap5">
-            <div class="row">
-                <div class="col-sm-12 col-md-6">
-                    <!-- Show Record -->
-                    <div class="dataTables_length" id="example_length">
-                        <label>
-                            Show 
-                            <select 
-                                name="example_length" 
-                                aria-controls="example" 
-                                class="form-select form-select-sm" 
-                                v-model="localShowRecord"
-                            >
-                                <option v-for="item in tableData.selectData" :value="item" :key="String(item)">{{ item }}</option>
-                            </select>
-                            entries
-                        </label>
+            <!-- Modern Table Toolbar -->
+            <div class="modern-table-toolbar">
+                <div class="modern-table-toolbar__left">
+                    <!-- Search Input -->
+                    <div id="example_filter" class="modern-search-box dataTables_filter">
+                        <svg class="modern-search-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input
+                            type="search"
+                            class="modern-search-input"
+                            placeholder="Search records..."
+                            aria-label="Search records"
+                            v-model="localSearch"
+                        />
+                        <button
+                            v-if="localSearch"
+                            type="button"
+                            class="modern-search-clear"
+                            title="Clear search"
+                            aria-label="Clear search"
+                            @click="localSearch = ''"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     </div>
-                    <!-- Show Record -->
+
+                    <!-- Show Records / Page Size Selector -->
+                    <div id="example_length" class="modern-pagesize-wrap dataTables_length" v-if="tableData.selectData?.length">
+                        <select 
+                            name="example_length" 
+                            aria-label="Rows per page" 
+                            title="Rows per page"
+                            class="form-select form-select-sm modern-pagesize-select" 
+                            v-model="localShowRecord"
+                        >
+                            <option v-for="item in tableData.selectData" :value="item" :key="String(item)">
+                                {{ item }} / page
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Selected Rows Indicator Banner -->
+                    <div v-if="exportSelectedIds.length > 0" class="modern-selection-pill" title="Selected rows for bulk actions or export">
+                        <span class="modern-selection-pill__count">{{ exportSelectedIds.length }}</span>
+                        <span>selected</span>
+                    </div>
                 </div>
-                <div class="col-sm-12 col-md-6">
+
+                <div class="modern-table-toolbar__right">
                     <div v-if="showExportToolbar" class="table-export-wrap">
                         <div class="table-export-bar">
                             <div class="btn-group table-export-group" role="group" aria-label="Export table data">
@@ -934,106 +968,191 @@ import { formatNumber } from '@/utils/numberFormat';
                             <span v-if="exportError" class="table-export-error">{{ exportError }}</span>
                         </div>
                     </div>
-                    <div id="example_filter" class="dataTables_filter">
-                        <label>
-                            Search:
-                            <input
-                                type="search"
-                                class="form-control form-control-sm"
-                                placeholder="Search..."
-                                aria-controls="datatable-basic"
-                                v-model="localSearch"
-                            >
-                        </label>
-                    </div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-sm-12">
-                    <table class="table table-striped table-bordered dataTable" style="width:100%">
-                        <thead>
-                            <tr role="row">
-                                <th
-                                    v-for="(item, index) in displayColumns"
-                                    :key="item.key ?? `th-${index}`"
-                                    :class="[
-                                        'sorting',
-                                        (tableData.sortBy === item.key)
-                                            ? (tableData.sortType === 'asc')
-                                                ? 'sorting_asc'
-                                                : 'sorting_desc'
-                                            : '',
-                                        (item?.sorting === 'disabled') ? 'sorting_disabled' : '',
-                                        'text-uppercase'
-                                    ]"
-                                    :data-colname="item?.key"
-                                    data-ordertype="asc"
-                                    tabindex="0"
-                                    rowspan="1"
-                                    colspan="1"
-                                    @click="(item?.sorting !== 'disabled') ? tableData.changeOrder?.($event) : ''"
-                                >
-                                    <div class="form-check form-check-table" v-if="item.type === 'checkbox'">
-                                        <input class="form-check-input" type="checkbox" id="MainCheckbox" @change="checkAll()" v-model="state.selectAll">
-                                    </div>
 
-                                    <div class="d-flex justify-content-between" v-else-if="item?.type === 'badge'">
-                                        {{ item?.label }}
-                                        <div class="dropdown">
-											<button 
-                                                class="btn btn-sm btn-secondary dropdown-toggle" 
-                                                type="button" 
-                                                data-bs-toggle="dropdown" 
-                                                aria-expanded="false"
-                                            >
-                                            </button>
-											<ul class="dropdown-menu" v-if="item?.show === 'retake_status'">
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'pending'" data-value="pending" @click="getStatus">Pending</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'approved'" data-value="approved" @click="getStatus">Approved</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'rejected'" data-value="rejected" @click="getStatus">Rejected</a></li>
-											</ul>
-
-                                            <ul class="dropdown-menu" v-else-if="item?.show === 'paid'">
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'paid'" data-value="paid" @click="getStatus">Paid</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'unpaid'" data-value="unpaid" @click="getStatus">Unpaid</a></li>
-											</ul>
-
-                                            <ul class="dropdown-menu" v-else>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== 'all'" data-value="all" @click="getStatus">All</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== '1'" data-value="1" @click="getStatus">Active</a></li>
-												<li><a class="dropdown-item" href="javascript:void(0);" v-if="state?.search?.status !== '0'" data-value="0" @click="getStatus">In Active</a></li>
-											</ul>
-										</div>
-                                    </div>
-
-                                    <span v-else>{{ item?.label }}</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <SkeletonTableRows
-                                v-if="tableData.state?.loading === true"
-                                :columns="displayColumns.length"
-                                :rows="skeletonRowCount"
-                                :cell-height="14"
-                                :duration-sec="1.55"
-                            />
-                            <tr class="odd" v-if="tableData.state.records.data.length === 0 && tableData.state?.loading === false">
-                                <td colspan="100%" class="text-center">No Record Found</td>
-                            </tr>
-                            <template
-                                v-else-if="tableData.state.records.data.length !== 0 && tableData.state?.loading === false"
+            <!-- Table Container -->
+            <div class="modern-table-container">
+                <table class="table table-hover dataTable admin-data-table" style="width:100%">
+                    <thead>
+                        <tr role="row">
+                            <th
+                                v-for="(item, index) in displayColumns"
+                                :key="item.key ?? `th-${index}`"
+                                :class="[
+                                    'modern-th',
+                                    (tableData.sortBy === item.key)
+                                        ? (tableData.sortType === 'asc')
+                                            ? 'sorting_asc'
+                                            : 'sorting_desc'
+                                        : '',
+                                    (item?.sorting === 'disabled') ? 'sorting_disabled' : 'sorting',
+                                    item.type === 'checkbox' ? 'admin-col-check' : '',
+                                    item.type === 'count' ? 'admin-col-sno' : '',
+                                    item.type === 'action' ? 'admin-col-action' : '',
+                                    item.format === 'number' ? 'text-end' : '',
+                                ]"
+                                :data-colname="item?.key"
+                                data-ordertype="asc"
+                                tabindex="0"
+                                rowspan="1"
+                                colspan="1"
+                                @click="(item?.sorting !== 'disabled') ? tableData.changeOrder?.($event) : ''"
                             >
-                                <tr
-                                    v-for="(row, rowIndex) in tableData.state.records.data"
-                                    :key="row.id != null ? row.id : `row-${rowIndex}`"
-                                >
+                                <div class="form-check form-check-table" v-if="item.type === 'checkbox'">
+                                    <input class="form-check-input" type="checkbox" id="MainCheckbox" @change="checkAll()" v-model="state.selectAll" aria-label="Select all rows">
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center gap-1" v-else-if="item?.type === 'badge'">
+                                    <span class="modern-th__title">{{ item?.label }}</span>
+                                    <div class="dropdown" @click.stop>
+                                        <button 
+                                            class="btn btn-sm modern-th-filter-btn dropdown-toggle" 
+                                            :class="{ 'is-active': state?.search?.status && state?.search?.status !== 'all' }"
+                                            type="button" 
+                                            data-bs-toggle="dropdown" 
+                                            aria-expanded="false"
+                                            aria-label="Filter by status"
+                                            title="Filter status"
+                                        >
+                                            <svg class="modern-th-filter-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M2.5 4H13.5M4.5 8H11.5M6.5 12H9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end modern-filter-dropdown" v-if="item?.show === 'retake_status'">
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'all' }" data-value="all" @click="getStatus">
+                                                    <span>All</span>
+                                                    <svg v-if="state?.search?.status === 'all'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'pending' }" data-value="pending" @click="getStatus">
+                                                    <span>Pending</span>
+                                                    <svg v-if="state?.search?.status === 'pending'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'approved' }" data-value="approved" @click="getStatus">
+                                                    <span>Approved</span>
+                                                    <svg v-if="state?.search?.status === 'approved'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'rejected' }" data-value="rejected" @click="getStatus">
+                                                    <span>Rejected</span>
+                                                    <svg v-if="state?.search?.status === 'rejected'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                        </ul>
+
+                                        <ul class="dropdown-menu dropdown-menu-end modern-filter-dropdown" v-else-if="item?.show === 'paid'">
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'all' }" data-value="all" @click="getStatus">
+                                                    <span>All</span>
+                                                    <svg v-if="state?.search?.status === 'all'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'paid' }" data-value="paid" @click="getStatus">
+                                                    <span>Paid</span>
+                                                    <svg v-if="state?.search?.status === 'paid'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'unpaid' }" data-value="unpaid" @click="getStatus">
+                                                    <span>Unpaid</span>
+                                                    <svg v-if="state?.search?.status === 'unpaid'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                        </ul>
+
+                                        <ul class="dropdown-menu dropdown-menu-end modern-filter-dropdown" v-else>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === 'all' }" data-value="all" @click="getStatus">
+                                                    <span>All</span>
+                                                    <svg v-if="state?.search?.status === 'all'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === '1' }" data-value="1" @click="getStatus">
+                                                    <span>Active</span>
+                                                    <svg v-if="state?.search?.status === '1'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item modern-filter-item" href="javascript:void(0);" :class="{ active: state?.search?.status === '0' }" data-value="0" @click="getStatus">
+                                                    <span>Inactive</span>
+                                                    <svg v-if="state?.search?.status === '0'" class="modern-check-icon" viewBox="0 0 16 16" fill="none"><path d="M13.25 4.75L6 12L2.75 8.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div v-else class="modern-th__content" :class="{ 'justify-content-end': item.format === 'number' }">
+                                    <span class="modern-th__title">{{ item?.label }}</span>
+                                    <span v-if="item?.sorting !== 'disabled'" class="modern-sort-indicator" aria-hidden="true">
+                                        <svg class="modern-sort-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path class="sort-chevron-up" d="M4.5 6.5L8 3L11.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <path class="sort-chevron-down" d="M4.5 9.5L8 13L11.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <SkeletonTableRows
+                            v-if="tableData.state?.loading === true"
+                            :columns="displayColumns.length"
+                            :rows="skeletonRowCount"
+                            :cell-height="16"
+                            :duration-sec="1.55"
+                        />
+                        <tr v-if="tableData.state.records.data.length === 0 && tableData.state?.loading === false">
+                            <td :colspan="displayColumns.length || 100" class="modern-empty-cell text-center">
+                                <div class="modern-empty-state">
+                                    <div class="modern-empty-icon-wrap">
+                                        <svg class="modern-empty-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                                        </svg>
+                                    </div>
+                                    <div class="modern-empty-title">No records found</div>
+                                    <p class="modern-empty-desc">
+                                        {{ localSearch ? `No matching records found for "${localSearch}". Try clearing your search query.` : 'There are no records available in this view.' }}
+                                    </p>
+                                    <button
+                                        v-if="localSearch"
+                                        type="button"
+                                        class="btn btn-sm modern-empty-btn"
+                                        @click="localSearch = ''"
+                                    >
+                                        Clear search
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <template
+                            v-else-if="tableData.state.records.data.length !== 0 && tableData.state?.loading === false"
+                        >
+                            <tr
+                                v-for="(row, rowIndex) in tableData.state.records.data"
+                                :key="row.id != null ? row.id : `row-${rowIndex}`"
+                                class="admin-data-row"
+                                :class="{ 'admin-row--selected': tableData.state?.edit_ids?.includes(row.id) }"
+                            >
                                     <td
                                         v-for="(col, colIndex) in displayColumns"
                                         :key="col.key ?? `cell-${colIndex}`"
                                         :data-colname="col.key"
+                                        :class="{
+                                            'admin-col-check': col.type === 'checkbox',
+                                            'admin-col-sno': col.type === 'count',
+                                            'admin-col-action': col.type === 'action',
+                                        }"
                                     >
                                         <!-- Checkbox column -->
                                         <div v-if="col.type === 'checkbox'" class="form-check form-check-table">
@@ -1096,120 +1215,133 @@ import { formatNumber } from '@/utils/numberFormat';
                                         <!-- badge -->
                                         <span
                                             :class="[
-                                                'badge cursor-pointer align-items-center d-inline-flex',
-                                                (row[col.key] === true)?'bg-success':'bg-danger'
+                                                'modern-badge cursor-pointer',
+                                                (row[col.key] === true) ? 'modern-badge--success' : 'modern-badge--danger'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'active'"
                                             @click="!state.loadingIds.has(row.id) ? tableData.changeStatus?.([row.id], null) : ''"
+                                            :title="!state.loadingIds.has(row.id) ? 'Click to toggle status' : ''"
                                         >
-                                            {{ (row[col.key] === true)?'Active':'In Active' }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ (row[col.key] === true) ? 'Active' : 'Inactive' }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge cursor-pointer align-items-center d-inline-flex',
-                                                (row[col.key] === true)?'bg-success':'bg-danger'
+                                                'modern-badge cursor-pointer',
+                                                (row[col.key] === true) ? 'modern-badge--success' : 'modern-badge--danger'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'paid'"
+                                            @click="!state.loadingIds.has(row.id) ? tableData.changeStatus?.([row.id], null) : ''"
                                         >
-                                            {{ (row[col.key] === true)?'Paid':'UnPaid' }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ (row[col.key] === true) ? 'Paid' : 'Unpaid' }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge cursor-pointer align-items-center d-inline-flex',
-                                                (row[col.key] === true)?'bg-success':'bg-danger'
+                                                'modern-badge cursor-pointer',
+                                                (row[col.key] === true) ? 'modern-badge--success' : 'modern-badge--danger'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'yes'"
+                                            @click="!state.loadingIds.has(row.id) ? tableData.changeStatus?.([row.id], null) : ''"
                                         >
-                                            {{ (row[col.key] === true)?'Yes':'No' }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ (row[col.key] === true) ? 'Yes' : 'No' }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge align-items-center d-inline-flex',
-                                                row[col.key] === true ? 'bg-success' : 'bg-secondary',
+                                                'modern-badge',
+                                                row[col.key] === true ? 'modern-badge--success' : 'modern-badge--secondary',
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'account_linked'"
                                             :title="row[col.key] === true && (row.supplier_gl_id || row.customer_gl_id) ? `Account: ${row.supplier_gl_id || row.customer_gl_id}` : 'Not linked to chart of accounts'"
                                         >
-                                            {{ row[col.key] === true ? 'Linked' : 'Not Linked' }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] === true ? 'Linked' : 'Not Linked' }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge cursor-pointer align-items-center d-inline-flex text-capitalize',
-                                                (row[col.key] === 'approved')?'bg-success':'bg-danger'
+                                                'modern-badge cursor-pointer text-capitalize',
+                                                (row[col.key] === 'approved') ? 'modern-badge--success' : 'modern-badge--danger'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'pending'"
                                         >
-                                            {{ (row[col.key] === 'approved')?'Approved': row.status }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ (row[col.key] === 'approved') ? 'Approved' : row.status }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge align-items-center d-inline-flex text-capitalize',
-                                                (row[col.key] === 'pending')?'bg-warning':(row[col.key] === 'approved')?'bg-success':'bg-danger'
+                                                'modern-badge text-capitalize',
+                                                (row[col.key] === 'pending') ? 'modern-badge--warning' : (row[col.key] === 'approved') ? 'modern-badge--success' : 'modern-badge--danger'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'retake_status'"
                                         >
-                                            {{ row[col.key] }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] }}</span>
                                         </span>
                                         
                                         <span
                                             :class="[
-                                                'badge align-items-center d-inline-flex text-capitalize',
-                                                (row[col.key] === 'active')?'bg-warning':(row[col.key] === 'converted')?'bg-success':'bg-danger'
+                                                'modern-badge text-capitalize',
+                                                (row[col.key] === 'active') ? 'modern-badge--warning' : (row[col.key] === 'converted') ? 'modern-badge--success' : 'modern-badge--danger'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'cart_status'"
                                         >
-                                            {{ row[col.key] }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                'modern-badge text-capitalize',
                                                 String(row[col.key]).toLowerCase() === 'pending'
-                                                    ? 'bg-danger'
+                                                    ? 'modern-badge--danger'
                                                     : String(row[col.key]).toLowerCase() === 'processing'
-                                                    ? 'bg-info'
+                                                    ? 'modern-badge--info'
                                                     : String(row[col.key]).toLowerCase() === 'ready'
-                                                        ? 'bg-success'
+                                                        ? 'modern-badge--success'
                                                         : String(row[col.key]).toLowerCase() === 'failed'
-                                                        ? 'bg-danger'
-                                                        : 'bg-secondary'
+                                                        ? 'modern-badge--danger'
+                                                        : 'modern-badge--secondary'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'scorm_status'"
                                         >
-                                            {{ row[col.key] ?? '-' }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] ?? '-' }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge align-items-center d-inline-flex text-capitalize',
-                                                String(row[col.key]).toLowerCase() === 'completed' ? 'bg-success' : 'bg-warning'
+                                                'modern-badge text-capitalize',
+                                                String(row[col.key]).toLowerCase() === 'completed' ? 'modern-badge--success' : 'modern-badge--warning'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'progress_status'"
                                         >
-                                            {{ row[col.key] }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] }}</span>
                                         </span>
 
                                         <span
                                             :class="[
-                                                'badge align-items-center d-inline-flex text-capitalize',
+                                                'modern-badge text-capitalize',
                                                 String(row[col.key]).toLowerCase() === 'passed'
-                                                    ? 'bg-success'
+                                                    ? 'modern-badge--success'
                                                     : String(row[col.key]).toLowerCase() === 'failed'
-                                                    ? 'bg-danger'
+                                                    ? 'modern-badge--danger'
                                                     : String(row[col.key]).toLowerCase() === 'pending'
-                                                        ? 'bg-warning'
+                                                        ? 'modern-badge--warning'
                                                         : String(row[col.key]).toLowerCase() === 'ongoing'
-                                                        ? 'bg-info'
-                                                        : 'bg-secondary'
+                                                        ? 'modern-badge--info'
+                                                        : 'modern-badge--secondary'
                                             ]"
                                             v-else-if="col.type === 'badge' && col.show === 'exam_status'"
                                         >
-                                            {{ row[col.key] }}
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] }}</span>
                                         </span>
 
                                         <!-- Action -->
@@ -1570,55 +1702,25 @@ import { formatNumber } from '@/utils/numberFormat';
                                 </tr>
                             </template>
                         </tbody>
-                        <tfoot>
-                            <tr role="row">
-                                <th
-                                    v-for="(item, index) in displayColumns"
-                                    :key="item.key ?? `tfoot-${index}`"
-                                    :class="[
-                                        'sorting',
-                                        (tableData.sortBy === item.key)
-                                            ? (tableData.sortType === 'asc')
-                                                ? 'sorting_asc'
-                                                : 'sorting_desc'
-                                            : '',
-                                        (item?.sorting === 'disabled') ? 'sorting_disabled' : '',
-                                        'text-uppercase'
-                                    ]"
-                                    :data-colname="item?.key"
-                                    data-ordertype="asc"
-                                    tabindex="0"
-                                    rowspan="1"
-                                    colspan="1"
-                                    @click="(item?.sorting !== 'disabled') ? tableData.changeOrder?.($event) : ''"
-                                >
-
-                                    <span>{{ item?.label }}</span>
-                                </th>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
-            </div>
-            <div class="row">
-                <div class="col-sm-12 col-md-5">
-                    <div class="dataTables_info" id="example_info" role="status" aria-live="polite">
-                        Showing {{ tableData.state.records.from ?? 0 }} to {{ tableData.state.records.to ?? 0 }} of {{ tableData.state.records.total ?? 0 }} entries
-                    </div>
+
+            <!-- Modern Table Footer: Summary & Pagination -->
+            <div class="modern-table-footer">
+                <div class="modern-table-footer__info dataTables_info" id="example_info" role="status" aria-live="polite">
+                    Showing <span class="modern-footer-num">{{ tableData.state.records.from ?? 0 }}</span> to <span class="modern-footer-num">{{ tableData.state.records.to ?? 0 }}</span> of <span class="modern-footer-num">{{ tableData.state.records.total ?? 0 }}</span> entries
                 </div>
-                <div class="col-sm-12 col-md-7" v-if="showPaginationBar">
-                    <div class="dataTables_paginate paging_simple_numbers" id="example_paginate">
-                        <z-vue-pagination
-                            :total-items="paginationTotalItems"
-                            :items-per-page="paginationPageSize"
-                            :max-pages-shown="5"
-                            v-model="tableData.state.search.page"
-                            @click="tableData.getData?.();"
-                            :showDisabled="true"
-                            :disableBreakpointButtons="true"
-                            pagination-container-class="pagination"
-                        />
-                    </div>
+                <div class="modern-table-footer__paginate dataTables_paginate" v-if="showPaginationBar" id="example_paginate">
+                    <z-vue-pagination
+                        :total-items="paginationTotalItems"
+                        :items-per-page="paginationPageSize"
+                        :max-pages-shown="5"
+                        v-model="tableData.state.search.page"
+                        @click="tableData.getData?.();"
+                        :showDisabled="true"
+                        :disableBreakpointButtons="true"
+                        pagination-container-class="pagination modern-pagination"
+                    />
                 </div>
             </div>
         </div>
