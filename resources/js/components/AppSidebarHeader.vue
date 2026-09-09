@@ -6,6 +6,7 @@
     const page = usePage();
 
     const user = computed(() => (page.props as any)?.auth?.user || {});
+    const isDashboard = computed(() => (page.props as any)?.routeName === 'dashboard');
 
     const appUrl = resolvePublicAppBaseUrl();
     const pageProps: any = page.props as any;
@@ -16,15 +17,25 @@
             : pageProps?.settings || pageProps?.app_setting || {};
 
     const appendVersionParam = (url: string, version?: number) => {
-        if (!version || !url || url.startsWith('data:')) return url;
+        if (!version || !url || url.startsWith('data:')) {
+return url;
+}
+
         const separator = url.includes('?') ? '&' : '?';
+
         return `${url}${separator}v=${version}`;
     };
 
     const resolveAssetUrl = (value?: string | null, version?: number) => {
         const raw = String(value || '').trim();
-        if (!raw) return '';
-        if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return appendVersionParam(raw, version);
+
+        if (!raw) {
+return '';
+}
+
+        if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('data:')) {
+return appendVersionParam(raw, version);
+}
 
         const normalizedRaw = raw.replace(/^\/+/, '');
         const normalizedBase = appUrl
@@ -66,7 +77,7 @@
 <template>
     <!--start header -->
         <header>
-            <div class="topbar d-flex align-items-center dash-header">
+            <div class="topbar d-flex align-items-center" :class="{ 'dash-header': isDashboard }">
                 <nav class="navbar navbar-expand gap-3">
                     <div class="mobile-toggle-menu"><i class='bx bx-menu'></i></div>
                     <div class="top-menu ms-auto">

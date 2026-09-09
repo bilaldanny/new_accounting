@@ -1,14 +1,15 @@
 <script setup lang="ts">
     import { ImagePlus } from '@boxicons/vue';
-    import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
-    import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
     import { usePage } from '@inertiajs/vue3';
     import { computed, onMounted, watch } from 'vue';
+    import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
+    import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
     import { colFull, colHalf, colThird } from './constants';
 
     const props = defineProps({
         logoUrl: { type: String, default: '' },
         emailLogoUrl: { type: String, default: '' },
+        loginLogoUrl: { type: String, default: '' },
     });
 
     const page = usePage();
@@ -16,6 +17,7 @@
     const appUrl = resolvePublicAppBaseUrl();
     const logoInputId = 'SoftwareSettingLogo';
     const emailLogoInputId = 'SoftwareSettingEmailLogo';
+    const loginLogoInputId = 'SoftwareSettingLoginLogo';
 
     function chooseLogo(event: MouseEvent) {
         openLfmImagePicker(event, appUrl);
@@ -48,9 +50,13 @@
     watch(() => props.emailLogoUrl, (url) => {
         renderLogoPreview('software-setting-email-logo-holder', url, 'Email logo preview');
     });
+    watch(() => props.loginLogoUrl, (url) => {
+        renderLogoPreview('software-setting-login-logo-holder', url, 'Login page logo preview');
+    });
     onMounted(() => {
         renderLogoPreview('software-setting-logo-holder', props.logoUrl, 'Software logo preview');
         renderLogoPreview('software-setting-email-logo-holder', props.emailLogoUrl, 'Email logo preview');
+        renderLogoPreview('software-setting-login-logo-holder', props.loginLogoUrl, 'Login page logo preview');
     });
 </script>
 
@@ -161,6 +167,37 @@
         </template>
         <template #after>
             <div id="software-setting-email-logo-holder" class="company-logo-preview"></div>
+        </template>
+    </TextElement>
+
+    <TextElement
+        :id="loginLogoInputId"
+        field-name="LoginLogo"
+        name="login_logo"
+        label="Login Page Logo"
+        placeholder="Select login page logo"
+        :columns="colThird"
+        :add-classes="{
+            ElementAddon: {
+                container: 'p-0',
+            },
+        }"
+    >
+        <template #addon-before>
+            <button
+                :data-input="loginLogoInputId"
+                data-field-name="login_logo"
+                data-preview="software-setting-login-logo-holder"
+                type="button"
+                class="company-logo-choose"
+                @click="chooseLogo"
+            >
+                <ImagePlus size="xs" />
+                <span>Choose</span>
+            </button>
+        </template>
+        <template #after>
+            <div id="software-setting-login-logo-holder" class="company-logo-preview"></div>
         </template>
     </TextElement>
 </template>

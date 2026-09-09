@@ -1,13 +1,13 @@
 <script setup lang="ts">
-    import Loader from '@/components/Loader.vue';
-    import TheForm from '@/components/theForm.vue';
-    import Fields from './setting/Fields.vue';
-    import SettingTabsNav from './setting/SettingTabsNav.vue';
-    import { softwareSettingTabs } from './setting/settingTabs';
-    import useSoftwareSettings from '@/composables/softwareSetting';
-    import useCommons from '@/composables/common';
     import { Head } from '@inertiajs/vue3';
     import { computed, nextTick, onMounted, ref, watch } from 'vue';
+    import Loader from '@/components/Loader.vue';
+    import TheForm from '@/components/theForm.vue';
+    import useCommons from '@/composables/common';
+    import useSoftwareSettings from '@/composables/softwareSetting';
+    import Fields from './setting/Fields.vue';
+    import { softwareSettingTabs } from './setting/settingTabs';
+    import SettingTabsNav from './setting/SettingTabsNav.vue';
 
     defineOptions({
         layout: {
@@ -42,6 +42,7 @@
 
     const logoUrl = computed(() => String(formData.value?.system_logo_url ?? ''));
     const emailLogoUrl = computed(() => String(formData.value?.email_logo_url ?? ''));
+    const loginLogoUrl = computed(() => String(formData.value?.login_logo_url ?? ''));
     const hasSmtpPassword = computed(() => Boolean(formData.value?.has_smtp_password));
 
     const activeTabMeta = computed(() =>
@@ -81,6 +82,7 @@
             }
         } finally {
             saving.value = false;
+
             if (formRef.value?.isSubmitting !== undefined) {
                 formRef.value.isSubmitting = false;
             }
@@ -150,6 +152,7 @@
                                 :active-tab="activeTab"
                                 :logo-url="logoUrl"
                                 :email-logo-url="emailLogoUrl"
+                                :login-logo-url="loginLogoUrl"
                                 :testing-smtp="testingSmtp"
                                 :sending-test="sendingTest"
                                 :has-smtp-password="hasSmtpPassword"

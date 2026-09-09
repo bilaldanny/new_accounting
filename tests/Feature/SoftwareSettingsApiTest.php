@@ -61,6 +61,7 @@ test('superadmin can view and update software settings', function () {
         'address' => 'Software HQ',
         'system_logo' => 'assets/images/logo-light.png',
         'email_logo' => 'photos/email-logo.png',
+        'login_logo' => 'photos/login-logo.png',
         'smtp_host' => 'smtp.example.com',
         'smtp_port' => 587,
         'smtp_username' => 'mailer@example.com',
@@ -76,6 +77,8 @@ test('superadmin can view and update software settings', function () {
         ->assertJsonPath('softwareSetting.email', 'support@ledger.test')
         ->assertJsonPath('softwareSetting.email_logo', 'photos/email-logo.png')
         ->assertJsonPath('softwareSetting.email_logo_url', Setting::logoUrl('photos/email-logo.png'))
+        ->assertJsonPath('softwareSetting.login_logo', 'photos/login-logo.png')
+        ->assertJsonPath('softwareSetting.login_logo_url', Setting::logoUrl('photos/login-logo.png'))
         ->assertJsonPath('softwareSetting.smtp_host', 'smtp.example.com')
         ->assertJsonPath('softwareSetting.smtp_port', 587)
         ->assertJsonPath('softwareSetting.smtp_scheme', 'smtp')
@@ -236,6 +239,20 @@ test('mail configuration is read from software settings instead of env', functio
         ->and(config('mail.mailers.smtp.encryption'))->toBe('tls')
         ->and(config('mail.from.address'))->toBe('db@example.com')
         ->and(config('mail.from.name'))->toBe('DB Sender');
+});
+
+test('login page shares the configured login logo url', function () {
+    $setting = Setting::instance();
+    $setting->login_logo = 'photos/login-logo.png';
+    $setting->save();
+
+    $this->get(route('login'))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('auth/Login')
+            ->where('setting.login_logo', 'photos/login-logo.png')
+            ->where('setting.login_logo_url', Setting::logoUrl('photos/login-logo.png'))
+        );
 });
 
 test('application name is read from software settings instead of env', function () {

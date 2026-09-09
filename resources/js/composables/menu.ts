@@ -1,6 +1,6 @@
 import { reactive, ref } from "vue";
-import useCommons from "./common";
 import { API_ENDPOINTS } from './apiEndpoints'
+import useCommons from "./common";
 
 export default function useMenus(){
 
@@ -39,7 +39,7 @@ export default function useMenus(){
       'type':1,
     });
 
-    const {Notify, select_data, fetchWithRetry, changeStateFn, changeOrderFn, deleteFn, checkAllFn, duplicateFn, getData, restoreFn} = useCommons()
+    const {Notify, select_data, fetchWithRetry, changeStateFn, changeOrderFn, updateSortOrderFn, deleteFn, checkAllFn, duplicateFn, getData, restoreFn} = useCommons()
 
     // State Management with reactive
     const state = reactive({
@@ -66,6 +66,8 @@ export default function useMenus(){
       menusdata: [],
       typedata: [],
       trash_count:0,
+      active_count:0,
+      inactive_count:0,
       loadingIds: new Set(),
     });
 
@@ -80,6 +82,12 @@ export default function useMenus(){
             return changeOrderFn(event, state)
         };
     /* Change sorting order */
+
+    /* Update a single row's sort_order value (inline table stepper) */
+        const updateSortOrder = async (id: number, sortOrder: number) => {
+            return updateSortOrderFn(`${API_ENDPOINTS.menus}/${id}/sort-order`, id, sortOrder, state);
+        };
+    /* Update a single row's sort_order value (inline table stepper) */
 
     /* Delete Function */
         const deleteRecord = async (ids: Array<number>) => {
@@ -159,6 +167,7 @@ export default function useMenus(){
         perDeleteBulkRecord,
         restoreBulkRecord,
         changeOrder,
+        updateSortOrder,
         checkAll,
         duplicate,
         select_data

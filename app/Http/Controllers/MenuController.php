@@ -36,8 +36,15 @@ class MenuController extends Controller
         $menus = $this->paginateSorted($query, $request);
 
         $trash_count = Menu::onlyTrashed()->count();
+        $active_count = Menu::where('is_active', 1)->count();
+        $inactive_count = Menu::where('is_active', 0)->count();
 
-        return response()->json(['data' => $menus, 'trash_count' => $trash_count]);
+        return response()->json([
+            'data' => $menus,
+            'trash_count' => $trash_count,
+            'active_count' => $active_count,
+            'inactive_count' => $inactive_count,
+        ]);
 
     }
 
@@ -161,6 +168,22 @@ class MenuController extends Controller
         }
 
         return response()->json(['message' => 'Successfully Saved']);
+    }
+
+    /* Update Sort Order (inline row stepper) */
+    public function updateSortOrder(Request $request, $id)
+    {
+        $this->authorizeSuperadmin($request);
+        $this->authorizeMenuPermission('/menu/:id/edit');
+        $request->validate([
+            'sort_order' => 'bail|required|integer|min:0',
+        ]);
+
+        $menu = Menu::findOrFail($id);
+        $menu->sort_order = $request->sort_order;
+        $menu->save();
+
+        return response()->json(['message' => 'Successfully Saved', 'sort_order' => $menu->sort_order]);
     }
 
     public function fetchmenus(Request $request)

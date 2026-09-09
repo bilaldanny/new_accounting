@@ -1,7 +1,7 @@
 import { reactive, ref, nextTick, inject, getCurrentInstance } from "vue";
 import { toast } from 'vue-sonner';
-import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
 import { formatNumber } from '@/utils/numberFormat';
+import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
 import { useNotificationStore } from '@/utils/vueNotification'
 
 /** Shared across all `useCommons()` callers — coalesces concurrent identical fetches. */
@@ -72,6 +72,7 @@ export default function useCommons(){
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const appUrl = resolvePublicAppBaseUrl();
     let $swal = null;
+
     if (getCurrentInstance()) {
         try {
             $swal = inject('$swal');
@@ -79,6 +80,7 @@ export default function useCommons(){
             $swal = null;
         }
     }
+
     const defaultSearch = ref({
         sort_by: 'created_at',
         sort_type: 'desc',
@@ -136,6 +138,7 @@ export default function useCommons(){
 			  "appearance": "light"
 			}
 		);
+
 		if (type === 'success') {
 			playNotificationSound('success-audio');
 		}
@@ -157,9 +160,11 @@ export default function useCommons(){
 
         try {
             const savedValue = localStorage.getItem(key);
+
             return savedValue !== null ? parseFn(savedValue) : defaultValue;
         } catch (error) {
             console.error(`Error accessing localStorage for key: ${key}`, error);
+
             return defaultValue;
         }
     };
@@ -169,6 +174,7 @@ export default function useCommons(){
         if (text == null) {
             return '';
         }
+
         return String(text)
             .replace(/\bindex\b/gi, '') // remove "index"
             .replace(/[-._]/g, ' ') // replace -, . and _ with space
@@ -179,6 +185,7 @@ export default function useCommons(){
     const fetchMenu = async () => {
         await runDeduped('api/fetchmenus', async () => {
             loading.value = true;
+
             try {
                 const response = await fetchWithRetry(axios.get, '/api/fetchmenus');
 
@@ -205,6 +212,7 @@ export default function useCommons(){
         }
 
         const elem = document.querySelector('.my-grid');
+
         if (!elem) {
             return;
         }
@@ -275,6 +283,7 @@ export default function useCommons(){
                     notifyMessage = error?.response?.data?.message ?? notifyMessage;
                     vueform?.messageBag?.append?.(notifyMessage);
                 }
+
                 break;
 
             // Request cancelled (no response object)
@@ -314,17 +323,21 @@ export default function useCommons(){
     /* Retry Function */
         const fetchWithRetry = async (fn, ...args) => {
             let attempts = 0;
+
             while (attempts < MAX_RETRIES) {
                 try {
                     return await fn(...args); // Spread args to match fn's expected parameters
                 } catch (error) {
                     attempts++;
+
                     if (attempts >= MAX_RETRIES) {
                         if(error.response?.data?.message !== 'Unauthenticated.'){
                             Notify(error.response?.data?.message || 'An error occurred', 'alert');
                         }
+
                         throw error;
                     }
+
                     await sleep(attempts * 1000); // Wait before retrying
                 }
             }
@@ -337,14 +350,18 @@ export default function useCommons(){
      */
     const runDeduped = async (key: string, exec: () => Promise<void>) => {
         const existing = sharedFetchPromises.get(key);
+
         if (existing) {
             await existing;
+
             return;
         }
+
         const run = (async () => {
             await exec();
         })();
         sharedFetchPromises.set(key, run);
+
         try {
             await run;
         } finally {
@@ -355,6 +372,7 @@ export default function useCommons(){
     /* Change Status */
         const changeStateFn = async (url, ids, status, state) => {
             ids.forEach(id => state.loadingIds.add(id))
+
             try {
                 const response = await fetchWithRetry(
                     axios.post,
@@ -408,9 +426,35 @@ export default function useCommons(){
         };
     /* Change sorting order */
 
+    /* Update a single row's sort_order value (inline table stepper) */
+        const updateSortOrderFn = async (url, id, sortOrder, state) => {
+            const row = state.records.data.find((r) => r.id === id);
+            const previous = row?.sort_order;
+
+            if (row) {
+                row.sort_order = sortOrder;
+            }
+
+            try {
+                const response = await fetchWithRetry(axios.post, url, { sort_order: sortOrder });
+
+                if (row && 'sort_order' in response.data) {
+                    row.sort_order = response.data.sort_order;
+                }
+            } catch (error) {
+                if (row) {
+                    row.sort_order = previous;
+                }
+
+                Notify(error.response?.data?.message || 'An error occurred', 'alert');
+            }
+        };
+    /* Update a single row's sort_order value (inline table stepper) */
+
     /* Delete Function */
         const deleteFn = async (url, ids, state) => {
             let confirmed = false;
+
             if ($swal) {
                 const swalWithBootstrapButtons = $swal.mixin({
                     customClass: {
@@ -441,9 +485,13 @@ export default function useCommons(){
 
                     if (response.data === '406') {
                         Notify('Access denied', 'error');
-                        if ($swal) await $swal.fire('Not Deleted!', 'Permission denied to delete this.', 'warning');
+
+                        if ($swal) {
+await $swal.fire('Not Deleted!', 'Permission denied to delete this.', 'warning');
+}
                     }else{
                         const data = state.records.data.filter(menu => !ids.includes(menu.id));
+
                         if(data.length <= 0){
                             if(state.records.current_page === 1){
                                 state.search.page = 1
@@ -457,13 +505,18 @@ export default function useCommons(){
                                 }
                             }
                         }
+
                         state.edit_ids = [];
                         Notify(response.data.message, 'success');
+
                         if (response.status === 200) {
                             document.getElementById('SearchBtn').click()
                             document.getElementById('MainCheckbox').checked = false
                         }
-                        if ($swal) await $swal.fire('Deleted!', 'Your record was deleted successfully.', 'success');
+
+                        if ($swal) {
+await $swal.fire('Deleted!', 'Your record was deleted successfully.', 'success');
+}
                     }
 
                 }catch (error) {
@@ -485,6 +538,7 @@ export default function useCommons(){
         const checkAllFn = async (id, state) => {
             if (id !== undefined) {
                 const filter = state.records.data.filter((menu) => menu.id === id);
+
                 if (state.edit_ids.includes(id)) {
                     state.edit_ids.splice(state.edit_ids.indexOf(id), 1);
                 } else {
@@ -504,6 +558,7 @@ export default function useCommons(){
         const duplicateFn = async (url, id) => {
             try {
                 const response = await fetchWithRetry(axios.post, url ,{ id });
+
                 if(response.data.errormessage){
                     if(error.response?.data?.message !== 'Unauthenticated.'){
                         Notify(error.response?.data?.message || 'An error occurred', 'alert');
@@ -523,12 +578,21 @@ export default function useCommons(){
     /* getData */
         const getData = async (url, data, state) => {
             state.loading = true;
+
             try {
                 data.cur_page = state.search.page;
 
                 const response = await fetchWithRetry(axios.get, url, { params: data });
                 state.records = response.data.data;
                 state.trash_count = response.data.trash_count;
+
+                if ('active_count' in response.data) {
+                    state.active_count = response.data.active_count;
+                }
+
+                if ('inactive_count' in response.data) {
+                    state.inactive_count = response.data.inactive_count;
+                }
 
                 if ('can_add_branch' in response.data) {
                     state.can_add_branch = response.data.can_add_branch;
@@ -550,6 +614,7 @@ export default function useCommons(){
     /* Restore */
         const restoreFn = async (url, ids, state) => {
             let confirmed = false;
+
             if ($swal) {
                 const swalWithBootstrapButtons = $swal.mixin({
                     customClass: {
@@ -575,11 +640,16 @@ export default function useCommons(){
             if (confirmed) {
                 try {
                     const response = await fetchWithRetry(axios.post, url, ids);
+
                     if (response.data === '406') {
                         Notify('Access denied', 'error');
-                        if ($swal) await $swal.fire('Not Restored!', 'Permission denied to restore this.', 'warning');
+
+                        if ($swal) {
+await $swal.fire('Not Restored!', 'Permission denied to restore this.', 'warning');
+}
                     } else {
                         const data = state.records.data.filter(menu => !ids.includes(menu.id));
+
                         if(data.length <= 0){
                             if(state.records.current_page === 1){
                                 state.search.page = 1
@@ -593,12 +663,17 @@ export default function useCommons(){
                                 }
                             }
                         }
+
                         if (response.status === 200) {
                             document.getElementById('SearchBtn').click()
                             document.getElementById('MainCheckbox').checked = false
                         }
+
                         Notify(response.data.message, 'success');
-                        if ($swal) await $swal.fire('Restored!', 'Your record was restored successfully.', 'success');
+
+                        if ($swal) {
+await $swal.fire('Restored!', 'Your record was restored successfully.', 'success');
+}
                     }
                 } catch (error) {
                     if(error.response?.data?.message !== 'Unauthenticated.'){
@@ -615,6 +690,7 @@ export default function useCommons(){
     const fetchPerMenu = async () => {
         await runDeduped('api/fetchpermenus', async () => {
             loading.value = true;
+
             try {
                 const response = await fetchWithRetry(axios.get, '/api/fetchpermenus');
 
@@ -649,6 +725,7 @@ export default function useCommons(){
                 role_id,
             },
         });
+
         if (response.data.length !== 0) {
             permissiondata.value = response.data;
         } else {
@@ -677,6 +754,7 @@ export default function useCommons(){
 
     const fetchRole = async () => {
         loading.value = true;
+
         try{
             const response = await fetchWithRetry(axios.get, '/api/fetchroles');
 
@@ -684,6 +762,7 @@ export default function useCommons(){
             rolesdata.value = response.data;
 
             loading.value = false;
+
             return;
         }catch (error) {
             if(error.response?.data?.message !== 'Unauthenticated.'){
@@ -697,6 +776,7 @@ export default function useCommons(){
     const fetchCountry = async () => {
         await runDeduped('api/fetchcountries', async () => {
             loading.value = true;
+
             try {
                 const response = await fetchWithRetry(axios.post, '/api/fetchcountries');
                 countriesdata.value = response.data;
@@ -767,6 +847,7 @@ export default function useCommons(){
     const fetchCompany = async () => {
         await runDeduped('api/fetchcompanies', async () => {
             loading.value = true;
+
             try {
                 const response = await fetchWithRetry(window.axios.get, '/api/fetchcompanies');
                 companiesdata.value = response.data;
@@ -783,10 +864,12 @@ export default function useCommons(){
     const fetchBranch = async (company_id: string | number | null | undefined) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             branchesdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchbranches', {
                 params: { company_id },
@@ -810,10 +893,12 @@ export default function useCommons(){
             branch_id === null || branch_id === undefined || branch_id === ''
         ) {
             departmentsdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchdepartments', {
                 params: { company_id, branch_id },
@@ -848,10 +933,12 @@ export default function useCommons(){
             branch_id === null || branch_id === undefined || branch_id === ''
         ) {
             customergroupsdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchcustomergroups', {
                 params: { company_id, branch_id },
@@ -879,10 +966,12 @@ export default function useCommons(){
     ) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             unitsdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchunits', {
                 params: {
@@ -913,10 +1002,12 @@ export default function useCommons(){
     ) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             categoriesdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchcategories', {
                 params: {
@@ -946,10 +1037,12 @@ export default function useCommons(){
     ) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             brandsdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchbrands', {
                 params: {
@@ -977,10 +1070,12 @@ export default function useCommons(){
     ) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             itemtypesdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchitemtypes', {
                 params: {
@@ -1010,10 +1105,12 @@ export default function useCommons(){
         if (company_id === null || company_id === undefined || company_id === ''
             || category_id === null || category_id === undefined || category_id === '') {
             subcategoriesdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchsubcategories', {
                 params: {
@@ -1043,10 +1140,12 @@ export default function useCommons(){
     ) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             warrantiesdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchwarranties', {
                 params: {
@@ -1077,10 +1176,12 @@ export default function useCommons(){
     ) => {
         if (company_id === null || company_id === undefined || company_id === '') {
             variationsdata.value = [];
+
             return;
         }
 
         loading.value = true;
+
         try {
             const response = await fetchWithRetry(window.axios.get, '/api/fetchvariations', {
                 params: {
@@ -1136,6 +1237,7 @@ export default function useCommons(){
         fetchWithRetry,
         changeStateFn,
         changeOrderFn,
+        updateSortOrderFn,
         deleteFn,
         checkAllFn,
         duplicateFn,
