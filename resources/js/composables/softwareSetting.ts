@@ -1,7 +1,7 @@
-import { ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import useCommons from './common';
+import { ref } from 'vue';
 import { API_ENDPOINTS } from './apiEndpoints';
+import useCommons from './common';
 
 function applyPhoneDefaults<T extends Record<string, unknown>>(data: T, defaultDialCode: string): T {
     const value = data.contact_no;
@@ -33,6 +33,8 @@ export default function useSoftwareSettings() {
         system_logo_url: '',
         email_logo: '',
         email_logo_url: '',
+        login_logo: '',
+        login_logo_url: '',
         smtp_host: '',
         smtp_port: '',
         smtp_username: '',

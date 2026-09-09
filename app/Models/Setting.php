@@ -31,6 +31,7 @@ class Setting extends Model
         'smtp_from_name',
         'system_logo',
         'email_logo',
+        'login_logo',
     ];
 
     /**
@@ -58,7 +59,7 @@ class Setting extends Model
         'smtp_password',
     ];
 
-    protected $appends = ['system_logo_url', 'email_logo_url'];
+    protected $appends = ['system_logo_url', 'email_logo_url', 'login_logo_url'];
 
     public function getSystemLogoUrlAttribute(): ?string
     {
@@ -68,6 +69,11 @@ class Setting extends Model
     public function getEmailLogoUrlAttribute(): ?string
     {
         return self::logoUrl($this->email_logo);
+    }
+
+    public function getLoginLogoUrlAttribute(): ?string
+    {
+        return self::logoUrl($this->login_logo);
     }
 
     public static function instance(): self
@@ -96,6 +102,8 @@ class Setting extends Model
             'system_logo_url' => self::logoUrl($setting->system_logo),
             'email_logo' => $setting->email_logo,
             'email_logo_url' => self::logoUrl($setting->email_logo),
+            'login_logo' => $setting->login_logo,
+            'login_logo_url' => self::logoUrl($setting->login_logo),
             'smtp_host' => $setting->smtp_host,
             'smtp_port' => $setting->smtp_port,
             'smtp_username' => $setting->smtp_username,
@@ -134,6 +142,7 @@ class Setting extends Model
             'address',
             'system_logo',
             'email_logo',
+            'login_logo',
             'smtp_host',
             'smtp_port',
             'smtp_username',

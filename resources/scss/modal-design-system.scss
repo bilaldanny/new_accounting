@@ -1,0 +1,165 @@
+/* ==========================================================================
+   Modals — visual-only restyle of the shared ModalComponent.vue used by
+   every Add/Edit/Import/Trash/etc. modal across all list pages. Bootstrap's
+   modal JS/behavior (show/hide, backdrop, focus trap) is untouched — this
+   only retints the plain default Bootstrap chrome to match the app's design
+   system (rounded cards, indigo accents, refined typography).
+   ========================================================================== */
+
+.modal-content {
+    border: 1px solid var(--app-border-subtle, #f1f5f9);
+    border-radius: var(--app-radius-xl, 18px);
+    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.28);
+    overflow: hidden;
+}
+
+.modal-backdrop.show {
+    opacity: 0.55;
+}
+
+.modal-header {
+    align-items: flex-start;
+    padding: 1.125rem 1.5rem;
+    background: #ffffff;
+    border-bottom: 1px solid var(--app-border-subtle, #f1f5f9);
+}
+
+.modal-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1875rem;
+}
+
+.modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--app-text, #111827);
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+.modal-subtitle {
+    font-size: 0.8125rem;
+    color: var(--app-text-secondary, #64748b);
+}
+
+.modal-header .btn-close {
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: 0.75rem;
+    border-radius: var(--app-radius-sm, 7px);
+    opacity: 0.6;
+    transition: all var(--app-transition, 150ms ease);
+}
+
+.modal-header .btn-close:hover {
+    background-color: #f1f5f9;
+    opacity: 1;
+}
+
+.modal-header .btn-close:focus {
+    box-shadow: 0 0 0 3px var(--app-primary-soft, #eef2ff);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    background: #ffffff;
+}
+
+.modal-body .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--app-text, #111827);
+    margin-bottom: 0.375rem;
+}
+
+.modal-body .form-control,
+.modal-body .form-select {
+    border-radius: var(--app-radius-md, 9px);
+    border-color: var(--app-border, #e2e8f0);
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    transition: all var(--app-transition, 150ms ease);
+}
+
+.modal-body .form-control:focus,
+.modal-body .form-select:focus {
+    border-color: var(--app-primary, #6366f1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.modal-body .form-check-input:checked {
+    background-color: var(--app-primary, #6366f1);
+    border-color: var(--app-primary, #6366f1);
+}
+
+.modal-body .form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.modal-footer {
+    padding: 1.125rem 1.5rem;
+    background: #ffffff;
+    border-top: 1px solid var(--app-border-subtle, #f1f5f9);
+    gap: 0.625rem;
+}
+
+.modal-footer .btn {
+    border-radius: var(--app-radius-md, 9px);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.5rem 1.125rem;
+    transition: all var(--app-transition, 150ms ease);
+}
+
+.modal-footer .btn-light {
+    background: #ffffff;
+    border: 1px solid var(--app-border, #e2e8f0);
+    color: var(--app-text-secondary, #64748b);
+}
+
+.modal-footer .btn-light:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: var(--app-text, #111827);
+}
+
+.modal-footer .btn-primary {
+    background: linear-gradient(180deg, #7c7ff6 0%, var(--app-primary, #6366f1) 100%);
+    border: 1px solid var(--app-primary, #6366f1);
+    color: #ffffff;
+    box-shadow:
+        0 1px 2px rgba(79, 70, 229, 0.2),
+        0 4px 10px -2px rgba(79, 70, 229, 0.4);
+}
+
+.modal-footer .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #6366f1 0%, var(--app-primary-hover, #4f46e5) 100%);
+    border-color: var(--app-primary-hover, #4f46e5);
+    box-shadow:
+        0 1px 2px rgba(79, 70, 229, 0.25),
+        0 6px 16px -2px rgba(79, 70, 229, 0.5);
+}
+
+.modal-footer .btn-danger {
+    background: var(--app-danger, #dc2626);
+    border-color: var(--app-danger, #dc2626);
+}
+
+.modal-footer .btn-danger:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+@media (max-width: 575.98px) {
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+}

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 
-import { Link, usePage } from '@inertiajs/vue3';
-import { DotsVerticalRounded } from '@boxicons/vue';
-import debounce from '@/utils/debounce';
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
+import { CheckCircle, DotsVerticalRounded, TrashAlt, X, XCircle } from '@boxicons/vue';
 import { useFloating, offset, flip, shift, autoPlacement, autoUpdate, arrow, computePosition } from '@floating-ui/vue'
+import { Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
+import debounce from '@/utils/debounce';
 import { formatNumber } from '@/utils/numberFormat';
 
     interface ViewTabAction {
@@ -60,6 +60,8 @@ import { formatNumber } from '@/utils/numberFormat';
         checkAll?: (id?: number) => void;
         getData?: () => void;
         changeOrder?: (event: Event) => void;
+        /** Persists a new value for a `sort_stepper` column's row (id, newSortOrder). */
+        updateSortOrder?: (id: number, sortOrder: number) => void | Promise<void>;
         changeStatus?: (ids: number[], status?: any) => void;
         edit?: (id: number) => void;
         view?: (id: number) => void;
@@ -94,6 +96,11 @@ import { formatNumber } from '@/utils/numberFormat';
         /** Same certificate download pattern as enrolled courses (blob + programmatic &lt;a download&gt;). */
         certificateDownload?: (row: Record<string, unknown>) => void | Promise<void>;
         certificateDownloadRowBusy?: (row: Record<string, unknown>) => boolean;
+        /**
+         * When provided, the "all rows on this page selected" banner offers a link to expand
+         * the selection to every row matching the current filters (not just this page).
+         */
+        selectAllAcrossPages?: () => void | Promise<void>;
     }>();
 
     const exportBaseName = computed(
@@ -109,6 +116,7 @@ import { formatNumber } from '@/utils/numberFormat';
     function defaultCellDisplay(row: Record<string, unknown>, col: Column): unknown {
         const key = col.data_column ?? col.key;
         const raw = row[key];
+
         if (col.emptyDisplay !== undefined && (raw === null || raw === undefined || raw === '')) {
             if (col.format === 'number') {
                 return formatCellNumber(col.emptyDisplay, col);
@@ -127,6 +135,7 @@ import { formatNumber } from '@/utils/numberFormat';
     function cellExportValue(row: Record<string, unknown>, col: Column): string {
         const key = col.data_column ?? col.key;
         const v = row[key];
+
         if (v === null || v === undefined || v === '') {
             if (col.emptyDisplay !== undefined) {
                 if (col.format === 'number') {
@@ -142,7 +151,11 @@ import { formatNumber } from '@/utils/numberFormat';
         if (col.format === 'number') {
             return formatCellNumber(v, col);
         }
-        if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+
+        if (typeof v === 'boolean') {
+return v ? 'Yes' : 'No';
+}
+
         if (typeof v === 'object') {
             try {
                 return JSON.stringify(v);
@@ -150,6 +163,7 @@ import { formatNumber } from '@/utils/numberFormat';
                 return '';
             }
         }
+
         return String(v);
     }
 
@@ -157,6 +171,7 @@ import { formatNumber } from '@/utils/numberFormat';
         const cols = exportableColumns.value;
         const headers = cols.map((c) => c.label || c.key);
         const rows = recordRows.map((row) => cols.map((c) => cellExportValue(row, c)));
+
         return { headers, rows };
     }
 
@@ -164,6 +179,7 @@ import { formatNumber } from '@/utils/numberFormat';
         if (tableData.exportAllRows) {
             return await tableData.exportAllRows();
         }
+
         return (tableData.state?.records?.data ?? []) as Record<string, unknown>[];
     }
 
@@ -173,20 +189,26 @@ import { formatNumber } from '@/utils/numberFormat';
         const ids = raw
             .map((x: unknown) => Number(x))
             .filter((n: number) => Number.isFinite(n) && n > 0);
+
         return [...new Set(ids)];
     });
 
     const hasExportRowSelection = computed(() => exportSelectedIds.value.length > 0);
 
     function filterRecordsByExportSelection(recordRows: Record<string, unknown>[]): Record<string, unknown>[] {
-        if (!hasExportRowSelection.value) return recordRows;
+        if (!hasExportRowSelection.value) {
+return recordRows;
+}
+
         const idSet = new Set(exportSelectedIds.value);
+
         return recordRows.filter((row) => idSet.has(Number(row.id)));
     }
 
     async function buildExportMatrix(): Promise<{ headers: string[]; rows: string[][] }> {
         const raw = await loadRecordsForExport();
         const filtered = filterRecordsByExportSelection(raw);
+
         return buildExportMatrixFromRecords(filtered);
     }
 
@@ -194,37 +216,55 @@ import { formatNumber } from '@/utils/numberFormat';
     const exportError = ref<string | null>(null);
 
     const exportActionsDisabled = computed(() => {
-        if (exportBusy.value) return true;
-        if (hasExportRowSelection.value) return false;
+        if (exportBusy.value) {
+return true;
+}
+
+        if (hasExportRowSelection.value) {
+return false;
+}
+
         if (tableData.exportAllRows) {
             const total = Number(tableData.state?.records?.total) || 0;
-            if (total > 0) return false;
+
+            if (total > 0) {
+return false;
+}
+
             return !(tableData.state?.records?.data?.length);
         }
+
         return !tableData.state?.records?.data?.length;
     });
 
     const exportHint = computed(() => {
         if (hasExportRowSelection.value) {
             const n = exportSelectedIds.value.length;
+
             return n === 1 ? 'Exporting 1 selected row' : `Exporting ${n} selected rows`;
         }
+
         if (tableData.exportAllRows) {
             return 'All rows matching search, sort, and filters';
         }
+
         return 'Current page rows only';
     });
 
     async function exportExcel() {
         exportBusy.value = true;
         exportError.value = null;
+
         try {
             const XLSX = await import('xlsx');
             const { headers, rows } = await buildExportMatrix();
+
             if (!rows.length) {
                 exportError.value = 'No rows to export.';
+
                 return;
             }
+
             const aoa = [headers, ...rows];
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             const wb = XLSX.utils.book_new();
@@ -241,12 +281,16 @@ import { formatNumber } from '@/utils/numberFormat';
     async function exportCopyClipboard() {
         exportBusy.value = true;
         exportError.value = null;
+
         try {
             const { headers, rows } = await buildExportMatrix();
+
             if (!rows.length) {
                 exportError.value = 'No rows to export.';
+
                 return;
             }
+
             const lines = [
                 headers.join('\t'),
                 ...rows.map((r) => r.map((c) => c.replace(/\t/g, ' ').replace(/\n/g, ' ')).join('\t')),
@@ -268,14 +312,19 @@ import { formatNumber } from '@/utils/numberFormat';
     async function exportCsv() {
         exportBusy.value = true;
         exportError.value = null;
+
         try {
             const { headers, rows } = await buildExportMatrix();
+
             if (!rows.length) {
                 exportError.value = 'No rows to export.';
+
                 return;
             }
+
             const esc = (v: string) => {
                 const s = v.replace(/"/g, '""');
+
                 return `"${s}"`;
             };
             const lines = [
@@ -301,16 +350,20 @@ import { formatNumber } from '@/utils/numberFormat';
     async function exportPdf() {
         exportBusy.value = true;
         exportError.value = null;
+
         try {
             const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
                 import('jspdf'),
                 import('jspdf-autotable'),
             ]);
             const { headers, rows } = await buildExportMatrix();
+
             if (!rows.length) {
                 exportError.value = 'No rows to export.';
+
                 return;
             }
+
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             doc.setFontSize(12);
             doc.text(exportPdfTitle.value, 14, 12);
@@ -340,11 +393,14 @@ import { formatNumber } from '@/utils/numberFormat';
         if (!apiUrl) {
             return false;
         }
+
         const authUser = (props as { auth?: { user?: { permission_paths?: string[]; rolename?: string } } }).auth?.user;
         const paths = authUser?.permission_paths ?? [];
+
         if (authUser?.rolename === 'Super Admin') {
             return true;
         }
+
         return (
             paths.includes(`/${apiUrl}/:id/invoice`) ||
             paths.includes(`/${apiUrl}/:id/view`)
@@ -563,9 +619,11 @@ import { formatNumber } from '@/utils/numberFormat';
             if (col.type !== 'action') {
                 return true;
             }
+
             if (!col.actions?.length && !col.viewTabActions?.length) {
                 return false;
             }
+
             if (!apiUrl) {
                 return true;
             }
@@ -613,24 +671,135 @@ import { formatNumber } from '@/utils/numberFormat';
         ),
     );
 
+    /** Floating bulk action bar: same permission rules as the row-level status/delete actions. */
+    const canBulkChangeStatus = computed(() => {
+        const apiUrl = tableData.apiUrl;
+
+        if (!tableData.changeStatus || !apiUrl) {
+            return false;
+        }
+
+        const paths = (props as { auth?: { user?: { permission_paths?: string[] } } }).auth?.user?.permission_paths ?? [];
+
+        return paths.includes(`/${apiUrl}/:id/edit`);
+    });
+
+    const canBulkDelete = computed(() => {
+        const apiUrl = tableData.apiUrl;
+
+        if (!tableData.delete || !apiUrl) {
+            return false;
+        }
+
+        const paths = (props as { auth?: { user?: { permission_paths?: string[] } } }).auth?.user?.permission_paths ?? [];
+
+        return paths.includes(`/${apiUrl}/delete`);
+    });
+
+    function bulkMarkActive() {
+        tableData.changeStatus?.(exportSelectedIds.value, 'true');
+    }
+
+    function bulkMarkInactive() {
+        tableData.changeStatus?.(exportSelectedIds.value, 'false');
+    }
+
+    function bulkDelete() {
+        tableData.delete?.(exportSelectedIds.value);
+    }
+
+    function bulkExport() {
+        void exportExcel();
+    }
+
+    function bulkClearSelection() {
+        tableData.state.edit_ids = [];
+        tableData.state.selectAll = false;
+    }
+
     /** Export UI only when parent enables it and user has export permission for this table route. */
     const showExportToolbar = computed(() => {
         if (!tableData.showExport) {
             return false;
         }
+
         const apiUrl = tableData.apiUrl;
+
         if (!apiUrl) {
             return false;
         }
+
         const paths = (props as { auth?: { user?: { permission_paths?: string[] } } }).auth?.user?.permission_paths ?? [];
+
         return paths.includes(`/${apiUrl}/export`);
     });
 
     const skeletonRowCount = computed(() => {
         const n = Number(tableData.state?.search?.show_record);
         const v = Number.isFinite(n) && n > 0 ? n : 10;
+
         return Math.min(v, 15);
     });
+
+    /** True once every row on the current page is checked (drives the expandable selection banner). */
+    const isAllPageSelected = computed(() => {
+        const pageIds = (tableData.state?.records?.data ?? []).map((row: Record<string, unknown>) => row.id);
+
+        if (!pageIds.length) {
+            return false;
+        }
+
+        const selected = new Set(tableData.state?.edit_ids ?? []);
+
+        return pageIds.every((id) => selected.has(id));
+    });
+
+    /** True when the selection already spans more rows than fit on one page (i.e. "select all" was expanded). */
+    const isAllFilteredSelected = computed(() => {
+        const total = Number(tableData.state?.records?.total) || 0;
+        const selectedCount = tableData.state?.edit_ids?.length ?? 0;
+
+        return total > 0 && selectedCount >= total;
+    });
+
+    const totalFilteredCount = computed(() => Number(tableData.state?.records?.total) || 0);
+
+    const selectAllBusy = ref(false);
+
+    async function handleSelectAllAcrossPages() {
+        if (!tableData.selectAllAcrossPages || selectAllBusy.value) {
+            return;
+        }
+
+        selectAllBusy.value = true;
+
+        try {
+            await tableData.selectAllAcrossPages();
+        } finally {
+            selectAllBusy.value = false;
+        }
+    }
+
+    function clearSelection() {
+        tableData.state.edit_ids = [];
+        tableData.state.selectAll = false;
+    }
+
+    /* Inline sort-order stepper */
+    function bumpSortOrder(row: Record<string, unknown>, delta: number) {
+        if (!tableData.updateSortOrder) {
+            return;
+        }
+
+        const current = Number(row.sort_order) || 0;
+        const next = Math.max(0, current + delta);
+
+        if (next === current) {
+            return;
+        }
+
+        tableData.updateSortOrder(row.id as number, next);
+    }
 
     /**
      * z-vue-pagination does Math.ceil(total / itemsPerPage). If itemsPerPage is 0 / NaN, totalPages
@@ -639,17 +808,21 @@ import { formatNumber } from '@/utils/numberFormat';
     const paginationPageSize = computed(() => {
         const raw = tableData.state?.search?.show_record;
         const n = Number(raw);
+
         if (Number.isFinite(n) && n > 0) {
             return Math.min(500, Math.floor(n));
         }
+
         return 10;
     });
 
     const paginationTotalItems = computed(() => {
         const n = Number(tableData.state?.records?.total);
+
         if (Number.isFinite(n) && n >= 0) {
             return n;
         }
+
         return 0;
     });
 
@@ -661,18 +834,23 @@ import { formatNumber } from '@/utils/numberFormat';
     /** href for `external_link` columns: keeps mailto/tel/http, adds https for bare domains, preserves paths. */
     function formatExternalHref(raw: unknown): string {
         const s = raw == null ? '' : String(raw).trim();
+
         if (!s || s === '-') {
             return '#';
         }
+
         if (/^[a-z][a-z0-9+.-]*:/i.test(s)) {
             return s;
         }
+
         if (s.startsWith('//')) {
             return `https:${s}`;
         }
+
         if (s.startsWith('/')) {
             return s;
         }
+
         return `https://${s}`;
     }
 
@@ -720,20 +898,25 @@ import { formatNumber } from '@/utils/numberFormat';
     watch(
         () => tableData.state.search?.search,
             (newVal) => {
-                if (newVal !== localSearch.value) localSearch.value = newVal
+                if (newVal !== localSearch.value) {
+localSearch.value = newVal
+}
             }
     )
 
     watch(
         () => tableData.state.search?.show_record,
             (newVal) => {
-                if (newVal !== localShowRecord.value) localShowRecord.value = newVal
+                if (newVal !== localShowRecord.value) {
+localShowRecord.value = newVal
+}
             }
     )
 
     // 🔹 Computed tooltip styles
     const floatingStyles = computed(() => {
         const styles = {}
+
         for (const id in floatingPositions) {
             const pos = floatingPositions[id]
             styles[id] = {
@@ -743,12 +926,14 @@ import { formatNumber } from '@/utils/numberFormat';
             zIndex: 1055,
             }
         }
+
         return styles
     })
 
     // 🔹 Computed arrow styles
     const arrowStyles = computed(() => {
         const styles = {}
+
         for (const id in arrowPositions) {
             const { x, y, placement } = arrowPositions[id] || {}
             const side = placement?.split('-')[0]
@@ -778,6 +963,7 @@ import { formatNumber } from '@/utils/numberFormat';
                 styles[id]['border-left'] = 0;
             }
         }
+
         return styles
     })
 
@@ -785,10 +971,13 @@ import { formatNumber } from '@/utils/numberFormat';
     const toggle = async (id) => {
         if (openRow.value === id) {
             closePopup(id)
+
             return
         }
 
-        if (openRow.value) closePopup(openRow.value)
+        if (openRow.value) {
+closePopup(openRow.value)
+}
 
         openRow.value = id
         await nextTick()
@@ -797,7 +986,9 @@ import { formatNumber } from '@/utils/numberFormat';
         const floatEl = floatingRefs[id]
         const arrowEl = arrowRefs[id]
 
-        if (!(refEl instanceof HTMLElement && floatEl instanceof HTMLElement)) return
+        if (!(refEl instanceof HTMLElement && floatEl instanceof HTMLElement)) {
+return
+}
 
         const updatePosition = async () => {
             const { x, y, strategy, placement, middlewareData } = await computePosition(refEl, floatEl, {
@@ -829,13 +1020,19 @@ import { formatNumber } from '@/utils/numberFormat';
             cleanupAutoUpdates[id]()
             delete cleanupAutoUpdates[id]
         }
-        if (openRow.value === id) openRow.value = null
+
+        if (openRow.value === id) {
+openRow.value = null
+}
     }
 
     // 🔹 Close when clicking outside
     const handleClickOutside = (e) => {
         const openId = openRow.value
-        if (!openId) return
+
+        if (!openId) {
+return
+}
 
         const refEl = referenceRefs[openId]
         const floatEl = floatingRefs[openId]
@@ -969,6 +1166,29 @@ import { formatNumber } from '@/utils/numberFormat';
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Expandable "select all across pages" banner -->
+            <div v-if="isAllPageSelected" class="modern-select-all-banner">
+                <span>
+                    All <strong>{{ tableData.state.records.data.length }}</strong> rows on this page are selected.
+                    <template v-if="tableData.selectAllAcrossPages && !isAllFilteredSelected && totalFilteredCount > tableData.state.records.data.length">
+                        <button
+                            type="button"
+                            class="modern-select-all-banner__link"
+                            :disabled="selectAllBusy"
+                            @click="handleSelectAllAcrossPages"
+                        >
+                            {{ selectAllBusy ? 'Selecting…' : `Select all ${totalFilteredCount} matching rows` }}
+                        </button>
+                    </template>
+                    <template v-else-if="isAllFilteredSelected">
+                        <strong class="modern-select-all-banner__done">(All {{ totalFilteredCount }} matching rows selected)</strong>
+                    </template>
+                </span>
+                <button type="button" class="modern-select-all-banner__clear" @click="clearSelection">
+                    Clear selection
+                </button>
             </div>
 
             <!-- Table Container -->
@@ -1163,6 +1383,33 @@ import { formatNumber } from '@/utils/numberFormat';
                                         <span v-else-if="col.type === 'count'">
                                             {{ rowIndex + 1 + ((tableData.state.records.current_page - 1) * tableData.state.search.show_record) }}
                                         </span>
+
+                                        <!-- Sort order inline stepper -->
+                                        <div v-else-if="col.type === 'sort_stepper'" class="modern-sort-stepper">
+                                            <span class="modern-sort-stepper__value">{{ row.sort_order }}</span>
+                                            <div class="modern-sort-stepper__buttons">
+                                                <button
+                                                    type="button"
+                                                    class="modern-sort-stepper__btn"
+                                                    title="Increase priority"
+                                                    aria-label="Increase sort order"
+                                                    :disabled="!tableData.updateSortOrder"
+                                                    @click="bumpSortOrder(row, 1)"
+                                                >
+                                                    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 9.5L8 5.5L12 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="modern-sort-stepper__btn"
+                                                    title="Decrease priority"
+                                                    aria-label="Decrease sort order"
+                                                    :disabled="!tableData.updateSortOrder"
+                                                    @click="bumpSortOrder(row, -1)"
+                                                >
+                                                    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         <!-- Certificate download (same as enrolled courses: parent uses useCertificateFileDownload) -->
                                         <span v-else-if="col.type === 'certificate_download'">
@@ -1725,6 +1972,69 @@ import { formatNumber } from '@/utils/numberFormat';
             </div>
         </div>
     </div>
+
+    <!-- Floating Bulk Action Bar -->
+    <Teleport to="body">
+        <Transition name="modern-bulk-bar-fade">
+            <div v-if="exportSelectedIds.length > 0" class="modern-bulk-bar">
+                <div class="modern-bulk-bar__count">
+                    <span class="modern-bulk-bar__dot"></span>
+                    <span><strong>{{ exportSelectedIds.length }}</strong> selected</span>
+                </div>
+
+                <div class="modern-bulk-bar__actions">
+                    <button
+                        v-if="canBulkChangeStatus"
+                        type="button"
+                        class="modern-bulk-bar__btn modern-bulk-bar__btn--success"
+                        title="Set selected rows to Active"
+                        @click="bulkMarkActive"
+                    >
+                        <CheckCircle size="sm" aria-hidden="true" />
+                        <span>Mark Active</span>
+                    </button>
+
+                    <button
+                        v-if="canBulkChangeStatus"
+                        type="button"
+                        class="modern-bulk-bar__btn"
+                        title="Set selected rows to Inactive"
+                        @click="bulkMarkInactive"
+                    >
+                        <XCircle size="sm" aria-hidden="true" />
+                        <span>Mark Inactive</span>
+                    </button>
+
+                    <button
+                        v-if="showExportToolbar"
+                        type="button"
+                        class="modern-bulk-bar__btn"
+                        title="Export selected rows"
+                        :disabled="exportBusy"
+                        @click="bulkExport"
+                    >
+                        <i class="mdi mdi-download" aria-hidden="true"></i>
+                        <span>Export</span>
+                    </button>
+
+                    <button
+                        v-if="canBulkDelete"
+                        type="button"
+                        class="modern-bulk-bar__btn modern-bulk-bar__btn--danger"
+                        title="Move selected rows to trash"
+                        @click="bulkDelete"
+                    >
+                        <TrashAlt size="sm" aria-hidden="true" />
+                        <span>Trash</span>
+                    </button>
+                </div>
+
+                <button type="button" class="modern-bulk-bar__close" title="Clear selection" @click="bulkClearSelection">
+                    <X size="sm" aria-hidden="true" />
+                </button>
+            </div>
+        </Transition>
+    </Teleport>
 </template>
 
 <style lang="css" scoped>

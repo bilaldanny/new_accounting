@@ -64,6 +64,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/fetchmenus', [MenuController::class, 'fetchmenus']);
     Route::get('/fetchpermenus', [MenuController::class, 'fetchpermenus']);
     Route::post('/menus/statusupdate', [MenuController::class, 'updatestatus']);
+    Route::post('/menus/{id}/sort-order', [MenuController::class, 'updateSortOrder']);
     Route::post('/menus/import', [MenuController::class, 'import']);
     Route::post('/menus/duplicate', [MenuController::class, 'duplicate']);
     Route::post('/menus/bulk_delete', [MenuController::class, 'bulk_delete']);

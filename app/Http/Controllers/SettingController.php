@@ -42,6 +42,7 @@ class SettingController extends Controller
             'address' => 'nullable|string',
             'system_logo' => 'nullable|string|max:500',
             'email_logo' => 'nullable|string|max:500',
+            'login_logo' => 'nullable|string|max:500',
             'smtp_host' => 'nullable|string|max:200',
             'smtp_port' => 'nullable|integer|min:1|max:65535',
             'smtp_username' => 'nullable|string|max:200',
