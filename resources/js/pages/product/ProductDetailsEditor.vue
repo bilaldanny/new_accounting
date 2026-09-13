@@ -1,8 +1,8 @@
 <script setup lang="ts">
+    import { Image as ImageIcon, Link2, RefreshCw, Search, Trash2 } from '@lucide/vue';
+    import { computed, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
     import { openLfmImagePickerCallback } from '@/utils/openLfmImagePicker';
-    import { Checks, ImagePlus, Trash } from '@boxicons/vue';
-    import { computed, ref, watch } from 'vue';
 
     export type ProductDetailRow = {
         id?: number | string;
@@ -43,18 +43,14 @@
     const { appUrl } = useCommons();
     const localDetails = ref<ProductDetailRow[]>([]);
     const selectedIndexes = ref<number[]>([]);
+    const isBulkBarOpen = ref(false);
+    const bulkPurchase = ref('1500');
+    const bulkMargin = ref('20');
+    const tableSearch = ref('');
+    const currentPage = ref(1);
+    const itemsPerPage = 15;
 
     const isVariable = computed(() => props.productType === 'variable');
-    const showApplyAll = computed(() => isVariable.value && localDetails.value.length > 1);
-
-    function canApplyBelow(index: number): boolean {
-        return showApplyAll.value && index < localDetails.value.length - 1;
-    }
-    const allSelected = computed(() => (
-        isVariable.value
-        && localDetails.value.length > 0
-        && selectedIndexes.value.length === localDetails.value.length
-    ));
 
     function pricingRowsMatch(left: ProductDetailRow[], right: ProductDetailRow[]): boolean {
         if (left.length !== right.length) {
@@ -147,34 +143,6 @@
         updateDetails(nextDetails);
     }
 
-    function applyToAll(
-        index: number,
-        field: 'default_purchase_price' | 'profit_percent' | 'default_sell_price',
-    ) {
-        const source = localDetails.value[index];
-
-        if (! source) {
-            return;
-        }
-
-        const value = source[field];
-        const nextDetails = localDetails.value.map((item, itemIndex) => {
-            if (itemIndex <= index) {
-                return item;
-            }
-
-            const nextRow = { ...item, [field]: value };
-
-            if (field === 'default_sell_price') {
-                return nextRow;
-            }
-
-            return withCalculatedSellPrice(nextRow);
-        });
-
-        updateDetails(nextDetails);
-    }
-
     function removeRow(index: number) {
         if (! isVariable.value || localDetails.value.length <= 1) {
             return;
@@ -194,18 +162,94 @@
         selectedIndexes.value = selectedIndexes.value.filter((item) => item !== index);
     }
 
-    function toggleSelectAll(checked: boolean) {
-        selectedIndexes.value = checked ? localDetails.value.map((_, index) => index) : [];
-    }
+    const filteredIndexes = computed(() => {
+        const query = tableSearch.value.toLowerCase().trim();
 
-    function bulkRemove() {
-        if (! isVariable.value || selectedIndexes.value.length === 0) {
+        return localDetails.value
+            .map((row, index) => ({ row, index }))
+            .filter(({ row }) => {
+                if (! query) {
+                    return true;
+                }
+
+                return variationLabel(row.variation_name).toLowerCase().includes(query)
+                    || String(row.sku ?? '').toLowerCase().includes(query)
+                    || String(row.default_purchase_price).includes(query)
+                    || String(row.default_sell_price).includes(query);
+            })
+            .map(({ index }) => index);
+    });
+
+    const totalPages = computed(() => Math.ceil(filteredIndexes.value.length / itemsPerPage) || 1);
+
+    const paginatedIndexes = computed(() => {
+        const start = (currentPage.value - 1) * itemsPerPage;
+
+        return filteredIndexes.value.slice(start, start + itemsPerPage);
+    });
+
+    const visibleSelected = computed(() => (
+        paginatedIndexes.value.length > 0
+        && paginatedIndexes.value.every((index) => selectedIndexes.value.includes(index))
+    ));
+
+    watch(filteredIndexes, () => {
+        if (currentPage.value > totalPages.value) {
+            currentPage.value = totalPages.value;
+        }
+    });
+
+    function handleSelectAllVisible(checked: boolean) {
+        if (checked) {
+            selectedIndexes.value = [...new Set([...selectedIndexes.value, ...paginatedIndexes.value])];
+
             return;
         }
 
-        const remaining = localDetails.value.filter((_, index) => ! selectedIndexes.value.includes(index));
-        updateDetails(remaining.length > 0 ? remaining : localDetails.value);
-        selectedIndexes.value = [];
+        selectedIndexes.value = selectedIndexes.value.filter((index) => ! paginatedIndexes.value.includes(index));
+    }
+
+    function toggleBulkBar() {
+        isBulkBarOpen.value = ! isBulkBarOpen.value;
+    }
+
+    function applyBulkPricing() {
+        const purchase = parseFloat(bulkPurchase.value) || 0;
+        const margin = parseFloat(bulkMargin.value) || 0;
+        const sell = (purchase + ((purchase * margin) / 100)).toFixed(2);
+
+        updateDetails(localDetails.value.map((row, index) => {
+            const isTarget = selectedIndexes.value.length === 0 || selectedIndexes.value.includes(index);
+
+            if (! isTarget) {
+                return row;
+            }
+
+            return {
+                ...row,
+                default_purchase_price: purchase,
+                profit_percent: margin,
+                default_sell_price: sell,
+            };
+        }));
+    }
+
+    const bulkSellPrice = computed(() => Math.round(
+        (parseFloat(bulkPurchase.value) || 0) * (1 + ((parseFloat(bulkMargin.value) || 0) / 100)),
+    ));
+
+    function copyPurchase(row: ProductDetailRow) {
+        bulkPurchase.value = String(row.default_purchase_price ?? '');
+        isBulkBarOpen.value = true;
+    }
+
+    function copyMargin(row: ProductDetailRow) {
+        bulkMargin.value = String(row.profit_percent ?? '');
+        isBulkBarOpen.value = true;
+    }
+
+    function syncSellPrice(index: number) {
+        updateRow(index, {}, true);
     }
 
     function resolveMediaUrl(path: unknown): string {
@@ -238,529 +282,316 @@
             updateRow(index, { variation_image: path });
         });
     }
+
+    defineExpose({
+        toggleBulkBar,
+        isBulkBarOpen,
+    });
 </script>
 
 <template>
     <div class="pricing-table" :class="{ 'is-embedded': embedded }">
-        <div v-if="!embedded" class="pricing-table__intro">
-            <span class="pricing-table__intro-title">
-                {{ isVariable ? 'Generated variants' : 'Product price' }}
-            </span>
-            <span class="pricing-table__intro-hint">Sell price updates from purchase plus margin.</span>
+        <div
+            v-if="isVariable && isBulkBarOpen"
+            class="flex flex-wrap items-center justify-between gap-4 border-b border-teal-100/80 bg-teal-50/60 p-4 text-xs"
+        >
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold text-slate-700">Set Purchase:</span>
+                    <div class="relative">
+                        <span class="absolute top-1/2 left-2.5 -translate-y-1/2 font-bold text-slate-400">₨</span>
+                        <input
+                            v-model="bulkPurchase"
+                            type="number"
+                            class="w-28 rounded-lg border border-slate-200 bg-white py-1 pr-2 pl-6 font-mono text-xs"
+                            :disabled="disabled"
+                        >
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold text-slate-700">Set Margin %:</span>
+                    <input
+                        v-model="bulkMargin"
+                        type="number"
+                        class="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-xs"
+                        :disabled="disabled"
+                    >
+                </div>
+                <button
+                    type="button"
+                    class="rounded-lg bg-teal-700 px-3 py-1 font-bold text-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-teal-800"
+                    :disabled="disabled"
+                    @click="applyBulkPricing"
+                >
+                    Apply to {{ selectedIndexes.length > 0 ? `${selectedIndexes.length} Selected` : 'All Variants' }}
+                </button>
+            </div>
+            <div class="text-[11px] font-medium text-teal-900">
+                Calculated Sell Price: ₨ {{ bulkSellPrice }}
+            </div>
         </div>
 
-        <div v-if="isVariable && selectedIndexes.length > 0" class="pricing-table__toolbar">
-            <span class="pricing-table__toolbar-count">{{ selectedIndexes.length }} selected</span>
-            <button
-                type="button"
-                class="pricing-table__bulk-remove"
-                :disabled="disabled || selectedIndexes.length >= localDetails.length"
-                @click="bulkRemove"
-            >
-                <Trash size="xs" />
-                Remove selected
-            </button>
+        <div class="flex flex-col justify-between gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-2.5 text-xs sm:flex-row sm:items-center sm:px-5">
+            <div class="text-slate-600">
+                <span class="font-semibold text-slate-800">
+                    {{ isVariable ? 'Generated variants:' : 'Product price:' }}
+                </span>
+                Sell price updates from purchase plus margin.
+            </div>
+            <div v-if="isVariable" class="relative w-full sm:w-64">
+                <Search class="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                    v-model="tableSearch"
+                    type="text"
+                    placeholder="Search variant or SKU..."
+                    class="w-full rounded-lg border border-slate-200 bg-white py-1 pr-2.5 pl-8 text-xs text-slate-800 focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                    @input="currentPage = 1"
+                >
+                <button
+                    v-if="tableSearch"
+                    type="button"
+                    class="absolute top-1/2 right-2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-600"
+                    @click="tableSearch = ''; currentPage = 1"
+                >
+                    ✕
+                </button>
+            </div>
         </div>
 
-        <div v-if="localDetails.length === 0" class="pricing-table__empty">
-            <strong>No generated variants yet</strong>
-            <span>Select variations and values, then click Generate Variations.</span>
+        <div v-if="localDetails.length === 0" class="px-4 py-10 text-center text-xs text-slate-400">
+            No generated variants yet. Select variations and values, then click Generate Variations.
         </div>
 
-        <div v-else class="pricing-table__wrap">
-            <table class="pricing-table__grid">
+        <div v-else-if="paginatedIndexes.length === 0" class="px-4 py-10 text-center text-xs text-slate-400">
+            No variants found matching criteria.
+        </div>
+
+        <div v-else class="overflow-x-auto">
+            <table class="w-full border-collapse text-left">
                 <thead>
-                    <tr>
-                        <th v-if="isVariable" class="is-check">
-                            <button
-                                type="button"
-                                class="pricing-table__check"
-                                :class="{ 'is-on': allSelected }"
+                    <tr class="select-none border-b border-slate-200 bg-slate-50 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+                        <th v-if="isVariable" class="w-10 px-3 py-2.5 text-center">
+                            <input
+                                type="checkbox"
+                                class="rounded text-teal-600 focus:ring-teal-500"
+                                :checked="visibleSelected"
                                 :disabled="disabled"
-                                :aria-pressed="allSelected"
-                                :aria-label="allSelected ? 'Clear row selection' : 'Select all rows'"
-                                @click="toggleSelectAll(! allSelected)"
+                                @change="handleSelectAllVisible(($event.target as HTMLInputElement).checked)"
                             >
-                                <Checks v-if="allSelected" size="xs" />
-                            </button>
                         </th>
-                        <th v-if="isVariable" class="is-name">Variation</th>
-                        <th v-if="isVariable" class="is-sku">SKU</th>
-                        <th class="is-money">Purchase</th>
-                        <th class="is-qty">Large</th>
-                        <th class="is-qty">Small</th>
-                        <th class="is-money">Margin %</th>
-                        <th class="is-money">Sell price</th>
-                        <th class="is-image">Image</th>
-                        <th v-if="isVariable" class="is-action"></th>
+                        <th v-if="isVariable" class="min-w-[200px] px-3 py-2.5">Variation</th>
+                        <th v-if="isVariable" class="min-w-[170px] px-3 py-2.5">SKU</th>
+                        <th class="w-28 px-3 py-2.5">Purchase</th>
+                        <th class="w-20 px-3 py-2.5">Large</th>
+                        <th class="w-20 px-3 py-2.5">Small</th>
+                        <th class="w-24 px-3 py-2.5">Margin %</th>
+                        <th class="w-28 px-3 py-2.5">Sell price</th>
+                        <th class="w-16 px-3 py-2.5 text-center">Image</th>
+                        <th v-if="isVariable" class="w-12 px-3 py-2.5 text-center"></th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-slate-100 text-xs">
                     <tr
-                        v-for="(item, index) in localDetails"
-                        :key="item.id ?? index"
-                        :class="{ 'is-selected': selectedIndexes.includes(index) }"
+                        v-for="index in paginatedIndexes"
+                        :key="localDetails[index]?.id ?? index"
+                        class="transition-colors hover:bg-teal-50/20"
+                        :class="selectedIndexes.includes(index) ? 'bg-teal-50/40' : 'bg-white'"
                     >
-                        <td v-if="isVariable" class="is-check">
-                            <button
-                                type="button"
-                                class="pricing-table__check"
-                                :class="{ 'is-on': selectedIndexes.includes(index) }"
+                        <td v-if="isVariable" class="px-3 py-2.5 text-center">
+                            <input
+                                type="checkbox"
+                                class="rounded text-teal-600 focus:ring-teal-500"
+                                :checked="selectedIndexes.includes(index)"
                                 :disabled="disabled"
-                                :aria-pressed="selectedIndexes.includes(index)"
-                                :aria-label="`Select ${variationLabel(item.variation_name)}`"
-                                @click="toggleSelect(index, ! selectedIndexes.includes(index))"
+                                @change="toggleSelect(index, ($event.target as HTMLInputElement).checked)"
                             >
-                                <Checks v-if="selectedIndexes.includes(index)" size="xs" />
-                            </button>
                         </td>
-                        <td v-if="isVariable" class="is-name">
-                            <span class="pricing-table__name">{{ variationLabel(item.variation_name) }}</span>
+                        <td v-if="isVariable" class="px-3 py-2.5 whitespace-nowrap font-semibold text-slate-900">
+                            {{ variationLabel(localDetails[index].variation_name) }}
                         </td>
-                        <td v-if="isVariable" class="is-sku">
+                        <td v-if="isVariable" class="px-3 py-2.5 whitespace-nowrap">
                             <input
                                 type="text"
-                                class="pricing-table__input is-text"
+                                class="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs focus:border-teal-600 focus:bg-white focus:outline-none"
                                 placeholder="Auto on save"
-                                :value="item.sku"
+                                :value="localDetails[index].sku"
                                 :disabled="disabled"
                                 @input="updateRow(index, { sku: ($event.target as HTMLInputElement).value })"
                             >
                         </td>
-                        <td class="is-money">
-                            <div class="pricing-table__control">
+                        <td class="px-3 py-2.5 whitespace-nowrap">
+                            <div class="flex items-center gap-1">
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    class="pricing-table__input"
-                                    placeholder="0.00"
-                                    :value="item.default_purchase_price"
+                                    class="w-20 rounded border border-slate-200 bg-white px-2 py-1 text-right font-mono text-xs focus:border-teal-600 focus:outline-none"
+                                    :value="localDetails[index].default_purchase_price"
                                     :disabled="disabled"
                                     @input="updateRow(index, { default_purchase_price: ($event.target as HTMLInputElement).value }, true)"
                                 >
                                 <button
-                                    v-if="canApplyBelow(index)"
+                                    v-if="isVariable"
                                     type="button"
-                                    class="pricing-table__apply"
-                                    title="Apply this purchase price to rows below"
+                                    class="p-1 text-slate-400 hover:text-teal-700"
+                                    title="Copy to bulk applicator"
                                     :disabled="disabled"
-                                    @click="applyToAll(index, 'default_purchase_price')"
+                                    @click="copyPurchase(localDetails[index])"
                                 >
-                                    <Checks size="xs" />
+                                    <Link2 class="h-3 w-3" />
                                 </button>
                             </div>
                         </td>
-                        <td class="is-qty">
+                        <td class="px-3 py-2.5 whitespace-nowrap">
                             <input
                                 type="number"
                                 min="0"
-                                class="pricing-table__input"
-                                placeholder="0"
-                                :value="item.largequantity"
+                                class="w-14 rounded border border-slate-200 bg-white px-2 py-1 text-center font-mono text-xs focus:border-teal-600 focus:outline-none"
+                                :value="localDetails[index].largequantity"
                                 :disabled="disabled"
                                 @input="updateRow(index, { largequantity: ($event.target as HTMLInputElement).value })"
                             >
                         </td>
-                        <td class="is-qty">
+                        <td class="px-3 py-2.5 whitespace-nowrap">
                             <input
                                 type="number"
                                 min="0"
-                                class="pricing-table__input"
-                                placeholder="0"
-                                :value="item.smallquantity"
+                                class="w-14 rounded border border-slate-200 bg-white px-2 py-1 text-center font-mono text-xs focus:border-teal-600 focus:outline-none"
+                                :value="localDetails[index].smallquantity"
                                 :disabled="disabled"
                                 @input="updateRow(index, { smallquantity: ($event.target as HTMLInputElement).value })"
                             >
                         </td>
-                        <td class="is-money">
-                            <div class="pricing-table__control">
+                        <td class="px-3 py-2.5 whitespace-nowrap">
+                            <div class="flex items-center gap-1">
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    class="pricing-table__input"
-                                    placeholder="0"
-                                    :value="item.profit_percent"
+                                    class="w-16 rounded border border-slate-200 bg-white px-2 py-1 text-right font-mono text-xs focus:border-teal-600 focus:outline-none"
+                                    :value="localDetails[index].profit_percent"
                                     :disabled="disabled"
                                     @input="updateRow(index, { profit_percent: ($event.target as HTMLInputElement).value }, true)"
                                 >
                                 <button
-                                    v-if="canApplyBelow(index)"
+                                    v-if="isVariable"
                                     type="button"
-                                    class="pricing-table__apply"
-                                    title="Apply this margin to rows below"
+                                    class="p-1 text-slate-400 hover:text-teal-700"
+                                    title="Copy to bulk applicator"
                                     :disabled="disabled"
-                                    @click="applyToAll(index, 'profit_percent')"
+                                    @click="copyMargin(localDetails[index])"
                                 >
-                                    <Checks size="xs" />
+                                    <Link2 class="h-3 w-3" />
                                 </button>
                             </div>
                         </td>
-                        <td class="is-money">
-                            <div class="pricing-table__control">
+                        <td class="px-3 py-2.5 whitespace-nowrap">
+                            <div class="flex items-center gap-1">
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    class="pricing-table__input"
-                                    placeholder="0.00"
-                                    :value="item.default_sell_price"
+                                    class="w-20 rounded border border-teal-200/80 bg-teal-50/40 px-2 py-1 text-right font-mono text-xs font-bold text-teal-900 focus:border-teal-600 focus:outline-none"
+                                    :value="localDetails[index].default_sell_price"
                                     :disabled="disabled"
                                     @input="updateRow(index, { default_sell_price: ($event.target as HTMLInputElement).value })"
                                 >
                                 <button
-                                    v-if="canApplyBelow(index)"
                                     type="button"
-                                    class="pricing-table__apply"
-                                    title="Apply this sell price to rows below"
+                                    class="p-1 text-teal-600 hover:text-teal-800"
+                                    title="Recalculate sell price"
                                     :disabled="disabled"
-                                    @click="applyToAll(index, 'default_sell_price')"
+                                    @click="syncSellPrice(index)"
                                 >
-                                    <Checks size="xs" />
+                                    <RefreshCw class="h-3 w-3" />
                                 </button>
                             </div>
                         </td>
-                        <td class="is-image">
+                        <td class="px-3 py-2.5 text-center">
                             <button
                                 type="button"
-                                class="pricing-table__photo"
-                                :class="{ 'has-file': Boolean(item.variation_image) }"
-                                title="Choose image"
+                                class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                title="Assign image"
                                 :disabled="disabled"
                                 @click="chooseVariationImage($event, index)"
                             >
-                                <img v-if="item.variation_image" :src="resolveMediaUrl(item.variation_image)" alt="">
-                                <ImagePlus v-else size="xs" />
+                                <img
+                                    v-if="localDetails[index].variation_image"
+                                    :src="resolveMediaUrl(localDetails[index].variation_image)"
+                                    alt=""
+                                    class="h-6 w-6 rounded object-cover"
+                                >
+                                <ImageIcon v-else class="h-3.5 w-3.5" />
                             </button>
                         </td>
-                        <td v-if="isVariable" class="is-action">
+                        <td v-if="isVariable" class="px-3 py-2.5 text-center">
                             <button
                                 type="button"
-                                class="pricing-table__remove"
-                                title="Remove variation"
+                                class="cursor-pointer rounded p-1 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                title="Delete variant"
                                 :disabled="disabled || localDetails.length <= 1"
                                 @click="removeRow(index)"
                             >
-                                <Trash size="xs" />
+                                <Trash2 class="h-3.5 w-3.5" />
                             </button>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
+        <div
+            v-if="isVariable && localDetails.length > 0"
+            class="flex flex-col justify-between gap-3 border-t border-slate-100 p-4 text-xs text-slate-500 sm:flex-row sm:items-center"
+        >
+            <div>
+                Showing
+                <strong class="text-slate-800">
+                    {{ filteredIndexes.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1 }}
+                </strong>
+                to
+                <strong class="text-slate-800">
+                    {{ Math.min(currentPage * itemsPerPage, filteredIndexes.length) }}
+                </strong>
+                of <strong class="text-slate-800">{{ filteredIndexes.length }}</strong> variants
+            </div>
+            <div class="flex items-center gap-1">
+                <button
+                    type="button"
+                    class="rounded border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                    :disabled="currentPage === 1"
+                    @click="currentPage = Math.max(currentPage - 1, 1)"
+                >
+                    Previous
+                </button>
+                <span class="px-2 font-mono font-medium text-slate-700">
+                    Page {{ currentPage }} of {{ totalPages }}
+                </span>
+                <button
+                    type="button"
+                    class="rounded border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                    :disabled="currentPage === totalPages"
+                    @click="currentPage = Math.min(currentPage + 1, totalPages)"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
     </div>
 </template>
 
 <style scoped>
-.pricing-table {
-    border: 1px solid var(--app-border, #e5e7eb);
-    border-radius: var(--app-radius-lg, 12px);
-    background: #fff;
-    overflow: hidden;
-}
-
 .pricing-table.is-embedded {
     border: 0;
     border-radius: 0;
-}
-
-.pricing-table__intro {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.9rem 1.1rem;
-    border-bottom: 1px solid var(--app-border-subtle, #f1f5f9);
-}
-
-.pricing-table__intro-title {
-    font-size: 0.875rem;
-    font-weight: 650;
-    color: var(--app-text, #111827);
-}
-
-.pricing-table__intro-hint {
-    font-size: 0.75rem;
-    color: var(--app-text-muted, #94a3b8);
-}
-
-.pricing-table__toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.55rem 0.85rem;
-    background: #eef2ff;
-    border-bottom: 1px solid #c7d2fe;
-}
-
-.pricing-table__toolbar-count {
-    font-size: 0.75rem;
-    font-weight: 650;
-    color: #3730a3;
-}
-
-.pricing-table__bulk-remove {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 1.85rem;
-    padding: 0.2rem 0.65rem;
-    border: 1px solid #fecaca;
-    border-radius: 0.4rem;
-    background: #fff;
-    color: #dc2626;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.pricing-table__bulk-remove:disabled {
-    opacity: 0.45;
-}
-
-.pricing-table__empty {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 1.75rem 1rem;
-    text-align: center;
-    color: var(--app-text-secondary, #64748b);
-    font-size: 0.8125rem;
-    background: #f8fafc;
-}
-
-.pricing-table__empty strong {
-    color: var(--app-text, #111827);
-}
-
-.pricing-table__wrap {
-    overflow-x: auto;
-}
-
-.pricing-table__grid {
-    width: 100%;
-    margin: 0;
-    border-collapse: collapse;
-}
-
-.pricing-table__grid th,
-.pricing-table__grid td {
-    padding: 0.65rem 0.75rem;
-    border-bottom: 1px solid var(--app-border-subtle, #f1f5f9);
-    vertical-align: middle;
-}
-
-.pricing-table__grid thead th {
-    padding: 0.7rem 0.75rem;
-    background: #f8fafc;
-    color: #64748b;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--app-border, #e5e7eb);
-}
-
-.pricing-table__grid tbody tr:last-child td {
-    border-bottom: 0;
-}
-
-.pricing-table__grid tbody tr:hover td {
-    background: #f8fafc;
-}
-
-.pricing-table__grid tbody tr.is-selected td {
-    background: #eef2ff;
-}
-
-.pricing-table__grid th.is-money,
-.pricing-table__grid td.is-money {
-    width: 9.5rem;
-}
-
-.pricing-table__grid th.is-qty,
-.pricing-table__grid td.is-qty {
-    width: 6.5rem;
-}
-
-.pricing-table__grid th.is-check,
-.pricing-table__grid td.is-check {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    text-align: center;
-    padding-left: 0.75rem;
-    padding-right: 0.4rem;
-}
-
-.pricing-table__check {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.2rem;
-    height: 1.2rem;
-    padding: 0;
-    border: 2px solid #334155 !important;
-    border-style: solid !important;
-    border-radius: 0.25rem;
-    background: #fff !important;
-    color: #fff;
-    box-shadow: none;
-    appearance: none;
-    vertical-align: middle;
-}
-
-.pricing-table__check.is-on {
-    border-color: var(--app-primary, #6366f1) !important;
-    background: var(--app-primary, #6366f1) !important;
-}
-
-.pricing-table__check:disabled {
-    opacity: 0.45;
-}
-
-.pricing-table__grid th.is-name,
-.pricing-table__grid td.is-name {
-    width: 12rem;
-    min-width: 10rem;
-}
-
-.pricing-table__grid th.is-sku,
-.pricing-table__grid td.is-sku {
-    width: 10.5rem;
-}
-
-.pricing-table__input.is-text {
-    text-align: left;
-}
-
-.pricing-table__grid th.is-image,
-.pricing-table__grid td.is-image,
-.pricing-table__grid th.is-action,
-.pricing-table__grid td.is-action {
-    width: 3.25rem;
-    text-align: center;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-}
-
-.pricing-table__grid th.is-money,
-.pricing-table__grid th.is-qty {
-    text-align: right;
-}
-
-.pricing-table__name {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--app-text, #111827);
-    word-break: break-word;
-}
-
-.pricing-table__input {
-    width: 100%;
-    min-height: 2.15rem;
-    padding: 0.35rem 0.55rem;
-    border: 1px solid var(--app-border, #e5e7eb);
-    border-radius: 0.45rem;
-    background: #fff;
-    color: var(--app-text, #111827);
-    font-size: 0.8125rem;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-}
-
-.pricing-table__input:focus {
-    outline: none;
-    border-color: var(--app-primary, #6366f1);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-}
-
-.pricing-table__input:disabled {
-    background: #f8fafc;
-}
-
-.pricing-table__control {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.pricing-table__control .pricing-table__input {
-    min-width: 0;
-    flex: 1;
-}
-
-.pricing-table__apply {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
-    flex-shrink: 0;
-    padding: 0;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 0.45rem;
-    background: #fff !important;
-    color: #475569;
-}
-
-.pricing-table__apply:hover:not(:disabled) {
-    border-color: var(--app-primary, #6366f1) !important;
-    background: #eef2ff !important;
-    color: #4f46e5;
-}
-
-.pricing-table__photo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
-    margin: 0;
-    padding: 0;
-    border: 1px dashed #cbd5e1;
-    border-radius: 0.45rem;
-    background: #f8fafc;
-    color: #94a3b8;
-    cursor: pointer;
-    overflow: hidden;
-}
-
-.pricing-table__photo:disabled {
-    cursor: not-allowed;
-    opacity: 0.65;
-}
-
-.pricing-table__photo.has-file {
-    border-style: solid;
-    background: #fff;
-}
-
-.pricing-table__photo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.pricing-table__remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: 0.45rem;
     background: transparent;
-    color: #94a3b8;
+    overflow: visible;
 }
 
-.pricing-table__remove:hover:not(:disabled) {
-    background: #fef2f2;
-    color: #dc2626;
-}
-
-.pricing-table__remove:disabled {
-    opacity: 0.35;
+.pricing-table:not(.is-embedded) {
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
 }
 </style>

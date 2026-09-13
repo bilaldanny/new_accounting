@@ -1,15 +1,15 @@
 <script setup lang="ts">
 
-    import { onMounted, ref, watchEffect, computed } from 'vue';
-    import TopButtons from '@/components/topButtons.vue';
-    import TheFilter from '@/components/theFilter.vue';
-    import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
-    import debounce from '@/utils/debounce';
-    import useDepartments from '@/composables/department';
+    import { onMounted, ref, watchEffect, computed } from 'vue';
+    import TheFilter from '@/components/theFilter.vue';
     import TheTable from '@/components/theTable.vue';
+    import TopButtons from '@/components/topButtons.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useCommons from '@/composables/common';
+    import useDepartments from '@/composables/department';
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import debounce from '@/utils/debounce';
     import AddModal from './add.vue';
     import EditModal from './edit.vue';
     import ImportModal from './import.vue';
@@ -84,6 +84,7 @@
     const currentSearch = ref(getSavedValue('currentSearch') || '');
     const currentStatus = ref(getSavedValue('currentStatus') || 'all');
     const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
+
     if(getSavedValue('currentUrl') === props.routeName){
         currentUrl.value = (getSavedValue('currentUrl') || props.routeName);
     }else{
@@ -105,6 +106,7 @@
 
         ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
             const val = stateRefMap[key as keyof typeof stateRefMap]?.value
+
             if (val !== undefined && val !== null) {
             localStorage.setItem(key, val)
             }
@@ -122,6 +124,7 @@
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
+
             await debouncedGetDepartments({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
@@ -226,6 +229,16 @@
 
     const filterOpen = ref(false);
 
+    function setStatusFilter(status: 'all' | '1' | '0') {
+        if (state.search.status === status) {
+            return;
+        }
+
+        state.search.status = status;
+        state.search.page = 1;
+        getData();
+    }
+
     function clearSearch() {
         state.search.status = 'all';
         state.search.search = '';
@@ -243,7 +256,38 @@
 
     <div class="admin-list-page">
         <div class="admin-list-card">
-            <div class="admin-list-card__toolbar">
+            <div class="admin-list-card__toolbar admin-list-card__toolbar--with-kpis">
+                <div class="admin-list-card__toolbar-left">
+                    <div class="modern-status-pills" role="tablist" aria-label="Filter by status">
+                        <button
+                            type="button"
+                            class="modern-status-pill"
+                            :class="{ 'is-active': state.search.status === 'all' }"
+                            @click="setStatusFilter('all')"
+                        >
+                            All Records <span class="modern-status-pill__count">{{ state.records.total }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="modern-status-pill"
+                            :class="{ 'is-active': state.search.status === '1' }"
+                            @click="setStatusFilter('1')"
+                        >
+                            <span class="modern-status-pill__dot modern-status-pill__dot--success"></span>
+                            Active <span class="modern-status-pill__count">{{ state.active_count }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="modern-status-pill"
+                            :class="{ 'is-active': state.search.status === '0' }"
+                            @click="setStatusFilter('0')"
+                        >
+                            <span class="modern-status-pill__dot modern-status-pill__dot--muted"></span>
+                            Inactive <span class="modern-status-pill__count">{{ state.inactive_count }}</span>
+                        </button>
+                    </div>
+                </div>
+
                 <TopButtons
                     :state="state"
                     :filter-open="filterOpen"

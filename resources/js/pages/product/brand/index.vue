@@ -2,25 +2,25 @@
 
 
 
+    import { Head, usePage } from '@inertiajs/vue3';
     import { onMounted, ref, watchEffect, computed } from 'vue';
 
+    import TheFilter from '@/components/theFilter.vue';
+    import TheTable from '@/components/theTable.vue';
     import TopButtons from '@/components/topButtons.vue';
 
-    import TheFilter from '@/components/theFilter.vue';
-
-    import useCommons from '@/composables/common';
-
-    import { Head, usePage } from '@inertiajs/vue3';
-
-    import debounce from '@/utils/debounce';
-
-    import useBrands from '@/composables/brand';
-
-    import TheTable from '@/components/theTable.vue';
 
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useBrands from '@/composables/brand';
+    import useCommons from '@/composables/common';
+
 
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import debounce from '@/utils/debounce';
+
+
+
+
 
     import AddModal from './add.vue';
 
@@ -402,6 +402,16 @@
 
 
 
+    function setStatusFilter(status: 'all' | '1' | '0') {
+        if (state.search.status === status) {
+            return;
+        }
+
+        state.search.status = status;
+        state.search.page = 1;
+        getData();
+    }
+
     function clearSearch() {
 
         state.search.status = 'all';
@@ -434,7 +444,37 @@
 
         <div class="admin-list-card">
 
-            <div class="admin-list-card__toolbar">
+            <div class="admin-list-card__toolbar admin-list-card__toolbar--with-kpis">
+                <div class="admin-list-card__toolbar-left">
+                    <div class="modern-status-pills" role="tablist" aria-label="Filter by status">
+                        <button
+                            type="button"
+                            class="modern-status-pill"
+                            :class="{ 'is-active': state.search.status === 'all' }"
+                            @click="setStatusFilter('all')"
+                        >
+                            All Records <span class="modern-status-pill__count">{{ state.records.total }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="modern-status-pill"
+                            :class="{ 'is-active': state.search.status === '1' }"
+                            @click="setStatusFilter('1')"
+                        >
+                            <span class="modern-status-pill__dot modern-status-pill__dot--success"></span>
+                            Active <span class="modern-status-pill__count">{{ state.active_count }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="modern-status-pill"
+                            :class="{ 'is-active': state.search.status === '0' }"
+                            @click="setStatusFilter('0')"
+                        >
+                            <span class="modern-status-pill__dot modern-status-pill__dot--muted"></span>
+                            Inactive <span class="modern-status-pill__count">{{ state.inactive_count }}</span>
+                        </button>
+                    </div>
+                </div>
 
                 <TopButtons
 

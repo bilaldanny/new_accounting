@@ -1117,6 +1117,11 @@ export default defineConfig({
     classHelpers: true,
     plugins: [PluginMask],
     debounce: 500,
+    columns: {
+        container: 12,
+        label: 12,
+        wrapper: 12,
+    },
     locales: { en: enExtended },
     locale: 'en',
     /** DOMPurify (used for checkbox/label HTML) omits `target` by default; keep links that open in a new tab. */

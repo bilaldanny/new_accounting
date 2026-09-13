@@ -1,19 +1,19 @@
 <script setup lang="ts">
+    import { Head, usePage } from '@inertiajs/vue3';
+    import { computed, nextTick, onMounted, ref, watch } from 'vue';
     import Loader from '@/components/Loader.vue';
     import TheForm from '@/components/theForm.vue';
+    import useCommons from '@/composables/common';
+    import useCompanySettings from '@/composables/companySetting';
+    import { company } from '@/routes';
     import Fields from './setting/Fields.vue';
+    import { isStandaloneSettingTab, settingTabs } from './setting/settingTabs';
     import SettingTabsNav from './setting/SettingTabsNav.vue';
     import FinancialYearTab from './setting/tabs/FinancialYearTab.vue';
     import LinkAccountsTab from './setting/tabs/LinkAccountsTab.vue';
     import PurchaseSettingTab from './setting/tabs/PurchaseSettingTab.vue';
     import SellSettingTab from './setting/tabs/SellSettingTab.vue';
     import TaxTab from './setting/tabs/TaxTab.vue';
-    import { isStandaloneSettingTab, settingTabs } from './setting/settingTabs';
-    import useCompanySettings from '@/composables/companySetting';
-    import useCommons from '@/composables/common';
-    import { company } from '@/routes';
-    import { Head, usePage } from '@inertiajs/vue3';
-    import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
     defineOptions({
         layout: {
@@ -135,6 +135,7 @@
             parentaccountdata.value = [];
             parentsaleaccountdata.value = [];
             parentpurchaseaccountdata.value = [];
+
             return;
         }
 
@@ -148,6 +149,7 @@
         if (!companyId) {
             formData.value = { ...defaultFormData };
             formRef.value?.reset?.();
+
             return;
         }
 
@@ -171,6 +173,7 @@
         if (!normalizedCompanyId) {
             formData.value = { ...defaultFormData };
             formRef.value?.reset?.();
+
             return;
         }
 
@@ -209,6 +212,7 @@
         if (isSuperadmin.value) {
             formData.value = { ...defaultFormData };
             pageReady.value = true;
+
             return;
         }
 
@@ -218,6 +222,7 @@
 
         if (!companyId) {
             pageReady.value = true;
+
             return;
         }
 
@@ -250,9 +255,11 @@
 
         if (!companyId) {
             saving.value = false;
+
             if (formRef.value?.isSubmitting !== undefined) {
                 formRef.value.isSubmitting = false;
             }
+
             return;
         }
 
@@ -270,6 +277,7 @@
             }
         } finally {
             saving.value = false;
+
             if (formRef.value?.isSubmitting !== undefined) {
                 formRef.value.isSubmitting = false;
             }
@@ -336,7 +344,7 @@
 
                 <Loader v-if="!pageReady || loading" message="Loading company settings…" />
 
-                <div v-else-if="canEditSettings" class="company-setting-shell">
+                <div v-else-if="isSuperadmin || canEditSettings" class="company-setting-shell">
                     <SettingTabsNav v-model:active-tab="activeTab" />
 
                     <div class="company-setting-shell__main">
@@ -418,8 +426,8 @@
                     </div>
                 </div>
 
-                <p v-else-if="pageReady && !loading && isSuperadmin" class="text-muted mb-0">
-                    Select a company to load and edit its settings.
+                <p v-else-if="pageReady && !loading" class="text-muted mb-0">
+                    No company is assigned to your account. Contact your administrator.
                 </p>
             </div>
         </section>

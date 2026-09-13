@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import useCommons from '@/composables/common';
-import { Link, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     Cloud,
@@ -14,6 +12,8 @@ import {
     UndoAlt,
     FilePlus,
 } from '@boxicons/vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import useCommons from '@/composables/common';
 
 const buttonProps = defineProps({
     state: Object,
@@ -29,6 +29,8 @@ const buttonProps = defineProps({
     addHref: { type: String, default: '' },
     filterOpen: { type: Boolean, default: false },
     showStatus: { type: Boolean, default: true },
+    /** Inline bulk delete/mark-active/mark-inactive icon buttons that appear next to Filter/Refresh once rows are selected. Set false when a floating bulk-action bar already covers this (e.g. TheTable's built-in one). */
+    showBulkIcons: { type: Boolean, default: true },
     /** When true, refresh (reload data) is only shown if user has `/${url}/reload` in permission_paths */
     requireReloadPermission: { type: Boolean, default: false },
     getData: Function,
@@ -53,15 +55,16 @@ const { formatedText } = useCommons();
     <div class="top-buttons modern-toolbar d-inline-flex align-items-center flex-wrap gap-1">
         <button
             type="button"
-            class="btn btn-sm btn-outline-secondary top-btn top-btn-icon-only"
+            class="btn btn-sm btn-outline-secondary top-btn"
             :class="{ active: buttonProps.filterOpen }"
             aria-controls="filterCollapse"
             :aria-expanded="buttonProps.filterOpen ? 'true' : 'false'"
-            title="Filter"
+            title="Open filter options"
             v-if="buttonProps.showFilter === true"
             @click="emit('toggleFilter')"
         >
-            <Filter size="sm" class="top-btn-icon" />
+            <Filter size="sm" class="top-btn-icon top-btn-icon-inline" />
+            Filter
         </button>
 
         <button
@@ -139,6 +142,7 @@ const { formatedText } = useCommons();
                 type="button"
                 class="btn btn-sm btn-danger top-btn top-btn-icon-only"
                 v-if="
+                    buttonProps.showBulkIcons &&
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/delete`) &&
                     buttonProps.state?.edit_ids?.length > 0
                 "
@@ -158,6 +162,7 @@ const { formatedText } = useCommons();
                 type="button"
                 class="btn btn-sm btn-success top-btn top-btn-icon-only"
                 v-if="
+                    buttonProps.showBulkIcons &&
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/:id/edit`) &&
                     buttonProps.state?.edit_ids?.length > 0 &&
                     buttonProps.showStatus
@@ -178,6 +183,7 @@ const { formatedText } = useCommons();
                 type="button"
                 class="btn btn-sm btn-warning top-btn top-btn-icon-only"
                 v-if="
+                    buttonProps.showBulkIcons &&
                     props.auth.user.permission_paths.includes(`/${buttonProps.url}/:id/edit`) &&
                     buttonProps.state?.edit_ids?.length > 0 &&
                     buttonProps.showStatus
@@ -273,8 +279,8 @@ const { formatedText } = useCommons();
 
 <style scoped>
 .top-buttons :deep(.top-btn-icon) {
-    width: 1rem;
-    height: 1rem;
+    width: 0.875rem;
+    height: 0.875rem;
     display: block;
     fill: currentColor;
     flex-shrink: 0;

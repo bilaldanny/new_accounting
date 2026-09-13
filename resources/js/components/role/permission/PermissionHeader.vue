@@ -67,9 +67,9 @@ defineProps({
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 1rem 1.5rem;
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(226, 227, 231, 0.9);
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--app-border-subtle, #f1f5f9);
 }
 
 .permission-header__search-wrap {
@@ -85,13 +85,13 @@ defineProps({
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-muted, #6b7280);
+    color: var(--app-text-secondary, #64748b);
     margin-bottom: 0.5rem;
 }
 
 .permission-header__search-label .mdi {
     font-size: 0.875rem;
-    color: var(--accent-dark, #199683);
+    color: var(--app-primary, #0d9488);
 }
 
 .permission-header__field {
@@ -99,18 +99,18 @@ defineProps({
 }
 
 .permission-header__input {
-    min-height: 2.625rem;
+    min-height: 2.5rem;
     padding-right: 2.5rem;
-    border-radius: 0.625rem;
-    border: 1px solid #e5e7eb;
-    font-size: 0.875rem;
+    border-radius: var(--app-radius-md, 9px);
+    border: 1px solid var(--app-border, #e2e8f0);
+    font-size: 0.8125rem;
     background: #fff;
     box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .permission-header__input:focus {
-    border-color: var(--accent-dark, #199683);
-    box-shadow: 0 0 0 3px rgba(25, 150, 131, 0.12);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 3px var(--app-primary-soft, rgba(13, 148, 136, 0.12));
 }
 
 .permission-header__clear {
@@ -126,7 +126,7 @@ defineProps({
 }
 
 .permission-header__clear:hover {
-    color: var(--accent-dark, #199683);
+    color: var(--app-primary, #0d9488);
 }
 
 @media (max-width: 767.98px) {

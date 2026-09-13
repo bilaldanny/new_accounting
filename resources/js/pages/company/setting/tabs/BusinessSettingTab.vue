@@ -707,7 +707,7 @@
 
                 type="button"
 
-                class="company-logo-choose"
+                class="product-form-choose"
 
                 @click="chooseLogo"
 

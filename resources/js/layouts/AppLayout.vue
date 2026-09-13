@@ -1,11 +1,12 @@
 <script setup lang="ts">
-    import { computed } from 'vue';
     import { usePage } from '@inertiajs/vue3';
-    import AppSiderbarLayout from '@/layouts/app/AppSidebarLayout.vue';
+    import { computed } from 'vue';
     import AppSwitcher from '@/components/AppSwitcher.vue';
     import InActivity from '@/components/InActivity.vue';
     import InternetDetector from '@/components/InternetDetector.vue';
     import useCommons from '@/composables/common';
+    import useSidebarToggle from '@/composables/useSidebarToggle';
+    import AppSiderbarLayout from '@/layouts/app/AppSidebarLayout.vue';
     import type { BreadcrumbItem } from '@/types';
 
     const { breadcrumbs = [], title = '' } = defineProps<{
@@ -16,6 +17,7 @@
     const page = usePage();
     const { formatedText } = useCommons();
     const layoutTitle = computed(() => title || formatedText(String(page.props.routeName ?? '')));
+    const { isSidebarToggled, isSidebarHovered } = useSidebarToggle();
 </script>
 
 <template>
@@ -24,9 +26,9 @@
     <!-- Inactivity -->
         <InActivity></InActivity>
     <!-- Inactivity -->
-    
+
     <!--wrapper-->
-	<div class="wrapper">
+	<div class="wrapper" :class="{ toggled: isSidebarToggled, 'sidebar-hovered': isSidebarHovered }">
         <AppSiderbarLayout :breadcrumbs="breadcrumbs" :title="layoutTitle">
             <InternetDetector></InternetDetector>
             <slot />

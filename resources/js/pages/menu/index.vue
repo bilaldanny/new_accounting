@@ -217,30 +217,6 @@
         <div class="admin-list-card">
             <div class="admin-list-card__toolbar admin-list-card__toolbar--with-kpis">
                 <div class="admin-list-card__toolbar-left">
-                    <div class="modern-kpi-row">
-                        <div class="modern-kpi-card">
-                            <span class="modern-kpi-card__label">Total</span>
-                            <span class="modern-kpi-card__value">{{ state.records.total }}</span>
-                        </div>
-                        <div class="modern-kpi-card modern-kpi-card--success">
-                            <span class="modern-kpi-card__label">Active</span>
-                            <span class="modern-kpi-card__value">{{ state.active_count }}</span>
-                        </div>
-                        <div class="modern-kpi-card modern-kpi-card--warning">
-                            <span class="modern-kpi-card__label">Inactive</span>
-                            <span class="modern-kpi-card__value">{{ state.inactive_count }}</span>
-                        </div>
-                        <Link
-                            v-if="state.trash_count > 0"
-                            :href="`/${props.routeName?.split('.')[0]}/trash`"
-                            class="modern-kpi-card modern-kpi-card--danger"
-                            title="Click to open trash"
-                        >
-                            <span class="modern-kpi-card__label">In Trash</span>
-                            <span class="modern-kpi-card__value">{{ state.trash_count }}</span>
-                        </Link>
-                    </div>
-
                     <div class="modern-status-pills" role="tablist" aria-label="Filter by status">
                         <button
                             type="button"
@@ -248,7 +224,7 @@
                             :class="{ 'is-active': state.search.status === 'all' }"
                             @click="setStatusFilter('all')"
                         >
-                            All <span class="modern-status-pill__count">({{ state.records.total }})</span>
+                            All Records <span class="modern-status-pill__count">{{ state.records.total }}</span>
                         </button>
                         <button
                             type="button"
@@ -257,7 +233,7 @@
                             @click="setStatusFilter('1')"
                         >
                             <span class="modern-status-pill__dot modern-status-pill__dot--success"></span>
-                            Active <span class="modern-status-pill__count">({{ state.active_count }})</span>
+                            Active <span class="modern-status-pill__count">{{ state.active_count }}</span>
                         </button>
                         <button
                             type="button"
@@ -266,7 +242,7 @@
                             @click="setStatusFilter('0')"
                         >
                             <span class="modern-status-pill__dot modern-status-pill__dot--muted"></span>
-                            Inactive <span class="modern-status-pill__count">({{ state.inactive_count }})</span>
+                            Inactive <span class="modern-status-pill__count">{{ state.inactive_count }}</span>
                         </button>
                     </div>
                 </div>
@@ -279,6 +255,7 @@
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
                     :show-import="true"
+                    :show-bulk-icons="false"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>

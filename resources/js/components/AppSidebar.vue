@@ -1,15 +1,18 @@
 <script setup lang="ts">
-    import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
     import { Link, router, usePage } from '@inertiajs/vue3';
     import simplebar from 'simplebar-vue';
+    import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
     import 'simplebar-vue/dist/simplebar.min.css';
     import { MetisMenu } from 'metismenujs';
     import 'metismenujs/sass';
-    import useNotifications from '@/composables/notifications';
-    import { dashboard } from '@/routes';
     import MenuIcon from '@/components/MenuIcon.vue';
+    import useNotifications from '@/composables/notifications';
+    import useSidebarToggle from '@/composables/useSidebarToggle';
+    import { dashboard } from '@/routes';
+    import { Sidebar } from '@boxicons/vue';
 
     const { countsByType, getNotificationTypeFromRoute, fetchCountsByType } = useNotifications();
+    const { toggleSidebar, setSidebarHovered } = useSidebarToggle();
     const page = usePage();
 
     type SidebarMenuItem = {
@@ -163,6 +166,7 @@
 
     const getBadgeCount = (routePath: string | null): number => {
         const type = getNotificationTypeFromRoute(routePath);
+
         return type ? (countsByType.value[type] ?? 0) : 0;
     };
 
@@ -184,16 +188,22 @@
 
 <template>
     <!--sidebar wrapper -->
-        <simplebar class="sidebar-wrapper">
+        <simplebar
+            class="sidebar-wrapper"
+            @mouseenter="setSidebarHovered(true)"
+            @mouseleave="setSidebarHovered(false)"
+        >
             <div>
                 <div class="sidebar-header">
                     <div>
                         <img :src="softwareLogo" class="logo-icon" :alt="appName">
                     </div>
-                    <div>
+                    <div class="logo-copy">
                         <h4 class="logo-text">{{ appName }}</h4>
+                        <span class="logo-subtitle">Finance &amp; Analytics</span>
                     </div>
-                    <div class="toggle-icon ms-auto"><i class='bx bx-first-page'></i>
+                    <div class="toggle-icon ms-auto" title="Collapse sidebar" @click="toggleSidebar">
+                        <Sidebar size="sm" class="sidebar-toggle-glyph" aria-hidden="true" />
                     </div>
                 </div>
                 <!--navigation-->

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import useCommons from '@/composables/common';
 
-    const params = defineProps({
-        type: String
-    });
+const params = defineProps({
+    type: String,
+});
 
-    const {menusdata} = useCommons();
+const { menusdata } = useCommons();
+
+const colThird = { container: 4, label: 12, wrapper: 12 };
+const colFull = { container: 12, label: 12, wrapper: 12 };
+const colTwoThirds = { container: 8, label: 12, wrapper: 12 };
 </script>
 
 <template>
-
-    <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true"/>
+    <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
 
     <SelectElement
         name="parent_id"
@@ -20,31 +23,30 @@ import useCommons from '@/composables/common';
         field-name="ParentId"
         placeholder="Parent"
         label="Parent"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         label-prop="text"
         value-prop="id"
-        :search="true"
+        :search="false"
         :floating="false"
         :can-clear="false"
-        :conditions="[
-            ['type', [1, 2]],
-        ]"
+        :conditions="[['type', [1, 2]]]"
     />
 
     <SelectElement
         name="type"
         :native="false"
+        :search="false"
         :items="[
             { value: 1, label: 'Single Menu' },
             { value: 2, label: 'Dropdown Menu' },
-            { value: 3, label: 'Menu Heading' }
+            { value: 3, label: 'Menu Heading' },
         ]"
         id="Type"
         field-name="Type"
         placeholder="Type"
         label="Type"
         rules="required"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         :floating="false"
         :can-clear="false"
     />
@@ -54,8 +56,8 @@ import useCommons from '@/composables/common';
         field-name="Name"
         name="name"
         label="Name"
-        placeholder="Enter name"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        placeholder="enter name*"
+        :columns="colThird"
         autocomplete="off"
         rules="required"
     />
@@ -65,8 +67,8 @@ import useCommons from '@/composables/common';
         field-name="RoutePath"
         name="route_path"
         label="Route Path"
-        placeholder="Enter route path"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        placeholder="Enter route path*"
+        :columns="colThird"
         autocomplete="off"
         rules="required"
     />
@@ -77,7 +79,7 @@ import useCommons from '@/composables/common';
         name="route_name"
         label="Route"
         placeholder="Enter route"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         autocomplete="off"
     />
 
@@ -87,7 +89,7 @@ import useCommons from '@/composables/common';
         name="icon"
         label="Icon"
         placeholder="Enter icon"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         autocomplete="off"
     />
 
@@ -97,16 +99,20 @@ import useCommons from '@/composables/common';
         name="sort_order"
         label="Sort Order"
         placeholder="Enter sort order"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         autocomplete="off"
         default="0"
+        input-type="number"
     />
 
-    <StaticElement tag="br" name="element" />
+    <StaticElement name="menu_sort_spacer" tag="div" :columns="colTwoThirds" />
+
+    <StaticElement name="menu_toggles_divider" tag="div" :columns="colFull">
+        <div class="menu-form-divider" aria-hidden="true"></div>
+    </StaticElement>
 
     <ToggleElement
-        :labels="{ 1: 'On', 0: 'Off' }"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         id="IsActive"
         field-name="IsActive"
         name="is_active"
@@ -117,8 +123,7 @@ import useCommons from '@/composables/common';
     />
 
     <ToggleElement
-        :labels="{ 1: 'On', 0: 'Off' }"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         id="IsHidden"
         field-name="IsHidden"
         name="is_hidden"
@@ -129,8 +134,7 @@ import useCommons from '@/composables/common';
     />
 
     <ToggleElement
-        :labels="{ 1: 'On', 0: 'Off' }"
-        :columns="{ container: 4, label: 12, wrapper: 12 }"
+        :columns="colThird"
         id="IsPermission"
         field-name="IsPermission"
         name="is_permission"

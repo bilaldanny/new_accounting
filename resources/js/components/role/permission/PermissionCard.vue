@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
 import { ChevronDown, SelectAll, SelectNone } from '@boxicons/vue';
+import { computed, ref } from 'vue';
 import MenuIcon from '@/components/MenuIcon.vue';
 import PermissionGroup from './PermissionGroup.vue';
 
@@ -30,18 +30,22 @@ const hasChildren = computed(() => (props.item.children?.length ?? 0) > 0);
 
 const collectPermissionIds = (menuItem) => {
     const ids = [];
+
     for (const child of menuItem.children ?? []) {
         ids.push(child.id);
+
         for (const grandchild of child.children ?? []) {
             ids.push(grandchild.id);
         }
     }
+
     return ids;
 };
 
 const moduleStats = computed(() => {
     const ids = collectPermissionIds(props.item);
     const granted = ids.filter((id) => props.permissiondata.includes(id)).length;
+
     return { granted, total: ids.length };
 });
 
@@ -49,6 +53,7 @@ const progressPercent = computed(() => {
     if (moduleStats.value.total === 0) {
         return 0;
     }
+
     return Math.round((moduleStats.value.granted / moduleStats.value.total) * 100);
 });
 
@@ -56,17 +61,25 @@ const isFullyGranted = computed(() =>
     moduleStats.value.total > 0 && moduleStats.value.granted === moduleStats.value.total,
 );
 
+const isPartiallyGranted = computed(() =>
+    moduleStats.value.granted > 0 && moduleStats.value.granted < moduleStats.value.total,
+);
+
 const allChildrenGranted = computed(() => {
     if (!hasChildren.value) {
         return false;
     }
+
     const childIds = [];
+
     for (const child of props.item.children ?? []) {
         childIds.push(child.id);
+
         for (const grandchild of child.children ?? []) {
             childIds.push(grandchild.id);
         }
     }
+
     return childIds.length > 0 && childIds.every((id) => props.permissiondata.includes(id));
 });
 
@@ -81,6 +94,7 @@ const toggleExpanded = () => {
 const toggleSelectAll = (event) => {
     event.stopPropagation();
     const card = event.currentTarget.closest('.permission-accordion');
+
     if (!card) {
         return;
     }
@@ -105,6 +119,7 @@ const toggleSelectAll = (event) => {
         :class="{
             'permission-accordion--expanded': isExpanded,
             'permission-accordion--complete': isFullyGranted,
+            'permission-accordion--partial': isPartiallyGranted,
             'permission-accordion--simple': !hasChildren,
         }"
         :style="{ '--module-accent': accentColor }"
@@ -120,7 +135,10 @@ const toggleSelectAll = (event) => {
             @keydown.space.prevent="toggleExpanded"
         >
             <div class="permission-accordion__header-start">
-                <div class="permission-accordion__icon-wrap">
+                <div
+                    class="permission-accordion__icon-wrap"
+                    :class="{ 'permission-accordion__icon-wrap--active': moduleStats.granted > 0 }"
+                >
                     <MenuIcon :icon="item.icon" />
                 </div>
 
@@ -191,8 +209,8 @@ const toggleSelectAll = (event) => {
 <style scoped>
 .permission-accordion {
     background: #fff;
-    border: 1px solid #e8ecf0;
-    border-radius: 0.875rem;
+    border: 1px solid var(--app-border, #e2e8f0);
+    border-radius: var(--app-radius-lg, 14px);
     overflow: hidden;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.03);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -200,16 +218,20 @@ const toggleSelectAll = (event) => {
 }
 
 .permission-accordion:hover {
-    border-color: rgba(25, 150, 131, 0.28);
+    border-color: color-mix(in srgb, var(--module-accent, #0d9488) 30%, var(--app-border, #e2e8f0));
     box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 }
 
 .permission-accordion--expanded {
-    border-color: rgba(25, 150, 131, 0.35);
+    border-color: color-mix(in srgb, var(--module-accent, #0d9488) 35%, var(--app-border, #e2e8f0));
+}
+
+.permission-accordion--partial {
+    border-color: #cbd5e1;
 }
 
 .permission-accordion--complete {
-    border-color: rgba(25, 150, 131, 0.4);
+    border-color: color-mix(in srgb, var(--module-accent, #0d9488) 45%, var(--app-border, #e2e8f0));
 }
 
 .permission-accordion__header {
@@ -218,8 +240,9 @@ const toggleSelectAll = (event) => {
     justify-content: space-between;
     gap: 0.625rem;
     padding: 0.75rem 1rem;
-    background: #fff;
-    border-left: 4px solid var(--module-accent, #199683);
+    background: var(--app-background, #f8fafc);
+    border-left: 4px solid var(--module-accent, #0d9488);
+    border-bottom: 1px solid var(--app-border-subtle, #f1f5f9);
     transition: background-color 0.2s ease;
 }
 
@@ -228,12 +251,7 @@ const toggleSelectAll = (event) => {
 }
 
 .permission-accordion__header--clickable:hover {
-    background: #f8fafc;
-}
-
-.permission-accordion--expanded .permission-accordion__header {
-    background: linear-gradient(90deg, rgba(25, 150, 131, 0.05) 0%, #fff 100%);
-    border-bottom: 1px solid #eef2f6;
+    background: #f1f5f9;
 }
 
 .permission-accordion__header-start {
@@ -248,12 +266,20 @@ const toggleSelectAll = (event) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--module-accent, #199683) 12%, white);
-    color: var(--module-accent, #199683);
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: var(--app-radius-sm, 7px);
+    background: #fff;
+    border: 1px solid var(--app-border, #e2e8f0);
+    color: var(--app-text-muted, #94a3b8);
     flex-shrink: 0;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.permission-accordion__icon-wrap--active {
+    background: color-mix(in srgb, var(--module-accent, #0d9488) 12%, white);
+    border-color: color-mix(in srgb, var(--module-accent, #0d9488) 35%, white);
+    color: var(--module-accent, #0d9488);
 }
 
 .permission-accordion__icon-wrap :deep(.menu-boxicon) {
@@ -262,9 +288,9 @@ const toggleSelectAll = (event) => {
 }
 
 .permission-accordion__title {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 0.8125rem;
-    color: var(--text-main, #111827);
+    color: var(--app-text, #111827);
     margin: 0;
     line-height: 1.2;
     white-space: nowrap;
@@ -293,16 +319,17 @@ const toggleSelectAll = (event) => {
 .permission-accordion__progress-fill {
     height: 100%;
     border-radius: inherit;
-    background: var(--module-accent, #199683);
+    background: var(--module-accent, #0d9488);
     transition: width 0.3s ease;
 }
 
 .permission-accordion__count {
     font-size: 0.6875rem;
     font-weight: 600;
-    color: var(--text-muted, #6b7280);
+    color: var(--app-text-secondary, #64748b);
     white-space: nowrap;
     flex-shrink: 0;
+    font-family: var(--app-font-mono);
 }
 
 .permission-accordion__header-end {
@@ -320,17 +347,17 @@ const toggleSelectAll = (event) => {
     font-size: 0.625rem;
     font-weight: 600;
     padding: 0.2rem 0.4rem;
-    border-radius: 0.4375rem;
-    color: var(--accent-dark, #199683);
-    background: rgba(25, 150, 131, 0.08);
-    border: 1px solid rgba(25, 150, 131, 0.22);
+    border-radius: var(--app-radius-sm, 7px);
+    color: var(--app-primary, #0d9488);
+    background: var(--app-primary-soft, #f0fdfa);
+    border: 1px solid var(--app-primary-border, #99f6e4);
     white-space: nowrap;
 }
 
 .permission-accordion__select-all:hover {
     color: #fff;
-    background: var(--accent-dark, #199683);
-    border-color: var(--accent-dark, #199683);
+    background: var(--app-primary, #0d9488);
+    border-color: var(--app-primary, #0d9488);
 }
 
 .permission-accordion__action-icon {

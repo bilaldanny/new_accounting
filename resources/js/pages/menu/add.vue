@@ -1,12 +1,10 @@
 <script setup lang="ts">
     import Loader from '@/components/Loader.vue';
     import ModalComponent from '@/components/ModalComponent.vue';
-    import { usePage } from '@inertiajs/vue3';
     import TheForm from '@/components/theForm.vue';
     import { ref, watch } from 'vue';
     import Fields from './Fields.vue';
 
-    const {props} = usePage();
 
     const modalProps = defineProps({
         showLoader:{type: Boolean,default:false},
@@ -57,10 +55,12 @@
 <template>
     <ModalComponent
         id="AddModal"
-        :title="`Add ${props.routeName}`"
+        title="Add Menu"
         :onOpen="modalProps.onOpen"
         :onClose="modalProps.onClose"
-        size="xl"
+        size="lg"
+        dialog-class="menu-form-dialog"
+        content-class="menu-form-modal"
     >
         <Loader v-if="modalProps.showLoader" message="Preparing form…" />
         <TheForm
@@ -71,6 +71,8 @@
             :success="modalProps.success"
             :error="modalProps.error"
             :url="modalProps.endpoint"
+            :show-required="['label']"
+            form-size="sm"
             ref="formRef"
         >
             <Fields />
@@ -78,7 +80,7 @@
 
         <!-- ✅ Footer slot must be here -->
         <template #footer>
-            <button type="button" class="btn btn-light waves-effect" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
 
             <button
                 type="button"

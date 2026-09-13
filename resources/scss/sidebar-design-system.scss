@@ -24,12 +24,44 @@
 
 .logo-text {
     color: var(--app-text, #111827);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    font-size: 0.95rem;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.logo-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.logo-subtitle {
+    display: block;
+    margin-top: 1px;
+    color: #0d9488;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1.1;
 }
 
 .toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 8px;
     color: var(--app-text-muted, #94a3b8);
+}
+
+.toggle-icon .sidebar-toggle-glyph {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
 }
 
 .toggle-icon:hover {
@@ -188,6 +220,20 @@
 
 .user-box:hover {
     background: #f8fafc;
+}
+
+.topbar.topbar--dark .user-box,
+.topbar.topbar--dark .user-box:hover {
+    height: auto;
+    margin: 0;
+    border: 0;
+    background: transparent;
+}
+
+.topbar.topbar--dark .navbar .dropdown-menu::after,
+.topbar.topbar--dark .navbar .dropdown-menu::before {
+    display: none !important;
+    content: none !important;
 }
 
 .user-img {
