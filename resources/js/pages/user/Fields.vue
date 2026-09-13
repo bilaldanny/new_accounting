@@ -545,7 +545,7 @@
                 data-field-name="user_image"
                 data-preview="user-image-holder"
                 type="button"
-                class="company-logo-choose"
+                class="product-form-choose"
                 @click="chooseUserImage"
             >
                 <ImagePlus size="xs" />

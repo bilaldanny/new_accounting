@@ -7,6 +7,7 @@
     import { Head, router, usePage } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import Fields from './Fields.vue';
+    import PurchaseFormChrome from '../../purchase/PurchaseFormChrome.vue';
 
     defineOptions({
         layout: {
@@ -110,64 +111,32 @@
     <Head :title="`New ${formatedText('issuenote')}`" />
 
     <div class="product-form-page purchase-form-page receiving-note-form-page">
-        <div class="product-form purchase-form receiving-note-form">
-            <Loader v-if="!pageReady" message="Preparing form…" />
+        <PurchaseFormChrome
+            entity="issue-note"
+            mode="add"
+            :is-busy="isBusy"
+            :is-working="isWorking"
+            :save-action="saveAction"
+            :reference-no="String(formData?.invoice_no || '')"
+            @cancel="router.visit('/issuenote')"
+            @save="save"
+        >
+            <div class="product-form product-form--sectioned purchase-form receiving-note-form">
+                <Loader v-if="!pageReady" message="Preparing form…" />
 
-            <TheForm
-                v-else
-                v-model:submitting="isSaving"
-                :key="formKey"
-                :onSubmit="submitWithLines"
-                :formData="formData"
-                :error="handleFormError"
-                :url="API_ENDPOINTS.issueNotes"
-                ref="formRef"
-            >
-                <Fields :form-data="formData" :form-ref="formRef" />
-            </TheForm>
-
-            <div class="product-form-page__footer">
-                <div class="product-form-page__actions">
-                    <button
-                        type="button"
-                        class="btn btn-light"
-                        :disabled="isBusy"
-                        @click="router.visit('/issuenote')"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary d-inline-flex align-items-center"
-                        :disabled="isBusy"
-                        :aria-busy="isWorking && saveAction === 'add-new'"
-                        @click="save('add-new')"
-                    >
-                        <span
-                            v-if="isWorking && saveAction === 'add-new'"
-                            class="spinner-border spinner-border-sm me-1"
-                            role="status"
-                            aria-hidden="true"
-                        ></span>
-                        {{ isWorking && saveAction === 'add-new' ? 'Saving…' : 'Save & Add New' }}
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-primary d-inline-flex align-items-center"
-                        :disabled="isBusy"
-                        :aria-busy="isWorking && saveAction === 'close'"
-                        @click="save('close')"
-                    >
-                        <span
-                            v-if="isWorking && saveAction === 'close'"
-                            class="spinner-border spinner-border-sm me-1"
-                            role="status"
-                            aria-hidden="true"
-                        ></span>
-                        {{ isWorking && saveAction === 'close' ? 'Saving…' : 'Save & Close' }}
-                    </button>
-                </div>
+                <TheForm
+                    v-else
+                    v-model:submitting="isSaving"
+                    :key="formKey"
+                    :onSubmit="submitWithLines"
+                    :formData="formData"
+                    :error="handleFormError"
+                    :url="API_ENDPOINTS.issueNotes"
+                    ref="formRef"
+                >
+                    <Fields :form-data="formData" :form-ref="formRef" />
+                </TheForm>
             </div>
-        </div>
+        </PurchaseFormChrome>
     </div>
 </template>

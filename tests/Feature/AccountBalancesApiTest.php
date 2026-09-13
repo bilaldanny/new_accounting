@@ -80,6 +80,15 @@ test('opening balance web route requires authentication', function () {
         ->assertRedirect();
 });
 
+test('authenticated users can open the opening balance page', function () {
+    $superadmin = User::query()->findOrFail(1);
+
+    $this->actingAs($superadmin)
+        ->get(route('opening-balance'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('opening-balance/index'));
+});
+
 test('fetch balance returns transaction accounts under selected parent', function () {
     $scope = seedOpeningBalanceScope();
     $superadmin = User::query()->findOrFail(1);

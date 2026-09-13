@@ -3,7 +3,7 @@
     import useCommons from '@/composables/common';
     import type { ReceivingNoteLine } from '@/composables/receivingNote';
     import { usePage } from '@inertiajs/vue3';
-    import { Box, Calendar, Minus, Package, Plus } from '@boxicons/vue';
+    import { Boxes, CalendarDays, CheckCircle2, Minus, Package, Plus } from '@lucide/vue';
     import { computed, onMounted, ref, watch } from 'vue';
 
     const params = defineProps({
@@ -25,6 +25,22 @@
     const page = usePage();
     const colQuarter = { container: 3, label: 12, wrapper: 12 };
     const colFull = { container: 12, label: 12, wrapper: 12 };
+    const cardClasses = {
+        ElementLayout: {
+            container: 'product-form-card',
+        },
+        GroupElement: {
+            wrapper: 'product-form-card__body',
+        },
+    };
+    const linesCardClasses = {
+        ElementLayout: {
+            container: 'product-form-card purchase-form-card--lines',
+        },
+        GroupElement: {
+            wrapper: 'product-form-card__body journal-form-card__body--flush receiving-note-lines-card',
+        },
+    };
 
     const normalizeRoleName = (name: unknown): string =>
         String(name ?? '').toLowerCase().replace(/\s+/g, '');
@@ -92,8 +108,18 @@
         const remaining = Math.max(ordered - received, 0);
         const percent = ordered > 0 ? Math.min((received / ordered) * 100, 100) : 0;
 
-        return { ordered, received, remaining, percent };
+        return {
+            ordered,
+            received,
+            remaining,
+            percent,
+            isFullyReceived: remaining === 0 && received > 0,
+        };
     });
+
+    const hasPurchaseOrder = computed(() => (
+        Boolean(normalizeId(selectedTransactionId.value) || params.formData?.purchase_order_no)
+    ));
 
     function toNumber(value: unknown, fallback = 0): number {
         const amount = Number(value);
@@ -349,6 +375,45 @@
         setReceivedQty(index, toNumber(line.quantity_received) + delta);
     }
 
+    function receiveAllLines() {
+        persistLines(purchaseLines.value.map((line) => {
+            const quantity = Math.max(toNumber(line.quantity), 0);
+
+            return {
+                ...line,
+                quantity_received: quantity,
+                remaining_qty: 0,
+            };
+        }));
+    }
+
+    function resetReceivedLines() {
+        persistLines(purchaseLines.value.map((line) => {
+            const quantity = Math.max(toNumber(line.quantity), 0);
+
+            return {
+                ...line,
+                quantity_received: 0,
+                remaining_qty: quantity,
+            };
+        }));
+    }
+
+    function remainingClass(line: ReceivingNoteLine): string {
+        const remaining = toNumber(line.remaining_qty);
+        const received = toNumber(line.quantity_received);
+
+        if (remaining === 0 && received > 0) {
+            return 'is-clear';
+        }
+
+        if (remaining > 0) {
+            return 'is-pending';
+        }
+
+        return '';
+    }
+
     onMounted(async () => {
         applyScopedDefaults();
 
@@ -432,24 +497,31 @@
     <TextElement name="parent_id" hidden="true" />
     <TextElement name="status" hidden="true" default="received" />
 
-    <StaticElement name="section_receipt" :columns="colFull">
-        <div class="company-section-header company-section-header-indigo">
-            <span class="company-section-icon company-section-icon-indigo">
-                <Calendar size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Goods receipt</h6>
-                <p class="company-section-subtitle mb-0">
-                    {{ isEdit
-                        ? 'Location and purchase order are locked. Only received quantities can be updated.'
-                        : 'Choose location, supplier, and the approved purchase order to receive' }}
-                </p>
+    <GroupElement name="group_receipt" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_receipt" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <CalendarDays class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Goods receipt</h2>
+                    <p class="product-form-section-copy">
+                        {{ isEdit
+                            ? 'Location and purchase order are locked. Only received quantities can be updated.'
+                            : 'Choose location, supplier, and the approved purchase order to receive' }}
+                    </p>
+                </div>
+                <span
+                    v-if="hasPurchaseOrder"
+                    class="receiving-note-synced"
+                >
+                    <CheckCircle2 class="h-3 w-3" />
+                    PO Synced
+                </span>
             </div>
-        </div>
-    </StaticElement>
+        </StaticElement>
 
-    <template v-if="isEdit">
-        <StaticElement name="edit_summary" :columns="colFull">
+        <StaticElement v-if="isEdit" name="edit_summary" :columns="colFull">
             <div class="receiving-note-facts">
                 <div class="receiving-note-facts__card" v-if="showCompanyField">
                     <span>Company</span>
@@ -465,41 +537,39 @@
                 </div>
                 <div class="receiving-note-facts__card">
                     <span>Purchase order</span>
-                    <strong>{{ params.formData?.purchase_order_no || '—' }}</strong>
+                    <strong class="is-mono is-teal">{{ params.formData?.purchase_order_no || '—' }}</strong>
                 </div>
                 <div class="receiving-note-facts__card">
                     <span>GRN ref no</span>
-                    <strong>{{ params.formData?.invoice_no || '—' }}</strong>
+                    <strong class="is-mono">{{ params.formData?.invoice_no || '—' }}</strong>
                 </div>
             </div>
         </StaticElement>
-        <TextElement name="company_id" hidden="true" />
-        <TextElement name="branch_id" hidden="true" />
-        <TextElement name="contact_id" hidden="true" />
-        <TextElement name="transaction_id" hidden="true" />
-    </template>
-
-    <template v-else>
-        <SelectElement
-            v-if="showCompanyField"
-            name="company_id"
-            :native="false"
-            :items="companiesdata"
-            id="ReceivingCompanyId"
-            field-name="ReceivingCompanyId"
-            placeholder="Select company"
-            label="Company"
-            :columns="colQuarter"
-            label-prop="text"
-            value-prop="id"
-            :search="true"
-            :floating="false"
-            :can-clear="false"
-            :rules="companyRules"
-        />
+        <TextElement v-if="isEdit" name="company_id" hidden="true" />
+        <TextElement v-if="isEdit" name="branch_id" hidden="true" />
+        <TextElement v-if="isEdit" name="contact_id" hidden="true" />
+        <TextElement v-if="isEdit" name="transaction_id" hidden="true" />
 
         <SelectElement
-            v-if="showBranchField"
+            v-if="!isEdit && showCompanyField"
+                name="company_id"
+                :native="false"
+                :items="companiesdata"
+                id="ReceivingCompanyId"
+                field-name="ReceivingCompanyId"
+                placeholder="Select company"
+                label="Company"
+                :columns="colQuarter"
+                label-prop="text"
+                value-prop="id"
+                :search="true"
+                :floating="false"
+                :can-clear="false"
+                :rules="companyRules"
+            />
+
+        <SelectElement
+            v-if="!isEdit && showBranchField"
             name="branch_id"
             :native="false"
             :items="branchesdata"
@@ -518,6 +588,7 @@
         />
 
         <SelectElement
+            v-if="!isEdit"
             name="contact_id"
             :native="false"
             :items="suppliersdata"
@@ -537,6 +608,7 @@
         />
 
         <SelectElement
+            v-if="!isEdit"
             name="transaction_id"
             :native="false"
             :items="purchasesdata"
@@ -554,134 +626,161 @@
             rules="required"
             info="Approved purchase orders that do not already have a receiving note."
         />
-    </template>
 
-    <StaticElement v-if="selectedPurchase || params.formData?.purchase_order_no" name="po_context" :columns="colFull">
-        <div class="receiving-note-context">
-            <div>
-                <p class="purchase-settlement__eyebrow">Selected order</p>
-                <h6 class="purchase-settlement__heading">
-                    {{ selectedPurchase?.invoice_no || params.formData?.purchase_order_no || 'Purchase order' }}
-                </h6>
-            </div>
-            <dl>
-                <div>
-                    <dt>Date</dt>
-                    <dd>{{ selectedPurchase?.transaction_date || params.formData?.transaction_date || '—' }}</dd>
+        <StaticElement v-if="selectedPurchase || params.formData?.purchase_order_no" name="po_context" :columns="colFull">
+            <div class="receiving-note-context">
+                <div class="receiving-note-context__order">
+                    <span>Selected order</span>
+                    <strong>
+                        {{ selectedPurchase?.invoice_no || params.formData?.purchase_order_no || 'Purchase order' }}
+                    </strong>
                 </div>
+                <dl>
+                    <div>
+                        <dt>Date</dt>
+                        <dd>{{ selectedPurchase?.transaction_date || params.formData?.transaction_date || '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt>Order total</dt>
+                        <dd>{{ money(selectedPurchase?.final_amount ?? params.formData?.final_amount) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Supplier invoice</dt>
+                        <dd>{{ params.formData?.sup_ref_no || '—' }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </StaticElement>
+    </GroupElement>
+
+    <GroupElement name="group_items" :columns="colFull" :add-classes="linesCardClasses">
+        <StaticElement name="section_items" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <Boxes class="h-4 w-4" />
+                </span>
                 <div>
-                    <dt>Order total</dt>
-                    <dd>{{ money(selectedPurchase?.final_amount ?? params.formData?.final_amount) }}</dd>
+                    <h2 class="product-form-section-title">Received items</h2>
+                    <p class="product-form-section-copy">
+                        Enter the quantity received for each line. Remaining quantity updates automatically.
+                    </p>
                 </div>
-                <div>
-                    <dt>Supplier invoice</dt>
-                    <dd>{{ params.formData?.sup_ref_no || '—' }}</dd>
+                <div class="receiving-note-lines__toolbar">
+                    <span class="purchase-form__count">{{ itemCountLabel }}</span>
+                    <button
+                        v-if="purchaseLines.length > 0"
+                        type="button"
+                        class="receiving-note-batch receiving-note-batch--teal"
+                        title="Mark all line items as fully received"
+                        @click="receiveAllLines"
+                    >
+                        Receive All
+                    </button>
+                    <button
+                        v-if="purchaseLines.length > 0"
+                        type="button"
+                        class="receiving-note-batch"
+                        title="Reset all received quantities to 0"
+                        @click="resetReceivedLines"
+                    >
+                        Reset
+                    </button>
                 </div>
-            </dl>
-        </div>
-    </StaticElement>
+            </div>
+        </StaticElement>
 
-    <StaticElement name="section_items" :columns="colFull">
-        <div class="company-section-header company-section-header-teal company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-teal">
-                <Package size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Received items</h6>
-                <p class="company-section-subtitle mb-0">
-                    Enter the quantity received for each line. Remaining quantity updates automatically.
-                </p>
-            </div>
-            <span class="purchase-form__count">{{ itemCountLabel }}</span>
-        </div>
-    </StaticElement>
+        <StaticElement name="lines_editor" :columns="colFull">
+            <div class="receiving-note-lines">
+                <div v-if="loadingLines" class="receiving-note-lines__empty">
+                    Loading purchase lines…
+                </div>
+                <div v-else-if="purchaseLines.length === 0" class="receiving-note-lines__empty">
+                    <Package class="receiving-note-lines__empty-icon h-8 w-8" />
+                    <strong>No items to receive</strong>
+                    <span>{{ isEdit ? 'This receiving note has no purchase lines.' : 'Select an approved purchase order to load items.' }}</span>
+                </div>
+                <div v-else class="receiving-note-lines__table-wrap">
+                    <table class="receiving-note-lines__table">
+                        <thead>
+                            <tr>
+                                <th class="is-count">#</th>
+                                <th>Product</th>
+                                <th class="is-num">Purchase qty</th>
+                                <th>Unit</th>
+                                <th class="is-num">Received qty</th>
+                                <th class="is-num">Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(line, index) in purchaseLines" :key="line.id ?? index">
+                                <td class="is-count">{{ index + 1 }}</td>
+                                <td>
+                                    <strong>{{ line.product_name || '—' }}</strong>
+                                    <span v-if="line.sku" class="receiving-note-lines__sku">{{ line.sku }}</span>
+                                </td>
+                                <td class="is-num is-qty">{{ line.quantity }}</td>
+                                <td>
+                                    <span class="receiving-note-lines__unit">
+                                        {{ line.unit_name || '—' }}
+                                        <small v-if="line.unit_short_name">{{ line.unit_short_name }}</small>
+                                    </span>
+                                </td>
+                                <td class="is-num">
+                                    <div class="receiving-note-qty">
+                                        <button
+                                            type="button"
+                                            class="receiving-note-qty__btn"
+                                            :disabled="toNumber(line.quantity_received) <= 0"
+                                            title="Decrease received quantity"
+                                            @click="stepReceivedQty(index, -1)"
+                                        >
+                                            <Minus class="h-3.5 w-3.5" />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            :max="toNumber(line.quantity)"
+                                            :value="line.quantity_received"
+                                            @input="setReceivedQty(index, ($event.target as HTMLInputElement).value)"
+                                        >
+                                        <button
+                                            type="button"
+                                            class="receiving-note-qty__btn"
+                                            :disabled="toNumber(line.quantity_received) >= toNumber(line.quantity)"
+                                            title="Increase received quantity"
+                                            @click="stepReceivedQty(index, 1)"
+                                        >
+                                            <Plus class="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="is-num">
+                                    <span
+                                        class="receiving-note-lines__remaining"
+                                        :class="remainingClass(line)"
+                                    >
+                                        {{ line.remaining_qty }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-    <StaticElement name="lines_editor" :columns="colFull">
-        <div class="receiving-note-lines">
-            <div v-if="loadingLines" class="receiving-note-lines__empty">
-                Loading purchase lines…
-            </div>
-            <div v-else-if="purchaseLines.length === 0" class="receiving-note-lines__empty">
-                <Box size="md" class="receiving-note-lines__empty-icon" />
-                <strong>No items to receive</strong>
-                <span>{{ isEdit ? 'This receiving note has no purchase lines.' : 'Select an approved purchase order to load items.' }}</span>
-            </div>
-            <div v-else class="receiving-note-lines__table-wrap">
-                <table class="receiving-note-lines__table">
-                    <thead>
-                        <tr>
-                            <th class="is-count">#</th>
-                            <th>Product</th>
-                            <th class="is-num">Purchase qty</th>
-                            <th>Unit</th>
-                            <th class="is-num">Received qty</th>
-                            <th class="is-num">Remaining</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(line, index) in purchaseLines" :key="line.id ?? index">
-                            <td class="is-count">{{ index + 1 }}</td>
-                            <td>
-                                <strong>{{ line.product_name || '—' }}</strong>
-                                <span v-if="line.sku" class="receiving-note-lines__sku">{{ line.sku }}</span>
-                            </td>
-                            <td class="is-num">{{ line.quantity }}</td>
-                            <td>
-                                <span class="receiving-note-lines__unit">
-                                    {{ line.unit_name || '—' }}
-                                    <small v-if="line.unit_short_name">{{ line.unit_short_name }}</small>
-                                </span>
-                            </td>
-                            <td class="is-num">
-                                <div class="receiving-note-qty">
-                                    <button
-                                        type="button"
-                                        class="receiving-note-qty__btn"
-                                        :disabled="toNumber(line.quantity_received) <= 0"
-                                        @click="stepReceivedQty(index, -1)"
-                                    >
-                                        <Minus size="xs" />
-                                    </button>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        :max="toNumber(line.quantity)"
-                                        :value="line.quantity_received"
-                                        @input="setReceivedQty(index, ($event.target as HTMLInputElement).value)"
-                                    >
-                                    <button
-                                        type="button"
-                                        class="receiving-note-qty__btn"
-                                        :disabled="toNumber(line.quantity_received) >= toNumber(line.quantity)"
-                                        @click="stepReceivedQty(index, 1)"
-                                    >
-                                        <Plus size="xs" />
-                                    </button>
-                                </div>
-                            </td>
-                            <td class="is-num">
-                                <span
-                                    class="receiving-note-lines__remaining"
-                                    :class="{ 'is-clear': toNumber(line.remaining_qty) === 0 }"
-                                >
-                                    {{ line.remaining_qty }}
-                                </span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div v-if="purchaseLines.length > 0" class="receiving-note-lines__summary">
-                <div class="receiving-note-lines__progress">
-                    <span>Received {{ totals.received }} of {{ totals.ordered }}</span>
+                <div v-if="purchaseLines.length > 0" class="receiving-note-lines__summary">
+                    <div class="receiving-note-lines__progress">
+                        <span>Received {{ totals.received }} of {{ totals.ordered }}</span>
+                        <strong>{{ totals.remaining }} remaining</strong>
+                    </div>
                     <div class="receiving-note-lines__bar">
-                        <i :style="{ width: `${totals.percent}%` }"></i>
+                        <i
+                            :class="{ 'is-complete': totals.isFullyReceived }"
+                            :style="{ width: `${totals.percent}%` }"
+                        ></i>
                     </div>
                 </div>
-                <strong>{{ totals.remaining }} remaining</strong>
             </div>
-        </div>
-    </StaticElement>
+        </StaticElement>
+    </GroupElement>
 </template>

@@ -1,0 +1,120 @@
+/* Unified single-line field height. Loaded after Vueform so it wins project-wide.
+   Textareas stay taller. Nested inputs inside a sized wrapper fill the wrapper. */
+
+:where(
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]):not([type="color"]),
+    select,
+    .form-control:not(textarea),
+    .form-control-sm:not(textarea),
+    .form-select,
+    .form-select-sm,
+    .multiselect,
+    .vf-native-select-wrapper,
+    .vf-native-select-wrapper-sm,
+    .vf-input-group:not(.vf-input-group-textarea),
+    .vf-input-group-sm:not(.vf-input-group-textarea),
+    .vf-multiselect,
+    .vf-multiselect-sm,
+    .coa-scope-select,
+    .coa-search-input,
+    .ob-scope-select,
+    .pf-input:not(textarea),
+    .purchase-settlement__field input,
+    .purchase-settlement__field select,
+    .purchase-lines__select-input,
+    .purchase-lines__search,
+    .purchase-lines__control,
+    .journal-field .form-control:not(textarea),
+    .journal-field .form-select,
+    .journal-voucher-no input,
+    .journal-voucher-no select,
+    .journal-lines .form-control:not(textarea),
+    .journal-lines .form-select,
+    .admin-filter-field .form-control:not(textarea),
+    .admin-filter-field .form-select,
+    .product-type-toggle,
+    .form-segmented,
+    .receiving-note-qty input,
+    .receiving-note-qty__btn
+) {
+    box-sizing: border-box;
+    height: var(--form-control-height) !important;
+    min-height: var(--form-control-height) !important;
+}
+
+.vf-input-group .form-control:not(textarea),
+.vf-input-group .form-select,
+.vf-input-group .vf-input:not(textarea),
+.vf-input-group .vf-native-select,
+.vf-input-group-sm .form-control:not(textarea),
+.multiselect-search,
+.vf-multiselect-search,
+.purchase-lines__search-input,
+.purchase-lines__control input,
+.purchase-lines__control select,
+.password-input-shell .form-control,
+.supplier-pay-term-shell .form-control,
+.nav-search input {
+    box-sizing: border-box !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+}
+
+.multiselect,
+.vf-multiselect,
+.vf-multiselect-sm,
+.vf-native-select-wrapper,
+.vf-native-select-wrapper-sm {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
+.vf-multiselect-wrapper,
+.vf-multiselect-wrapper-sm,
+.multiselect-wrapper {
+    box-sizing: border-box !important;
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+textarea,
+textarea.form-control,
+textarea.form-control-sm,
+textarea.vf-input-field,
+.purchase-settlement__field textarea,
+.journal-field.is-note .form-control {
+    height: auto !important;
+    min-height: var(--form-textarea-min-height, 100px) !important;
+    max-height: none !important;
+}
+
+.vf-input-group:not(.vf-input-group-textarea),
+.vf-input-group-sm:not(.vf-input-group-textarea) {
+    display: flex !important;
+    align-items: stretch !important;
+    overflow: hidden;
+}
+
+.vf-input-group-textarea {
+    height: auto !important;
+    min-height: var(--form-textarea-min-height, 100px) !important;
+    overflow: visible !important;
+    align-items: stretch !important;
+}
+
+.vf-input-group:has(.vf-datepicker-wrapper),
+.vf-input-group:has(.flatpickr-input) {
+    overflow: visible !important;
+}
+
+.vf-datepicker-wrapper {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+}
+
+.receiving-note-qty__btn {
+    width: var(--form-control-height) !important;
+}

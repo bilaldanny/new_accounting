@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { Edit, Plus, Trash } from '@boxicons/vue';
+    import { AlertCircle, BookOpen, CheckCircle2, Copy, Pencil, Plus, Trash2 } from '@lucide/vue';
     import { computed, ref, watch } from 'vue';
     import type { JournalLineRow } from '@/composables/journalentry';
 
@@ -46,11 +46,25 @@
         account_nature: '',
     });
     const editingIndex = ref<number | null>(null);
+    const lineInputError = ref('');
 
     const totalDebit = computed(() => props.lines.reduce((sum, line) => sum + Number(line.debit || 0), 0));
     const totalCredit = computed(() => props.lines.reduce((sum, line) => sum + Number(line.credit || 0), 0));
     const difference = computed(() => Math.round((totalDebit.value - totalCredit.value) * 100) / 100);
     const isBalanced = computed(() => difference.value === 0 && totalDebit.value > 0);
+    const moneySuffix = computed(() => props.currencySymbol ? ` (${props.currencySymbol})` : '');
+    const accountGroups = computed(() => {
+        const groups = new Map<string, AccountOption[]>();
+
+        props.accounts.forEach((account) => {
+            const key = String(account.acc_nature || 'Accounts');
+            const items = groups.get(key) ?? [];
+            items.push(account);
+            groups.set(key, items);
+        });
+
+        return Array.from(groups.entries());
+    });
 
     function money(value: number): string {
         return value.toLocaleString(undefined, {
@@ -90,10 +104,13 @@
             account_nature: '',
         };
         editingIndex.value = null;
+        lineInputError.value = '';
     }
 
     function onDebitInput(value: string) {
         draft.value.debit = value;
+        lineInputError.value = '';
+
         if (Number(value) > 0) {
             draft.value.credit = '';
         }
@@ -101,6 +118,8 @@
 
     function onCreditInput(value: string) {
         draft.value.credit = value;
+        lineInputError.value = '';
+
         if (Number(value) > 0) {
             draft.value.debit = '';
         }
@@ -112,6 +131,8 @@
         }
 
         if (! draft.value.account_id) {
+            lineInputError.value = 'Select an account before adding a line.';
+
             return;
         }
 
@@ -119,6 +140,8 @@
         const credit = Number(draft.value.credit || 0);
 
         if (debit <= 0 && credit <= 0) {
+            lineInputError.value = 'Enter a debit or credit amount.';
+
             return;
         }
 
@@ -146,10 +169,28 @@
 
         draft.value = { ...line };
         editingIndex.value = index;
+        lineInputError.value = '';
+    }
+
+    function duplicateLine(line: JournalLineRow) {
+        if (props.disabled) {
+            return;
+        }
+
+        emit('add', {
+            account_id: line.account_id,
+            description: line.description,
+            debit: line.debit,
+            credit: line.credit,
+            code: line.code,
+            account_name: line.account_name,
+            account_nature: line.account_nature,
+        });
     }
 
     watch(() => draft.value.account_id, (accountId) => {
         draft.value = applyAccount(draft.value, accountId);
+        lineInputError.value = '';
     });
 </script>
 
@@ -159,17 +200,20 @@
             <table class="journal-lines__table">
                 <thead>
                     <tr>
+                        <th class="is-index">#</th>
                         <th>Account</th>
                         <th>Description</th>
-                        <th class="is-amount">Debit</th>
-                        <th class="is-amount">Credit</th>
+                        <th class="is-amount is-debit-head">Debit{{ moneySuffix }}</th>
+                        <th class="is-amount is-credit-head">Credit{{ moneySuffix }}</th>
                         <th class="is-action">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="lines.length === 0 && editingIndex === null">
-                        <td colspan="5" class="journal-lines__empty">
-                            Select an account, enter a debit or credit, then add the line.
+                        <td colspan="6" class="journal-lines__empty">
+                            <BookOpen class="journal-lines__empty-icon" />
+                            <p>No account lines recorded</p>
+                            <small>Select an account below, enter a debit or credit amount, then add the line to balance your ledger.</small>
                         </td>
                     </tr>
                     <tr
@@ -177,75 +221,114 @@
                         :key="`${line.account_id}-${index}`"
                         :class="{ 'is-editing': editingIndex === index }"
                     >
+                        <td class="is-index">{{ index + 1 }}</td>
                         <td>
                             <div class="journal-lines__account">
                                 <span class="journal-lines__code">{{ line.code }}</span>
-                                <span>{{ line.account_name }}</span>
+                                <div>
+                                    <span class="journal-lines__name">{{ line.account_name }}</span>
+                                    <span v-if="line.account_nature" class="journal-lines__nature">{{ line.account_nature }}</span>
+                                </div>
                             </div>
                         </td>
                         <td class="journal-lines__desc">{{ line.description || '—' }}</td>
                         <td class="is-amount is-debit">{{ Number(line.debit || 0) > 0 ? money(Number(line.debit)) : '—' }}</td>
                         <td class="is-amount is-credit">{{ Number(line.credit || 0) > 0 ? money(Number(line.credit)) : '—' }}</td>
                         <td class="is-action">
+                            <button type="button" class="journal-icon-btn" title="Duplicate line" :disabled="disabled" @click="duplicateLine(line)">
+                                <Copy class="h-3.5 w-3.5" />
+                            </button>
                             <button type="button" class="journal-icon-btn" title="Edit line" :disabled="disabled" @click="editLine(index)">
-                                <Edit size="xs" />
+                                <Pencil class="h-3.5 w-3.5" />
                             </button>
                             <button type="button" class="journal-icon-btn is-danger" title="Remove line" :disabled="disabled" @click="emit('remove', index)">
-                                <Trash size="xs" />
+                                <Trash2 class="h-3.5 w-3.5" />
                             </button>
                         </td>
                     </tr>
                 </tbody>
+                <tfoot>
+                    <tr class="journal-lines__composer-row">
+                        <td class="is-index journal-lines__plus">+</td>
+                        <td>
+                            <select class="form-select" :disabled="disabled" v-model="draft.account_id">
+                                <option value="">Select account...</option>
+                                <optgroup
+                                    v-for="[group, items] in accountGroups"
+                                    :key="group"
+                                    :label="group"
+                                >
+                                    <option v-for="account in items" :key="account.id" :value="account.id">
+                                        {{ accountLabel(account) }}
+                                    </option>
+                                </optgroup>
+                            </select>
+                        </td>
+                        <td>
+                            <input
+                                type="text"
+                                class="form-control"
+                                :disabled="disabled"
+                                v-model="draft.description"
+                                placeholder="Line narration or item note..."
+                                @keydown.enter.prevent="commitDraft"
+                            >
+                        </td>
+                        <td class="is-amount">
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="form-control text-end journal-lines__debit-input"
+                                :disabled="disabled"
+                                :value="draft.debit"
+                                placeholder="0.00"
+                                @input="onDebitInput(($event.target as HTMLInputElement).value)"
+                                @keydown.enter.prevent="commitDraft"
+                            >
+                        </td>
+                        <td class="is-amount">
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="form-control text-end"
+                                :disabled="disabled"
+                                :value="draft.credit"
+                                placeholder="0.00"
+                                @input="onCreditInput(($event.target as HTMLInputElement).value)"
+                                @keydown.enter.prevent="commitDraft"
+                            >
+                        </td>
+                        <td class="is-action">
+                            <button type="button" class="journal-lines__add" :disabled="disabled" @click="commitDraft">
+                                <Plus class="h-3.5 w-3.5" />
+                                {{ editingIndex === null ? 'Add' : 'Update' }}
+                            </button>
+                        </td>
+                    </tr>
+                    <tr v-if="lineInputError" class="journal-lines__error">
+                        <td colspan="6">
+                            <div class="journal-lines__error-inner">
+                                <AlertCircle class="h-3.5 w-3.5" />
+                                <span>{{ lineInputError }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="journal-lines__totals">
+                        <td colspan="3" class="journal-lines__total-label">Totals:</td>
+                        <td class="is-amount is-debit">{{ currencySymbol ? `${currencySymbol} ${money(totalDebit)}` : money(totalDebit) }}</td>
+                        <td class="is-amount is-credit">{{ currencySymbol ? `${currencySymbol} ${money(totalCredit)}` : money(totalCredit) }}</td>
+                        <td class="is-action">
+                            <span class="journal-lines__balance" :class="isBalanced ? 'is-ok' : 'is-off'">
+                                <CheckCircle2 v-if="isBalanced" class="h-3.5 w-3.5" />
+                                <AlertCircle v-else class="h-3 w-3" />
+                                {{ isBalanced ? 'Balanced' : `Out by ${money(Math.abs(difference))}` }}
+                            </span>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
-        </div>
-
-        <div class="journal-lines__composer">
-            <select class="form-select" :disabled="disabled" v-model="draft.account_id">
-                <option value="">Select account</option>
-                <option v-for="account in accounts" :key="account.id" :value="account.id">
-                    {{ accountLabel(account) }}
-                </option>
-            </select>
-            <input
-                type="text"
-                class="form-control"
-                :disabled="disabled"
-                v-model="draft.description"
-                placeholder="Line narration"
-            >
-            <input
-                type="number"
-                min="0"
-                step="0.01"
-                class="form-control text-end"
-                :disabled="disabled"
-                :value="draft.debit"
-                placeholder="Debit"
-                @input="onDebitInput(($event.target as HTMLInputElement).value)"
-            >
-            <input
-                type="number"
-                min="0"
-                step="0.01"
-                class="form-control text-end"
-                :disabled="disabled"
-                :value="draft.credit"
-                placeholder="Credit"
-                @input="onCreditInput(($event.target as HTMLInputElement).value)"
-            >
-            <button type="button" class="btn btn-primary journal-lines__add" :disabled="disabled || !draft.account_id" @click="commitDraft">
-                <Plus size="xs" />
-                {{ editingIndex === null ? 'Add' : 'Update' }}
-            </button>
-        </div>
-
-        <div class="journal-lines__footer">
-            <span class="journal-lines__total-label">Totals {{ currencySymbol ? `(${currencySymbol})` : '' }}</span>
-            <strong class="is-debit">{{ money(totalDebit) }}</strong>
-            <strong class="is-credit">{{ money(totalCredit) }}</strong>
-            <span class="journal-lines__balance" :class="isBalanced ? 'is-ok' : 'is-off'">
-                {{ isBalanced ? 'Balanced' : `Out by ${money(Math.abs(difference))}` }}
-            </span>
         </div>
     </div>
 </template>

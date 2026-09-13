@@ -54,10 +54,10 @@ defineProps({
 
 <style scoped>
 .permission-skeleton__header {
-    border-radius: 0.75rem;
+    border-radius: var(--app-radius-lg, 14px);
     margin-bottom: 1.25rem;
-    border: 1px solid rgba(226, 227, 231, 0.8);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    border: 1px solid var(--app-border, #e2e8f0);
+    box-shadow: var(--app-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
 }
 
 .permission-skeleton__header-body {
@@ -72,9 +72,9 @@ defineProps({
     flex: 1 1 320px;
     min-width: 0;
     padding: 0.875rem 1rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.625rem;
-    background: #fafbfc;
+    border: 1px solid var(--app-border, #e2e8f0);
+    border-radius: var(--app-radius-md, 9px);
+    background: var(--app-background, #f8fafc);
 }
 
 .permission-skeleton__inputs {
@@ -90,10 +90,10 @@ defineProps({
 }
 
 .permission-skeleton__card {
-    border-radius: 0.75rem;
-    border: 1px solid rgba(25, 150, 131, 0.1);
+    border-radius: var(--app-radius-lg, 14px);
+    border: 1px solid var(--app-border, #e2e8f0);
     min-height: 7.5rem;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    box-shadow: var(--app-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
 }
 
 .permission-skeleton__card-header {
@@ -109,7 +109,7 @@ defineProps({
     gap: 0.5rem;
     margin-left: 0.35rem;
     padding-left: 0.875rem;
-    border-left: 2px solid rgba(226, 227, 231, 0.9);
+    border-left: 2px solid var(--app-border, #e2e8f0);
 }
 
 @media (max-width: 991.98px) {

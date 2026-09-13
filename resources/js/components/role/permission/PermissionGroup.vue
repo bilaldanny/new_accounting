@@ -141,18 +141,18 @@ const isChildVisible = (name) => matchesQuery(name);
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: rgba(25, 150, 131, 0.35) transparent;
+    scrollbar-color: var(--app-primary-border, #99f6e4) transparent;
 }
 
 .permission-group__list {
     margin-left: 0.35rem;
     padding-left: 0.875rem;
-    border-left: 2px solid rgba(25, 150, 131, 0.35);
+    border-left: 2px solid var(--app-primary-border, #99f6e4);
     max-height: 340px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: rgba(25, 150, 131, 0.35) transparent;
+    scrollbar-color: var(--app-primary-border, #99f6e4) transparent;
 }
 
 .permission-group__list::-webkit-scrollbar {
@@ -160,7 +160,7 @@ const isChildVisible = (name) => matchesQuery(name);
 }
 
 .permission-group__list::-webkit-scrollbar-thumb {
-    background: rgba(25, 150, 131, 0.35);
+    background: var(--app-primary-border, #99f6e4);
     border-radius: 999px;
 }
 
@@ -171,7 +171,7 @@ const isChildVisible = (name) => matchesQuery(name);
 .permission-group__nested {
     margin-left: 1.25rem;
     padding-left: 0.75rem;
-    border-left: 2px solid rgba(25, 150, 131, 0.18);
+    border-left: 2px solid var(--app-border, #e2e8f0);
 }
 
 .permission-group__row.form-check {
@@ -200,23 +200,23 @@ const isChildVisible = (name) => matchesQuery(name);
 }
 
 .permission-group__block > .permission-group__row:not(.permission-group__row--nested) .permission-group__label {
-    font-weight: 600;
-    color: var(--text-main, #111827);
+    font-weight: 700;
+    color: var(--app-text, #111827);
 }
 
 .permission-group__row--nested .permission-group__label {
     font-weight: 500;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
 }
 
 .permission-group__row:hover {
-    background: rgba(25, 150, 131, 0.06);
+    background: var(--app-primary-soft, #f0fdfa);
 }
 
 .permission-group__label {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--text-muted, #374151);
+    color: var(--app-text-secondary, #64748b);
     cursor: pointer;
     margin-bottom: 0;
     line-height: 1.45;
@@ -245,13 +245,13 @@ const isChildVisible = (name) => matchesQuery(name);
 }
 
 .permission-group__checkbox:checked {
-    background-color: var(--accent-dark, #199683);
-    border-color: var(--accent-dark, #199683);
+    background-color: var(--app-primary, #0d9488);
+    border-color: var(--app-primary, #0d9488);
 }
 
 .permission-group__checkbox:focus {
-    border-color: var(--accent-dark, #199683);
-    box-shadow: 0 0 0 0.15rem rgba(25, 150, 131, 0.2);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 0.15rem var(--app-primary-soft, rgba(13, 148, 136, 0.2));
 }
 
 .permission-group__checkbox:disabled {

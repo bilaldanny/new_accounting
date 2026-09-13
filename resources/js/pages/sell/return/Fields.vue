@@ -667,7 +667,7 @@
                     :data-input="imageInputId"
                     data-field-name="attachment"
                     type="button"
-                    class="company-logo-choose"
+                    class="product-form-choose"
                     @click="chooseImage"
                 >
                     <ImagePlus size="xs" />

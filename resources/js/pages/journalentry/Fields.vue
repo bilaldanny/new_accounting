@@ -3,7 +3,7 @@
     import useActiveFinancialYear from '@/composables/activeFinancialYear';
     import useCommons from '@/composables/common';
     import type { JournalAttachment, JournalLineRow } from '@/composables/journalentry';
-    import { Calendar, FilePlus, Receipt, RefreshCw, Wallet } from '@boxicons/vue';
+    import { BookOpen, FileText, Paperclip, RefreshCw, UploadCloud } from '@lucide/vue';
     import { usePage } from '@inertiajs/vue3';
     import { computed, onMounted, ref, watch } from 'vue';
     import FieldHint from './FieldHint.vue';
@@ -29,6 +29,23 @@
     const colQuarter = { container: 3, label: 12, wrapper: 12 };
     const colHalf = { container: 6, label: 12, wrapper: 12 };
     const colFull = { container: 12, label: 12, wrapper: 12 };
+    const cardClasses = {
+        ElementLayout: {
+            container: 'product-form-card',
+        },
+        GroupElement: {
+            wrapper: 'product-form-card__body',
+        },
+    };
+    const ledgerCardClasses = {
+        ElementLayout: {
+            container: 'product-form-card journal-form-card--ledger',
+        },
+        GroupElement: {
+            wrapper: 'product-form-card__body journal-form-card__body--flush',
+        },
+    };
+    const isDraggingFile = ref(false);
 
     const voucherTypes = [
         { id: 'JV', text: 'JV' },
@@ -80,6 +97,12 @@
         const count = journalLines.value.length;
 
         return count === 1 ? '1 line' : `${count} lines`;
+    });
+    const commentsLength = computed(() => String(params.formData?.comments ?? '').length);
+    const currencyLabel = computed(() => {
+        const symbol = String(authUser.value?.currency_symbol ?? '').trim();
+
+        return symbol ? `Currency: ${symbol}` : 'Currency';
     });
 
     function persist(patch: Record<string, unknown>) {
@@ -218,10 +241,11 @@
         persistLines(journalLines.value.filter((_, lineIndex) => lineIndex !== index));
     }
 
-    function onFilesSelected(event: Event) {
-        const input = event.target as HTMLInputElement;
-        const files = Array.from(input.files ?? []);
+    function clearLines() {
+        persistLines([]);
+    }
 
+    function addFiles(files: File[]) {
         files.forEach((file) => {
             const reader = new FileReader();
             reader.onload = () => {
@@ -238,8 +262,18 @@
             };
             reader.readAsDataURL(file);
         });
+    }
 
+    function onFilesSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        addFiles(Array.from(input.files ?? []));
         input.value = '';
+    }
+
+    function onFilesDropped(event: DragEvent) {
+        event.preventDefault();
+        isDraggingFile.value = false;
+        addFiles(Array.from(event.dataTransfer?.files ?? []));
     }
 
     function removeAttachment(index: number) {
@@ -316,208 +350,246 @@
     <TextElement name="total_amount" hidden="true" />
     <TextElement name="net_total" hidden="true" />
 
-    <StaticElement name="section_voucher" :columns="colFull">
-        <div class="journal-panel__head">
-            <span class="journal-panel__icon is-teal">
-                <Receipt size="sm" />
-            </span>
-            <div>
-                <p class="journal-panel__eyebrow">Header</p>
-                <h6 class="journal-panel__title">Voucher details</h6>
+    <GroupElement name="group_voucher" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_voucher" :columns="colFull">
+            <div class="product-form-section-head journal-card-head">
+                <div class="journal-card-head__lead">
+                    <span class="product-form-section-icon">
+                        <FileText class="h-4 w-4" />
+                    </span>
+                    <div>
+                        <span class="journal-card-eyebrow">Header</span>
+                        <h2 class="product-form-section-title">Voucher details</h2>
+                    </div>
+                </div>
+                <span class="journal-card-currency">{{ currencyLabel }}</span>
             </div>
-        </div>
-    </StaticElement>
+        </StaticElement>
 
-    <SelectElement
-        v-if="showCompanyField"
-        name="company_id"
-        :native="false"
-        :items="companiesdata"
-        id="CompanyId"
-        field-name="CompanyId"
-        placeholder="Select company"
-        :columns="colQuarter"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :rules="companyRules"
-    >
-        <template #label>
-            <FieldHint label="Company" required>
-                Select the company this voucher belongs to.
-            </FieldHint>
-        </template>
-    </SelectElement>
+        <SelectElement
+            v-if="showCompanyField"
+            name="company_id"
+            :native="false"
+            :items="companiesdata"
+            id="CompanyId"
+            field-name="CompanyId"
+            placeholder="Select company"
+            :columns="colQuarter"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :rules="companyRules"
+        >
+            <template #label>
+                <FieldHint label="Company" required>
+                    Select the company this voucher belongs to.
+                </FieldHint>
+            </template>
+        </SelectElement>
 
-    <SelectElement
-        v-if="showBranchField"
-        name="branch_id"
-        :native="false"
-        :items="branchesdata"
-        id="BranchId"
-        field-name="BranchId"
-        placeholder="Select branch"
-        :columns="colQuarter"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :disabled="branchDisabled"
-        rules="required"
-    >
-        <template #label>
-            <FieldHint label="Branch" required>
-                Required. Choose the branch where this voucher will be posted.
-            </FieldHint>
-        </template>
-    </SelectElement>
+        <SelectElement
+            v-if="showBranchField"
+            name="branch_id"
+            :native="false"
+            :items="branchesdata"
+            id="BranchId"
+            field-name="BranchId"
+            placeholder="Select branch"
+            :columns="colQuarter"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :disabled="branchDisabled"
+            rules="required"
+        >
+            <template #label>
+                <FieldHint label="Branch" required>
+                    Required. Choose the branch where this voucher will be posted.
+                </FieldHint>
+            </template>
+        </SelectElement>
 
-    <TextElement
-        id="VoucherNo"
-        field-name="VoucherNo"
-        name="voucher_no"
-        default=""
-        placeholder="Auto number"
-        :columns="colQuarter"
-        autocomplete="off"
-        :disabled="isEdit"
-        :add-classes="{
-            ElementAddon: {
-                container: 'p-0',
-            },
-        }"
-    >
-        <template #label>
-            <FieldHint label="Voucher number">
-                Leave it blank to generate a unique number.
-                <span class="journal-field__tooltip-rule"><strong>JV:</strong> Journal voucher</span>
-                <span class="journal-field__tooltip-rule"><strong>JE:</strong> Journal entry</span>
-            </FieldHint>
-        </template>
-        <template #addon-before>
-            <select
-                class="journal-voucher-type"
-                :value="params.formData?.voucher_type || 'JV'"
-                :disabled="isEdit"
-                @change="persist({ voucher_type: ($event.target as HTMLSelectElement).value })"
-            >
-                <option v-for="type in voucherTypes" :key="type.id" :value="type.id">
-                    {{ type.text }}
-                </option>
-            </select>
-        </template>
-        <template v-if="!isEdit" #addon-after>
-            <button
-                type="button"
-                class="journal-voucher-no__refresh"
-                title="Generate next number"
-                aria-label="Generate next voucher number"
-                :disabled="fetchingVoucher || !scopeReady"
-                @click="loadVoucherNo(true)"
-            >
-                <RefreshCw size="xs" :class="{ 'top-btn-icon-spin': fetchingVoucher }" />
-            </button>
-        </template>
-    </TextElement>
-
-    <DateElement
-        id="VoucherDate"
-        field-name="VoucherDate"
-        name="voucher_date"
-        placeholder="Select voucher date"
-        :columns="colQuarter"
-        :floating="false"
-        rules="required"
-        :min="fiscalYear?.start_date"
-        :max="fiscalYear?.end_date"
-        value-format="YYYY-MM-DD"
-    >
-        <template #label>
-            <FieldHint label="Voucher date" required>
-                Must fall within the active financial year.
-            </FieldHint>
-        </template>
-    </DateElement>
-
-    <StaticElement name="section_lines" :columns="colFull">
-        <div class="journal-panel__head journal-panel__head--spaced">
-            <span class="journal-panel__icon is-indigo">
-                <Wallet size="sm" />
-            </span>
-            <div>
-                <p class="journal-panel__eyebrow">Ledger</p>
-                <h6 class="journal-panel__title">Account lines</h6>
-            </div>
-            <span class="journal-panel__count">{{ lineCountLabel }}</span>
-        </div>
-    </StaticElement>
-
-    <StaticElement name="lines_editor" :columns="colFull">
-        <JournalLinesEditor
-            :lines="journalLines"
-            :accounts="accountsdata"
-            :disabled="!scopeReady"
-            :currency-symbol="authUser?.currency_symbol || ''"
-            @add="addLine"
-            @update="updateLine"
-            @remove="removeLine"
-        />
-    </StaticElement>
-
-    <StaticElement name="section_notes" :columns="colFull">
-        <div class="journal-panel__head journal-panel__head--spaced">
-            <span class="journal-panel__icon is-slate">
-                <Calendar size="sm" />
-            </span>
-            <div>
-                <p class="journal-panel__eyebrow">Supporting</p>
-                <h6 class="journal-panel__title">Notes & attachments</h6>
-            </div>
-        </div>
-    </StaticElement>
-
-    <TextareaElement
-        name="comments"
-        id="Comments"
-        field-name="Comments"
-        placeholder="Internal comments for this voucher"
-        :columns="colHalf"
-        :rows="2"
-    >
-        <template #label>
-            <FieldHint label="Comments">
-                Optional internal narration. This is not printed as a line description.
-            </FieldHint>
-        </template>
-    </TextareaElement>
-
-    <StaticElement name="journal_attachments" :columns="colHalf">
-        <div class="journal-field">
-            <FieldHint label="Attachments">
-                Optional. Images, PDF, or office files can be attached to this voucher.
-            </FieldHint>
-            <label class="journal-upload" for="journal-attachment-input">
-                <FilePlus size="sm" />
-                <strong>Drop files here or browse</strong>
-                <small>PDF, images, or office documents</small>
-                <input
-                    id="journal-attachment-input"
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-                    @change="onFilesSelected"
+        <TextElement
+            id="VoucherNo"
+            field-name="VoucherNo"
+            name="voucher_no"
+            default=""
+            placeholder="Auto number"
+            :columns="colQuarter"
+            autocomplete="off"
+            :disabled="isEdit"
+            :add-classes="{
+                ElementAddon: {
+                    container: 'p-0',
+                },
+            }"
+        >
+            <template #label>
+                <FieldHint label="Voucher number">
+                    Leave it blank to generate a unique number.
+                    <span class="journal-field__tooltip-rule"><strong>JV:</strong> Journal voucher</span>
+                    <span class="journal-field__tooltip-rule"><strong>JE:</strong> Journal entry</span>
+                </FieldHint>
+            </template>
+            <template #addon-before>
+                <select
+                    class="journal-voucher-type"
+                    :value="params.formData?.voucher_type || 'JV'"
+                    :disabled="isEdit"
+                    @change="persist({ voucher_type: ($event.target as HTMLSelectElement).value })"
                 >
-            </label>
-            <ul v-if="attachments.length" class="journal-upload__list">
-                <li v-for="(file, index) in attachments" :key="`${file.file_name}-${index}`">
-                    <a v-if="file.data_url" :href="file.data_url" download>{{ file.file_name }}</a>
-                    <span v-else>{{ file.file_name }}</span>
-                    <button type="button" class="journal-icon-btn is-danger" @click="removeAttachment(index)">Remove</button>
-                </li>
-            </ul>
-        </div>
-    </StaticElement>
+                    <option v-for="type in voucherTypes" :key="type.id" :value="type.id">
+                        {{ type.text }}
+                    </option>
+                </select>
+            </template>
+            <template v-if="!isEdit" #addon-after>
+                <button
+                    type="button"
+                    class="journal-voucher-no__refresh"
+                    title="Generate next number"
+                    aria-label="Generate next voucher number"
+                    :disabled="fetchingVoucher || !scopeReady"
+                    @click="loadVoucherNo(true)"
+                >
+                    <RefreshCw class="h-3.5 w-3.5" :class="{ 'top-btn-icon-spin': fetchingVoucher }" />
+                </button>
+            </template>
+        </TextElement>
+
+        <DateElement
+            id="VoucherDate"
+            field-name="VoucherDate"
+            name="voucher_date"
+            placeholder="Select voucher date"
+            :columns="colQuarter"
+            :floating="false"
+            rules="required"
+            :min="fiscalYear?.start_date"
+            :max="fiscalYear?.end_date"
+            value-format="YYYY-MM-DD"
+        >
+            <template #label>
+                <FieldHint label="Voucher date" required>
+                    Must fall within the active financial year.
+                </FieldHint>
+            </template>
+        </DateElement>
+    </GroupElement>
+
+    <GroupElement name="group_lines" :columns="colFull" :add-classes="ledgerCardClasses">
+        <StaticElement name="section_lines" :columns="colFull">
+            <div class="product-form-section-head journal-card-head">
+                <div class="journal-card-head__lead">
+                    <span class="product-form-section-icon">
+                        <BookOpen class="h-4 w-4" />
+                    </span>
+                    <div>
+                        <span class="journal-card-eyebrow">Ledger</span>
+                        <div class="journal-card-title-row">
+                            <h2 class="product-form-section-title">Account lines</h2>
+                            <span class="journal-panel__count">{{ lineCountLabel }}</span>
+                        </div>
+                    </div>
+                </div>
+                <button
+                    v-if="journalLines.length > 0"
+                    type="button"
+                    class="journal-clear-all"
+                    :disabled="!scopeReady"
+                    @click="clearLines"
+                >
+                    Clear All
+                </button>
+            </div>
+        </StaticElement>
+
+        <StaticElement name="lines_editor" :columns="colFull">
+            <JournalLinesEditor
+                :lines="journalLines"
+                :accounts="accountsdata"
+                :disabled="!scopeReady"
+                :currency-symbol="authUser?.currency_symbol || ''"
+                @add="addLine"
+                @update="updateLine"
+                @remove="removeLine"
+            />
+        </StaticElement>
+    </GroupElement>
+
+    <GroupElement name="group_notes" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_notes" :columns="colFull">
+            <div class="product-form-section-head journal-card-head">
+                <div class="journal-card-head__lead">
+                    <span class="product-form-section-icon">
+                        <Paperclip class="h-4 w-4" />
+                    </span>
+                    <div>
+                        <span class="journal-card-eyebrow">Supporting</span>
+                        <h2 class="product-form-section-title">Notes & attachments</h2>
+                    </div>
+                </div>
+                <span class="journal-card-meta">Audit trail & documentary verification</span>
+            </div>
+        </StaticElement>
+
+        <TextareaElement
+            name="comments"
+            id="Comments"
+            field-name="Comments"
+            placeholder="Internal comments for this voucher, business purpose, or tax notes…"
+            :columns="colHalf"
+            :rows="4"
+        >
+            <template #label>
+                <span class="journal-comments-label">
+                    <FieldHint label="Comments">
+                        Optional internal narration. This is not printed as a line description.
+                    </FieldHint>
+                    <span class="journal-comments-count">{{ commentsLength }} characters</span>
+                </span>
+            </template>
+        </TextareaElement>
+
+        <StaticElement name="journal_attachments" :columns="colHalf">
+            <div class="journal-field">
+                <span class="journal-comments-label">
+                    <FieldHint label="Attachments">
+                        Optional. Images, PDF, or office files can be attached to this voucher.
+                    </FieldHint>
+                    <span class="journal-comments-count">{{ attachments.length }} file(s) attached</span>
+                </span>
+                <label
+                    class="journal-upload"
+                    :class="{ 'is-dragging': isDraggingFile }"
+                    for="journal-attachment-input"
+                    @dragover.prevent="isDraggingFile = true"
+                    @dragleave.prevent="isDraggingFile = false"
+                    @drop="onFilesDropped"
+                >
+                    <UploadCloud class="journal-upload__icon" />
+                    <strong>Drop files here or <span>browse</span></strong>
+                    <small>PDF, images, or office documents</small>
+                    <input
+                        id="journal-attachment-input"
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                        @change="onFilesSelected"
+                    >
+                </label>
+                <ul v-if="attachments.length" class="journal-upload__list">
+                    <li v-for="(file, index) in attachments" :key="`${file.file_name}-${index}`">
+                        <a v-if="file.data_url" :href="file.data_url" download>{{ file.file_name }}</a>
+                        <span v-else>{{ file.file_name }}</span>
+                        <button type="button" class="journal-icon-btn is-danger" @click="removeAttachment(index)">Remove</button>
+                    </li>
+                </ul>
+            </div>
+        </StaticElement>
+    </GroupElement>
 </template>

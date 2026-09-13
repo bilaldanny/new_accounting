@@ -1,18 +1,19 @@
 <script setup lang="ts">
+    import { usePage } from '@inertiajs/vue3';
+    import { Boxes, Building2, Calculator, DollarSign, Image as ImageIcon, Layers, Package } from '@lucide/vue';
+    import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
-    import { computed, onMounted, ref, watch } from 'vue';
-    import { usePage } from '@inertiajs/vue3';
-    import { Box, ImagePlus, Layers, Package, SliderAlt, Store } from '@boxicons/vue';
     import {
         inferSelections,
         normalizeVariantLabel,
-        type ApplicableVariation,
-        type VariationSelection,
     } from '@/utils/variantCombiner';
-    import ProductDetailsEditor, { type ProductDetailRow } from './ProductDetailsEditor.vue';
+    import type { ApplicableVariation, VariationSelection } from '@/utils/variantCombiner';
+    import ProductDetailsEditor from './ProductDetailsEditor.vue';
+    import type { ProductDetailRow } from './ProductDetailsEditor.vue';
     import VariationPicker from './VariationPicker.vue';
+    import FieldHint from '@/pages/journalentry/FieldHint.vue';
 
     const params = defineProps({
         type: String,
@@ -40,6 +41,15 @@
     const colThird = { container: 4, label: 12, wrapper: 12 };
     const colHalf = { container: 6, label: 12, wrapper: 12 };
     const colFull = { container: 12, label: 12, wrapper: 12 };
+
+    const cardClasses = {
+        ElementLayout: {
+            container: 'product-form-card',
+        },
+        GroupElement: {
+            wrapper: 'product-form-card__body',
+        },
+    };
 
     const normalizeRoleName = (name: unknown): string =>
         String(name ?? '').toLowerCase().replace(/\s+/g, '');
@@ -96,6 +106,10 @@
     const generatingVariants = ref(false);
     const generateError = ref('');
     const scopeWarning = ref('');
+    const pricingEditor = ref<{
+        toggleBulkBar: () => void;
+        isBulkBarOpen: boolean;
+    } | null>(null);
 
     const scopeReady = computed(() => (
         Boolean(normalizeId(selectedCompanyId.value) || normalizeId(authUser.value?.company_id))
@@ -678,367 +692,398 @@
         rules="required|in:single,variable"
     />
 
-    <StaticElement v-if="showCompanyField" name="section_scope" :columns="colFull">
-        <div class="company-section-header company-section-header-primary">
-            <span class="company-section-icon company-section-icon-primary">
-                <Store size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Company</h6>
-                <p class="company-section-subtitle mb-0">Assign this product to a company catalog</p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <SelectElement
+    <GroupElement
         v-if="showCompanyField"
-        name="company_id"
-        :native="false"
-        :items="companiesdata"
-        id="CompanyId"
-        field-name="CompanyId"
-        placeholder="Select company"
-        label="Company"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :rules="companyRules"
-    />
-
-    <StaticElement name="section_identity" :columns="colFull">
-        <div
-            class="company-section-header company-section-header-indigo"
-            :class="{ 'company-section-header-spaced': showCompanyField }"
-        >
-            <span class="company-section-icon company-section-icon-indigo">
-                <Package size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Product</h6>
-                <p class="company-section-subtitle mb-0">Name, SKU, and how this item is sold</p>
-            </div>
-            <div class="product-type-toggle" role="group" aria-label="Product type">
-                <button
-                    type="button"
-                    class="product-type-toggle__btn"
-                    :class="{ 'is-active': selectedType === 'single' }"
-                    :disabled="typeDisabled"
-                    @click="setProductType('single')"
-                >
-                    <Package size="xs" />
-                    Single
-                </button>
-                <button
-                    type="button"
-                    class="product-type-toggle__btn"
-                    :class="{ 'is-active': selectedType === 'variable' }"
-                    :disabled="typeDisabled"
-                    @click="setProductType('variable')"
-                >
-                    <Layers size="xs" />
-                    Variable
-                </button>
-            </div>
-        </div>
-    </StaticElement>
-
-    <TextElement
-        id="Name"
-        field-name="Name"
-        name="name"
-        label="Name"
-        placeholder="e.g. Premium Basmati Rice 5kg"
-        :columns="colHalf"
-        autocomplete="off"
-        :rules="nameRules"
-    />
-
-    <TextElement
-        id="Sku"
-        field-name="Sku"
-        name="sku"
-        label="SKU"
-        placeholder="Auto-generated if blank"
-        :columns="colQuarter"
-        autocomplete="off"
-    />
-
-    <TextElement
-        id="AlertQty"
-        field-name="AlertQty"
-        name="alert_qty"
-        label="Alert qty"
-        input-type="number"
-        placeholder="10"
-        :columns="colQuarter"
-        autocomplete="off"
-        rules="nullable|numeric|min:0"
-    />
-
-    <TextareaElement
-        name="product_desc"
-        id="ProductDesc"
-        field-name="ProductDesc"
-        label="Description"
-        placeholder="Short selling notes or packing details"
-        :columns="{ container: 9, label: 12, wrapper: 12 }"
-        :rows="3"
-    />
-
-    <TextElement
-        id="Weight"
-        field-name="Weight"
-        name="weight"
-        label="Weight"
-        input-type="number"
-        placeholder="Optional"
-        :columns="colQuarter"
-        autocomplete="off"
-        rules="nullable|numeric|min:0"
-    />
-
-    <StaticElement name="section_classification" :columns="colFull">
-        <div class="company-section-header company-section-header-teal company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-teal">
-                <Box size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Organization</h6>
-                <p class="company-section-subtitle mb-0">Unit, brand, category, and item type</p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <SelectElement
-        name="unit_id"
-        :native="false"
-        :items="unitsdata"
-        id="UnitId"
-        field-name="UnitId"
-        placeholder="Select unit"
-        label="Unit"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :disabled="scopeDisabled"
-        rules="required"
-    />
-
-    <SelectElement
-        name="brand_id"
-        :native="false"
-        :items="brandsdata"
-        id="BrandId"
-        field-name="BrandId"
-        placeholder="Select brand"
-        label="Brand"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :disabled="scopeDisabled"
-        rules="required"
-    />
-
-    <SelectElement
-        name="category_id"
-        :native="false"
-        :items="categoriesdata"
-        id="CategoryId"
-        field-name="CategoryId"
-        placeholder="Select category"
-        label="Category"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :disabled="scopeDisabled"
-        rules="required"
-    />
-
-    <SelectElement
-        name="subcategory_id"
-        :native="false"
-        :items="subcategoriesdata"
-        id="SubcategoryId"
-        field-name="SubcategoryId"
-        placeholder="Select subcategory"
-        label="Subcategory"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="true"
-        :disabled="subcategoryDisabled"
-    />
-
-    <SelectElement
-        name="itemtype_id"
-        :native="false"
-        :items="itemtypesdata"
-        id="ItemtypeId"
-        field-name="ItemtypeId"
-        placeholder="Select item type"
-        label="Item type"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="false"
-        :disabled="scopeDisabled"
-        rules="required"
-        @change="onItemTypeChange"
-    />
-
-    <SelectElement
-        name="warranty_id"
-        :native="false"
-        :items="warrantiesdata"
-        id="WarrantyId"
-        field-name="WarrantyId"
-        placeholder="Select warranty"
-        label="Warranty"
-        :columns="colThird"
-        label-prop="text"
-        value-prop="id"
-        :search="true"
-        :floating="false"
-        :can-clear="true"
-        :disabled="scopeDisabled"
-    />
-
-    <StaticElement name="section_media" :columns="colFull">
-        <div class="company-section-header company-section-header-primary company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-primary">
-                <ImagePlus size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Media & status</h6>
-                <p class="company-section-subtitle mb-0">Catalog image and whether this product is sellable</p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <TextElement
-        :id="imageInputId"
-        field-name="ProductImage"
-        name="product_image"
-        label="Product image"
-        placeholder="Select product image"
-        :columns="colThird"
-        :add-classes="{
-            ElementAddon: {
-                container: 'p-0',
-            },
-        }"
+        name="group_scope"
+        :columns="colFull"
+        :add-classes="cardClasses"
     >
-        <template #addon-before>
-            <button
-                :data-input="imageInputId"
-                data-field-name="product_image"
-                type="button"
-                class="company-logo-choose"
-                @click="chooseImage"
-            >
-                <ImagePlus size="xs" />
-                <span>Choose</span>
-            </button>
-        </template>
-        <template #after>
-            <div class="company-logo-preview">
-                <img
-                    v-if="imagePreviewUrl"
-                    :src="imagePreviewUrl"
-                    alt="Product preview"
-                    class="company-logo-preview-img d-block rounded object-fit-contain"
-                    style="height: 4.5rem"
-                >
+        <StaticElement name="section_scope" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <Building2 class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Company</h2>
+                    <p class="product-form-section-copy">Assign this product to a company catalog</p>
+                </div>
+            </div>
+        </StaticElement>
+
+        <SelectElement
+            name="company_id"
+            :native="false"
+            :items="companiesdata"
+            id="CompanyId"
+            field-name="CompanyId"
+            placeholder="Select company"
+            label="Company"
+            :columns="colFull"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :rules="companyRules"
+        />
+    </GroupElement>
+
+    <GroupElement name="group_identity" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_identity" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <Package class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Product</h2>
+                    <p class="product-form-section-copy">Name, SKU, and how this item is sold</p>
+                </div>
+            </div>
+        </StaticElement>
+
+        <StaticElement name="product_type" :columns="colThird">
+            <div class="product-form-field">
+                <FieldHint label="Product type" />
+                <div class="product-type-toggle" role="group" aria-label="Product type">
+                    <button
+                        type="button"
+                        class="product-type-toggle__btn"
+                        :class="{ 'is-active': selectedType === 'single' }"
+                        :disabled="typeDisabled"
+                        @click="setProductType('single')"
+                    >
+                        Single
+                    </button>
+                    <button
+                        type="button"
+                        class="product-type-toggle__btn"
+                        :class="{ 'is-active': selectedType === 'variable' }"
+                        :disabled="typeDisabled"
+                        @click="setProductType('variable')"
+                    >
+                        Variable
+                    </button>
+                </div>
+            </div>
+        </StaticElement>
+
+        <TextElement
+            id="Name"
+            field-name="Name"
+            name="name"
+            label="Name"
+            placeholder="e.g. Samsung Galaxy A15"
+            :columns="colHalf"
+            autocomplete="off"
+            :rules="nameRules"
+        />
+
+        <TextElement
+            id="Sku"
+            field-name="Sku"
+            name="sku"
+            label="SKU"
+            placeholder="PRO-00001"
+            :columns="colQuarter"
+            autocomplete="off"
+        />
+
+        <TextElement
+            id="AlertQty"
+            field-name="AlertQty"
+            name="alert_qty"
+            label="Alert qty"
+            input-type="number"
+            placeholder="10"
+            :columns="colQuarter"
+            autocomplete="off"
+            rules="nullable|numeric|min:0"
+        />
+
+        <TextareaElement
+            name="product_desc"
+            id="ProductDesc"
+            field-name="ProductDesc"
+            label="Description"
+            placeholder="Enter product specifications and details..."
+            :columns="{ container: 9, label: 12, wrapper: 12 }"
+            :rows="2"
+        />
+
+        <TextElement
+            id="Weight"
+            field-name="Weight"
+            name="weight"
+            label="Weight (g / kg)"
+            input-type="number"
+            placeholder="10"
+            :columns="colQuarter"
+            autocomplete="off"
+            rules="nullable|numeric|min:0"
+        />
+    </GroupElement>
+
+    <GroupElement name="group_classification" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_classification" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <Layers class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Organization</h2>
+                    <p class="product-form-section-copy">Unit, brand, category, and item type</p>
+                </div>
+            </div>
+        </StaticElement>
+
+        <SelectElement
+            name="unit_id"
+            :native="false"
+            :items="unitsdata"
+            id="UnitId"
+            field-name="UnitId"
+            placeholder="Select unit"
+            label="Unit"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :disabled="scopeDisabled"
+            rules="required"
+        />
+
+        <SelectElement
+            name="brand_id"
+            :native="false"
+            :items="brandsdata"
+            id="BrandId"
+            field-name="BrandId"
+            placeholder="Select brand"
+            label="Brand"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :disabled="scopeDisabled"
+            rules="required"
+        />
+
+        <SelectElement
+            name="category_id"
+            :native="false"
+            :items="categoriesdata"
+            id="CategoryId"
+            field-name="CategoryId"
+            placeholder="Select category"
+            label="Category"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :disabled="scopeDisabled"
+            rules="required"
+        />
+
+        <SelectElement
+            name="subcategory_id"
+            :native="false"
+            :items="subcategoriesdata"
+            id="SubcategoryId"
+            field-name="SubcategoryId"
+            placeholder="Select subcategory"
+            label="Subcategory"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            :disabled="subcategoryDisabled"
+        />
+
+        <SelectElement
+            name="itemtype_id"
+            :native="false"
+            :items="itemtypesdata"
+            id="ItemtypeId"
+            field-name="ItemtypeId"
+            placeholder="Select item type"
+            label="Item type"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="false"
+            :disabled="scopeDisabled"
+            rules="required"
+            @change="onItemTypeChange"
+        />
+
+        <SelectElement
+            name="warranty_id"
+            :native="false"
+            :items="warrantiesdata"
+            id="WarrantyId"
+            field-name="WarrantyId"
+            placeholder="Select warranty"
+            label="Warranty"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            :disabled="scopeDisabled"
+        />
+    </GroupElement>
+
+    <GroupElement name="group_media" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_media" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <ImageIcon class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Media & status</h2>
+                    <p class="product-form-section-copy">Catalog image and whether this product is sellable</p>
+                </div>
+            </div>
+        </StaticElement>
+
+        <TextElement
+            :id="imageInputId"
+            field-name="ProductImage"
+            name="product_image"
+            label="Product image"
+            placeholder="Select product image"
+            :columns="colThird"
+            :add-classes="{
+                ElementAddon: {
+                    container: 'p-0',
+                },
+            }"
+        >
+            <template #addon-before>
                 <button
-                    v-if="imagePreviewUrl"
+                    :data-input="imageInputId"
+                    data-field-name="product_image"
                     type="button"
-                    class="btn btn-sm btn-link text-danger px-0"
-                    @click="clearProductImage"
+                    class="product-form-choose"
+                    @click="chooseImage"
                 >
-                    Remove image
+                    Choose
+                </button>
+            </template>
+            <template #after>
+                <div v-if="imagePreviewUrl" class="product-form-image-preview">
+                    <div class="product-form-image-thumb">
+                        <img
+                            :src="imagePreviewUrl"
+                            alt="Product preview"
+                        >
+                    </div>
+                    <button
+                        type="button"
+                        class="product-form-image-remove"
+                        @click="clearProductImage"
+                    >
+                        Remove image
+                    </button>
+                </div>
+            </template>
+        </TextElement>
+
+        <ToggleElement
+            :labels="{ 1: 'Sellable & Active', 0: 'Inactive / Draft' }"
+            :columns="colThird"
+            id="Active"
+            field-name="Active"
+            name="active"
+            label="Product status"
+            :true-value="true"
+            :false-value="false"
+            :default="true"
+        />
+    </GroupElement>
+
+    <GroupElement
+        v-if="selectedType === 'variable'"
+        name="group_variations"
+        :columns="colFull"
+        :add-classes="cardClasses"
+    >
+        <StaticElement name="section_variations" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <Boxes class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Variations</h2>
+                    <p class="product-form-section-copy">
+                        Include the attributes and values that should be combined
+                    </p>
+                </div>
+            </div>
+        </StaticElement>
+
+        <StaticElement name="variation_picker" :columns="colFull">
+            <VariationPicker
+                :variations="applicableVariations"
+                :selections="variationSelections"
+                :disabled="scopeDisabled"
+                :generating="generatingVariants"
+                :scope-ready="scopeReady"
+                :warning="scopeWarning"
+                :error="generateError"
+                @update:selections="variationSelections = $event"
+                @generate="generateVariations"
+            />
+        </StaticElement>
+    </GroupElement>
+
+    <GroupElement name="group_pricing" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_pricing" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <DollarSign class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Pricing</h2>
+                    <p class="product-form-section-copy">
+                        {{ selectedType === 'variable'
+                            ? 'Each generated variant gets its own SKU, purchase, margin, and sell price'
+                            : 'Purchase cost, packing, margin, and sell price' }}
+                    </p>
+                </div>
+                <button
+                    v-if="selectedType === 'variable'"
+                    type="button"
+                    class="product-form-bulk-btn"
+                    :class="{ 'is-open': pricingEditor?.isBulkBarOpen }"
+                    @click="pricingEditor?.toggleBulkBar()"
+                >
+                    <Calculator class="h-3.5 w-3.5 text-teal-600" />
+                    <span>Bulk Update Pricing</span>
                 </button>
             </div>
-        </template>
-    </TextElement>
+        </StaticElement>
 
-    <ToggleElement
-        :labels="{ 1: 'Active', 0: 'Inactive' }"
-        :columns="colThird"
-        id="Active"
-        field-name="Active"
-        name="active"
-        label="Product status"
-        :true-value="true"
-        :false-value="false"
-        :default="true"
-    />
-
-    <StaticElement v-if="selectedType === 'variable'" name="section_variations" :columns="colFull">
-        <div class="company-section-header company-section-header-indigo company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-indigo">
-                <Layers size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Variations</h6>
-                <p class="company-section-subtitle mb-0">
-                    Include the attributes and values that should be combined
-                </p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <StaticElement v-if="selectedType === 'variable'" name="variation_picker" :columns="colFull">
-        <VariationPicker
-            :variations="applicableVariations"
-            :selections="variationSelections"
-            :disabled="scopeDisabled"
-            :generating="generatingVariants"
-            :scope-ready="scopeReady"
-            :warning="scopeWarning"
-            :error="generateError"
-            @update:selections="variationSelections = $event"
-            @generate="generateVariations"
-        />
-    </StaticElement>
-
-    <StaticElement name="section_pricing" :columns="colFull">
-        <div class="company-section-header company-section-header-indigo company-section-header-spaced">
-            <span class="company-section-icon company-section-icon-indigo">
-                <SliderAlt size="sm" />
-            </span>
-            <div>
-                <h6 class="company-section-title mb-0">Pricing</h6>
-                <p class="company-section-subtitle mb-0">
-                    {{ selectedType === 'variable'
-                        ? 'Each generated variant gets its own SKU, purchase, margin, and sell price'
-                        : 'Purchase cost, packing, margin, and sell price' }}
-                </p>
-            </div>
-        </div>
-    </StaticElement>
-
-    <StaticElement name="details_editor" :columns="colFull">
-        <ProductDetailsEditor
-            :details="pricingRows"
-            :product-type="selectedType"
-            :disabled="scopeDisabled"
-            @update:details="syncDetails"
-        />
-    </StaticElement>
+        <StaticElement name="details_editor" :columns="colFull">
+            <ProductDetailsEditor
+                ref="pricingEditor"
+                :details="pricingRows"
+                :product-type="selectedType"
+                :disabled="scopeDisabled"
+                embedded
+                @update:details="syncDetails"
+            />
+        </StaticElement>
+    </GroupElement>
 </template>

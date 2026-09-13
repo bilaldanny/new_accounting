@@ -1,15 +1,34 @@
 /* ==========================================================================
-   Modals — visual-only restyle of the shared ModalComponent.vue used by
-   every Add/Edit/Import/Trash/etc. modal across all list pages. Bootstrap's
-   modal JS/behavior (show/hide, backdrop, focus trap) is untouched — this
-   only retints the plain default Bootstrap chrome to match the app's design
-   system (rounded cards, indigo accents, refined typography).
+   Modals — visual restyle of the shared ModalComponent.vue used by every
+   Add/Edit/Import/Trash/etc. modal across the whole app. Bootstrap's modal
+   JS/behavior (show/hide, backdrop, focus trap) is untouched — this only
+   retints the chrome (rounded cards, teal/rose accents, refined typography)
+   and normalizes Vueform field/toggle sizing so every modal in the app
+   matches the Menu Management Add/Edit modal.
    ========================================================================== */
 
 .modal-content {
-    border: 1px solid var(--app-border-subtle, #f1f5f9);
-    border-radius: var(--app-radius-xl, 18px);
-    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.28);
+    --menu-control-height: var(--form-control-height, 2.375rem);
+    --vf-min-height-input: var(--menu-control-height);
+    --vf-min-height-input-sm: var(--menu-control-height);
+    --vf-font-size: 0.75rem;
+    --vf-font-size-sm: 0.75rem;
+    --vf-line-height: 1.25;
+    --vf-line-height-sm: 1.25;
+    --vf-py-input: 0;
+    --vf-py-input-sm: 0;
+    --vf-px-input: 0.75rem;
+    --vf-px-input-sm: 0.75rem;
+    --vf-radius-input: 0.5rem;
+    --vf-radius-input-sm: 0.5rem;
+    --vf-toggle-width: 2.75rem;
+    --vf-toggle-width-sm: 2.75rem;
+    --vf-toggle-height: 1.5rem;
+    --vf-toggle-height-sm: 1.5rem;
+    --vf-border-width-toggle: 0px;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
     overflow: hidden;
 }
 
@@ -18,10 +37,10 @@
 }
 
 .modal-header {
-    align-items: flex-start;
-    padding: 1.125rem 1.5rem;
+    align-items: center;
+    padding: 1rem 1.5rem;
     background: #ffffff;
-    border-bottom: 1px solid var(--app-border-subtle, #f1f5f9);
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .modal-heading {
@@ -33,8 +52,9 @@
 .modal-title {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--app-text, #111827);
-    letter-spacing: -0.01em;
+    color: #0f172a;
+    text-transform: none;
+    letter-spacing: 0;
     margin: 0;
 }
 
@@ -44,16 +64,16 @@
 }
 
 .modal-header .btn-close {
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 2rem;
+    height: 2rem;
     padding: 0;
     margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background-size: 0.75rem;
-    border-radius: var(--app-radius-sm, 7px);
-    opacity: 0.6;
+    border-radius: 0.5rem;
+    opacity: 0.55;
     transition: all var(--app-transition, 150ms ease);
 }
 
@@ -63,7 +83,7 @@
 }
 
 .modal-header .btn-close:focus {
-    box-shadow: 0 0 0 3px var(--app-primary-soft, #eef2ff);
+    box-shadow: 0 0 0 3px var(--app-primary-soft, #f0fdfa);
 }
 
 .modal-body {
@@ -71,84 +91,299 @@
     background: #ffffff;
 }
 
-.modal-body .form-label {
+.modal-body .row {
+    --bs-gutter-x: 0.75rem;
+    --bs-gutter-y: 0.75rem;
+}
+
+.modal-content .vf-element {
+    margin-bottom: 0;
+}
+
+.modal-content .vf-element-layout,
+.modal-content .vf-element-layout-lg {
+    display: flex !important;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    --bs-gutter-x: 0;
+}
+
+.modal-content .vf-element-layout > [class*="col-"],
+.modal-content .vf-element-layout > [class*="vf-col"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.modal-body .form-label,
+.modal-content .col-form-label,
+.modal-content .vf-label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.125rem;
+    white-space: nowrap;
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--app-text, #111827);
-    margin-bottom: 0.375rem;
+    font-weight: 500;
+    color: #334155;
+    margin-bottom: 0.25rem;
+}
+
+.modal-content .form-label > *,
+.modal-content .col-form-label > *,
+.modal-content .vf-label > * {
+    display: inline !important;
+}
+
+.modal-content .form-label > div,
+.modal-content .col-form-label > div,
+.modal-content .vf-label > div {
+    color: #f43f5e;
+    font-weight: 500;
 }
 
 .modal-body .form-control,
-.modal-body .form-select {
-    border-radius: var(--app-radius-md, 9px);
-    border-color: var(--app-border, #e2e8f0);
-    font-size: 0.8125rem;
-    padding: 0.5rem 0.75rem;
+.modal-body .form-select,
+.modal-content .vf-input-group,
+.modal-content .vf-input-group-sm,
+.modal-content .vf-native-select-wrapper,
+.modal-content .vf-native-select-wrapper-sm,
+.modal-content .vf-multiselect,
+.modal-content .vf-multiselect-sm,
+.modal-content .form-control,
+.modal-content .form-control-sm,
+.modal-content .form-select,
+.modal-content .form-select-sm {
+    box-sizing: border-box !important;
+    height: var(--menu-control-height) !important;
+    min-height: var(--menu-control-height) !important;
+    max-height: var(--menu-control-height) !important;
+    padding: 0 !important;
+    border-radius: 0.5rem !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+    font-size: 0.75rem !important;
+    line-height: 1.25 !important;
+    color: #1e293b;
+    overflow: hidden;
     transition: all var(--app-transition, 150ms ease);
 }
 
+.modal-content .vf-multiselect,
+.modal-content .vf-multiselect-sm {
+    overflow: visible !important;
+    max-height: none !important;
+    display: flex;
+    align-items: center;
+}
+
+.modal-content .vf-input-field,
+.modal-content .vf-input,
+.modal-content .vf-native-select,
+.modal-content input.form-control,
+.modal-content select.form-select {
+    box-sizing: border-box !important;
+    display: block;
+    width: 100%;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 0.75rem !important;
+    border: 0 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    font-size: 0.75rem !important;
+    line-height: calc(var(--menu-control-height) - 2px) !important;
+}
+
+.modal-content select.form-select,
+.modal-content .vf-native-select {
+    padding-right: 2rem !important;
+    background-position: right 0.65rem center;
+}
+
+.modal-content .vf-multiselect-wrapper,
+.modal-content .vf-multiselect-wrapper-sm {
+    box-sizing: border-box !important;
+    height: calc(var(--menu-control-height) - 2px) !important;
+    min-height: calc(var(--menu-control-height) - 2px) !important;
+    max-height: calc(var(--menu-control-height) - 2px) !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.modal-content .vf-multiselect-placeholder,
+.modal-content .vf-multiselect-single-label,
+.modal-content .vf-multiselect-search,
+.modal-content .multiselect-placeholder,
+.modal-content .multiselect-single-label,
+.modal-content .multiselect-search {
+    box-sizing: border-box !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    font-size: 0.75rem !important;
+    line-height: calc(var(--menu-control-height) - 2px) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+}
+
 .modal-body .form-control:focus,
-.modal-body .form-select:focus {
-    border-color: var(--app-primary, #6366f1);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+.modal-body .form-select:focus,
+.modal-content .form-control:focus,
+.modal-content .form-select:focus,
+.modal-content .multiselect.is-active,
+.modal-content .vf-multiselect-active,
+.modal-content .vf-input:focus {
+    border-color: #14b8a6 !important;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2) !important;
+    outline: none !important;
 }
 
-.modal-body .form-check-input:checked {
-    background-color: var(--app-primary, #6366f1);
-    border-color: var(--app-primary, #6366f1);
+.modal-content .form-control.is-invalid,
+.modal-content .form-select.is-invalid {
+    border-color: #fb7185 !important;
+    background-color: rgba(255, 241, 242, 0.4);
+    color: #881337;
 }
 
-.modal-body .form-check-input:focus {
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+.modal-content .form-check-input:checked {
+    background-color: var(--app-primary, #0d9488);
+    border-color: var(--app-primary, #0d9488);
+}
+
+.modal-content .form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+.menu-form-divider {
+    border-top: 1px solid #f1f5f9;
+    margin: 0.5rem 0 0.25rem;
+}
+
+/* Toggle switches — knob is vertically centered in the track (top:50% + translateY(-50%))
+   regardless of on/off state, matching the reference design. */
+.modal-content .vf-toggle-text,
+.modal-content .vf-toggle-label {
+    display: none !important;
+}
+
+.modal-content .vf-toggle-wrapper {
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.modal-content .vf-toggle-container {
+    display: inline-flex;
+    align-items: center;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.modal-content .vf-toggle,
+.modal-content .vf-toggle-sm {
+    position: relative;
+    box-sizing: border-box !important;
+    width: 2.75rem !important;
+    height: 1.5rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    overflow: hidden;
+}
+
+.modal-content .vf-toggle-off,
+.modal-content .vf-toggle-off-disabled {
+    background: #e2e8f0 !important;
+}
+
+.modal-content .vf-toggle-on,
+.modal-content .vf-toggle-on-disabled {
+    background: #0d9488 !important;
+}
+
+.modal-content .vf-toggle-handle,
+.modal-content .vf-toggle-handle-sm {
+    position: absolute !important;
+    top: 50% !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    border-radius: 50% !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.22);
+}
+
+.modal-content .vf-toggle-handle-off,
+.modal-content .vf-toggle-handle-off-disabled {
+    left: 0.125rem !important;
+    right: auto !important;
+    transform: translateY(-50%) !important;
+}
+
+.modal-content .vf-toggle-handle-on,
+.modal-content .vf-toggle-handle-on-disabled {
+    left: auto !important;
+    right: 0.125rem !important;
+    transform: translateY(-50%) !important;
 }
 
 .modal-footer {
-    padding: 1.125rem 1.5rem;
+    padding: 1rem 1.5rem 1.25rem;
     background: #ffffff;
-    border-top: 1px solid var(--app-border-subtle, #f1f5f9);
+    border-top: 1px solid #f1f5f9;
+    justify-content: flex-end;
     gap: 0.625rem;
 }
 
 .modal-footer .btn {
-    border-radius: var(--app-radius-md, 9px);
-    font-size: 0.8125rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 0.5rem 1.125rem;
+    padding: 0.5rem 1rem;
+    min-height: 2.25rem;
     transition: all var(--app-transition, 150ms ease);
 }
 
 .modal-footer .btn-light {
+    font-weight: 600;
     background: #ffffff;
-    border: 1px solid var(--app-border, #e2e8f0);
-    color: var(--app-text-secondary, #64748b);
+    border: 1px solid #e2e8f0;
+    color: #334155;
 }
 
 .modal-footer .btn-light:hover {
-    background: #f8fafc;
+    background: #f1f5f9;
     border-color: #cbd5e1;
-    color: var(--app-text, #111827);
+    color: #0f172a;
 }
 
 .modal-footer .btn-primary {
-    background: linear-gradient(180deg, #7c7ff6 0%, var(--app-primary, #6366f1) 100%);
-    border: 1px solid var(--app-primary, #6366f1);
+    font-weight: 700;
+    padding-inline: 1.25rem;
+    background: var(--app-btn-gradient, linear-gradient(to right, #0d9488, #0f2b48));
+    border: 1px solid #0f766e;
     color: #ffffff;
-    box-shadow:
-        0 1px 2px rgba(79, 70, 229, 0.2),
-        0 4px 10px -2px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 1px 2px rgba(15, 43, 72, 0.2);
 }
 
 .modal-footer .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #6366f1 0%, var(--app-primary-hover, #4f46e5) 100%);
-    border-color: var(--app-primary-hover, #4f46e5);
-    box-shadow:
-        0 1px 2px rgba(79, 70, 229, 0.25),
-        0 6px 16px -2px rgba(79, 70, 229, 0.5);
+    background: var(--app-btn-gradient-hover, linear-gradient(to right, #0f766e, #0c2340));
+    border-color: #115e59;
+    box-shadow: none;
 }
 
 .modal-footer .btn-danger {
-    background: var(--app-danger, #dc2626);
-    border-color: var(--app-danger, #dc2626);
+    background: var(--app-danger, #e11d48);
+    border-color: var(--app-danger, #e11d48);
 }
 
 .modal-footer .btn-danger:hover:not(:disabled) {
@@ -162,4 +397,15 @@
     .modal-footer {
         padding: 1rem;
     }
+}
+
+/* Menu add/edit — field-specific touches that only make sense on that one form. */
+.menu-form-dialog {
+    max-width: 56rem;
+}
+
+.menu-form-modal #RoutePath .form-control,
+.menu-form-modal #Route .form-control,
+.menu-form-modal #SortOrder .form-control {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }

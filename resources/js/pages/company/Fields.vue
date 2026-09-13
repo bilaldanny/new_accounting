@@ -511,7 +511,7 @@
                 data-field-name="logo"
                 data-preview="logo-holder"
                 type="button"
-                class="company-logo-choose"
+                class="product-form-choose"
                 @click="chooseLogo"
             >
                 <ImagePlus size="xs" />

@@ -7,6 +7,7 @@
     import { Head, router } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import Fields from './Fields.vue';
+    import JournalFormChrome from './JournalFormChrome.vue';
 
     const pageProps = defineProps({
         id: {
@@ -101,74 +102,39 @@
 <template>
     <Head :title="`Edit ${formatedText('journalentry')}`" />
 
-    <div class="product-form-page purchase-form-page journal-form-page">
-        <div class="product-form purchase-form">
-            <Loader v-if="!pageReady" message="Loading journal entry…" />
+    <div class="product-form-page journal-form-page">
+        <JournalFormChrome
+            mode="edit"
+            :is-busy="isBusy"
+            :is-working="isWorking"
+            :save-action="saveAction"
+            :save-disabled="!isBalanced"
+            :voucher-no="String(formData?.voucher_no ?? '')"
+            @cancel="router.visit('/journalentry')"
+            @save="save"
+        >
+            <div class="product-form product-form--sectioned">
+                <Loader v-if="!pageReady" message="Loading journal entry…" />
 
-            <TheForm
-                v-else
-                v-model:submitting="isSaving"
-                :key="endpoint"
-                :onSubmit="submitJournal"
-                :formData="formData"
-                :show-required="[]"
-                :error="handleFormError"
-                :url="endpoint"
-                ref="formRef"
-            >
-                <Fields
-                    type="edit"
-                    :record-id="recordId"
-                    :form-data="formData"
-                    :form-ref="formRef"
-                />
-            </TheForm>
-
-            <div class="product-form-page__footer">
-                <p class="journal-form-page__status mb-0" :class="{ 'is-ok': isBalanced }">
-                    {{ isBalanced ? 'Voucher is balanced and ready to save' : 'Add matching debit and credit lines to save' }}
-                </p>
-                <div class="product-form-page__actions">
-                    <button
-                        type="button"
-                        class="btn btn-light"
-                        :disabled="isBusy"
-                        @click="router.visit('/journalentry')"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary d-inline-flex align-items-center"
-                        :disabled="isBusy || !isBalanced"
-                        :aria-busy="isWorking && saveAction === 'add-new'"
-                        @click="save('add-new')"
-                    >
-                        <span
-                            v-if="isWorking && saveAction === 'add-new'"
-                            class="spinner-border spinner-border-sm me-1"
-                            role="status"
-                            aria-hidden="true"
-                        ></span>
-                        {{ isWorking && saveAction === 'add-new' ? 'Saving…' : 'Save & Add New' }}
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-primary d-inline-flex align-items-center"
-                        :disabled="isBusy || !isBalanced"
-                        :aria-busy="isWorking && saveAction === 'close'"
-                        @click="save('close')"
-                    >
-                        <span
-                            v-if="isWorking && saveAction === 'close'"
-                            class="spinner-border spinner-border-sm me-1"
-                            role="status"
-                            aria-hidden="true"
-                        ></span>
-                        {{ isWorking && saveAction === 'close' ? 'Saving…' : 'Save & Close' }}
-                    </button>
-                </div>
+                <TheForm
+                    v-else
+                    v-model:submitting="isSaving"
+                    :key="endpoint"
+                    :onSubmit="submitJournal"
+                    :formData="formData"
+                    :show-required="[]"
+                    :error="handleFormError"
+                    :url="endpoint"
+                    ref="formRef"
+                >
+                    <Fields
+                        type="edit"
+                        :record-id="recordId"
+                        :form-data="formData"
+                        :form-ref="formRef"
+                    />
+                </TheForm>
             </div>
-        </div>
+        </JournalFormChrome>
     </div>
 </template>

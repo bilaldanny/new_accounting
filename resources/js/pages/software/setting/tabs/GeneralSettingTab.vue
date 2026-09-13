@@ -127,7 +127,7 @@
                 data-field-name="system_logo"
                 data-preview="software-setting-logo-holder"
                 type="button"
-                class="company-logo-choose"
+                class="product-form-choose"
                 @click="chooseLogo"
             >
                 <ImagePlus size="xs" />
@@ -158,7 +158,7 @@
                 data-field-name="email_logo"
                 data-preview="software-setting-email-logo-holder"
                 type="button"
-                class="company-logo-choose"
+                class="product-form-choose"
                 @click="chooseLogo"
             >
                 <ImagePlus size="xs" />
@@ -189,7 +189,7 @@
                 data-field-name="login_logo"
                 data-preview="software-setting-login-logo-holder"
                 type="button"
-                class="company-logo-choose"
+                class="product-form-choose"
                 @click="chooseLogo"
             >
                 <ImagePlus size="xs" />

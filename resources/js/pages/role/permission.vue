@@ -1,14 +1,14 @@
 <script setup>
-    import useRoles from '@/composables/role';
-    import useCommons from '@/composables/common';
+    import { ShieldQuarter } from '@boxicons/vue';
+    import { Head, usePage } from '@inertiajs/vue3';
+    import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
     import PermissionCard from '@/components/role/permission/PermissionCard.vue';
     import PermissionHeader from '@/components/role/permission/PermissionHeader.vue';
     import PermissionSkeletonLoader from '@/components/role/permission/PermissionSkeletonLoader.vue';
+    import useCommons from '@/composables/common';
+    import useRoles from '@/composables/role';
     import PermissionScopeFields from '@/pages/role/permission/ScopeFields.vue';
     import { role } from '@/routes';
-    import { Head, usePage } from '@inertiajs/vue3';
-    import { ShieldQuarter } from '@boxicons/vue';
-    import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 
     defineOptions({
         layout: {
@@ -128,12 +128,15 @@
 
     const collectPermissionIds = (menuItem) => {
         const ids = [];
+
         for (const child of menuItem.children ?? []) {
             ids.push(child.id);
+
             for (const grandchild of child.children ?? []) {
                 ids.push(grandchild.id);
             }
         }
+
         return ids;
     };
 
@@ -145,22 +148,27 @@
 
     const itemMatchesQuery = (item, query) => {
         const q = query.trim().toLowerCase();
+
         if (!q) {
             return true;
         }
+
         if (String(item.name).toLowerCase().includes(q)) {
             return true;
         }
+
         for (const child of item.children ?? []) {
             if (String(child.name).toLowerCase().includes(q)) {
                 return true;
             }
+
             for (const grandchild of child.children ?? []) {
                 if (String(grandchild.name).toLowerCase().includes(q)) {
                     return true;
                 }
             }
         }
+
         return false;
     };
 
@@ -189,6 +197,7 @@
         if (totalPermissions.value === 0) {
             return 0;
         }
+
         return Math.round((grantedCount.value / totalPermissions.value) * 100);
     });
 
@@ -285,6 +294,7 @@
 
         if (isSuperadmin.value) {
             await reloadPermissions();
+
             return;
         }
 
@@ -304,6 +314,7 @@
 
         if (branchId || isSuperadmin.value) {
             await reloadPermissions();
+
             return;
         }
 
@@ -315,6 +326,7 @@
         if (!hasPermissionScope.value) {
             menusdata.value = [];
             permissiondata.value = [];
+
             return;
         }
 
@@ -365,7 +377,10 @@
 
     const checksubparent = async (id, event) => {
         const subparentElement = event.target.closest('.my-subparent-list');
-        if (!subparentElement) return;
+
+        if (!subparentElement) {
+return;
+}
 
         const blockElement = subparentElement.closest('.permission-group__block');
 
@@ -384,7 +399,10 @@
 
     const checksubsubparent = async (id, event) => {
         const subsubparentElement = event.target.closest('.my-subsubparent-list');
-        if (!subsubparentElement) return;
+
+        if (!subsubparentElement) {
+return;
+}
 
         const parentElement = subsubparentElement.closest('.my-parent-list');
 
@@ -405,7 +423,10 @@
         setTimeout(() => {
             if (type === 'parent') {
                 const parentElement = event.target.closest('.my-parent-list');
-                if (!parentElement) return;
+
+                if (!parentElement) {
+return;
+}
 
                 parentElement.classList.remove('pending');
                 parentElement.querySelectorAll('.my-subparent-list, .my-subsubparent-list').forEach((element) => {
@@ -418,7 +439,10 @@
 
             if (type === 'subparent') {
                 const subparentElement = event.target.closest('.my-subparent-list');
-                if (!subparentElement) return;
+
+                if (!subparentElement) {
+return;
+}
 
                 const blockElement = subparentElement.closest('.permission-group__block');
 
@@ -433,7 +457,10 @@
 
             if (type === 'subsubparent') {
                 const subsubparentElement = event.target.closest('.my-subsubparent-list');
-                if (!subsubparentElement) return;
+
+                if (!subsubparentElement) {
+return;
+}
 
                 const parentElement = subsubparentElement.closest('.my-parent-list');
 
@@ -447,6 +474,7 @@
 
     const save = async (id, event, type) => {
         let attempts = 0;
+
         while (attempts < MAX_RETRIES) {
             try {
                 permission.value.status = event.target.checked === true ? 1 : 0;
@@ -462,16 +490,20 @@
                 );
 
                 clearPendingState(event, type);
+
                 return;
             } catch (error) {
                 attempts++;
+
                 if (attempts >= MAX_RETRIES) {
                     if (error.response?.data?.message !== 'Unauthenticated.') {
                         Notify(error.response?.data?.message || 'An error occurred', 'alert');
                     }
+
                     clearPendingState(event, type);
                     break;
                 }
+
                 await sleep(attempts * 1000);
             }
         }
@@ -494,6 +526,7 @@
             scopeForm$.value?.update({ ...scopeFormData });
             skipScopeSync = false;
             scopeReady.value = true;
+
             return;
         }
 
@@ -645,10 +678,10 @@
 }
 
 .permission-page__toolbar {
-    margin-bottom: 1.5rem;
-    border: 1px solid #e8ecf0;
-    border-radius: 1rem;
-    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--app-border, #e2e8f0);
+    border-radius: var(--app-radius-lg, 14px);
+    box-shadow: var(--app-shadow-card, 0 1px 1px rgba(15, 23, 42, 0.03), 0 10px 28px -8px rgba(15, 23, 42, 0.09));
     overflow: hidden;
 }
 
@@ -682,12 +715,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.75rem;
-    background: linear-gradient(135deg, rgba(25, 150, 131, 0.14) 0%, rgba(25, 150, 131, 0.06) 100%);
-    color: var(--accent-dark, #199683);
-    font-size: 1.375rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--app-radius-md, 9px);
+    background: var(--app-primary-soft, #f0fdfa);
+    border: 1px solid var(--app-primary-border, #99f6e4);
+    color: var(--app-primary, #0d9488);
+    font-size: 1.25rem;
     flex-shrink: 0;
 }
 
@@ -703,22 +737,22 @@
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #1d4ed8;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.18);
+    color: var(--app-info, #0369a1);
+    background: var(--app-info-soft, #eff6ff);
+    border: 1px solid var(--app-info-border, #bfdbfe);
 }
 
 .permission-page__toolbar-title {
     font-size: 1.0625rem;
     font-weight: 700;
-    color: var(--text-main, #111827);
+    color: var(--app-text, #111827);
     margin: 0 0 0.25rem;
     line-height: 1.3;
 }
 
 .permission-page__toolbar-subtitle {
     font-size: 0.875rem;
-    color: var(--text-muted, #6b7280);
+    color: var(--app-text-secondary, #64748b);
     margin: 0;
     display: flex;
     flex-wrap: wrap;
@@ -733,9 +767,9 @@
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--accent-dark, #199683);
-    background: rgba(25, 150, 131, 0.1);
-    border: 1px solid rgba(25, 150, 131, 0.18);
+    color: var(--app-primary, #0d9488);
+    background: var(--app-primary-soft, #f0fdfa);
+    border: 1px solid var(--app-primary-border, #99f6e4);
 }
 
 .permission-page__filter-label {
@@ -746,27 +780,27 @@
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--text-muted, #6b7280);
+    color: var(--app-text-secondary, #64748b);
     margin-bottom: 0.5rem;
 }
 
 .permission-page__filter-label .mdi {
     font-size: 0.875rem;
-    color: var(--accent-dark, #199683);
+    color: var(--app-primary, #0d9488);
 }
 
 .permission-page__select {
     min-height: 2.625rem;
-    border-radius: 0.625rem;
-    border-color: #e5e7eb;
+    border-radius: var(--app-radius-md, 9px);
+    border-color: var(--app-border, #e2e8f0);
     font-size: 0.875rem;
     background-color: #fff;
     box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .permission-page__select:focus {
-    border-color: var(--accent-dark, #199683);
-    box-shadow: 0 0 0 3px rgba(25, 150, 131, 0.12);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 3px var(--app-primary-soft, rgba(13, 148, 136, 0.12));
 }
 
 .permission-page__select:disabled {
@@ -802,9 +836,9 @@
 }
 
 .permission-page__empty {
-    border-radius: 1rem;
-    border: 1px dashed #d1d5db;
-    background: #fafbfc;
+    border-radius: var(--app-radius-lg, 14px);
+    border: 1px dashed var(--app-border, #e2e8f0);
+    background: var(--app-background, #f8fafc);
 }
 
 .permission-page__empty-body {
@@ -819,19 +853,19 @@
     width: 4rem;
     height: 4rem;
     border-radius: 999px;
-    background: rgba(25, 150, 131, 0.08);
+    background: var(--app-primary-soft, #f0fdfa);
     margin-bottom: 1rem;
 }
 
 .permission-page__empty-icon {
     font-size: 2rem;
-    color: var(--accent-dark, #199683);
+    color: var(--app-primary, #0d9488);
 }
 
 .permission-page__empty-title {
     font-weight: 600;
     font-size: 1.0625rem;
-    color: var(--text-main, #111827);
+    color: var(--app-text, #111827);
 }
 
 .permission-page__empty-text {

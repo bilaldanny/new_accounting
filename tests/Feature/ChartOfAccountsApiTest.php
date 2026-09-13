@@ -51,6 +51,15 @@ test('chart of account web route requires authentication', function () {
         ->assertRedirect();
 });
 
+test('authenticated users can open the chart of account page', function () {
+    $superadmin = User::query()->findOrFail(1);
+
+    $this->actingAs($superadmin)
+        ->get(route('chart-of-account'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('chart-of-account/index'));
+});
+
 test('chart of accounts index returns hierarchical accounts', function () {
     $scope = seedChartOfAccountScope();
     $superadmin = User::query()->findOrFail(1);

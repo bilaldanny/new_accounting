@@ -1,10 +1,11 @@
 <script setup lang="ts">
 
-import { CheckCircle, DotsVerticalRounded, TrashAlt, X, XCircle } from '@boxicons/vue';
+import { Check, CheckCircle, ChevronDown, Columns3, Copy, DotsVerticalRounded, File, Printer, TrashAlt, X, XCircle } from '@boxicons/vue';
 import { useFloating, offset, flip, shift, autoPlacement, autoUpdate, arrow, computePosition } from '@floating-ui/vue'
 import { Link, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import SkeletonTableRows from '@/components/skeleton/SkeletonTableRows.vue';
+import type { TableDensity } from '@/components/TablePreferencesDrawer.vue';
 import debounce from '@/utils/debounce';
 import { formatNumber } from '@/utils/numberFormat';
 
@@ -665,9 +666,13 @@ return false;
         });
     });
 
+    const hiddenColumnKeys = ref<string[]>([])
+
     const exportableColumns = computed(() =>
         displayColumns.value.filter(
-            (c) => !['checkbox', 'action', 'count', 'certificate_download'].includes(c.type ?? ''),
+            (c) =>
+                !['checkbox', 'action', 'count', 'certificate_download'].includes(c.type ?? '') &&
+                !hiddenColumnKeys.value.includes(c.key),
         ),
     );
 
@@ -880,6 +885,67 @@ return false;
 
     const localSearch = ref(tableData.state?.search?.search ?? '')
     const localShowRecord = ref(tableData.state?.search?.show_record ?? '')
+    const tableDensity = ref<TableDensity>('compact')
+    const zebraStripes = ref(false)
+    const stickyHeader = ref(true)
+    const showColumnMenu = ref(false)
+    const showPreferences = ref(false)
+    const copiedRouteKey = ref('')
+
+    const tablePageSize = computed({
+        get: () => Number(localShowRecord.value) || 10,
+        set: (value: number) => {
+            localShowRecord.value = value
+        },
+    })
+
+    const toggleableColumns = computed(() =>
+        displayColumns.value.filter((col) => !['checkbox', 'action'].includes(col.type ?? '')),
+    )
+
+    const visibleColumns = computed(() =>
+        displayColumns.value.filter((col) => {
+            if (col.type === 'checkbox' || col.type === 'action') {
+                return true
+            }
+
+            return !hiddenColumnKeys.value.includes(col.key)
+        }),
+    )
+
+    function toggleColumnVisibility(key: string): void {
+        if (hiddenColumnKeys.value.includes(key)) {
+            hiddenColumnKeys.value = hiddenColumnKeys.value.filter((item) => item !== key)
+
+            return
+        }
+
+        hiddenColumnKeys.value = [...hiddenColumnKeys.value, key]
+    }
+
+    function closeTableMenus(): void {
+        showColumnMenu.value = false
+    }
+
+    async function copyRouteValue(value: unknown, key: string): Promise<void> {
+        const text = value == null ? '' : String(value)
+
+        if (!text || text === '-') {
+            return
+        }
+
+        try {
+            await navigator.clipboard.writeText(text)
+            copiedRouteKey.value = key
+            window.setTimeout(() => {
+                if (copiedRouteKey.value === key) {
+                    copiedRouteKey.value = ''
+                }
+            }, 1600)
+        } catch {
+            copiedRouteKey.value = ''
+        }
+    }
 
     watch(localSearch, (val) => {
         emit('update:state', {
@@ -1059,7 +1125,13 @@ return
 </script>
 
 <template>
-    <div class="table-responsive modern-table">
+    <div
+        class="table-responsive modern-table"
+        :class="[
+            `modern-table--${tableDensity}`,
+            { 'modern-table--zebra': zebraStripes, 'modern-table--sticky': stickyHeader },
+        ]"
+    >
         <div class="dataTables_wrapper dt-bootstrap5">
             <!-- Modern Table Toolbar -->
             <div class="modern-table-toolbar">
@@ -1112,6 +1184,35 @@ return
                         <span class="modern-selection-pill__count">{{ exportSelectedIds.length }}</span>
                         <span>selected</span>
                     </div>
+
+                    <div class="modern-table-menu d-none d-md-block">
+                        <button
+                            type="button"
+                            class="modern-table-menu__btn"
+                            title="Show/hide table columns"
+                            @click="showColumnMenu = !showColumnMenu"
+                        >
+                            <Columns3 size="sm" class="modern-table-menu__icon" aria-hidden="true" />
+                            <span>Columns</span>
+                            <ChevronDown size="sm" class="modern-table-menu__chevron" aria-hidden="true" />
+                        </button>
+                        <div v-if="showColumnMenu" class="modern-table-menu__overlay" @click="closeTableMenus" />
+                        <div v-if="showColumnMenu" class="modern-table-menu__dropdown modern-table-menu__dropdown--columns">
+                            <div class="modern-table-menu__caption">Visible Columns</div>
+                            <label
+                                v-for="col in toggleableColumns"
+                                :key="col.key"
+                                class="modern-table-menu__check-item"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :checked="!hiddenColumnKeys.includes(col.key)"
+                                    @change="toggleColumnVisibility(col.key)"
+                                >
+                                <span>{{ col.label || col.key }}</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modern-table-toolbar__right">
@@ -1125,7 +1226,7 @@ return
                                     :disabled="exportActionsDisabled"
                                     @click="exportExcel"
                                 >
-                                    <i class="mdi mdi-microsoft-excel table-export-btn__icon" aria-hidden="true"></i>
+                                    <File size="sm" class="table-export-btn__icon" aria-hidden="true" />
                                     <span class="table-export-btn__label">Excel</span>
                                 </button>
                                 <button
@@ -1135,7 +1236,7 @@ return
                                     :disabled="exportActionsDisabled"
                                     @click="exportCsv"
                                 >
-                                    <i class="mdi mdi-file-delimited table-export-btn__icon" aria-hidden="true"></i>
+                                    <File size="sm" class="table-export-btn__icon" aria-hidden="true" />
                                     <span class="table-export-btn__label">CSV</span>
                                 </button>
                                 <button
@@ -1145,7 +1246,7 @@ return
                                     :disabled="exportActionsDisabled"
                                     @click="exportPdf"
                                 >
-                                    <i class="mdi mdi-file-pdf-box table-export-btn__icon" aria-hidden="true"></i>
+                                    <Printer size="sm" class="table-export-btn__icon" aria-hidden="true" />
                                     <span class="table-export-btn__label">PDF</span>
                                 </button>
                                 <button
@@ -1155,7 +1256,7 @@ return
                                     :disabled="exportActionsDisabled"
                                     @click="exportCopyClipboard"
                                 >
-                                    <i class="mdi mdi-content-copy table-export-btn__icon" aria-hidden="true"></i>
+                                    <Copy size="sm" class="table-export-btn__icon" aria-hidden="true" />
                                     <span class="table-export-btn__label">Copy</span>
                                 </button>
                             </div>
@@ -1197,7 +1298,7 @@ return
                     <thead>
                         <tr role="row">
                             <th
-                                v-for="(item, index) in displayColumns"
+                                v-for="(item, index) in visibleColumns"
                                 :key="item.key ?? `th-${index}`"
                                 :class="[
                                     'modern-th',
@@ -1325,13 +1426,13 @@ return
                     <tbody>
                         <SkeletonTableRows
                             v-if="tableData.state?.loading === true"
-                            :columns="displayColumns.length"
+                            :columns="visibleColumns.length"
                             :rows="skeletonRowCount"
                             :cell-height="16"
                             :duration-sec="1.55"
                         />
                         <tr v-if="tableData.state.records.data.length === 0 && tableData.state?.loading === false">
-                            <td :colspan="displayColumns.length || 100" class="modern-empty-cell text-center">
+                            <td :colspan="visibleColumns.length || 100" class="modern-empty-cell text-center">
                                 <div class="modern-empty-state">
                                     <div class="modern-empty-icon-wrap">
                                         <svg class="modern-empty-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1365,7 +1466,7 @@ return
                                 :class="{ 'admin-row--selected': tableData.state?.edit_ids?.includes(row.id) }"
                             >
                                     <td
-                                        v-for="(col, colIndex) in displayColumns"
+                                        v-for="(col, colIndex) in visibleColumns"
                                         :key="col.key ?? `cell-${colIndex}`"
                                         :data-colname="col.key"
                                         :class="{
@@ -1410,6 +1511,19 @@ return
                                                 </button>
                                             </div>
                                         </div>
+
+                                        <span v-else-if="col.type === 'code'" class="modern-cell-code-wrap">
+                                            <span class="modern-cell-code">{{ defaultCellDisplay(row, col) }}</span>
+                                            <button
+                                                type="button"
+                                                class="modern-cell-copy"
+                                                title="Copy route"
+                                                @click="copyRouteValue(defaultCellDisplay(row, col), `${row.id}-${col.key}`)"
+                                            >
+                                                <Check v-if="copiedRouteKey === `${row.id}-${col.key}`" size="sm" />
+                                                <Copy v-else size="sm" />
+                                            </button>
+                                        </span>
 
                                         <!-- Certificate download (same as enrolled courses: parent uses useCertificateFileDownload) -->
                                         <span v-else-if="col.type === 'certificate_download'">
@@ -2013,7 +2127,7 @@ return
                         :disabled="exportBusy"
                         @click="bulkExport"
                     >
-                        <i class="mdi mdi-download" aria-hidden="true"></i>
+                        <Copy size="sm" aria-hidden="true" />
                         <span>Export</span>
                     </button>
 

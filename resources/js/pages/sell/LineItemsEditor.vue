@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import { Package, Trash } from '@boxicons/vue';
-    import { computed, ref, watch } from 'vue';
     import { usePage } from '@inertiajs/vue3';
+    import { computed, ref, watch } from 'vue';
     import type { SellLineRow } from '@/composables/sell';
 
     type CatalogOption = {
@@ -392,12 +392,12 @@
 
         <div v-if="!hasLines" class="purchase-lines__empty">
             <Package size="md" class="purchase-lines__empty-icon" />
-            <strong>No line items yet</strong>
+            <strong>No line items in this invoice</strong>
             <span>{{ disabled
                 ? 'Choose a company and branch, then add products.'
                 : isSearchBox
                     ? 'Search by name or SKU to add the first product.'
-                    : 'Select category, subcategory, item type, product, then variation.' }}</span>
+                    : 'Select product above to add' }}</span>
         </div>
 
         <div v-else class="pricing-table__wrap purchase-lines__table">
@@ -524,7 +524,7 @@
 .purchase-lines {
     display: flex;
     flex-direction: column;
-    gap: 0.7rem;
+    gap: 0;
 }
 
 .purchase-lines__search {
@@ -532,7 +532,7 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    min-height: 2.65rem;
+    min-height: var(--form-control-height);
     padding: 0 0.85rem;
     border: 1px solid var(--app-border, #e5e7eb);
     border-radius: 0.65rem;
@@ -542,8 +542,8 @@
 
 .purchase-lines__search.is-open,
 .purchase-lines__search:focus-within {
-    border-color: var(--app-primary, #6366f1);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
 }
 
 .purchase-lines__search.is-disabled {
@@ -552,8 +552,8 @@
 
 .purchase-lines__cascade {
     display: grid;
-    grid-template-columns: repeat(5, minmax(9.5rem, 1fr));
-    gap: 0.65rem;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
 }
 
 .purchase-lines__cascade.is-disabled {
@@ -575,7 +575,7 @@
 
 .purchase-lines__select-input {
     width: 100%;
-    min-height: 2.45rem;
+    min-height: var(--form-control-height);
     padding: 0.35rem 0.65rem;
     border: 1px solid var(--app-border, #e5e7eb);
     border-radius: 0.55rem;
@@ -586,8 +586,8 @@
 
 .purchase-lines__select-input:focus {
     outline: none;
-    border-color: var(--app-primary, #6366f1);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
 }
 
 @media (max-width: 1100px) {
@@ -648,7 +648,7 @@
 }
 
 .purchase-lines__result:hover {
-    background: #eef2ff;
+    background: var(--app-primary-soft, #f0fdfa);
 }
 
 .purchase-lines__result-copy {
@@ -815,28 +815,36 @@
 }
 
 .purchase-lines__sku {
-    background: #eef2ff;
-    color: #4338ca;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.25rem;
+    background: #f1f5f9;
+    color: #475569;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
 }
 
 .purchase-lines__stock-pill {
-    background: #f1f5f9;
-    color: #64748b;
+    border: 1px solid rgb(186 230 253 / 0.8);
+    border-radius: 0.25rem;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-size: 10px;
+    font-weight: 500;
 }
 
 .purchase-lines__control {
     display: flex;
     align-items: stretch;
     overflow: hidden;
-    min-height: 2.05rem;
+    min-height: var(--form-control-height);
     border: 1px solid var(--app-border, #e5e7eb);
     border-radius: 0.45rem;
     background: #fff;
 }
 
 .purchase-lines__control:focus-within {
-    border-color: var(--app-primary, #6366f1);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
 }
 
 .purchase-lines__control input,
@@ -890,7 +898,7 @@
 
 .pricing-table__input {
     width: 100%;
-    min-height: 2.05rem;
+    min-height: var(--form-control-height);
     padding: 0.3rem 0.5rem;
     border: 1px solid var(--app-border, #e5e7eb);
     border-radius: 0.45rem;
@@ -900,8 +908,8 @@
 
 .pricing-table__input:focus {
     outline: none;
-    border-color: var(--app-primary, #6366f1);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    border-color: var(--app-primary, #0d9488);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
 }
 
 .purchase-lines__packing,
