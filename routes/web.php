@@ -599,6 +599,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('journalentry/{id}/view', function ($id) {
         return Inertia::render('journalentry/view', ['id' => $id]);
     })->name('journalentry.view');
+
+    Route::get('journalentry/approval', function () {
+        return Inertia::render('approval/journalentry/index');
+    })->name('journalentry.approval');
+
+    Route::get('journalentry/approval/{id}/view', function ($id) {
+        return Inertia::render('journalentry/view', [
+            'id' => $id,
+            'returnTo' => '/journalentry/approval',
+            'listTitle' => 'Journal Entry Approval',
+        ]);
+    })->name('journalentry.approval.view');
     /* Journal Entry */
 
     /* Expense */

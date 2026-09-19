@@ -837,9 +837,8 @@ class Transaction extends Model
             || $request->is_direct === 'true';
 
         $status = $request->status ?: 'final';
-        $company = $companyId !== null ? Company::query()->with('companySetting')->find($companyId) : null;
 
-        if ($company?->companySetting?->sell_approval === true && $status === 'final') {
+        if ($status === 'final' && CompanySetting::autoApproves($companyId, 'sell')) {
             $status = 'approved';
         }
 
@@ -989,9 +988,8 @@ class Transaction extends Model
             || $request->is_direct === 'true';
 
         $status = $request->status ?: 'pending';
-        $company = $companyId !== null ? Company::query()->with('companySetting')->find($companyId) : null;
 
-        if ($company?->companySetting?->purchase_approval === true && $status === 'pending') {
+        if ($status === 'pending' && CompanySetting::autoApproves($companyId, 'purchase')) {
             $status = 'approved';
         }
 

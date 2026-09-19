@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 
 class CompanySetting extends Model
 {
@@ -61,6 +62,35 @@ class CompanySetting extends Model
         'auto_grn',
         'auto_gin',
     ];
+
+    /**
+     * Company settings that switch an approval step off ("Settings > Approval"): with the toggle on,
+     * a new record of that module is saved as approved straight away; with it off it waits for
+     * someone with the approve permission. Purchase orders, sell orders and journal entries all
+     * read the toggle through autoApproves().
+     *
+     * @var array<string, string>
+     */
+    public const AUTO_APPROVAL_COLUMNS = [
+        'purchase' => 'purchase_approval',
+        'sell' => 'sell_approval',
+        'journal' => 'journal_entry',
+    ];
+
+    /**
+     * Whether new records of $module ('purchase', 'sell' or 'journal') skip the approval step for the company.
+     */
+    public static function autoApproves(?int $companyId, string $module): bool
+    {
+        $column = self::AUTO_APPROVAL_COLUMNS[$module]
+            ?? throw new InvalidArgumentException("Unknown approval module [{$module}].");
+
+        if ($companyId === null) {
+            return false;
+        }
+
+        return (bool) self::query()->where('company_id', $companyId)->value($column);
+    }
 
     protected function casts(): array
     {

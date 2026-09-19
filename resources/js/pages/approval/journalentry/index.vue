@@ -1,22 +1,22 @@
 <script setup lang="ts">
-    import { onMounted, ref, watchEffect, computed } from 'vue';
-    import TopButtons from '@/components/topButtons.vue';
-    import TheFilter from '@/components/theFilter.vue';
-    import useCommons from '@/composables/common';
     import { Head, usePage } from '@inertiajs/vue3';
-    import debounce from '@/utils/debounce';
-    import useJournalEntries from '@/composables/journalentry';
+    import { onMounted, ref, watchEffect, computed } from 'vue';
+    import TheFilter from '@/components/theFilter.vue';
     import TheTable from '@/components/theTable.vue';
+    import TopButtons from '@/components/topButtons.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useCommons from '@/composables/common';
+    import useJournalEntryApprovals from '@/composables/journalEntryApproval';
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import debounce from '@/utils/debounce';
 
     defineOptions({
         layout: {
-            title: 'Journal Entry',
-            subtitle: 'Manual journal vouchers and adjusting entries',
+            title: 'Journal Entry Approval',
+            subtitle: 'Review pending journal entries, then view, approve, or reject them',
             breadcrumbs: [
                 {
-                    title: 'Journal Entry',
+                    title: 'Journal Entry Approval',
                     href: 'NULL',
                 },
             ],
@@ -27,12 +27,12 @@
 
     const {
         state,
-        getJournalEntries,
-        deleteRecord,
+        getApprovals,
         changeOrder,
         checkAll,
-        duplicate,
-    } = useJournalEntries();
+        approveJournal,
+        rejectJournal,
+    } = useJournalEntryApprovals();
 
     const {select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
 
@@ -40,6 +40,7 @@
         rolename?: string;
         company_id?: number | string | null;
         branch_id?: number | string | null;
+        permission_paths?: string[];
     } | null);
 
     const normalizeRoleName = (name: unknown): string =>
@@ -50,8 +51,11 @@
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
     const showCompanyFilter = computed(() => isSuperadmin.value);
     const showBranchFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
-    const showFilter = computed(() => true);
     const branchFilterDisabled = computed(() => showCompanyFilter.value && !state.search.company_id);
+
+    const permissionPaths = computed(() => authUser.value?.permission_paths ?? []);
+    const canApprove = computed(() => permissionPaths.value.includes('/journalentry/:id/approve'));
+    const canReject = computed(() => permissionPaths.value.includes('/journalentry/:id/reject'));
 
     const columns = computed(() => [
         ...(isSuperadmin.value ? [
@@ -64,15 +68,16 @@
         { key: 'voucher_date_label', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'formatted_amount', label: 'Total Amount', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'approve', 'reject']},
     ]);
 
     const currentUrl = ref('');
     const oldcurrentUrl = ref((getSavedValue('currentUrl') || ''));
     const currentPage = ref(getSavedValue('currentPage', (v) => parseInt(v, 10)) || 1);
     const currentSearch = ref(getSavedValue('currentSearch') || '');
-    const currentStatus = ref(getSavedValue('currentStatus') || 'all');
+    const currentStatus = ref(getSavedValue('currentStatus') || 'pending');
     const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
+
     if(getSavedValue('currentUrl') === props.routeName){
         currentUrl.value = (getSavedValue('currentUrl') || props.routeName);
     }else{
@@ -94,14 +99,15 @@
 
         ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
             const val = stateRefMap[key as keyof typeof stateRefMap]?.value
+
             if (val !== undefined && val !== null) {
             localStorage.setItem(key, val)
             }
         })
     })
 
-    const debouncedGetJournalEntries = debounce((params) => {
-        getJournalEntries(params);
+    const debouncedGetApprovals = debounce((params) => {
+        getApprovals(params);
     }, 300);
 
     const getData = async () => {
@@ -111,19 +117,38 @@
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
-            await debouncedGetJournalEntries({ ...state.search });
+
+            await debouncedGetApprovals({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching journal entries:', error);
+            console.error('Error fetching journal entry approvals:', error);
         }
     };
+
+    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
+        state.search.branch_id = '';
+        await fetchBranch(companyId);
+    }
+
+    async function handleApprove(id: number) {
+        if (await approveJournal(id)) {
+            getData();
+        }
+    }
+
+    async function handleReject(id: number) {
+        if (await rejectJournal(id)) {
+            getData();
+        }
+    }
 
     onMounted(async () => {
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
+        state.search.status = 'pending';
 
         if (showCompanyFilter.value) {
             await fetchCompany();
@@ -153,24 +178,19 @@
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetJournalEntries({ ...state.search });
+        debouncedGetApprovals({ ...state.search });
     });
-
-    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
-        state.search.branch_id = '';
-        await fetchBranch(companyId);
-    }
 
     function onStateUpdate(newState) {
         Object.assign(state, newState)
     }
 
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.journalEntries, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.journalEntryApprovals, () => state);
 
     const filterOpen = ref(false);
 
     function clearSearch() {
-        state.search.status = 'all';
+        state.search.status = 'pending';
         state.search.search = '';
         state.search.show_record = 10;
         state.search.page = 1;
@@ -191,21 +211,20 @@
                     :state="state"
                     :filter-open="filterOpen"
                     :getData="getData"
-                    :deleteRecord="deleteRecord"
-                    :url="`${props.routeName?.split('.')[0]}`"
-                    add-href="/journalentry/add"
-                    :show-filter="showFilter"
+                    url="journalentry"
+                    show-filter
                     :show-import="false"
+                    :show-add="false"
                     :show-status="false"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
 
-            <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
+            <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="journal-filter-company">Company</label>
+                    <label class="form-label" for="journal-approval-filter-company">Company</label>
                     <select
-                        id="journal-filter-company"
+                        id="journal-approval-filter-company"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -217,9 +236,9 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="journal-filter-branch">Branch</label>
+                    <label class="form-label" for="journal-approval-filter-branch">Branch</label>
                     <select
-                        id="journal-filter-branch"
+                        id="journal-approval-filter-branch"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
@@ -231,8 +250,8 @@
                     </select>
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="journal-filter-status">Status</label>
-                    <select id="journal-filter-status" class="form-select form-select-sm" v-model="state.search.status">
+                    <label class="form-label" for="journal-approval-filter-status">Status</label>
+                    <select id="journal-approval-filter-status" class="form-select form-select-sm" v-model="state.search.status">
                         <option value="all">All</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
@@ -251,13 +270,13 @@
                         :checkAll="checkAll"
                         :getData="getData"
                         :changeOrder="changeOrder"
-                        :delete="deleteRecord"
-                        :duplicate="duplicate"
-                        :view-route="(id) => `/journalentry/${id}/view`"
+                        :approve="canApprove ? handleApprove : undefined"
+                        :reject="canReject ? handleReject : undefined"
+                        :view-route="(id) => `/journalentry/approval/${id}/view`"
                         actionType="link"
-                        :apiUrl="props.routeName?.split('.')[0]"
+                        apiUrl="journalentry"
                         show-export
-                        :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                        export-file-name="journal-entry-approval"
                         :export-title="formatedText(props.routeName)"
                         :export-all-rows="fetchAllRowsForExport"
                         @update:state="onStateUpdate"

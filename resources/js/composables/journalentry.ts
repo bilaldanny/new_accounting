@@ -50,6 +50,12 @@ export default function useJournalEntries(){
       total_tax: 0,
       net_total: 0,
       status: 'pending',
+      status_label: '',
+      can_approve: false,
+      approved_by_name: '',
+      approved_at: '',
+      rejected_by_name: '',
+      rejected_at: '',
       taccountdetails: [] as JournalLineRow[],
       attachments: [] as JournalAttachment[],
     });

@@ -23,6 +23,7 @@ use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
+use App\Http\Controllers\JournalEntryApprovalController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\MenuController;
@@ -337,6 +338,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::resource('journal-entries', JournalEntryController::class);
     Route::post('/journal-entries/duplicate', [JournalEntryController::class, 'duplicate']);
     Route::post('/journal-entries/bulk_delete', [JournalEntryController::class, 'bulk_delete']);
+
+    /* Journal Entry Approval */
+    Route::get('journal-entry-approvals', [JournalEntryApprovalController::class, 'index']);
+    Route::get('journal-entry-approvals/{id}', [JournalEntryApprovalController::class, 'show']);
+    Route::post('journal-entry-approvals/{id}/approve', [JournalEntryApprovalController::class, 'approve']);
+    Route::post('journal-entry-approvals/{id}/reject', [JournalEntryApprovalController::class, 'reject']);
+    /* Journal Entry Approval */
     /* Journal Entry */
 
     /* Payment */

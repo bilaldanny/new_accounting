@@ -23,6 +23,12 @@ class TAccount extends Model
 
     public const VOUCHER_TYPES = ['JV', 'JE'];
 
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_REJECTED = 'rejected';
+
     public const PAYMENT_VOUCHER_TYPES = ['BP', 'CP', 'OP'];
 
     public const EXPENSE_VOUCHER_TYPES = ['EXP'];
@@ -47,6 +53,7 @@ class TAccount extends Model
         'created_by',
         'approved_by',
         'cancelled_by',
+        'rejected_by',
         'printed_by',
         'issuer_id',
         'account_code',
@@ -64,6 +71,7 @@ class TAccount extends Model
         'type',
         'printed_at',
         'approved_at',
+        'rejected_at',
     ];
 
     /**
@@ -80,6 +88,7 @@ class TAccount extends Model
             'is_print' => 'boolean',
             'printed_at' => 'datetime',
             'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -97,6 +106,22 @@ class TAccount extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     /**
@@ -150,6 +175,31 @@ class TAccount extends Model
         }
 
         return $query;
+    }
+
+    /**
+     * The status, search, company and branch filters shared by the journal entry list and the
+     * journal entry approval list. A status of 'all' applies no status filter.
+     */
+    public function scopeMatchingListFilters(Builder $query, Request $request, string $status = 'all'): Builder
+    {
+        $search = $request->search ?? '';
+
+        return $query
+            ->when($status !== 'all', function ($q) use ($status) {
+                $q->where('status', $status);
+            })
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($sub) use ($search) {
+                    $sub->whereAny(['voucher_no', 'comments'], 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('company_id'), function ($q) use ($request) {
+                $q->where('company_id', $request->company_id);
+            })
+            ->when($request->filled('branch_id'), function ($q) use ($request) {
+                $q->where('branch_id', $request->branch_id);
+            });
     }
 
     public function scopeManualJournals(Builder $query): Builder
@@ -327,6 +377,8 @@ class TAccount extends Model
         $duplicate = $journal->replicate([
             'approved_by',
             'approved_at',
+            'rejected_by',
+            'rejected_at',
             'cancelled_by',
             'printed_by',
             'printed_at',
@@ -337,7 +389,10 @@ class TAccount extends Model
             (int) $journal->branch_id,
             self::voucherTypeFromNumber((string) $journal->voucher_no),
         );
-        $duplicate->status = self::resolveStatus((int) $journal->company_id);
+        $duplicate->status = self::resolveStatus(
+            (int) $journal->company_id,
+            self::voucherTypeFromNumber((string) $journal->voucher_no),
+        );
         $duplicate->created_by = Auth::id();
         $duplicate->transaction_id = null;
         $duplicate->save();
@@ -356,7 +411,14 @@ class TAccount extends Model
      */
     public function presentForForm(): array
     {
-        $this->loadMissing(['details.account:id,code,name,acc_nature', 'attachments', 'company:id,name', 'branch:id,name']);
+        $this->loadMissing([
+            'details.account:id,code,name,acc_nature',
+            'attachments',
+            'company:id,name',
+            'branch:id,name',
+            'approvedBy:id,first_name,last_name',
+            'rejectedBy:id,first_name,last_name',
+        ]);
 
         return [
             'id' => $this->id,
@@ -370,6 +432,15 @@ class TAccount extends Model
             'comments' => $this->comments,
             'cheque_no' => $this->cheque_no,
             'status' => $this->status,
+            'status_label' => Str::headline((string) $this->status),
+            'approved_by' => $this->approved_by,
+            'approved_by_name' => $this->approvedBy?->full_name,
+            'approved_at' => $this->approved_at?->format('d M Y'),
+            'rejected_by' => $this->rejected_by,
+            'rejected_by_name' => $this->rejectedBy?->full_name,
+            'rejected_at' => $this->rejected_at?->format('d M Y'),
+            'can_approve' => $this->status === self::STATUS_PENDING
+                && in_array(self::voucherTypeFromNumber((string) $this->voucher_no), self::VOUCHER_TYPES, true),
             'total_amount' => $this->total_amount,
             'total_tax' => $this->total_tax,
             'net_total' => $this->net_total,
@@ -425,7 +496,7 @@ class TAccount extends Model
 
         if ($isNew) {
             $this->created_by = Auth::id();
-            $this->status = self::resolveStatus((int) $companyId);
+            $this->status = self::resolveStatus((int) $companyId, $voucherType);
             $this->voucher_no = filled($request->input('voucher_no'))
                 ? (string) $request->input('voucher_no')
                 : app(LedgerJournal::class)->nextVoucherNo((int) $companyId, (int) $branchId, $voucherType);
@@ -612,17 +683,92 @@ class TAccount extends Model
         return (string) ($first['code'] ?? '000-00000');
     }
 
-    public static function resolveStatus(int $companyId): string
+    /**
+     * Status a newly saved voucher starts in.
+     *
+     * Journal vouchers (JV/JE) follow the same approval mechanism as purchase and sell orders: the
+     * company's "Journal Entry Approval" toggle skips the approval step (approved straight away),
+     * otherwise the entry is pending until someone approves it. It does not count towards balances
+     * until then.
+     *
+     * Payment, expense, deposit and fund-transfer vouchers have no approval step yet, so they keep
+     * their previous rule (superadmin, or the same toggle switched on, leaves them pending).
+     */
+    public static function resolveStatus(int $companyId, string $voucherType = 'JV'): string
     {
+        if (in_array($voucherType, self::VOUCHER_TYPES, true)) {
+            return CompanySetting::autoApproves($companyId, 'journal') ? self::STATUS_APPROVED : self::STATUS_PENDING;
+        }
+
         if (Auth::user()?->hasRole('superadmin')) {
-            return 'pending';
+            return self::STATUS_PENDING;
         }
 
         $requiresApproval = (bool) CompanySetting::query()
             ->where('company_id', $companyId)
             ->value('journal_entry');
 
-        return $requiresApproval ? 'pending' : 'approved';
+        return $requiresApproval ? self::STATUS_PENDING : self::STATUS_APPROVED;
+    }
+
+    /**
+     * Approve a pending manual journal entry. The lines are re-checked first so an unbalanced
+     * voucher can never reach the ledger.
+     */
+    public static function approveJournal(int $id): self
+    {
+        $journal = self::findVisibleManualJournal($id);
+
+        if ($journal === null) {
+            abort(404);
+        }
+
+        if ($journal->status !== self::STATUS_PENDING) {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending journal entries can be approved.',
+            ]);
+        }
+
+        $journal->assertBalanced();
+
+        $journal->status = self::STATUS_APPROVED;
+        $journal->approved_by = Auth::id();
+        $journal->approved_at = now();
+        $journal->save();
+
+        return $journal;
+    }
+
+    /**
+     * Reject a pending manual journal entry. A rejected entry never reaches the ledger; the optional
+     * reason is kept on the voucher's comments.
+     */
+    public static function rejectJournal(int $id, ?string $reason = null): self
+    {
+        $journal = self::findVisibleManualJournal($id);
+
+        if ($journal === null) {
+            abort(404);
+        }
+
+        if ($journal->status !== self::STATUS_PENDING) {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending journal entries can be rejected.',
+            ]);
+        }
+
+        $reason = trim((string) $reason);
+
+        if ($reason !== '') {
+            $journal->comments = trim($journal->comments."\nRejected: ".$reason);
+        }
+
+        $journal->status = self::STATUS_REJECTED;
+        $journal->rejected_by = Auth::id();
+        $journal->rejected_at = now();
+        $journal->save();
+
+        return $journal;
     }
 
     /**
