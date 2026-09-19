@@ -18,8 +18,24 @@ function seedCustomerCoaMapping(array $scope): int
     $assetId = DB::table('chart_of_accounts')->insertGetId([
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'code' => '100-00000',
-        'name' => 'Trade Debtors',
+        'code' => '200-00000',
+        'name' => 'Assets',
+        'acc_type' => 'c',
+        'acc_nature' => 'dr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    // Same three-level shape as the live chart (Assets > Current Assets > Trade Debtors), because
+    // generateChartOfAccountCode() numbers customer accounts sequentially under a level-3 parent.
+    $currentAssetsId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $assetId,
+        'code' => '210-00000',
+        'name' => 'Current Assets',
         'acc_type' => 'c',
         'acc_nature' => 'dr',
         'bs' => 1,
@@ -31,9 +47,9 @@ function seedCustomerCoaMapping(array $scope): int
     $customerParentId = DB::table('chart_of_accounts')->insertGetId([
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'parent_id' => $assetId,
-        'code' => '100-00001',
-        'name' => 'Customers',
+        'parent_id' => $currentAssetsId,
+        'code' => '213-00000',
+        'name' => 'Trade Debtors',
         'acc_type' => 'c',
         'acc_nature' => 'dr',
         'bs' => 1,
@@ -187,12 +203,12 @@ test('customers api auto links customer to chart of account when mapping exists'
 
     expect($customer)->not->toBeNull()
         ->and($customer->link_account)->toBeTrue()
-        ->and($customer->customer_gl_id)->toBe('101-00000');
+        ->and($customer->customer_gl_id)->toBe('213-00001');
 
     $this->assertDatabaseHas('chart_of_accounts', [
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'code' => '101-00000',
+        'code' => '213-00001',
         'name' => 'Linked Customer Co',
         'acc_type' => 't',
     ]);
@@ -460,13 +476,13 @@ test('customers api links an existing unlinked customer to chart of account', fu
     $response->assertOk()
         ->assertJson([
             'message' => 'Successfully Linked',
-            'customer_gl_id' => '101-00000',
+            'customer_gl_id' => '213-00001',
             'link_account' => true,
         ]);
 
     $this->assertDatabaseHas('contacts', [
         'id' => $customer->id,
-        'customer_gl_id' => '101-00000',
+        'customer_gl_id' => '213-00001',
         'link_account' => 1,
     ]);
 });

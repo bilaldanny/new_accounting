@@ -18,7 +18,23 @@ function seedSupplierCoaMapping(array $scope): int
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
         'code' => '300-00000',
-        'name' => 'Trade Creditors',
+        'name' => 'Liabilities',
+        'acc_type' => 'c',
+        'acc_nature' => 'cr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    // Same three-level shape as the live chart (Liabilities > Current Liabilities > Trade Creditors),
+    // because generateChartOfAccountCode() numbers supplier accounts sequentially under a level-3 parent.
+    $currentLiabilitiesId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $liabilityId,
+        'code' => '310-00000',
+        'name' => 'Current Liabilities',
         'acc_type' => 'c',
         'acc_nature' => 'cr',
         'bs' => 1,
@@ -30,9 +46,9 @@ function seedSupplierCoaMapping(array $scope): int
     $supplierParentId = DB::table('chart_of_accounts')->insertGetId([
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'parent_id' => $liabilityId,
-        'code' => '300-00001',
-        'name' => 'Suppliers',
+        'parent_id' => $currentLiabilitiesId,
+        'code' => '311-00000',
+        'name' => 'Trade Creditors',
         'acc_type' => 'c',
         'acc_nature' => 'cr',
         'bs' => 1,
@@ -184,19 +200,19 @@ test('suppliers api auto links supplier to chart of account when mapping exists'
 
     expect($supplier)->not->toBeNull()
         ->and($supplier->link_account)->toBeTrue()
-        ->and($supplier->supplier_gl_id)->toBe('301-00000')
-        ->and($supplier->gl_id)->toBe('301-00000');
+        ->and($supplier->supplier_gl_id)->toBe('311-00001')
+        ->and($supplier->gl_id)->toBe('311-00001');
 
     $this->assertDatabaseHas('chart_of_accounts', [
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'code' => '301-00000',
+        'code' => '311-00001',
         'name' => 'Linked Supplier Co',
         'acc_type' => 't',
     ]);
 
     $coaId = DB::table('chart_of_accounts')
-        ->where('code', '301-00000')
+        ->where('code', '311-00001')
         ->value('id');
 
     $this->assertDatabaseHas('account_balances', [
@@ -526,14 +542,14 @@ test('suppliers api links an existing unlinked supplier to chart of account', fu
     $response->assertOk()
         ->assertJson([
             'message' => 'Successfully Linked',
-            'supplier_gl_id' => '301-00000',
+            'supplier_gl_id' => '311-00001',
             'link_account' => true,
         ]);
 
     $this->assertDatabaseHas('contacts', [
         'id' => $supplier->id,
-        'supplier_gl_id' => '301-00000',
-        'gl_id' => '301-00000',
+        'supplier_gl_id' => '311-00001',
+        'gl_id' => '311-00001',
         'link_account' => 1,
     ]);
 });
