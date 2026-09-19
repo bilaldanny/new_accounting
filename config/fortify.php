@@ -161,7 +161,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // No Features::registration(): companies and their users are provisioned by admins
+        // (User::createCompanyAdmin, the Users module); a self-registered user would have no company or role.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

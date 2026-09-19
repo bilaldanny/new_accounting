@@ -11,18 +11,22 @@ trait ProfileValidationRules
     /**
      * Get the validation rules used to validate user profiles.
      *
+     * The users table stores the name as first_name and last_name (both NOT NULL); there is no
+     * `name` column. The username is chosen when the account is created and is not edited here.
+     *
      * @return array<string, array<int, ValidationRule|array<mixed>|string>>
      */
     protected function profileRules(?int $userId = null): array
     {
         return [
-            'name' => $this->nameRules(),
+            'first_name' => $this->nameRules(),
+            'last_name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
         ];
     }
 
     /**
-     * Get the validation rules used to validate user names.
+     * Get the validation rules used to validate a first or last name.
      *
      * @return array<int, ValidationRule|array<mixed>|string>
      */

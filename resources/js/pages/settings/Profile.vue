@@ -23,6 +23,10 @@ defineOptions({
     },
 });
 
+defineProps<{
+    username: string;
+}>();
+
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 </script>
@@ -44,18 +48,48 @@ const user = computed(() => page.props.auth.user);
             class="space-y-6"
             v-slot="{ errors, processing }"
         >
+            <div class="grid gap-6 sm:grid-cols-2">
+                <div class="grid gap-2">
+                    <Label for="first_name">First name</Label>
+                    <Input
+                        id="first_name"
+                        class="mt-1 block w-full"
+                        name="first_name"
+                        :default-value="user.first_name"
+                        required
+                        autocomplete="given-name"
+                        placeholder="First name"
+                    />
+                    <InputError class="mt-2" :message="errors.first_name" />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="last_name">Last name</Label>
+                    <Input
+                        id="last_name"
+                        class="mt-1 block w-full"
+                        name="last_name"
+                        :default-value="user.last_name"
+                        required
+                        autocomplete="family-name"
+                        placeholder="Last name"
+                    />
+                    <InputError class="mt-2" :message="errors.last_name" />
+                </div>
+            </div>
+
             <div class="grid gap-2">
-                <Label for="name">Name</Label>
+                <Label for="username">Username</Label>
                 <Input
-                    id="name"
+                    id="username"
                     class="mt-1 block w-full"
-                    name="name"
-                    :default-value="user.name"
-                    required
-                    autocomplete="name"
-                    placeholder="Full name"
+                    :model-value="username"
+                    disabled
+                    readonly
                 />
-                <InputError class="mt-2" :message="errors.name" />
+                <p class="text-xs text-muted-foreground">
+                    Your username is used to sign in and cannot be changed here.
+                </p>
             </div>
 
             <div class="grid gap-2">
