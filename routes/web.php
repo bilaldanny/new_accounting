@@ -289,6 +289,134 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('purchase.trash');
     /* Purchase */
 
+    /* Stock Transfer */
+    Route::get('stocktransfer', function () {
+        return Inertia::render('stocktransfer/index');
+    })->name('stocktransfer');
+
+    Route::get('stocktransfer/add', function () {
+        return Inertia::render('stocktransfer/add');
+    })->name('stocktransfer.add');
+
+    Route::get('stocktransfer/{id}/edit', function ($id) {
+        return Inertia::render('stocktransfer/edit', ['id' => $id]);
+    })->name('stocktransfer.edit');
+
+    Route::get('stocktransfer/trash', function () {
+        return Inertia::render('stocktransfer/trash');
+    })->name('stocktransfer.trash');
+    /* Stock Transfer */
+
+    /* Warehouse */
+    Route::get('warehouse', function () {
+        return Inertia::render('warehouse/index');
+    })->name('warehouse');
+
+    Route::get('warehouse/add', function () {
+        return Inertia::render('warehouse/add');
+    })->name('warehouse.add');
+
+    Route::get('warehouse/{id}/edit', function ($id) {
+        return Inertia::render('warehouse/edit', ['id' => $id]);
+    })->name('warehouse.edit');
+
+    Route::get('warehouse/trash', function () {
+        return Inertia::render('warehouse/trash');
+    })->name('warehouse.trash');
+    /* Warehouse */
+
+    /* Consumer */
+    Route::get('consumer', function () {
+        return Inertia::render('consumer/index');
+    })->name('consumer');
+
+    Route::get('consumer/add', function () {
+        return Inertia::render('consumer/add');
+    })->name('consumer.add');
+
+    Route::get('consumer/{id}/edit', function ($id) {
+        return Inertia::render('consumer/edit', ['id' => $id]);
+    })->name('consumer.edit');
+
+    Route::get('consumer/trash', function () {
+        return Inertia::render('consumer/trash');
+    })->name('consumer.trash');
+    /* Consumer */
+
+    /* Bank Issuer */
+    Route::get('bankissuer', function () {
+        return Inertia::render('bankissuer/index');
+    })->name('bankissuer');
+
+    Route::get('bankissuer/add', function () {
+        return Inertia::render('bankissuer/add');
+    })->name('bankissuer.add');
+
+    Route::get('bankissuer/{id}/edit', function ($id) {
+        return Inertia::render('bankissuer/edit', ['id' => $id]);
+    })->name('bankissuer.edit');
+
+    Route::get('bankissuer/trash', function () {
+        return Inertia::render('bankissuer/trash');
+    })->name('bankissuer.trash');
+    /* Bank Issuer */
+
+    /* Price List */
+    Route::get('pricelist', function () {
+        return Inertia::render('pricelist/index');
+    })->name('pricelist');
+
+    Route::get('pricelist/add', function () {
+        return Inertia::render('pricelist/add');
+    })->name('pricelist.add');
+
+    Route::get('pricelist/{id}/edit', function ($id) {
+        return Inertia::render('pricelist/edit', ['id' => $id]);
+    })->name('pricelist.edit');
+
+    Route::get('pricelist/trash', function () {
+        return Inertia::render('pricelist/trash');
+    })->name('pricelist.trash');
+    /* Price List */
+
+    /* Print Label */
+    Route::get('printlabel', function () {
+        return Inertia::render('printlabel/index');
+    })->name('printlabel');
+    /* Print Label */
+
+    /* Low Stock */
+    Route::get('lowstock', function () {
+        return Inertia::render('lowstock/index');
+    })->name('lowstock');
+    /* Low Stock */
+
+    /* Reports */
+    Route::get('report/ledger', function () {
+        abortUnlessMenuPermission('/report/ledger');
+
+        return Inertia::render('report/ledger');
+    })->name('report.ledger');
+    /* Reports */
+
+    /* Stock Adjustment */
+    Route::get('stockadjustment', function () {
+        return Inertia::render('stockadjustment/index');
+    })->name('stockadjustment');
+
+    Route::get('stockadjustment/add', function () {
+        return Inertia::render('stockadjustment/add');
+    })->name('stockadjustment.add');
+
+    Route::get('stockadjustment/{id}/edit', function ($id) {
+        return Inertia::render('stockadjustment/edit', ['id' => $id]);
+    })->name('stockadjustment.edit');
+
+    Route::get('stockadjustment/trash', function () {
+        return Inertia::render('stockadjustment/trash');
+    })->name('stockadjustment.trash');
+    /* Stock Adjustment */
+
     /* Receiving Note */
     Route::get('receivingnote', function () {
         return Inertia::render('purchase/receivingnote/index');
@@ -375,6 +503,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('sell/pos/add', function () {
         return Inertia::render('sell/addpos');
     })->name('sell.pos.add');
+
+    Route::get('sell/pos/display', function () {
+        return Inertia::render('sell/posdisplay');
+    })->name('sell.pos.display');
 
     Route::get('sell/{id}/invoice', function ($id) {
         return Inertia::render('sell/invoice', ['id' => $id]);
@@ -469,6 +601,60 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('journalentry.view');
     /* Journal Entry */
 
+    /* Expense */
+    Route::get('expense', function () {
+        return Inertia::render('expense/index');
+    })->name('expense');
+
+    Route::get('expense/add', function () {
+        return Inertia::render('expense/add');
+    })->name('expense.add');
+
+    Route::get('expense/{id}/edit', function ($id) {
+        return Inertia::render('expense/edit', ['id' => $id]);
+    })->name('expense.edit');
+
+    Route::get('expense/{id}/view', function ($id) {
+        return Inertia::render('expense/view', ['id' => $id]);
+    })->name('expense.view');
+    /* Expense */
+
+    /* Deposit */
+    Route::get('deposit', function () {
+        return Inertia::render('deposit/index');
+    })->name('deposit');
+
+    Route::get('deposit/add', function () {
+        return Inertia::render('deposit/add');
+    })->name('deposit.add');
+
+    Route::get('deposit/{id}/edit', function ($id) {
+        return Inertia::render('deposit/edit', ['id' => $id]);
+    })->name('deposit.edit');
+
+    Route::get('deposit/{id}/view', function ($id) {
+        return Inertia::render('deposit/view', ['id' => $id]);
+    })->name('deposit.view');
+    /* Deposit */
+
+    /* Fund Transfer */
+    Route::get('fundtransfer', function () {
+        return Inertia::render('fundtransfer/index');
+    })->name('fundtransfer');
+
+    Route::get('fundtransfer/add', function () {
+        return Inertia::render('fundtransfer/add');
+    })->name('fundtransfer.add');
+
+    Route::get('fundtransfer/{id}/edit', function ($id) {
+        return Inertia::render('fundtransfer/edit', ['id' => $id]);
+    })->name('fundtransfer.edit');
+
+    Route::get('fundtransfer/{id}/view', function ($id) {
+        return Inertia::render('fundtransfer/view', ['id' => $id]);
+    })->name('fundtransfer.view');
+    /* Fund Transfer */
+
     /* Variation */
     Route::get('variation', function () {
         return Inertia::render('product/variation/index');
@@ -552,6 +738,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('software/city/trash');
     })->name('city.trash');
     /* City */
+
+    /* Tax / Financial Year: sidebar deep links into the Company Setting tabs */
+    Route::get('tax', function () {
+        return Inertia::render('company/setting', ['tab' => 'tax']);
+    })->name('tax');
+
+    Route::get('financialyear', function () {
+        return Inertia::render('company/setting', ['tab' => 'financialYear']);
+    })->name('financialyear');
+    /* Tax / Financial Year */
 
     /* Setting */
     Route::get('setting', function () {

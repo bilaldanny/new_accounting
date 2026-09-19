@@ -32,6 +32,10 @@
         },
     });
 
+    const props = defineProps<{
+        tab?: string;
+    }>();
+
     const page = usePage();
 
     const normalizeRoleName = (name: unknown): string =>
@@ -73,7 +77,9 @@
     const { handleError } = useCommons();
 
     const formRef = ref(null);
-    const activeTab = ref('business');
+    const activeTab = ref(
+        settingTabs.some((tab) => tab.id === props.tab) ? String(props.tab) : 'business',
+    );
     const pageReady = ref(false);
 
     const selectedCompanyId = computed(() => {

@@ -1,11 +1,11 @@
 <script setup lang="ts">
+    import { usePage } from '@inertiajs/vue3';
+    import { Boxes, CalendarDays, ImagePlus, Truck } from '@lucide/vue';
+    import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import type { PurchaseLineRow } from '@/composables/purchase';
     import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
-    import { usePage } from '@inertiajs/vue3';
-    import { Boxes, CalendarDays, ImagePlus, Truck } from '@lucide/vue';
-    import { computed, onMounted, ref, watch } from 'vue';
     import LineItemsEditor from './LineItemsEditor.vue';
 
     const params = defineProps({
@@ -66,9 +66,10 @@
     const isSuperadmin = computed(() => roleName.value === 'superadmin');
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
     const showCompanyField = computed(() => isSuperadmin.value);
-    const showBranchField = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const canManageBranch = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const showBranchField = computed(() => canManageBranch.value && branchesdata.value.length > 1);
     const showHiddenCompanyField = computed(() => ! isSuperadmin.value);
-    const showHiddenBranchField = computed(() => ! isSuperadmin.value && ! isCompanyadmin.value);
+    const showHiddenBranchField = computed(() => ! showBranchField.value);
     const isEdit = computed(() => params.type === 'edit');
 
     const {
@@ -296,7 +297,7 @@
     async function loadBranchOptions(companyId: string | number | null | undefined) {
         const normalizedCompanyId = normalizeId(companyId);
 
-        if (! showBranchField.value) {
+        if (! canManageBranch.value) {
             return;
         }
 
@@ -312,6 +313,10 @@
 
         lastFetchedCompanyId.value = normalizedCompanyId;
         await fetchBranch(normalizedCompanyId);
+
+        if (branchesdata.value.length === 1) {
+            persist({ branch_id: branchesdata.value[0].id });
+        }
     }
 
     async function handleCompanyChange(companyId: string | number | null | undefined) {
@@ -966,11 +971,11 @@
             name="additional_note"
             label="Internal note"
             placeholder="Receiving instructions, supplier comments, or other remarks"
-            :columns="colFull"
+            :columns="colHalf"
             :rows="4"
         />
 
-        <StaticElement name="purchase_summary" :columns="colFull">
+        <StaticElement name="purchase_summary" :columns="colHalf">
             <div class="space-y-3.5 rounded-xl border border-slate-200/90 bg-slate-50/70 p-5">
                     <div>
                         <span class="mb-1 block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Summary</span>

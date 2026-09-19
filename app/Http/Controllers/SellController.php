@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Company;
 use App\Models\Payment;
 use App\Models\Transaction;
+use App\Services\CustomerCreditLimit;
 use App\Services\SellJournal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -172,7 +173,13 @@ class SellController extends Controller
             return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
-        return response()->json(['message' => 'Successfully Saved', 'stock_warnings' => $sell->stockWarnings]);
+        return response()->json([
+            'message' => 'Successfully Saved',
+            'id' => $sell->id,
+            'invoice_no' => $sell->invoice_no,
+            'final_amount' => $sell->final_amount,
+            'stock_warnings' => $sell->stockWarnings,
+        ]);
     }
 
     public function show($id)
@@ -381,11 +388,16 @@ class SellController extends Controller
         try {
             foreach ($sells as $sell) {
                 if (isset($request->status)) {
+                    $previous = ['status' => $sell->status, 'final_amount' => (float) $sell->final_amount];
                     $sell->status = $request->status;
+                    app(CustomerCreditLimit::class)->assertWithinLimit($sell, $previous);
                     $sell->save();
                 }
             }
             DB::commit();
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Throwable $e) {
             DB::rollBack();
 

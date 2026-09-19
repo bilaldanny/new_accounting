@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountBalanceController;
 use App\Http\Controllers\BankController;
+use App\Http\Controllers\BankIssuerController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
@@ -9,19 +10,26 @@ use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanySettingController;
+use App\Http\Controllers\ConsumerController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DepositController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinancialYearController;
+use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PriceListController;
+use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseApprovalController;
 use App\Http\Controllers\PurchaseController;
@@ -36,12 +44,15 @@ use App\Http\Controllers\SellPaymentController;
 use App\Http\Controllers\SellReturnController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
+use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
+use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -335,6 +346,27 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/payments/bulk_delete', [PaymentController::class, 'bulk_delete']);
     /* Payment */
 
+    /* Expense */
+    Route::get('expenses/voucher-no', [ExpenseController::class, 'voucherNo']);
+    Route::resource('expenses', ExpenseController::class);
+    Route::post('/expenses/duplicate', [ExpenseController::class, 'duplicate']);
+    Route::post('/expenses/bulk_delete', [ExpenseController::class, 'bulk_delete']);
+    /* Expense */
+
+    /* Deposit */
+    Route::get('deposits/voucher-no', [DepositController::class, 'voucherNo']);
+    Route::resource('deposits', DepositController::class);
+    Route::post('/deposits/duplicate', [DepositController::class, 'duplicate']);
+    Route::post('/deposits/bulk_delete', [DepositController::class, 'bulk_delete']);
+    /* Deposit */
+
+    /* Fund Transfer */
+    Route::get('fundtransfers/voucher-no', [FundTransferController::class, 'voucherNo']);
+    Route::resource('fundtransfers', FundTransferController::class);
+    Route::post('/fundtransfers/duplicate', [FundTransferController::class, 'duplicate']);
+    Route::post('/fundtransfers/bulk_delete', [FundTransferController::class, 'bulk_delete']);
+    /* Fund Transfer */
+
     Route::get('purchases/search-products', [PurchaseController::class, 'searchProducts']);
     Route::get('purchases/trash', [PurchaseController::class, 'trash']);
     Route::resource('purchases', PurchaseController::class);
@@ -344,6 +376,73 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('purchases/bulk_delete_per', [PurchaseController::class, 'bulk_delete_per']);
     Route::post('purchases/restore_records', [PurchaseController::class, 'restore_records']);
     /* Purchase */
+
+    /* Stock Transfer */
+    Route::get('stocktransfers/search-products', [StockTransferController::class, 'searchProducts']);
+    Route::get('stocktransfers/trash', [StockTransferController::class, 'trash']);
+    Route::resource('stocktransfers', StockTransferController::class);
+    Route::post('stocktransfers/statusupdate', [StockTransferController::class, 'updatestatus']);
+    Route::post('stocktransfers/bulk_delete', [StockTransferController::class, 'bulk_delete']);
+    Route::post('stocktransfers/bulk_delete_per', [StockTransferController::class, 'bulk_delete_per']);
+    Route::post('stocktransfers/restore_records', [StockTransferController::class, 'restore_records']);
+    /* Stock Transfer */
+
+    /* Stock Adjustment */
+    Route::get('stockadjustments/search-products', [StockAdjustmentController::class, 'searchProducts']);
+    Route::get('stockadjustments/trash', [StockAdjustmentController::class, 'trash']);
+    Route::resource('stockadjustments', StockAdjustmentController::class);
+    Route::post('stockadjustments/statusupdate', [StockAdjustmentController::class, 'updatestatus']);
+    Route::post('stockadjustments/bulk_delete', [StockAdjustmentController::class, 'bulk_delete']);
+    Route::post('stockadjustments/bulk_delete_per', [StockAdjustmentController::class, 'bulk_delete_per']);
+    Route::post('stockadjustments/restore_records', [StockAdjustmentController::class, 'restore_records']);
+    /* Stock Adjustment */
+
+    /* Warehouse */
+    Route::get('warehouses/trash', [WarehouseController::class, 'trash']);
+    Route::get('fetchwarehouses', [WarehouseController::class, 'fetch']);
+    Route::resource('warehouses', WarehouseController::class);
+    Route::post('warehouses/statusupdate', [WarehouseController::class, 'updatestatus']);
+    Route::post('warehouses/bulk_delete', [WarehouseController::class, 'bulk_delete']);
+    Route::post('warehouses/bulk_delete_per', [WarehouseController::class, 'bulk_delete_per']);
+    Route::post('warehouses/restore_records', [WarehouseController::class, 'restore_records']);
+    /* Warehouse */
+
+    /* Consumer */
+    Route::get('consumers/trash', [ConsumerController::class, 'trash']);
+    Route::get('fetchconsumers', [ConsumerController::class, 'fetch']);
+    Route::resource('consumers', ConsumerController::class);
+    Route::post('consumers/statusupdate', [ConsumerController::class, 'updatestatus']);
+    Route::post('consumers/bulk_delete', [ConsumerController::class, 'bulk_delete']);
+    Route::post('consumers/bulk_delete_per', [ConsumerController::class, 'bulk_delete_per']);
+    Route::post('consumers/restore_records', [ConsumerController::class, 'restore_records']);
+    /* Consumer */
+
+    /* Bank Issuer */
+    Route::get('bank-issuers/trash', [BankIssuerController::class, 'trash']);
+    Route::get('fetchbankissuers', [BankIssuerController::class, 'fetch']);
+    Route::resource('bank-issuers', BankIssuerController::class);
+    Route::post('bank-issuers/statusupdate', [BankIssuerController::class, 'updatestatus']);
+    Route::post('bank-issuers/bulk_delete', [BankIssuerController::class, 'bulk_delete']);
+    Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
+    Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
+    /* Bank Issuer */
+
+    /* Price List */
+    Route::get('pricelists/search-products', [PriceListController::class, 'searchProducts']);
+    Route::get('pricelists/trash', [PriceListController::class, 'trash']);
+    Route::resource('pricelists', PriceListController::class);
+    Route::post('pricelists/bulk_delete', [PriceListController::class, 'bulk_delete']);
+    Route::post('pricelists/bulk_delete_per', [PriceListController::class, 'bulk_delete_per']);
+    Route::post('pricelists/restore_records', [PriceListController::class, 'restore_records']);
+    /* Price List */
+
+    /* Print Label */
+    Route::get('printlabels/search-products', [PrintLabelController::class, 'searchProducts']);
+    /* Print Label */
+
+    /* Low Stock */
+    Route::get('lowstock', [LowStockController::class, 'index']);
+    /* Low Stock */
 
     /* Purchase Payment */
     Route::get('purchase-payments/eligible-purchases', [PurchasePaymentController::class, 'eligiblePurchases']);

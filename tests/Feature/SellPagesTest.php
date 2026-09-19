@@ -15,6 +15,11 @@ test('guests cannot access the sell edit page', function () {
         ->assertRedirect();
 });
 
+test('guests cannot access the sell pos customer display page', function () {
+    $this->get(route('sell.pos.display'))
+        ->assertRedirect();
+});
+
 test('authenticated users can open the sell add page', function () {
     $superadmin = User::query()->findOrFail(1);
 
@@ -88,6 +93,11 @@ test('authenticated users can open sell draft quotation shipment pos and invoice
         ->get(route('sell.pos.add'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page->component('sell/addpos'));
+
+    $this->actingAs($superadmin)
+        ->get(route('sell.pos.display'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->component('sell/posdisplay'));
 
     $this->actingAs($superadmin)
         ->get(route('sell.invoice', 12))

@@ -25,6 +25,12 @@ class TAccount extends Model
 
     public const PAYMENT_VOUCHER_TYPES = ['BP', 'CP', 'OP'];
 
+    public const EXPENSE_VOUCHER_TYPES = ['EXP'];
+
+    public const DEPOSIT_VOUCHER_TYPES = ['BD', 'CD', 'OD'];
+
+    public const FUND_TRANSFER_VOUCHER_TYPES = ['FT'];
+
     /**
      * Voucher prefixes for system-generated purchase/sell payment postings.
      * Kept separate from PAYMENT_VOUCHER_TYPES so manual journal entry (see
@@ -169,6 +175,32 @@ class TAccount extends Model
             });
     }
 
+    public function scopeManualExpenses(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('transaction_id')
+            ->where('voucher_no', 'like', 'EXP-%');
+    }
+
+    public function scopeManualDeposits(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('transaction_id')
+            ->where(function (Builder $voucherQuery) {
+                $voucherQuery
+                    ->where('voucher_no', 'like', 'BD-%')
+                    ->orWhere('voucher_no', 'like', 'CD-%')
+                    ->orWhere('voucher_no', 'like', 'OD-%');
+            });
+    }
+
+    public function scopeManualFundTransfers(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('transaction_id')
+            ->where('voucher_no', 'like', 'FT-%');
+    }
+
     public static function resolveScopedId(mixed $value): ?int
     {
         if ($value === null || $value === '' || $value === 'undefined') {
@@ -188,15 +220,32 @@ class TAccount extends Model
         return self::findVisibleManualVoucher($id, 'payment');
     }
 
+    public static function findVisibleManualExpense(int $id): ?self
+    {
+        return self::findVisibleManualVoucher($id, 'expense');
+    }
+
+    public static function findVisibleManualDeposit(int $id): ?self
+    {
+        return self::findVisibleManualVoucher($id, 'deposit');
+    }
+
+    public static function findVisibleManualFundTransfer(int $id): ?self
+    {
+        return self::findVisibleManualVoucher($id, 'fundtransfer');
+    }
+
     public static function findVisibleManualVoucher(int $id, string $family = 'journal'): ?self
     {
         $query = self::query()->visibleToCurrentUser();
 
-        if ($family === 'payment') {
-            $query->manualPayments();
-        } else {
-            $query->manualJournals();
-        }
+        match ($family) {
+            'payment' => $query->manualPayments(),
+            'expense' => $query->manualExpenses(),
+            'deposit' => $query->manualDeposits(),
+            'fundtransfer' => $query->manualFundTransfers(),
+            default => $query->manualJournals(),
+        };
 
         return $query->find($id);
     }
@@ -364,7 +413,7 @@ class TAccount extends Model
         $this->total_tax = 0;
         $this->type = self::ledgerTypeForVoucher($voucherType);
         $this->ref_no = (string) $request->input('ref_no', '');
-        $this->cheque_no = $voucherType === 'OP'
+        $this->cheque_no = in_array($voucherType, ['OP', 'OD'], true)
             ? 'ONLINE'
             : (string) $request->input('cheque_no', '');
         $this->account_code = $this->headerAccountCode($request);
@@ -581,7 +630,14 @@ class TAccount extends Model
      */
     public static function allVoucherTypes(): array
     {
-        return array_merge(self::VOUCHER_TYPES, self::PAYMENT_VOUCHER_TYPES, self::TRANSACTION_PAYMENT_VOUCHER_TYPES);
+        return array_merge(
+            self::VOUCHER_TYPES,
+            self::PAYMENT_VOUCHER_TYPES,
+            self::EXPENSE_VOUCHER_TYPES,
+            self::DEPOSIT_VOUCHER_TYPES,
+            self::FUND_TRANSFER_VOUCHER_TYPES,
+            self::TRANSACTION_PAYMENT_VOUCHER_TYPES,
+        );
     }
 
     public static function voucherTypeFromNumber(string $voucherNo): string
@@ -601,6 +657,11 @@ class TAccount extends Model
             'JE' => 'Journal Entry',
             'PP' => 'Purchase Payment',
             'SP' => 'Sell Payment',
+            'EXP' => 'Expense',
+            'BD' => 'Bank Deposit',
+            'CD' => 'Cash Deposit',
+            'OD' => 'Online Deposit',
+            'FT' => 'Fund Transfer',
             default => 'Voucher',
         };
     }
@@ -608,8 +669,8 @@ class TAccount extends Model
     private static function ledgerTypeForVoucher(string $voucherType): string
     {
         return match ($voucherType) {
-            'CP' => 'cash',
-            'BP' => 'bank',
+            'CP', 'CD' => 'cash',
+            'BP', 'BD' => 'bank',
             default => 'online',
         };
     }

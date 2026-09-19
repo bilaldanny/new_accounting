@@ -1,12 +1,5 @@
 <script setup lang="ts">
-    import { computed, onMounted, ref, watch } from 'vue';
     import { Head, Link, usePage } from '@inertiajs/vue3';
-    import { dashboard } from '@/routes';
-    import useCommons from '@/composables/common';
-    import useAccountBalances from '@/composables/accountBalance';
-    import type { OpeningBalanceAccount } from '@/composables/accountBalance';
-    import { formatNumber } from '@/utils/numberFormat';
-    import FieldHint from '@/pages/journalentry/FieldHint.vue';
     import {
         AlertTriangle,
         CheckCircle2,
@@ -22,6 +15,13 @@
         TrendingDown,
         TrendingUp,
     } from '@lucide/vue';
+    import { computed, onMounted, ref, watch } from 'vue';
+    import useAccountBalances from '@/composables/accountBalance';
+    import type { OpeningBalanceAccount } from '@/composables/accountBalance';
+    import useCommons from '@/composables/common';
+    import FieldHint from '@/pages/journalentry/FieldHint.vue';
+    import { dashboard } from '@/routes';
+    import { formatNumber } from '@/utils/numberFormat';
 
     defineOptions({
         layout: {
@@ -730,7 +730,6 @@
                 </div>
             </div>
         </div>
-    </div>
 </template>
 
 <style scoped>

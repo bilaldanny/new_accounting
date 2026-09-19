@@ -48,3 +48,5 @@ require __DIR__.'/Support/purchase.php';
 require __DIR__.'/Support/sell.php';
 require __DIR__.'/Support/menuPermission.php';
 require __DIR__.'/Support/company.php';
+require __DIR__.'/Support/stocktransfer.php';
+require __DIR__.'/Support/stockadjustment.php';

@@ -1,20 +1,22 @@
 import '../scss/app.scss';
 
-import { createInertiaApp, usePage, router } from '@inertiajs/vue3';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import type { DefineComponent } from 'vue';
-import { createApp, createSSRApp, defineComponent, h, type App as VueApp } from 'vue';
-import Popper from "vue3-popper";
-import { createPinia } from 'pinia'
 import VueNotification from '@dafcoe/vue-notification';
+import { createInertiaApp, usePage, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { createPinia } from 'pinia'
+import { createApp, createSSRApp, defineComponent, h  } from 'vue';
+import type { DefineComponent } from 'vue';
+import type {App as VueApp} from 'vue';
+import Popper from "vue3-popper";
 import '@dafcoe/vue-notification/dist/vue-notification.css';
+import { ZiggyVue } from 'ziggy-js';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
-import axios from 'axios';
 
 const VueformSsrStub = defineComponent({
     inheritAttrs: false,
@@ -83,9 +85,11 @@ async function initializeClientLibraries(): Promise<void> {
             const token = document
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute('content');
+
             if (token) {
                 config.headers['X-CSRF-TOKEN'] = token;
             }
+
             return config;
         },
         (error) => {
@@ -102,11 +106,14 @@ async function initializeClientLibraries(): Promise<void> {
                 const token = document
                     .querySelector('meta[name="csrf-token"]')
                     ?.getAttribute('content');
+
                 if (token && error.config) {
                     error.config.headers['X-CSRF-TOKEN'] = token;
+
                     return axios.request(error.config);
                 }
             }
+
             return Promise.reject(error);
         },
     );
@@ -151,6 +158,7 @@ async function initializeClientLibraries(): Promise<void> {
                 // Suppress Summernote tooltip errors
                 if (event.filename && event.filename.includes('summernote')) {
                     event.preventDefault();
+
                     return false;
                 }
             }
@@ -191,7 +199,6 @@ async function initializeClientLibraries(): Promise<void> {
 }
 
 /* ZiggyVue */
-import { ZiggyVue } from 'ziggy-js';
 import { Ziggy } from './ziggy';
 
 // Use runtime URL from server (@routes) - fixes dev URL showing on production
@@ -239,18 +246,22 @@ async function bootstrapClientApp(
 
         const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
         let newToken = null;
+
         try {
             const page = usePage();
             newToken = (page.props as any)?.csrfToken;
         } catch {
             // usePage might not be available yet
         }
+
         if (!newToken) {
             newToken = props.initialPage?.props?.csrfToken;
         }
+
         if (!newToken) {
             newToken = csrfTokenMeta?.getAttribute('content');
         }
+
         if (csrfTokenMeta && newToken) {
             csrfTokenMeta.setAttribute('content', newToken);
             axios.defaults.headers.common['X-CSRF-TOKEN'] = newToken;
@@ -327,6 +338,8 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            case name === 'sell/addpos':
+            case name === 'sell/posdisplay':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

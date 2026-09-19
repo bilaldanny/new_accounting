@@ -1,7 +1,7 @@
 <script setup lang="ts">
-    import { computed } from 'vue';
     import { Link } from '@inertiajs/vue3';
     import { Check, ChevronLeft, Home } from '@lucide/vue';
+    import { computed } from 'vue';
     import { dashboard } from '@/routes';
 
     const props = withDefaults(defineProps<{
@@ -127,22 +127,22 @@
                         </button>
                         <button
                             type="button"
-                            class="btn btn-sm btn-outline-primary hidden sm:inline-flex"
+                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-teal-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-teal-100/80 disabled:opacity-50"
                             :disabled="isBusy"
                             :aria-busy="isWorking && saveAction === 'add-new'"
                             @click="emit('save', 'add-new')"
                         >
                             <span
                                 v-if="isWorking && saveAction === 'add-new'"
-                                class="spinner-border spinner-border-sm me-1"
+                                class="spinner-border spinner-border-sm"
                                 role="status"
                                 aria-hidden="true"
                             ></span>
-                            {{ isWorking && saveAction === 'add-new' ? 'Saving…' : 'Save & Add New' }}
+                            <span>{{ isWorking && saveAction === 'add-new' ? 'Saving…' : 'Save & Add New' }}</span>
                         </button>
                         <button
                             type="button"
-                            class="btn btn-sm btn-primary inline-flex items-center gap-1.5"
+                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-teal-700 px-4 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-xs transition-all hover:bg-teal-800 hover:shadow active:bg-teal-900 disabled:opacity-50"
                             :disabled="isBusy"
                             :aria-busy="isWorking && saveAction === 'close'"
                             @click="emit('save', 'close')"
