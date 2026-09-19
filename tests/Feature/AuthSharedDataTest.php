@@ -57,3 +57,32 @@ test('shared auth user includes company name', function () {
             ->where('auth.user.search_type', 'selectbox')
         );
 });
+
+test('shared auth user includes a name built from the first and last name', function () {
+    $user = User::factory()->create(['first_name' => 'amina', 'last_name' => 'khan']);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.name', 'Amina Khan')
+            ->where('auth.user.name', $user->full_name)
+            ->where('auth.user.fullname', 'Amina Khan')
+            ->where('auth.user.first_name', 'amina')
+            ->where('auth.user.last_name', 'khan')
+        );
+});
+
+test('shared auth user name has no trailing space when the last name is empty', function () {
+    $user = User::factory()->create(['first_name' => 'Company', 'last_name' => '']);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn (Assert $page) => $page->where('auth.user.name', 'Company'));
+});
+
+test('shared auth user is null for guests so there is no name to read', function () {
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('auth.user', null));
+});
