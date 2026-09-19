@@ -1,25 +1,43 @@
 <?php
 
+use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
-beforeEach(function () {
-    $this->skipUnlessFortifyHas(Features::registration());
+/**
+ * Self sign-up is switched off. POST /register used to return 500 (it created the user from a
+ * `name` field, but users needs first_name, last_name and username), and a self-registered user
+ * would have had no company or role anyway: companies get their admin through
+ * User::createCompanyAdmin and other staff are added in the Users module.
+ */
+test('registration is not one of the enabled fortify features', function () {
+    expect(Features::enabled(Features::registration()))->toBeFalse();
 });
 
-test('registration screen can be rendered', function () {
-    $response = $this->get(route('register'));
-
-    $response->assertOk();
+test('the registration screen is not available', function () {
+    $this->get('/register')->assertNotFound();
 });
 
-test('new users can register', function () {
-    $response = $this->post(route('register.store'), [
-        'name' => 'Test User',
+test('posting to the registration endpoint creates no user', function () {
+    $before = User::query()->count();
+
+    $this->post('/register', [
+        'first_name' => 'Test',
+        'last_name' => 'User',
+        'username' => 'testuser',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
-    ]);
+    ])->assertNotFound();
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
-})->skip('Known app bug: POST /register returns 500. CreateNewUser creates the user from a `name` field, but users needs first_name, last_name and username (NOT NULL). Un-skip once registration is fixed or disabled.');
+    $this->assertGuest();
+    expect(User::query()->count())->toBe($before);
+});
+
+test('the welcome page no longer offers a register link', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Welcome'));
+
+    expect(file_get_contents(resource_path('js/pages/Welcome.vue')))->not->toContain('register');
+});
