@@ -28,7 +28,7 @@ test('security page is displayed', function () {
             ->where('canManageTwoFactor', true)
             ->where('twoFactorEnabled', false),
         );
-})->skip('Known app bug: GET /settings/security returns 500 (BadMethodCallException: User::passkeys()). The User model lacks the Laravel\Fortify\PasskeyAuthenticatable trait / PasskeyUser contract while passkeys are enabled in config/fortify.php.');
+});
 
 test('security page requires password confirmation when enabled', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
