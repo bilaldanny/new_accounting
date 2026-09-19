@@ -43,9 +43,6 @@ class JournalEntryController extends Controller
 
     public function index(Request $request)
     {
-        $status = $request->status ?? 'all';
-        $search = $request->search ?? '';
-
         $query = TAccount::query()
             ->manualJournals()
             ->visibleToCurrentUser()
@@ -53,20 +50,7 @@ class JournalEntryController extends Controller
                 'company:id,name',
                 'branch:id,name',
             ])
-            ->when($status !== 'all', function ($q) use ($status) {
-                $q->where('status', $status);
-            })
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($sub) use ($search) {
-                    $sub->whereAny(['voucher_no', 'comments'], 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('company_id'), function ($q) use ($request) {
-                $q->where('company_id', $request->company_id);
-            })
-            ->when($request->filled('branch_id'), function ($q) use ($request) {
-                $q->where('branch_id', $request->branch_id);
-            });
+            ->matchingListFilters($request, (string) ($request->status ?? 'all'));
 
         $journals = $this->paginateSorted($query, $request);
 

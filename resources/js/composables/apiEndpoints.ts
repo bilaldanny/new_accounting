@@ -145,6 +145,7 @@ export const API_ENDPOINTS = {
     contactLedgerWatches: '/api/contact-ledger-watches',
     journalEntries: '/api/journal-entries',
     journalEntryVoucherNo: '/api/journal-entries/voucher-no',
+    journalEntryApprovals: '/api/journal-entry-approvals',
     payments: '/api/payments',
     paymentVoucherNo: '/api/payments/voucher-no',
     expenses: '/api/expenses',

@@ -1,14 +1,23 @@
 <script setup lang="ts">
+    import { Head, router, setLayoutProps, usePage } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import useCommons from '@/composables/common';
     import useJournalEntries from '@/composables/journalentry';
-    import { Head, router, setLayoutProps } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
+    import useJournalEntryApprovals from '@/composables/journalEntryApproval';
 
     const pageProps = defineProps({
         id: {
             required: true,
             type: [String, Number],
+        },
+        returnTo: {
+            type: String,
+            default: '/journalentry',
+        },
+        listTitle: {
+            type: String,
+            default: 'Journal Entry',
         },
     });
 
@@ -17,8 +26,8 @@
         subtitle: 'Review voucher details, lines, and attachments',
         breadcrumbs: [
             {
-                title: 'Journal Entry',
-                href: '/journalentry',
+                title: pageProps.listTitle,
+                href: pageProps.returnTo,
             },
             {
                 title: 'View Journal Entry',
@@ -29,9 +38,15 @@
 
     const { formatedText } = useCommons();
     const { formData, getEditData } = useJournalEntries();
+    const { approveJournal, rejectJournal } = useJournalEntryApprovals();
+    const page = usePage();
 
     const pageReady = ref(false);
+    const isActing = ref(false);
     const recordId = computed(() => Number(pageProps.id));
+    const permissionPaths = computed(() => (page.props.auth as { user?: { permission_paths?: string[] } } | undefined)?.user?.permission_paths ?? []);
+    const canApprove = computed(() => Boolean(formData.value.can_approve) && permissionPaths.value.includes('/journalentry/:id/approve'));
+    const canReject = computed(() => Boolean(formData.value.can_approve) && permissionPaths.value.includes('/journalentry/:id/reject'));
     const lines = computed(() => Array.isArray(formData.value?.taccountdetails) ? formData.value.taccountdetails : []);
     const attachments = computed(() => Array.isArray(formData.value?.attachments) ? formData.value.attachments : []);
     const totalDebit = computed(() => lines.value.reduce((sum, line) => sum + Number(line.debit || 0), 0));
@@ -55,11 +70,23 @@
             return 'is-warning';
         }
 
-        if (value === 'cancelled') {
+        if (value === 'cancelled' || value === 'rejected') {
             return 'is-danger';
         }
 
         return 'is-muted';
+    }
+
+    async function handleDecision(decision: 'approve' | 'reject') {
+        isActing.value = true;
+        const done = decision === 'approve'
+            ? await approveJournal(recordId.value)
+            : await rejectJournal(recordId.value);
+        isActing.value = false;
+
+        if (done) {
+            pageReady.value = await getEditData(recordId.value);
+        }
     }
 
     function printDocument() {
@@ -94,6 +121,12 @@
                             {{ formData.voucher_date || '—' }}
                             <span v-if="formData.branch_name"> · {{ formData.branch_name }}</span>
                             <span v-if="formData.company_name"> · {{ formData.company_name }}</span>
+                        </p>
+                        <p v-if="formData.approved_by_name" class="purchase-approval-doc__meta">
+                            Approved by {{ formData.approved_by_name }}<span v-if="formData.approved_at"> on {{ formData.approved_at }}</span>
+                        </p>
+                        <p v-if="formData.rejected_by_name" class="purchase-approval-doc__meta">
+                            Rejected by {{ formData.rejected_by_name }}<span v-if="formData.rejected_at"> on {{ formData.rejected_at }}</span>
                         </p>
                     </div>
                     <div class="purchase-approval-doc__badges">
@@ -163,7 +196,7 @@
 
             <div class="product-form-page__footer purchase-approval-page__footer">
                 <div class="product-form-page__actions">
-                    <button type="button" class="btn btn-light" @click="router.visit('/journalentry')">Close</button>
+                    <button type="button" class="btn btn-light" @click="router.visit(pageProps.returnTo)">Close</button>
                     <button type="button" class="btn btn-outline-secondary" :disabled="!pageReady" @click="printDocument">Print</button>
                     <button
                         v-if="formData.status === 'pending'"
@@ -173,6 +206,26 @@
                         @click="router.visit(`/journalentry/${recordId}/edit`)"
                     >
                         Edit
+                    </button>
+                    <button
+                        v-if="canReject"
+                        type="button"
+                        class="btn btn-outline-danger"
+                        :disabled="!pageReady || isActing"
+                        @click="handleDecision('reject')"
+                    >
+                        Reject
+                    </button>
+                    <button
+                        v-if="canApprove"
+                        type="button"
+                        class="btn btn-primary d-inline-flex align-items-center"
+                        :disabled="!pageReady || isActing"
+                        :aria-busy="isActing"
+                        @click="handleDecision('approve')"
+                    >
+                        <span v-if="isActing" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Approve
                     </button>
                 </div>
             </div>
