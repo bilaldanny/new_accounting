@@ -17,8 +17,24 @@ function seedBankCoaMapping(array $scope): int
     $assetId = DB::table('chart_of_accounts')->insertGetId([
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'code' => '100-00000',
+        'code' => '200-00000',
         'name' => 'Assets',
+        'acc_type' => 'c',
+        'acc_nature' => 'dr',
+        'bs' => 1,
+        'active' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    // Same three-level shape as the live chart (Assets > Current Assets > Banks), because
+    // generateChartOfAccountCode() numbers bank accounts sequentially under a level-3 parent.
+    $currentAssetsId = DB::table('chart_of_accounts')->insertGetId([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'parent_id' => $assetId,
+        'code' => '210-00000',
+        'name' => 'Current Assets',
         'acc_type' => 'c',
         'acc_nature' => 'dr',
         'bs' => 1,
@@ -30,8 +46,8 @@ function seedBankCoaMapping(array $scope): int
     $bankParentId = DB::table('chart_of_accounts')->insertGetId([
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'parent_id' => $assetId,
-        'code' => '100-00001',
+        'parent_id' => $currentAssetsId,
+        'code' => '211-00000',
         'name' => 'Banks',
         'acc_type' => 'c',
         'acc_nature' => 'dr',
@@ -168,12 +184,12 @@ test('banks api auto links bank to chart of account when mapping exists', functi
 
     expect($bank)->not->toBeNull()
         ->and($bank->link_account)->toBeTrue()
-        ->and($bank->gl_id)->toBe('101-00000');
+        ->and($bank->gl_id)->toBe('211-00001');
 
     $this->assertDatabaseHas('chart_of_accounts', [
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
-        'code' => '101-00000',
+        'code' => '211-00001',
         'name' => 'Linked Bank',
         'acc_type' => 't',
     ]);
@@ -309,7 +325,7 @@ test('banks api links an existing unlinked bank to chart of account', function (
     $response->assertOk()
         ->assertJson([
             'message' => 'Successfully Linked',
-            'gl_id' => '101-00000',
+            'gl_id' => '211-00001',
             'link_account' => true,
         ]);
 });
