@@ -99,6 +99,26 @@ export const approvalFields = [
         hint: 'Enable or disable approval of journal entry. This will remove approval step for journal entry.',
     },
     {
+        name: 'payment_voucher_approval',
+        label: 'Payment Voucher Approval',
+        hint: 'Enable or disable approval of payment vouchers. This will remove approval step for payment vouchers.',
+    },
+    {
+        name: 'expense_approval',
+        label: 'Expense Approval',
+        hint: 'Enable or disable approval of expenses. This will remove approval step for expenses.',
+    },
+    {
+        name: 'deposit_approval',
+        label: 'Deposit Approval',
+        hint: 'Enable or disable approval of deposits. This will remove approval step for deposits.',
+    },
+    {
+        name: 'fund_transfer_approval',
+        label: 'Fund Transfer Approval',
+        hint: 'Enable or disable approval of fund transfers. This will remove approval step for fund transfers.',
+    },
+    {
         name: 'cash_collection',
         label: 'Cash Collection Approval',
         hint: 'Enable or disable approval of Cash Collection. This will remove approval step for Cash Collection.',

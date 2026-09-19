@@ -55,6 +55,10 @@ class CompanySetting extends Model
         'purchase_approval',
         'sell_approval',
         'journal_entry',
+        'payment_voucher_approval',
+        'expense_approval',
+        'deposit_approval',
+        'fund_transfer_approval',
         'show_sku',
         'cash_collection',
         'payment',
@@ -66,8 +70,8 @@ class CompanySetting extends Model
     /**
      * Company settings that switch an approval step off ("Settings > Approval"): with the toggle on,
      * a new record of that module is saved as approved straight away; with it off it waits for
-     * someone with the approve permission. Purchase orders, sell orders and journal entries all
-     * read the toggle through autoApproves().
+     * someone with the approve permission. Purchase orders, sell orders, journal entries and the
+     * payment, expense, deposit and fund transfer vouchers all read the toggle through autoApproves().
      *
      * @var array<string, string>
      */
@@ -75,10 +79,14 @@ class CompanySetting extends Model
         'purchase' => 'purchase_approval',
         'sell' => 'sell_approval',
         'journal' => 'journal_entry',
+        'payment' => 'payment_voucher_approval',
+        'expense' => 'expense_approval',
+        'deposit' => 'deposit_approval',
+        'fundtransfer' => 'fund_transfer_approval',
     ];
 
     /**
-     * Whether new records of $module ('purchase', 'sell' or 'journal') skip the approval step for the company.
+     * Whether new records of $module (a key of AUTO_APPROVAL_COLUMNS) skip the approval step for the company.
      */
     public static function autoApproves(?int $companyId, string $module): bool
     {
@@ -101,6 +109,10 @@ class CompanySetting extends Model
             'purchase_approval' => 'boolean',
             'sell_approval' => 'boolean',
             'journal_entry' => 'boolean',
+            'payment_voucher_approval' => 'boolean',
+            'expense_approval' => 'boolean',
+            'deposit_approval' => 'boolean',
+            'fund_transfer_approval' => 'boolean',
             'show_sku' => 'boolean',
             'cash_collection' => 'boolean',
             'payment' => 'boolean',
@@ -257,6 +269,10 @@ class CompanySetting extends Model
             'purchase_approval' => (bool) $setting->purchase_approval,
             'sell_approval' => (bool) $setting->sell_approval,
             'journal_entry' => (bool) $setting->journal_entry,
+            'payment_voucher_approval' => (bool) $setting->payment_voucher_approval,
+            'expense_approval' => (bool) $setting->expense_approval,
+            'deposit_approval' => (bool) $setting->deposit_approval,
+            'fund_transfer_approval' => (bool) $setting->fund_transfer_approval,
             'show_sku' => (bool) $setting->show_sku,
             'cash_collection' => (bool) $setting->cash_collection,
             'payment' => (bool) $setting->payment,
@@ -306,6 +322,10 @@ class CompanySetting extends Model
             'purchase_approval',
             'sell_approval',
             'journal_entry',
+            'payment_voucher_approval',
+            'expense_approval',
+            'deposit_approval',
+            'fund_transfer_approval',
             'show_sku',
             'cash_collection',
             'payment',

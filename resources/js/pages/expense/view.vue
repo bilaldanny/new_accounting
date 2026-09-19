@@ -2,6 +2,7 @@
     import { Head, router, setLayoutProps } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
+    import VoucherApprovalActions from '@/components/VoucherApprovalActions.vue';
     import useCommons from '@/composables/common';
     import useExpenses from '@/composables/expense';
 
@@ -10,6 +11,14 @@
             required: true,
             type: [String, Number],
         },
+        returnTo: {
+            type: String,
+            default: '/expense',
+        },
+        listTitle: {
+            type: String,
+            default: 'Expense',
+        },
     });
 
     setLayoutProps({
@@ -17,8 +26,8 @@
         subtitle: 'Review expense details, accounts, and attachments',
         breadcrumbs: [
             {
-                title: 'Expense',
-                href: '/expense',
+                title: pageProps.listTitle,
+                href: pageProps.returnTo,
             },
             {
                 title: 'View Expense',
@@ -55,7 +64,7 @@
             return 'is-warning';
         }
 
-        if (value === 'cancelled') {
+        if (value === 'cancelled' || value === 'rejected') {
             return 'is-danger';
         }
 
@@ -73,9 +82,11 @@
         window.print();
     }
 
-    onMounted(async () => {
+    async function reload() {
         pageReady.value = await getEditData(recordId.value);
-    });
+    }
+
+    onMounted(reload);
 </script>
 
 <template>
@@ -95,6 +106,12 @@
                             <span v-if="formData.ref_no"> · Ref: {{ formData.ref_no }}</span>
                             <span v-if="formData.branch_name"> · {{ formData.branch_name }}</span>
                             <span v-if="formData.company_name"> · {{ formData.company_name }}</span>
+                        </p>
+                        <p v-if="formData.approved_by_name" class="purchase-approval-doc__meta">
+                            Approved by {{ formData.approved_by_name }}<span v-if="formData.approved_at"> on {{ formData.approved_at }}</span>
+                        </p>
+                        <p v-if="formData.rejected_by_name" class="purchase-approval-doc__meta">
+                            Rejected by {{ formData.rejected_by_name }}<span v-if="formData.rejected_at"> on {{ formData.rejected_at }}</span>
                         </p>
                     </div>
                     <div class="purchase-approval-doc__badges">
@@ -164,7 +181,7 @@
 
             <div class="product-form-page__footer purchase-approval-page__footer">
                 <div class="product-form-page__actions">
-                    <button type="button" class="btn btn-light" @click="router.visit('/expense')">Close</button>
+                    <button type="button" class="btn btn-light" @click="router.visit(pageProps.returnTo)">Close</button>
                     <button type="button" class="btn btn-outline-secondary" :disabled="!pageReady" @click="printDocument">Print</button>
                     <button
                         v-if="formData.status === 'pending'"
@@ -175,6 +192,13 @@
                     >
                         Edit
                     </button>
+                    <VoucherApprovalActions
+                        family="expense"
+                        :record-id="recordId"
+                        :can-decide="Boolean(formData.can_approve)"
+                        :disabled="!pageReady"
+                        @decided="reload"
+                    />
                 </div>
             </div>
         </div>

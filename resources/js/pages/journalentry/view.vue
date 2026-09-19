@@ -1,10 +1,10 @@
 <script setup lang="ts">
-    import { Head, router, setLayoutProps, usePage } from '@inertiajs/vue3';
+    import { Head, router, setLayoutProps } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
+    import VoucherApprovalActions from '@/components/VoucherApprovalActions.vue';
     import useCommons from '@/composables/common';
     import useJournalEntries from '@/composables/journalentry';
-    import useJournalEntryApprovals from '@/composables/journalEntryApproval';
 
     const pageProps = defineProps({
         id: {
@@ -38,15 +38,9 @@
 
     const { formatedText } = useCommons();
     const { formData, getEditData } = useJournalEntries();
-    const { approveJournal, rejectJournal } = useJournalEntryApprovals();
-    const page = usePage();
 
     const pageReady = ref(false);
-    const isActing = ref(false);
     const recordId = computed(() => Number(pageProps.id));
-    const permissionPaths = computed(() => (page.props.auth as { user?: { permission_paths?: string[] } } | undefined)?.user?.permission_paths ?? []);
-    const canApprove = computed(() => Boolean(formData.value.can_approve) && permissionPaths.value.includes('/journalentry/:id/approve'));
-    const canReject = computed(() => Boolean(formData.value.can_approve) && permissionPaths.value.includes('/journalentry/:id/reject'));
     const lines = computed(() => Array.isArray(formData.value?.taccountdetails) ? formData.value.taccountdetails : []);
     const attachments = computed(() => Array.isArray(formData.value?.attachments) ? formData.value.attachments : []);
     const totalDebit = computed(() => lines.value.reduce((sum, line) => sum + Number(line.debit || 0), 0));
@@ -77,18 +71,6 @@
         return 'is-muted';
     }
 
-    async function handleDecision(decision: 'approve' | 'reject') {
-        isActing.value = true;
-        const done = decision === 'approve'
-            ? await approveJournal(recordId.value)
-            : await rejectJournal(recordId.value);
-        isActing.value = false;
-
-        if (done) {
-            pageReady.value = await getEditData(recordId.value);
-        }
-    }
-
     function printDocument() {
         const cleanup = () => {
             document.body.classList.remove('is-printing-purchase');
@@ -100,9 +82,11 @@
         window.print();
     }
 
-    onMounted(async () => {
+    async function reload() {
         pageReady.value = await getEditData(recordId.value);
-    });
+    }
+
+    onMounted(reload);
 </script>
 
 <template>
@@ -207,26 +191,13 @@
                     >
                         Edit
                     </button>
-                    <button
-                        v-if="canReject"
-                        type="button"
-                        class="btn btn-outline-danger"
-                        :disabled="!pageReady || isActing"
-                        @click="handleDecision('reject')"
-                    >
-                        Reject
-                    </button>
-                    <button
-                        v-if="canApprove"
-                        type="button"
-                        class="btn btn-primary d-inline-flex align-items-center"
-                        :disabled="!pageReady || isActing"
-                        :aria-busy="isActing"
-                        @click="handleDecision('approve')"
-                    >
-                        <span v-if="isActing" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                        Approve
-                    </button>
+                    <VoucherApprovalActions
+                        family="journal"
+                        :record-id="recordId"
+                        :can-decide="Boolean(formData.can_approve)"
+                        :disabled="!pageReady"
+                        @decided="reload"
+                    />
                 </div>
             </div>
         </div>

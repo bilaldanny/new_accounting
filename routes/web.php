@@ -667,6 +667,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('fundtransfer.view');
     /* Fund Transfer */
 
+    /* Payment, Expense, Deposit and Fund Transfer Approval */
+    foreach ([
+        'acpayment' => ['payment', 'Payment Approval'],
+        'expense' => ['expense', 'Expense Approval'],
+        'deposit' => ['deposit', 'Deposit Approval'],
+        'fundtransfer' => ['fundtransfer', 'Fund Transfer Approval'],
+    ] as $path => [$page, $listTitle]) {
+        Route::get($path.'/approval', function () use ($page) {
+            return Inertia::render('approval/'.$page.'/index');
+        })->name($path.'.approval');
+
+        Route::get($path.'/approval/{id}/view', function ($id) use ($page, $path, $listTitle) {
+            return Inertia::render($page.'/view', [
+                'id' => $id,
+                'returnTo' => '/'.$path.'/approval',
+                'listTitle' => $listTitle,
+            ]);
+        })->name($path.'.approval.view');
+    }
+    /* Payment, Expense, Deposit and Fund Transfer Approval */
+
     /* Variation */
     Route::get('variation', function () {
         return Inertia::render('product/variation/index');

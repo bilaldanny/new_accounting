@@ -50,3 +50,4 @@ require __DIR__.'/Support/menuPermission.php';
 require __DIR__.'/Support/company.php';
 require __DIR__.'/Support/stocktransfer.php';
 require __DIR__.'/Support/stockadjustment.php';
+require __DIR__.'/Support/voucherApproval.php';
