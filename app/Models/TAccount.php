@@ -251,6 +251,48 @@ class TAccount extends Model
             ->where('voucher_no', 'like', 'FT-%');
     }
 
+    /**
+     * Manual vouchers of one approval family: 'journal', 'payment', 'expense', 'deposit' or
+     * 'fundtransfer'. Anything else is treated as a journal.
+     */
+    public function scopeManualFamily(Builder $query, string $family): Builder
+    {
+        return match ($family) {
+            'payment' => $query->manualPayments(),
+            'expense' => $query->manualExpenses(),
+            'deposit' => $query->manualDeposits(),
+            'fundtransfer' => $query->manualFundTransfers(),
+            default => $query->manualJournals(),
+        };
+    }
+
+    /**
+     * The approval family a voucher prefix belongs to (also the key of
+     * CompanySetting::AUTO_APPROVAL_COLUMNS), or null for system-generated prefixes such as PP/SP.
+     */
+    public static function familyForVoucherType(string $voucherType): ?string
+    {
+        return match (true) {
+            in_array($voucherType, self::VOUCHER_TYPES, true) => 'journal',
+            in_array($voucherType, self::PAYMENT_VOUCHER_TYPES, true) => 'payment',
+            in_array($voucherType, self::EXPENSE_VOUCHER_TYPES, true) => 'expense',
+            in_array($voucherType, self::DEPOSIT_VOUCHER_TYPES, true) => 'deposit',
+            in_array($voucherType, self::FUND_TRANSFER_VOUCHER_TYPES, true) => 'fundtransfer',
+            default => null,
+        };
+    }
+
+    private static function familyLabel(string $family): string
+    {
+        return match ($family) {
+            'payment' => 'payments',
+            'expense' => 'expenses',
+            'deposit' => 'deposits',
+            'fundtransfer' => 'fund transfers',
+            default => 'journal entries',
+        };
+    }
+
     public static function resolveScopedId(mixed $value): ?int
     {
         if ($value === null || $value === '' || $value === 'undefined') {
@@ -287,17 +329,7 @@ class TAccount extends Model
 
     public static function findVisibleManualVoucher(int $id, string $family = 'journal'): ?self
     {
-        $query = self::query()->visibleToCurrentUser();
-
-        match ($family) {
-            'payment' => $query->manualPayments(),
-            'expense' => $query->manualExpenses(),
-            'deposit' => $query->manualDeposits(),
-            'fundtransfer' => $query->manualFundTransfers(),
-            default => $query->manualJournals(),
-        };
-
-        return $query->find($id);
+        return self::query()->visibleToCurrentUser()->manualFamily($family)->find($id);
     }
 
     /**
@@ -440,7 +472,7 @@ class TAccount extends Model
             'rejected_by_name' => $this->rejectedBy?->full_name,
             'rejected_at' => $this->rejected_at?->format('d M Y'),
             'can_approve' => $this->status === self::STATUS_PENDING
-                && in_array(self::voucherTypeFromNumber((string) $this->voucher_no), self::VOUCHER_TYPES, true),
+                && self::familyForVoucherType(self::voucherTypeFromNumber((string) $this->voucher_no)) !== null,
             'total_amount' => $this->total_amount,
             'total_tax' => $this->total_tax,
             'net_total' => $this->net_total,
@@ -686,89 +718,77 @@ class TAccount extends Model
     /**
      * Status a newly saved voucher starts in.
      *
-     * Journal vouchers (JV/JE) follow the same approval mechanism as purchase and sell orders: the
-     * company's "Journal Entry Approval" toggle skips the approval step (approved straight away),
-     * otherwise the entry is pending until someone approves it. It does not count towards balances
-     * until then.
-     *
-     * Payment, expense, deposit and fund-transfer vouchers have no approval step yet, so they keep
-     * their previous rule (superadmin, or the same toggle switched on, leaves them pending).
+     * Every manual voucher family (journal, payment, expense, deposit, fund transfer) follows the
+     * same approval mechanism as purchase and sell orders: the company's auto-approval toggle for
+     * that family (CompanySetting::AUTO_APPROVAL_COLUMNS) skips the approval step, otherwise the
+     * voucher is pending until someone with the approve permission approves it. It does not count
+     * towards balances until then.
      */
     public static function resolveStatus(int $companyId, string $voucherType = 'JV'): string
     {
-        if (in_array($voucherType, self::VOUCHER_TYPES, true)) {
-            return CompanySetting::autoApproves($companyId, 'journal') ? self::STATUS_APPROVED : self::STATUS_PENDING;
-        }
+        $family = self::familyForVoucherType($voucherType) ?? 'journal';
 
-        if (Auth::user()?->hasRole('superadmin')) {
-            return self::STATUS_PENDING;
-        }
-
-        $requiresApproval = (bool) CompanySetting::query()
-            ->where('company_id', $companyId)
-            ->value('journal_entry');
-
-        return $requiresApproval ? self::STATUS_PENDING : self::STATUS_APPROVED;
+        return CompanySetting::autoApproves($companyId, $family) ? self::STATUS_APPROVED : self::STATUS_PENDING;
     }
 
     /**
-     * Approve a pending manual journal entry. The lines are re-checked first so an unbalanced
-     * voucher can never reach the ledger.
+     * Approve a pending manual voucher of the given family. The lines are re-checked first so an
+     * unbalanced voucher can never reach the ledger.
      */
-    public static function approveJournal(int $id): self
+    public static function approveVoucher(int $id, string $family = 'journal'): self
     {
-        $journal = self::findVisibleManualJournal($id);
+        $voucher = self::findVisibleManualVoucher($id, $family);
 
-        if ($journal === null) {
+        if ($voucher === null) {
             abort(404);
         }
 
-        if ($journal->status !== self::STATUS_PENDING) {
+        if ($voucher->status !== self::STATUS_PENDING) {
             throw ValidationException::withMessages([
-                'status' => 'Only pending journal entries can be approved.',
+                'status' => 'Only pending '.self::familyLabel($family).' can be approved.',
             ]);
         }
 
-        $journal->assertBalanced();
+        $voucher->assertBalanced();
 
-        $journal->status = self::STATUS_APPROVED;
-        $journal->approved_by = Auth::id();
-        $journal->approved_at = now();
-        $journal->save();
+        $voucher->status = self::STATUS_APPROVED;
+        $voucher->approved_by = Auth::id();
+        $voucher->approved_at = now();
+        $voucher->save();
 
-        return $journal;
+        return $voucher;
     }
 
     /**
-     * Reject a pending manual journal entry. A rejected entry never reaches the ledger; the optional
-     * reason is kept on the voucher's comments.
+     * Reject a pending manual voucher of the given family. A rejected voucher never reaches the
+     * ledger; the optional reason is kept on the voucher's comments.
      */
-    public static function rejectJournal(int $id, ?string $reason = null): self
+    public static function rejectVoucher(int $id, string $family = 'journal', ?string $reason = null): self
     {
-        $journal = self::findVisibleManualJournal($id);
+        $voucher = self::findVisibleManualVoucher($id, $family);
 
-        if ($journal === null) {
+        if ($voucher === null) {
             abort(404);
         }
 
-        if ($journal->status !== self::STATUS_PENDING) {
+        if ($voucher->status !== self::STATUS_PENDING) {
             throw ValidationException::withMessages([
-                'status' => 'Only pending journal entries can be rejected.',
+                'status' => 'Only pending '.self::familyLabel($family).' can be rejected.',
             ]);
         }
 
         $reason = trim((string) $reason);
 
         if ($reason !== '') {
-            $journal->comments = trim($journal->comments."\nRejected: ".$reason);
+            $voucher->comments = trim($voucher->comments."\nRejected: ".$reason);
         }
 
-        $journal->status = self::STATUS_REJECTED;
-        $journal->rejected_by = Auth::id();
-        $journal->rejected_at = now();
-        $journal->save();
+        $voucher->status = self::STATUS_REJECTED;
+        $voucher->rejected_by = Auth::id();
+        $voucher->rejected_at = now();
+        $voucher->save();
 
-        return $journal;
+        return $voucher;
     }
 
     /**

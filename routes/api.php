@@ -23,7 +23,6 @@ use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
-use App\Http\Controllers\JournalEntryApprovalController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\MenuController;
@@ -53,6 +52,7 @@ use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
+use App\Http\Controllers\VoucherApprovalController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Http\Request;
@@ -339,12 +339,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/journal-entries/duplicate', [JournalEntryController::class, 'duplicate']);
     Route::post('/journal-entries/bulk_delete', [JournalEntryController::class, 'bulk_delete']);
 
-    /* Journal Entry Approval */
-    Route::get('journal-entry-approvals', [JournalEntryApprovalController::class, 'index']);
-    Route::get('journal-entry-approvals/{id}', [JournalEntryApprovalController::class, 'show']);
-    Route::post('journal-entry-approvals/{id}/approve', [JournalEntryApprovalController::class, 'approve']);
-    Route::post('journal-entry-approvals/{id}/reject', [JournalEntryApprovalController::class, 'reject']);
-    /* Journal Entry Approval */
+    /* Voucher Approval: journal entries, payments, expenses, deposits and fund transfers */
+    foreach ([
+        'journal' => 'journal-entry-approvals',
+        'payment' => 'payment-approvals',
+        'expense' => 'expense-approvals',
+        'deposit' => 'deposit-approvals',
+        'fundtransfer' => 'fund-transfer-approvals',
+    ] as $family => $uri) {
+        Route::get($uri, [VoucherApprovalController::class, 'index'])->defaults('family', $family);
+        Route::get($uri.'/{id}', [VoucherApprovalController::class, 'show'])->defaults('family', $family);
+        Route::post($uri.'/{id}/approve', [VoucherApprovalController::class, 'approve'])->defaults('family', $family);
+        Route::post($uri.'/{id}/reject', [VoucherApprovalController::class, 'reject'])->defaults('family', $family);
+    }
+    /* Voucher Approval */
     /* Journal Entry */
 
     /* Payment */

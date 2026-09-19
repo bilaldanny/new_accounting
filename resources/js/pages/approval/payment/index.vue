@@ -3,11 +3,11 @@
 
     defineOptions({
         layout: {
-            title: 'Journal Entry Approval',
-            subtitle: 'Review pending journal entries, then view, approve, or reject them',
+            title: 'Payment Approval',
+            subtitle: 'Review pending payments, then view, approve, or reject them',
             breadcrumbs: [
                 {
-                    title: 'Journal Entry Approval',
+                    title: 'Payment Approval',
                     href: 'NULL',
                 },
             ],
@@ -17,9 +17,9 @@
 
 <template>
     <VoucherApprovalList
-        family="journal"
-        api-url="journalentry"
-        view-base="/journalentry/approval"
-        export-name="journal-entry-approval"
+        family="payment"
+        api-url="acpayment"
+        view-base="/acpayment/approval"
+        export-name="payment-approval"
     />
 </template>

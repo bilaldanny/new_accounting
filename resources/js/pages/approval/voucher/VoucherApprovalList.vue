@@ -4,35 +4,36 @@
     import TheFilter from '@/components/theFilter.vue';
     import TheTable from '@/components/theTable.vue';
     import TopButtons from '@/components/topButtons.vue';
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
-    import useFundTransfers from '@/composables/fundtransfer';
     import { createTableExportAllRows } from '@/composables/tableExportList';
+    import useVoucherApprovals, { VOUCHER_APPROVAL } from '@/composables/voucherApproval';
+    import type { VoucherFamily } from '@/composables/voucherApproval';
     import debounce from '@/utils/debounce';
 
-    defineOptions({
-        layout: {
-            title: 'Fund Transfer',
-            subtitle: 'Transfers between your own bank and cash accounts',
-            breadcrumbs: [
-                {
-                    title: 'Fund Transfer',
-                    href: 'NULL',
-                },
-            ],
-        },
-    });
+    /**
+     * The approval list shared by journal entries, payments, expenses, deposits and fund transfers:
+     * pending vouchers by default, with view, approve and reject actions the user's role allows.
+     */
+    const voucher = defineProps<{
+        family: VoucherFamily;
+        /** Menu path prefix without the slash, e.g. `expense`: the row-level view permission is `/expense/:id/view`. */
+        apiUrl: string;
+        /** Where the row view link goes, e.g. `/expense/approval` gives `/expense/approval/{id}/view`. */
+        viewBase: string;
+        exportName: string;
+    }>();
 
     const { props } = usePage();
 
     const {
         state,
-        getFundTransfers,
-        deleteRecord,
+        config,
+        getApprovals,
         changeOrder,
         checkAll,
-        duplicate,
-    } = useFundTransfers();
+        approveVoucher,
+        rejectVoucher,
+    } = useVoucherApprovals(voucher.family);
 
     const {select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
 
@@ -40,6 +41,7 @@
         rolename?: string;
         company_id?: number | string | null;
         branch_id?: number | string | null;
+        permission_paths?: string[];
     } | null);
 
     const normalizeRoleName = (name: unknown): string =>
@@ -50,8 +52,11 @@
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
     const showCompanyFilter = computed(() => isSuperadmin.value);
     const showBranchFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
-    const showFilter = computed(() => true);
     const branchFilterDisabled = computed(() => showCompanyFilter.value && !state.search.company_id);
+
+    const permissionPaths = computed(() => authUser.value?.permission_paths ?? []);
+    const canApprove = computed(() => permissionPaths.value.includes(VOUCHER_APPROVAL[voucher.family].approvePath));
+    const canReject = computed(() => permissionPaths.value.includes(VOUCHER_APPROVAL[voucher.family].rejectPath));
 
     const columns = computed(() => [
         ...(isSuperadmin.value ? [
@@ -62,16 +67,16 @@
         ] : []),
         { key: 'voucher_no', label: 'Voucher No', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
         { key: 'voucher_date_label', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'formatted_amount', label: 'Amount', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'formatted_amount', label: 'Total Amount', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'edit', 'delete', 'duplicate']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'approve', 'reject']},
     ]);
 
     const currentUrl = ref('');
     const oldcurrentUrl = ref((getSavedValue('currentUrl') || ''));
     const currentPage = ref(getSavedValue('currentPage', (v) => parseInt(v, 10)) || 1);
     const currentSearch = ref(getSavedValue('currentSearch') || '');
-    const currentStatus = ref(getSavedValue('currentStatus') || 'all');
+    const currentStatus = ref(getSavedValue('currentStatus') || 'pending');
     const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
 
     if(getSavedValue('currentUrl') === props.routeName){
@@ -102,8 +107,8 @@
         })
     })
 
-    const debouncedGetFundTransfers = debounce((params) => {
-        getFundTransfers(params);
+    const debouncedGetApprovals = debounce((params) => {
+        getApprovals(params);
     }, 300);
 
     const getData = async () => {
@@ -114,19 +119,37 @@
                 state.search.page = 1;
             }
 
-            await debouncedGetFundTransfers({ ...state.search });
+            await debouncedGetApprovals({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching fund transfers:', error);
+            console.error('Error fetching approvals:', error);
         }
     };
+
+    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
+        state.search.branch_id = '';
+        await fetchBranch(companyId);
+    }
+
+    async function handleApprove(id: number) {
+        if (await approveVoucher(id)) {
+            getData();
+        }
+    }
+
+    async function handleReject(id: number) {
+        if (await rejectVoucher(id)) {
+            getData();
+        }
+    }
 
     onMounted(async () => {
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
+        state.search.status = 'pending';
 
         if (showCompanyFilter.value) {
             await fetchCompany();
@@ -156,24 +179,19 @@
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetFundTransfers({ ...state.search });
+        debouncedGetApprovals({ ...state.search });
     });
-
-    async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
-        state.search.branch_id = '';
-        await fetchBranch(companyId);
-    }
 
     function onStateUpdate(newState) {
         Object.assign(state, newState)
     }
 
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.fundTransfers, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(config.endpoint, () => state);
 
     const filterOpen = ref(false);
 
     function clearSearch() {
-        state.search.status = 'all';
+        state.search.status = 'pending';
         state.search.search = '';
         state.search.show_record = 10;
         state.search.page = 1;
@@ -194,21 +212,20 @@
                     :state="state"
                     :filter-open="filterOpen"
                     :getData="getData"
-                    :deleteRecord="deleteRecord"
-                    :url="`${props.routeName?.split('.')[0]}`"
-                    add-href="/fundtransfer/add"
-                    :show-filter="showFilter"
+                    :url="voucher.apiUrl"
+                    show-filter
                     :show-import="false"
+                    :show-add="false"
                     :show-status="false"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
 
-            <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
+            <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="fundtransfer-filter-company">Company</label>
+                    <label class="form-label" :for="`${voucher.family}-approval-filter-company`">Company</label>
                     <select
-                        id="fundtransfer-filter-company"
+                        :id="`${voucher.family}-approval-filter-company`"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -220,9 +237,9 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="fundtransfer-filter-branch">Branch</label>
+                    <label class="form-label" :for="`${voucher.family}-approval-filter-branch`">Branch</label>
                     <select
-                        id="fundtransfer-filter-branch"
+                        :id="`${voucher.family}-approval-filter-branch`"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
@@ -234,8 +251,8 @@
                     </select>
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="fundtransfer-filter-status">Status</label>
-                    <select id="fundtransfer-filter-status" class="form-select form-select-sm" v-model="state.search.status">
+                    <label class="form-label" :for="`${voucher.family}-approval-filter-status`">Status</label>
+                    <select :id="`${voucher.family}-approval-filter-status`" class="form-select form-select-sm" v-model="state.search.status">
                         <option value="all">All</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
@@ -254,13 +271,13 @@
                         :checkAll="checkAll"
                         :getData="getData"
                         :changeOrder="changeOrder"
-                        :delete="deleteRecord"
-                        :duplicate="duplicate"
-                        :view-route="(id) => `/fundtransfer/${id}/view`"
+                        :approve="canApprove ? handleApprove : undefined"
+                        :reject="canReject ? handleReject : undefined"
+                        :view-route="(id) => `${voucher.viewBase}/${id}/view`"
                         actionType="link"
-                        :apiUrl="props.routeName?.split('.')[0]"
+                        :apiUrl="voucher.apiUrl"
                         show-export
-                        :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                        :export-file-name="voucher.exportName"
                         :export-title="formatedText(props.routeName)"
                         :export-all-rows="fetchAllRowsForExport"
                         @update:state="onStateUpdate"

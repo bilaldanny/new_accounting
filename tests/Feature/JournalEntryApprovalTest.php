@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\VoucherApprovalController;
 use App\Models\CompanySetting;
 use App\Models\Permission;
 use App\Models\Role;
@@ -7,7 +8,6 @@ use App\Models\TAccount;
 use App\Models\TAccountDetail;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Services\AccountCurrentBalance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,140 +17,11 @@ uses(RefreshDatabase::class);
 
 /**
  * Journal entry approval follows the purchase and sell approval pattern: a company toggle skips the
- * approval step, otherwise a permitted user approves (or, for journals, rejects) from the approval
- * list. Only approved vouchers count towards account balances.
- *
- * @return array{company_id: int, branch_id: int, debit_account_id: int, credit_account_id: int, debit_code: string, credit_code: string}
+ * approval step, otherwise a permitted user approves (or rejects) from the approval list. Only
+ * approved vouchers count towards account balances. The payment, expense, deposit and fund
+ * transfer vouchers share the mechanism and are covered by VoucherApprovalTest; the helpers are in
+ * tests/Support/voucherApproval.php.
  */
-function jeaScope(string $suffix = '1'): array
-{
-    $companyId = DB::table('companies')->insertGetId([
-        'code' => 'JEA'.$suffix,
-        'name' => 'Approval Company '.$suffix,
-        'address' => '1 Ledger Street',
-        'is_active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $branchId = DB::table('branches')->insertGetId([
-        'code' => 'JEB'.$suffix,
-        'company_id' => $companyId,
-        'name' => 'Approval Branch '.$suffix,
-        'is_active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $debitCode = '101-0000'.$suffix;
-    $creditCode = '401-0000'.$suffix;
-
-    $debitId = DB::table('chart_of_accounts')->insertGetId([
-        'company_id' => $companyId,
-        'branch_id' => $branchId,
-        'code' => $debitCode,
-        'name' => 'Cash in Hand',
-        'acc_type' => 't',
-        'acc_nature' => 'dr',
-        'bs' => 1,
-        'active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $creditId = DB::table('chart_of_accounts')->insertGetId([
-        'company_id' => $companyId,
-        'branch_id' => $branchId,
-        'code' => $creditCode,
-        'name' => 'Capital',
-        'acc_type' => 't',
-        'acc_nature' => 'cr',
-        'bs' => 1,
-        'active' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return [
-        'company_id' => $companyId,
-        'branch_id' => $branchId,
-        'debit_account_id' => $debitId,
-        'credit_account_id' => $creditId,
-        'debit_code' => $debitCode,
-        'credit_code' => $creditCode,
-    ];
-}
-
-/**
- * @param  array{company_id: int, branch_id: int, debit_account_id: int, credit_account_id: int, debit_code: string, credit_code: string}  $scope
- * @return array<string, mixed>
- */
-function jeaPayload(array $scope, float $amount = 1500): array
-{
-    return [
-        'company_id' => $scope['company_id'],
-        'branch_id' => $scope['branch_id'],
-        'voucher_type' => 'JV',
-        'voucher_date' => '2026-09-04',
-        'comments' => 'Opening capital',
-        'taccountdetails' => [
-            ['account_id' => $scope['debit_account_id'], 'code' => $scope['debit_code'], 'account_nature' => 'dr', 'description' => 'Cash received', 'debit' => $amount, 'credit' => 0],
-            ['account_id' => $scope['credit_account_id'], 'code' => $scope['credit_code'], 'account_nature' => 'cr', 'description' => 'Owner capital', 'debit' => 0, 'credit' => $amount],
-        ],
-    ];
-}
-
-function jeaSetting(int $companyId, string $column, bool $on): void
-{
-    $setting = CompanySetting::query()->where('company_id', $companyId)->first()
-        ?? CompanySetting::createCompanySettings($companyId, 'Approval Company');
-
-    $setting->forceFill([$column => $on])->save();
-}
-
-/**
- * Creates a journal entry through the API as the superadmin and returns it.
- *
- * @param  array{company_id: int, branch_id: int, debit_account_id: int, credit_account_id: int, debit_code: string, credit_code: string}  $scope
- */
-function jeaJournal(array $scope, string $status = 'pending'): TAccount
-{
-    Sanctum::actingAs(User::query()->findOrFail(1));
-
-    test()->postJson('/api/journal-entries', jeaPayload($scope))->assertSuccessful();
-
-    $journal = TAccount::query()->manualJournals()->where('company_id', $scope['company_id'])->latest('id')->firstOrFail();
-
-    if ($journal->status !== $status) {
-        $journal->forceFill(['status' => $status])->save();
-    }
-
-    return $journal->fresh();
-}
-
-/**
- * A company user whose role holds exactly the given menu permission paths.
- *
- * @param  array{company_id: int, branch_id: int, debit_account_id: int, credit_account_id: int, debit_code: string, credit_code: string}  $scope
- * @param  list<string>  $paths
- */
-function jeaUserWith(array $scope, array $paths): User
-{
-    $role = Role::query()->create([
-        'name' => 'accountant'.uniqid(),
-        'company_id' => $scope['company_id'],
-        'is_active' => true,
-    ]);
-
-    foreach ($paths as $path) {
-        grantMenuPermission($role->id, $path, ltrim(str_replace('/', '', $path), '/').uniqid());
-    }
-
-    return createStaffUserForRole($role, [
-        'company_id' => $scope['company_id'],
-        'branch_id' => $scope['branch_id'],
-    ]);
-}
 
 // ------------------------------------------------------------------ auto approval
 
@@ -260,24 +131,17 @@ test('a duplicated journal entry starts in the status the toggle decides', funct
     expect(TAccount::query()->manualJournals()->latest('id')->first()->status)->toBe('approved');
 });
 
-test('the other voucher families keep their previous status rule', function () {
+test('the journal toggle does not decide the other voucher families', function () {
     $scope = jeaScope();
-    $companyAdmin = jeaUserWith($scope, []);
-
-    // Superadmin: always pending, whatever the toggle says.
+    jeaSetting($scope['company_id'], 'journal_entry', true);
     Sanctum::actingAs(User::query()->findOrFail(1));
-    foreach (['BP', 'CP', 'EXP', 'BD', 'FT'] as $type) {
+
+    expect(TAccount::resolveStatus($scope['company_id'], 'JV'))->toBe('approved');
+
+    foreach (['BP', 'CP', 'OP', 'EXP', 'BD', 'CD', 'OD', 'FT'] as $type) {
         expect(TAccount::resolveStatus($scope['company_id'], $type))->toBe('pending');
     }
-
-    // Everyone else: the toggle switched on leaves them pending, off approves them.
-    Sanctum::actingAs($companyAdmin);
-    expect(TAccount::resolveStatus($scope['company_id'], 'EXP'))->toBe('approved');
-
-    jeaSetting($scope['company_id'], 'journal_entry', true);
-    expect(TAccount::resolveStatus($scope['company_id'], 'EXP'))->toBe('pending');
 });
-
 // ------------------------------------------------------------------ approve and reject
 
 test('guests cannot use the journal entry approval endpoints', function () {
@@ -541,40 +405,25 @@ test('the voucher shows whether it can still be approved and who decided', funct
         ->and($rejected->json('rejected_by_name'))->toBe(User::query()->find(1)->full_name);
 });
 
-test('a payment voucher never reports that it can be approved', function () {
+test('a system generated voucher never reports that it can be approved', function () {
     $scope = jeaScope();
     Sanctum::actingAs(User::query()->findOrFail(1));
 
-    $payment = TAccount::query()->create([
+    $sellPayment = TAccount::query()->create([
         'company_id' => $scope['company_id'],
         'branch_id' => $scope['branch_id'],
         'account_code' => $scope['debit_code'],
-        'voucher_no' => 'CP-00001',
+        'voucher_no' => 'SP-00001',
         'ref_no' => '',
         'cheque_no' => '',
         'comments' => '',
         'status' => 'pending',
     ]);
 
-    expect($payment->presentForForm()['can_approve'])->toBeFalse();
+    expect($sellPayment->presentForForm()['can_approve'])->toBeFalse();
 });
 
 // ------------------------------------------------------------------ accounting effect
-
-/**
- * @param  array{company_id: int, branch_id: int, debit_account_id: int, credit_account_id: int, debit_code: string, credit_code: string}  $scope
- * @return array<string, float>
- */
-function jeaNets(array $scope): array
-{
-    return app(AccountCurrentBalance::class)->activityNets(
-        $scope['company_id'],
-        $scope['branch_id'],
-        [$scope['debit_code'], $scope['credit_code']],
-        '2026-01-01',
-        '2026-12-31',
-    );
-}
 
 test('a pending journal entry does not touch account balances until it is approved', function () {
     $scope = jeaScope();
@@ -738,9 +587,9 @@ test('the menu migration can be rolled back with its permission rows', function 
         ->and(DB::table('permissions')->where('menu_id', $menuId)->exists())->toBeFalse();
 });
 
-test('every permission key the approval controller checks exists as a hidden journal entry row in live data', function () {
-    $source = file_get_contents(app_path('Http/Controllers/JournalEntryApprovalController.php'));
-    preg_match_all("#authorizeMenuPermission\('(/[^']+)'#", $source, $matches);
-
-    expect(array_values(array_unique($matches[1])))->toBe(['/journalentry/:id/approve', '/journalentry/:id/reject']);
+test('the approval controller checks the journal entry approve and reject rows that already exist in live data', function () {
+    expect(VoucherApprovalController::PERMISSIONS['journal'])->toBe([
+        'approve' => '/journalentry/:id/approve',
+        'reject' => '/journalentry/:id/reject',
+    ]);
 });

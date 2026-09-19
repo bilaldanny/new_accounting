@@ -51,6 +51,12 @@ export default function useFundTransfers(){
       total_tax: 0,
       net_total: 0,
       status: 'pending',
+      status_label: '',
+      can_approve: false,
+      approved_by_name: '',
+      approved_at: '',
+      rejected_by_name: '',
+      rejected_at: '',
       taccountdetails: [] as FundTransferLineRow[],
       attachments: [] as FundTransferAttachment[],
     });
