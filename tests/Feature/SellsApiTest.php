@@ -12,10 +12,15 @@ test('sells api creates a sell with required fields and line items', function ()
     $superadmin = User::query()->findOrFail(1);
     Sanctum::actingAs($superadmin);
 
-    $this->postJson('/api/sells', validSellPayload($scope))
+    $response = $this->postJson('/api/sells', validSellPayload($scope))
         ->assertSuccessful();
 
     $sell = Transaction::query()->sells()->where('contact_id', $scope['contact_id'])->first();
+
+    $response->assertJson([
+        'id' => $sell->id,
+        'invoice_no' => $sell->invoice_no,
+    ])->assertJsonStructure(['message', 'id', 'invoice_no', 'final_amount']);
 
     expect($sell)->not->toBeNull()
         ->and($sell->company_id)->toBe($scope['company_id'])

@@ -41,9 +41,10 @@
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
 
     const showCompanyField = computed(() => isSuperadmin.value);
-    const showBranchField = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const canManageBranch = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const showBranchField = computed(() => canManageBranch.value && branchesdata.value.length > 1);
     const showHiddenCompanyField = computed(() => isCompanyadmin.value || (! isSuperadmin.value && ! isCompanyadmin.value));
-    const showHiddenBranchField = computed(() => ! isSuperadmin.value && ! isCompanyadmin.value);
+    const showHiddenBranchField = computed(() => ! showBranchField.value);
     const isEdit = computed(() => params.type === 'edit');
 
     const colThird = { container: 4, label: 12, wrapper: 12 };
@@ -244,7 +245,7 @@
     }
 
     async function loadBranchOptions(companyId: string | number | null | undefined) {
-        if (! showBranchField.value) {
+        if (! canManageBranch.value) {
             return;
         }
 
@@ -262,6 +263,10 @@
 
         lastFetchedCompanyId.value = normalizedCompanyId;
         await fetchBranch(normalizedCompanyId);
+
+        if (branchesdata.value.length === 1) {
+            params.formRef?.update?.({ branch_id: branchesdata.value[0].id });
+        }
     }
 
     async function loadDepartmentOptions(

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Exceptions\InsufficientStockException;
+use App\Services\CustomerCreditLimit;
 use App\Services\PurchaseJournal;
 use App\Services\SaleStockCheck;
 use App\Services\SellJournal;
@@ -157,6 +158,14 @@ class Transaction extends Model
     }
 
     /**
+     * @return BelongsTo<Branch, $this>
+     */
+    public function tobranch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'tobranch_id');
+    }
+
+    /**
      * @return BelongsTo<Contact, $this>
      */
     public function contact(): BelongsTo
@@ -280,6 +289,16 @@ class Transaction extends Model
     public function scopeSellReturns(Builder $query): Builder
     {
         return $query->where('type', self::TYPE_SELL_RETURN);
+    }
+
+    public function scopeTransfers(Builder $query): Builder
+    {
+        return $query->where('type', self::TYPE_TRANSFER);
+    }
+
+    public function scopeAdjustments(Builder $query): Builder
+    {
+        return $query->where('type', self::TYPE_ADJUSTMENT);
     }
 
     public function scopeVisibleToCurrentUser(Builder $query): Builder
@@ -662,6 +681,7 @@ class Transaction extends Model
         $transaction = new self;
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
         $stockShortages = self::guardSaleStock($request, $transaction);
+        app(CustomerCreditLimit::class)->assertWithinLimit($transaction);
         $transaction->invoice_no = self::generateSellInvoiceNo($companyId, $request->invoice_no ?? null);
         $transaction->billty_image = self::storeBilltyImage($request);
         $transaction->created_by = Auth::id();
@@ -708,8 +728,10 @@ class Transaction extends Model
 
         self::assertValidSellLines($request->selllines ?? null);
 
+        $previous = ['status' => $transaction->status, 'final_amount' => (float) $transaction->final_amount];
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
         $stockShortages = self::guardSaleStock($request, $transaction);
+        app(CustomerCreditLimit::class)->assertWithinLimit($transaction, $previous);
         $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
             ? trim((string) $request->invoice_no)
             : $transaction->invoice_no;
@@ -1203,9 +1225,11 @@ class Transaction extends Model
     {
         $this->company_name = $this->company?->name;
         $this->branch_name = $this->branch?->name;
+        $this->tobranch_name = $this->tobranch?->name;
         $this->supplier_name = $this->contact?->business_name;
         $this->customer_name = $this->contact?->business_name;
         $this->status_label = Str::headline((string) $this->status);
+        $this->adjustment_type_label = $this->adjustment_type ? Str::headline((string) $this->adjustment_type) : null;
         $this->payment_status_label = Str::headline((string) $this->payment_status);
         $this->transaction_date_label = $this->transaction_date?->format('d M Y');
         $this->formatted_amount = number_format((float) $this->final_amount, 2);
@@ -2341,6 +2365,470 @@ class Transaction extends Model
             'final_amount' => $this->final_amount,
             'selllines' => $lines,
         ];
+    }
+
+    public static function findVisibleTransfer(int $id): ?self
+    {
+        return self::query()->transfers()->visibleToCurrentUser()->find($id);
+    }
+
+    public static function generateTransferNo(?int $companyId, ?string $requested = null): string
+    {
+        $requestedInvoice = trim((string) $requested);
+
+        if ($requestedInvoice !== '') {
+            return $requestedInvoice;
+        }
+
+        $prefix = 'ST';
+
+        if ($companyId !== null) {
+            $settingPrefix = CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->value('stock_transfer');
+
+            if (is_string($settingPrefix) && trim($settingPrefix) !== '') {
+                $prefix = trim($settingPrefix);
+            }
+        }
+
+        $lastId = (int) self::query()
+            ->withTrashed()
+            ->transfers()
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->max('id');
+
+        $next = $lastId + 1;
+
+        do {
+            $invoiceNo = $prefix.'-'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+            $next++;
+        } while (
+            self::query()
+                ->withTrashed()
+                ->transfers()
+                ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+                ->where('invoice_no', $invoiceNo)
+                ->exists()
+        );
+
+        return $invoiceNo;
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public static function assertDifferentBranches(?int $fromBranchId, ?int $toBranchId): void
+    {
+        if ($fromBranchId === null || $toBranchId === null) {
+            throw ValidationException::withMessages([
+                'tobranch_id' => 'Select both a source and destination branch.',
+            ]);
+        }
+
+        if ($fromBranchId === $toBranchId) {
+            throw ValidationException::withMessages([
+                'tobranch_id' => 'The destination branch must be different from the source branch.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, mixed>  $lines
+     *
+     * @throws ValidationException
+     */
+    public static function assertSufficientTransferStock(?int $branchId, array $lines): void
+    {
+        if ($branchId === null) {
+            return;
+        }
+
+        foreach ($lines as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $productId = self::resolveScopedId($row['product_id'] ?? null);
+            $variationId = self::resolveScopedId($row['variation_id'] ?? null);
+            $unitId = self::resolveScopedId($row['unit_id'] ?? null);
+
+            if ($productId === null || $variationId === null || $unitId === null) {
+                continue;
+            }
+
+            $quantity = PurchaseLine::resolveNumeric($row['quantity'] ?? 0);
+            $available = PurchaseLine::currentStock($productId, $variationId, $unitId, $branchId);
+
+            if ($quantity > $available) {
+                throw ValidationException::withMessages([
+                    'purchaselines' => ["Insufficient stock for the selected product in the source branch (available: {$available})."],
+                ]);
+            }
+        }
+    }
+
+    public function fillFromTransferRequest(object $request, ?int $companyId, ?int $branchId): void
+    {
+        $status = in_array($request->status, ['pending', 'in_transit', 'completed'], true)
+            ? $request->status
+            : 'pending';
+
+        $this->company_id = $companyId;
+        $this->branch_id = $branchId;
+        $this->tobranch_id = self::resolveScopedId($request->tobranch_id);
+        $this->contact_id = null;
+        $this->transaction_date = self::parseTransactionDate($request->transaction_date);
+        $this->additional_note = $request->additional_note;
+        $this->total_item = (int) PurchaseLine::resolveNumeric($request->total_item ?? count($request->purchaselines ?? []), 0);
+        $this->status = $status;
+        $this->type = self::TYPE_TRANSFER;
+    }
+
+    public static function createTransfer(object $request): self
+    {
+        $user = Auth::user();
+        $companyId = self::resolveScopedId($request->company_id) ?? self::resolveScopedId($user?->company_id);
+        $branchId = self::resolveScopedId($request->branch_id) ?? self::resolveScopedId($user?->branch_id);
+        $toBranchId = self::resolveScopedId($request->tobranch_id);
+
+        self::assertValidLines($request->purchaselines ?? null);
+        self::assertDifferentBranches($branchId, $toBranchId);
+        self::assertSufficientTransferStock($branchId, $request->purchaselines ?? []);
+
+        $transaction = new self;
+        $transaction->fillFromTransferRequest($request, $companyId, $branchId);
+        $transaction->invoice_no = self::generateTransferNo($companyId, $request->invoice_no ?? null);
+        $transaction->created_by = Auth::id();
+        $transaction->save();
+
+        self::syncLines($transaction, $request->purchaselines ?? []);
+
+        return $transaction;
+    }
+
+    public static function updateTransfer(object $request, int $id): self
+    {
+        $transaction = self::findVisibleTransfer($id);
+
+        if ($transaction === null) {
+            abort(404);
+        }
+
+        $user = Auth::user();
+        $companyId = self::resolveScopedId($request->company_id) ?? self::resolveScopedId($user?->company_id);
+        $branchId = self::resolveScopedId($request->branch_id) ?? self::resolveScopedId($user?->branch_id);
+        $toBranchId = self::resolveScopedId($request->tobranch_id);
+
+        self::assertValidLines($request->purchaselines ?? null);
+        self::assertDifferentBranches($branchId, $toBranchId);
+        self::assertSufficientTransferStock($branchId, $request->purchaselines ?? []);
+
+        $transaction->fillFromTransferRequest($request, $companyId, $branchId);
+        $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
+            ? trim((string) $request->invoice_no)
+            : $transaction->invoice_no;
+        $transaction->updated_by = Auth::id();
+        $transaction->save();
+
+        self::syncLines($transaction, $request->purchaselines ?? []);
+
+        return $transaction;
+    }
+
+    public static function deleteTransfer(int $id): void
+    {
+        $transaction = self::findVisibleTransfer($id);
+
+        if ($transaction === null) {
+            abort(404);
+        }
+
+        $transaction->delete();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function formattedTransferLines(): array
+    {
+        return $this->purchaselines
+            ->map(function (PurchaseLine $line) {
+                $units = self::unitsForProduct(
+                    (int) $line->product_id,
+                    (int) $line->variation_id,
+                    (int) ($line->product?->unit_id ?? $line->unit_id),
+                    self::resolveScopedId($this->branch_id),
+                    (int) ($line->productdetail?->smallquantity ?? 0),
+                    (int) ($line->productdetail?->largequantity ?? 0),
+                );
+
+                $quantity = PurchaseLine::resolveNumeric($line->quantity, 1);
+                $packingQty = (int) PurchaseLine::resolveNumeric($line->packing_qty, 1);
+
+                return [
+                    'id' => $line->id,
+                    'product_id' => $line->product_id,
+                    'variation_id' => $line->variation_id,
+                    'itemtype_id' => $line->itemtype_id,
+                    'product_name' => $line->product?->name ?? $line->productdetail?->name,
+                    'sku' => $line->productdetail?->sku ?? $line->product?->sku,
+                    'unit_id' => $line->unit_id,
+                    'quantity' => $quantity,
+                    'packing_qty' => $packingQty,
+                    'units' => $units,
+                    'current_stock' => PurchaseLine::currentStock(
+                        (int) $line->product_id,
+                        (int) $line->variation_id,
+                        (int) $line->unit_id,
+                        self::resolveScopedId($this->branch_id),
+                    ),
+                    'unit_name' => $line->unit?->short_name ?? $line->unit?->name,
+                    'brand_name' => $line->product?->brand?->name,
+                    'itemtype_name' => $line->product?->itemtype?->name,
+                    'variation_name' => $this->variationDisplayName($line->productdetail?->variation_name),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    public static function findVisibleAdjustment(int $id): ?self
+    {
+        return self::query()->adjustments()->visibleToCurrentUser()->find($id);
+    }
+
+    public static function generateAdjustmentNo(?int $companyId, ?string $requested = null): string
+    {
+        $requestedInvoice = trim((string) $requested);
+
+        if ($requestedInvoice !== '') {
+            return $requestedInvoice;
+        }
+
+        $prefix = 'SA';
+
+        if ($companyId !== null) {
+            $settingPrefix = CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->value('stock_adjustment');
+
+            if (is_string($settingPrefix) && trim($settingPrefix) !== '') {
+                $prefix = trim($settingPrefix);
+            }
+        }
+
+        $lastId = (int) self::query()
+            ->withTrashed()
+            ->adjustments()
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->max('id');
+
+        $next = $lastId + 1;
+
+        do {
+            $invoiceNo = $prefix.'-'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+            $next++;
+        } while (
+            self::query()
+                ->withTrashed()
+                ->adjustments()
+                ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+                ->where('invoice_no', $invoiceNo)
+                ->exists()
+        );
+
+        return $invoiceNo;
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $lines
+     *
+     * @throws ValidationException
+     */
+    public static function assertNonZeroAdjustmentLines(?array $lines): void
+    {
+        foreach ($lines ?? [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $qty = PurchaseLine::resolveNumeric($row['quantity_adjustment'] ?? 0);
+
+            if (abs($qty) < 0.0001) {
+                throw ValidationException::withMessages([
+                    'purchaselines' => ['Each line must have a non-zero adjustment quantity.'],
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, mixed>  $lines
+     *
+     * @throws ValidationException
+     */
+    public static function assertSufficientAdjustmentStock(?int $branchId, array $lines): void
+    {
+        if ($branchId === null) {
+            return;
+        }
+
+        foreach ($lines as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $productId = self::resolveScopedId($row['product_id'] ?? null);
+            $variationId = self::resolveScopedId($row['variation_id'] ?? null);
+            $unitId = self::resolveScopedId($row['unit_id'] ?? null);
+
+            if ($productId === null || $variationId === null || $unitId === null) {
+                continue;
+            }
+
+            $qty = PurchaseLine::resolveNumeric($row['quantity_adjustment'] ?? 0);
+
+            if ($qty >= 0) {
+                continue;
+            }
+
+            $available = PurchaseLine::currentStock($productId, $variationId, $unitId, $branchId);
+
+            if ($available + $qty < 0) {
+                throw ValidationException::withMessages([
+                    'purchaselines' => ["Insufficient stock to decrease the selected product (available: {$available})."],
+                ]);
+            }
+        }
+    }
+
+    public function fillFromAdjustmentRequest(object $request, ?int $companyId, ?int $branchId): void
+    {
+        $status = in_array($request->status, ['pending', 'completed'], true)
+            ? $request->status
+            : 'pending';
+
+        $adjustmentType = in_array($request->adjustment_type, ['normal', 'abnormal', 'unboxing', 'opening'], true)
+            ? $request->adjustment_type
+            : 'normal';
+
+        $this->company_id = $companyId;
+        $this->branch_id = $branchId;
+        $this->tobranch_id = null;
+        $this->contact_id = null;
+        $this->transaction_date = self::parseTransactionDate($request->transaction_date);
+        $this->additional_note = $request->additional_note;
+        $this->adjustment_type = $adjustmentType;
+        $this->total_item = (int) PurchaseLine::resolveNumeric($request->total_item ?? count($request->purchaselines ?? []), 0);
+        $this->status = $status;
+        $this->type = self::TYPE_ADJUSTMENT;
+    }
+
+    public static function createAdjustment(object $request): self
+    {
+        $user = Auth::user();
+        $companyId = self::resolveScopedId($request->company_id) ?? self::resolveScopedId($user?->company_id);
+        $branchId = self::resolveScopedId($request->branch_id) ?? self::resolveScopedId($user?->branch_id);
+
+        self::assertValidLines($request->purchaselines ?? null);
+        self::assertNonZeroAdjustmentLines($request->purchaselines ?? null);
+        self::assertSufficientAdjustmentStock($branchId, $request->purchaselines ?? []);
+
+        $transaction = new self;
+        $transaction->fillFromAdjustmentRequest($request, $companyId, $branchId);
+        $transaction->invoice_no = self::generateAdjustmentNo($companyId, $request->invoice_no ?? null);
+        $transaction->created_by = Auth::id();
+        $transaction->save();
+
+        self::syncLines($transaction, $request->purchaselines ?? []);
+
+        return $transaction;
+    }
+
+    public static function updateAdjustment(object $request, int $id): self
+    {
+        $transaction = self::findVisibleAdjustment($id);
+
+        if ($transaction === null) {
+            abort(404);
+        }
+
+        $user = Auth::user();
+        $companyId = self::resolveScopedId($request->company_id) ?? self::resolveScopedId($user?->company_id);
+        $branchId = self::resolveScopedId($request->branch_id) ?? self::resolveScopedId($user?->branch_id);
+
+        self::assertValidLines($request->purchaselines ?? null);
+        self::assertNonZeroAdjustmentLines($request->purchaselines ?? null);
+        self::assertSufficientAdjustmentStock($branchId, $request->purchaselines ?? []);
+
+        $transaction->fillFromAdjustmentRequest($request, $companyId, $branchId);
+        $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
+            ? trim((string) $request->invoice_no)
+            : $transaction->invoice_no;
+        $transaction->updated_by = Auth::id();
+        $transaction->save();
+
+        self::syncLines($transaction, $request->purchaselines ?? []);
+
+        return $transaction;
+    }
+
+    public static function deleteAdjustment(int $id): void
+    {
+        $transaction = self::findVisibleAdjustment($id);
+
+        if ($transaction === null) {
+            abort(404);
+        }
+
+        $transaction->delete();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function formattedAdjustmentLines(): array
+    {
+        return $this->purchaselines
+            ->map(function (PurchaseLine $line) {
+                $units = self::unitsForProduct(
+                    (int) $line->product_id,
+                    (int) $line->variation_id,
+                    (int) ($line->product?->unit_id ?? $line->unit_id),
+                    self::resolveScopedId($this->branch_id),
+                    (int) ($line->productdetail?->smallquantity ?? 0),
+                    (int) ($line->productdetail?->largequantity ?? 0),
+                );
+
+                $quantityAdjustment = PurchaseLine::resolveNumeric($line->quantity_adjustment, 0);
+
+                return [
+                    'id' => $line->id,
+                    'product_id' => $line->product_id,
+                    'variation_id' => $line->variation_id,
+                    'itemtype_id' => $line->itemtype_id,
+                    'product_name' => $line->product?->name ?? $line->productdetail?->name,
+                    'sku' => $line->productdetail?->sku ?? $line->product?->sku,
+                    'unit_id' => $line->unit_id,
+                    'quantity_adjustment' => $quantityAdjustment,
+                    'direction' => $quantityAdjustment < 0 ? 'decrease' : 'increase',
+                    'magnitude' => abs($quantityAdjustment),
+                    'units' => $units,
+                    'current_stock' => PurchaseLine::currentStock(
+                        (int) $line->product_id,
+                        (int) $line->variation_id,
+                        (int) $line->unit_id,
+                        self::resolveScopedId($this->branch_id),
+                    ),
+                    'unit_name' => $line->unit?->short_name ?? $line->unit?->name,
+                    'brand_name' => $line->product?->brand?->name,
+                    'itemtype_name' => $line->product?->itemtype?->name,
+                    'variation_name' => $this->variationDisplayName($line->productdetail?->variation_name),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public static function findVisiblePurchaseReturn(int $id): ?self

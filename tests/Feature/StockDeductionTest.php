@@ -464,10 +464,30 @@ test('the adjustment guard sees stock that has been sold', function () {
     expect(stockNow($scope))->toBe(0.0);
 });
 
+test('the low stock report uses the same figures as currentStock after sales, returns and other units', function () {
+    $scope = stockSaleScope(10);
+    Product::query()->findOrFail($scope['product_id'])->update(['alert_qty' => 100]);
+    $carton = Unit::query()->create([
+        'company_id' => $scope['company_id'], 'parent_id' => $scope['unit_id'], 'name' => 'Carton', 'short_name' => 'CTN',
+        'type' => 'large', 'active' => true, 'auto_adjustment' => false,
+    ]);
+    receiveBaseStock($scope, 2, $carton->id, 10);
+    $this->postJson('/api/sells', stockSalePayload($scope, 5))->assertSuccessful();
+
+    $issued = createIssuedSell($scope, ['invoice_no' => 'INV-LSR']);
+    $issued->selllines()->update(['quantity' => 6, 'quantity_issue' => 6, 'quantity_returned' => 2]);
+
+    $row = collect($this->getJson('/api/lowstock')->assertSuccessful()->json('data.data'))->firstWhere('product_id', $scope['product_id']);
+
+    // 10 + 2 x 10 - 5 - (6 - 2) = 21
+    expect((float) $row['stock'])->toBe(21.0)
+        ->and((float) $row['stock'])->toBe(stockNow($scope));
+});
+
 test('the movement query is the only place that defines stock', function () {
-    // The sale check reads stock through StockMovements; it may not query the line tables or carry a
-    // formula of its own.
-    foreach (['app/Services/SaleStockCheck.php'] as $path) {
+    // The report and the sale check read stock through StockMovements; neither may query the line
+    // tables or carry a formula of its own.
+    foreach (['app/Services/LowStockReport.php', 'app/Services/SaleStockCheck.php'] as $path) {
         $source = file_get_contents(base_path($path));
 
         expect($source)->toContain('StockMovements::')

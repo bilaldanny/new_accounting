@@ -1,18 +1,18 @@
 <script setup lang="ts">
+    import { Head, Link, usePage } from '@inertiajs/vue3';
     import { onMounted, ref, watchEffect, computed, nextTick } from 'vue';
-    import TopButtons from '@/components/topButtons.vue';
     import TheFilter from '@/components/theFilter.vue';
+    import TheTable from '@/components/theTable.vue';
+    import TopButtons from '@/components/topButtons.vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
-    import { Head, usePage } from '@inertiajs/vue3';
-    import debounce from '@/utils/debounce';
     import useSells from '@/composables/sell';
     import useSellApprovals from '@/composables/sellApproval';
     import useSellPayments from '@/composables/sellPayment';
-    import TheTable from '@/components/theTable.vue';
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import { createTableExportAllRows } from '@/composables/tableExportList';
-    import ShippingModal from './shipping.vue';
+    import debounce from '@/utils/debounce';
     import AddPaymentModal from './payment/add.vue';
+    import ShippingModal from './shipping.vue';
 
     defineOptions({
         layout: {
@@ -91,6 +91,7 @@
     const currentSearch = ref(getSavedValue('currentSearch') || '');
     const currentStatus = ref(getSavedValue('currentStatus') || 'all');
     const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
+
     if(getSavedValue('currentUrl') === props.routeName){
         currentUrl.value = (getSavedValue('currentUrl') || props.routeName);
     }else{
@@ -112,6 +113,7 @@
 
         ;['currentPage', 'currentSearch', 'currentStatus', 'currentRecord', 'currentUrl'].forEach((key) => {
             const val = stateRefMap[key as keyof typeof stateRefMap]?.value
+
             if (val !== undefined && val !== null) {
             localStorage.setItem(key, val)
             }
@@ -129,6 +131,7 @@
             if(currentRecord.value !== state.search.show_record){
                 state.search.page = 1;
             }
+
             await debouncedGetSells({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
@@ -333,6 +336,13 @@
     <div class="admin-list-page">
         <div class="admin-list-card">
             <div class="admin-list-card__toolbar">
+                <Link
+                    href="/sell/pos/add"
+                    class="admin-list-pos-btn"
+                    title="Open the walk-in POS screen"
+                >
+                    POS
+                </Link>
                 <TopButtons
                     :state="state"
                     :filter-open="filterOpen"
@@ -455,3 +465,24 @@
         />
     </div>
 </template>
+
+<style scoped>
+.admin-list-pos-btn {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--app-primary, #0d9488);
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    margin-right: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--app-primary, #0d9488);
+    background: #fff;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.admin-list-pos-btn:hover {
+    background: var(--app-primary, #0d9488);
+    color: #fff;
+}
+</style>

@@ -9,6 +9,7 @@ use App\Models\FinancialYear;
 use App\Models\Transaction;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -32,6 +33,7 @@ class ContactLedger
         CarbonInterface $fromDate,
         CarbonInterface $toDate,
         ?string $branchId = null,
+        bool $postedOnly = false,
     ): array {
         $from = $fromDate->toDateString();
         $to = $toDate->toDateString();
@@ -49,7 +51,7 @@ class ContactLedger
 
         $rows = $hasJournals
             ? $this->journalRows($contact, $accountCodes, $from, $to, $resolvedBranchId)
-            : $this->transactionRows($contact, $from, $to, $resolvedBranchId);
+            : $this->transactionRows($contact, $from, $to, $resolvedBranchId, $postedOnly);
         $opening = $this->openingBalance($contact, $accountCodes, $from, $resolvedBranchId, $hasJournals);
 
         return [
@@ -61,6 +63,24 @@ class ContactLedger
             'total_sell' => $this->sumTransactions($scope, Transaction::TYPE_SELL),
             'total_paid_sell' => $this->sumPaidTransactions($scope, Transaction::TYPE_SELL),
         ];
+    }
+
+    /**
+     * Closing balance over the ledger screen's default range (the active financial year, or all
+     * time when the company has none). For a customer a positive value is what they still owe.
+     */
+    public function currentBalance(Contact $contact): float
+    {
+        $financialYear = FinancialYear::query()
+            ->where('company_id', $contact->company_id)
+            ->where('status', true)
+            ->orderByDesc('id')
+            ->first();
+
+        $from = $financialYear?->start_date?->copy() ?? Carbon::create(2000, 1, 1);
+        $to = $financialYear?->end_date?->copy() ?? now();
+
+        return (float) $this->forContact($contact, $from, $to, postedOnly: true)['closingbalance'];
     }
 
     /**
@@ -304,8 +324,9 @@ class ContactLedger
         string $from,
         string $to,
         int|string|null $branchId,
+        bool $postedOnly = false,
     ): array {
-        $rows = $this->documentRows($contact, $from, $to, $branchId)
+        $rows = $this->documentRows($contact, $from, $to, $branchId, $postedOnly)
             ->concat($this->paymentRows($contact, $from, $to, $branchId))
             ->sortBy([
                 ['voucher_date', 'asc'],
@@ -324,6 +345,7 @@ class ContactLedger
         string $from,
         string $to,
         int|string|null $branchId,
+        bool $postedOnly = false,
     ): Collection {
         if (! Schema::hasTable('transactions')) {
             return collect();
@@ -333,6 +355,7 @@ class ContactLedger
 
         return $this->transactionQuery($contact, $branchId)
             ->whereIn('transactions.type', $this->statementTypes($contact))
+            ->when($postedOnly, fn ($query) => $query->whereNotIn('transactions.status', Transaction::UNPOSTED_SELL_STATUSES))
             ->whereDate('transactions.transaction_date', '>=', $from)
             ->whereDate('transactions.transaction_date', '<=', $to)
             ->leftJoin('branches', 'branches.id', '=', 'transactions.branch_id')
