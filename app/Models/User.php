@@ -5,9 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\HasProfilePhoto;
-use App\Mail\DynamicEmail;
 use Database\Factories\UserFactory;
-use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,12 +18,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use Laravel\Fortify\Contracts\PasskeyUser;
+use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements PasskeyUser
 {
     use HasApiTokens, SoftDeletes;
 
@@ -34,6 +33,7 @@ class User extends Authenticatable
 
     use HasProfilePhoto;
     use Notifiable;
+    use PasskeyAuthenticatable;
     use TwoFactorAuthenticatable;
 
     /**
@@ -100,52 +100,6 @@ class User extends Authenticatable
         static::creating(function (self $user): void {
             $user->setAttribute('pass', '');
         });
-    }
-
-    /**
-     * Send password reset email using the `password_reset` row in `email_templates` when present;
-     * placeholders: ['email_name'], ['reset_password_link'], ['reset_url'], ['expire_minutes'], plus globals in createTemplate().
-     * Otherwise falls back to Laravel's default notification.
-     */
-    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
-    {
-        $emailTemplate = EmailTemplate::query()->where('name', 'password_reset')->first();
-
-        if (! $emailTemplate) {
-            $this->notify(new ResetPasswordNotification($token));
-
-            return;
-        }
-
-        $resetUrl = url(route('password.reset', [
-            'token' => $token,
-            'email' => $this->getEmailForPasswordReset(),
-        ], false));
-
-        $brokerKey = config('auth.defaults.passwords', 'users');
-        $expireMinutes = (int) config("auth.passwords.{$brokerKey}.expire", 60);
-
-        $emailData = [
-            'email_name' => trim($this->full_name) !== '' ? $this->full_name : ($this->email ?? 'there'),
-            'reset_password_link' => $resetUrl,
-            // 'reset_password_link' => '<a href="'.e($resetUrl).'" style="display:inline-block;padding:10px 20px;background-color:#199683;color:#ffffff;text-decoration:none;border-radius:4px;margin:10px 0;">'
-            //    .e(__('Reset Password'))
-            //    .'</a>',
-            'reset_url' => $resetUrl,
-            'expire_minutes' => (string) $expireMinutes,
-        ];
-
-        $mailMeta = [
-            'from_name' => $emailTemplate->from_name ?: config('mail.from.name'),
-            'from_email' => $emailTemplate->from_email ?: config('mail.from.address'),
-            'cc_email' => $emailTemplate->cc_email ?: [],
-            'bcc_email' => $emailTemplate->bcc_email ?: [],
-        ];
-
-        $body = createTemplate($emailTemplate->template, $emailData);
-        $subject = createTemplate($emailTemplate->subject ?? '', $emailData);
-
-        Mail::to($this->getEmailForPasswordReset())->send(new DynamicEmail($body, $subject, $mailMeta));
     }
 
     public function role()

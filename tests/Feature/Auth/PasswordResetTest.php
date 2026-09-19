@@ -23,7 +23,7 @@ test('reset password link can be requested', function () {
     $this->post(route('password.email'), ['email' => $user->email]);
 
     Notification::assertSentTo($user, ResetPassword::class);
-})->skip('Known app bug: POST /forgot-password returns 500. User::sendPasswordResetNotification uses App\Models\EmailTemplate and App\Mail\DynamicEmail, which do not exist (no model, mailable or email_templates table). Un-skip once it falls back to the default notification.');
+});
 
 test('reset password screen can be rendered', function () {
     Notification::fake();
@@ -39,7 +39,7 @@ test('reset password screen can be rendered', function () {
 
         return true;
     });
-})->skip('Known app bug: POST /forgot-password returns 500 (missing App\Models\EmailTemplate). See the first test in this file.');
+});
 
 test('password can be reset with valid token', function () {
     Notification::fake();
@@ -62,7 +62,7 @@ test('password can be reset with valid token', function () {
 
         return true;
     });
-})->skip('Known app bug: POST /forgot-password returns 500 (missing App\Models\EmailTemplate). See the first test in this file.');
+});
 
 test('password cannot be reset with invalid token', function () {
     $user = User::factory()->create();
