@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Exceptions\InsufficientStockException;
 use App\Services\PurchaseJournal;
+use App\Services\SaleStockCheck;
 use App\Services\SellJournal;
+use App\Services\StockMovements;
 use App\Support\Base64Upload;
 use Database\Factories\TransactionFactory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -26,6 +29,14 @@ class Transaction extends Model
     /** @use HasFactory<TransactionFactory> */
     use HasFactory, SoftDeletes;
 
+    /**
+     * Products the last createSell()/updateSell() sold beyond their stock. Not stored; the sale form
+     * shows it as a warning.
+     *
+     * @var list<array{product_id: int, variation_id: int, product_name: string, requested: float, available: float}>
+     */
+    public array $stockWarnings = [];
+
     public const TYPE_PURCHASE = 'purchaseorder';
 
     public const TYPE_RECEIVING_NOTE = 'recieving_note';
@@ -34,9 +45,20 @@ class Transaction extends Model
 
     public const TYPE_SELL = 'sell';
 
+    /**
+     * Sell statuses that are not receivables yet: SellJournal does not post them.
+     *
+     * @var list<string>
+     */
+    public const UNPOSTED_SELL_STATUSES = ['draft', 'quotation'];
+
     public const TYPE_ISSUE_NOTE = 'issue_note';
 
     public const TYPE_SELL_RETURN = 'sellreturn';
+
+    public const TYPE_TRANSFER = 'transfer';
+
+    public const TYPE_ADJUSTMENT = 'adjustment';
 
     protected $fillable = [
         'company_id',
@@ -639,6 +661,7 @@ class Transaction extends Model
 
         $transaction = new self;
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
+        $stockShortages = self::guardSaleStock($request, $transaction);
         $transaction->invoice_no = self::generateSellInvoiceNo($companyId, $request->invoice_no ?? null);
         $transaction->billty_image = self::storeBilltyImage($request);
         $transaction->created_by = Auth::id();
@@ -647,7 +670,28 @@ class Transaction extends Model
         self::syncSellLines($transaction, $request->selllines ?? []);
         app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
 
+        $transaction->stockWarnings = $stockShortages;
+
         return $transaction;
+    }
+
+    /**
+     * Sales reduce stock as soon as they are saved. The POS (request param `is_pos`) may not sell more
+     * than is in stock; the normal sale form is allowed to, and gets the shortages back as warnings.
+     *
+     * @return list<array{product_id: int, variation_id: int, product_name: string, requested: float, available: float}>
+     *
+     * @throws InsufficientStockException
+     */
+    private static function guardSaleStock(object $request, self $sale): array
+    {
+        $shortages = app(SaleStockCheck::class)->shortages($sale, (array) ($request->selllines ?? []));
+
+        if ($shortages !== [] && filter_var($request->is_pos ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            throw InsufficientStockException::forShortages($shortages);
+        }
+
+        return $shortages;
     }
 
     public static function updateSell(object $request, int $id): self
@@ -665,6 +709,7 @@ class Transaction extends Model
         self::assertValidSellLines($request->selllines ?? null);
 
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
+        $stockShortages = self::guardSaleStock($request, $transaction);
         $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
             ? trim((string) $request->invoice_no)
             : $transaction->invoice_no;
@@ -674,6 +719,8 @@ class Transaction extends Model
 
         self::syncSellLines($transaction, $request->selllines ?? []);
         app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
+
+        $transaction->stockWarnings = $stockShortages;
 
         return $transaction;
     }
@@ -826,6 +873,7 @@ class Transaction extends Model
                     self::resolveScopedId($this->branch_id),
                     (int) ($line->productdetail?->smallquantity ?? 0),
                     (int) ($line->productdetail?->largequantity ?? 0),
+                    $this->id,
                 );
 
                 $quantity = SellLine::resolveNumeric($line->quantity, 1);
@@ -862,6 +910,7 @@ class Transaction extends Model
                         (int) $line->variation_id,
                         (int) $line->unit_id,
                         self::resolveScopedId($this->branch_id),
+                        $this->id,
                     ),
                     'unit_name' => $line->unit?->short_name ?? $line->unit?->name,
                     'weight' => SellLine::resolveNumeric($line->product?->weight ?? 0),
@@ -1030,6 +1079,7 @@ class Transaction extends Model
         ?int $branchId,
         int $smallQuantity = 0,
         int $largeQuantity = 0,
+        ?int $excludeSaleId = null,
     ): array {
         $unit = Unit::query()->with('childrenUnits')->find($unitId);
 
@@ -1037,11 +1087,13 @@ class Transaction extends Model
             return [];
         }
 
+        $baseStock = StockMovements::baseStock($productId, $variationId, $branchId, $excludeSaleId);
+
         $units = [[
             'id' => $unit->id,
             'text' => $unit->name,
             'short_name' => $unit->short_name,
-            'unit_qty' => PurchaseLine::currentStock($productId, $variationId, (int) $unit->id, $branchId),
+            'unit_qty' => $baseStock,
             'packing_qty' => 1,
         ]];
 
@@ -1060,7 +1112,7 @@ class Transaction extends Model
                 'id' => $child->id,
                 'text' => $child->name,
                 'short_name' => $child->short_name,
-                'unit_qty' => PurchaseLine::currentStock($productId, $variationId, (int) $child->id, $branchId),
+                'unit_qty' => StockMovements::convert($baseStock, (float) $packingQty),
                 'packing_qty' => $packingQty,
             ];
         }

@@ -1,13 +1,13 @@
 <script setup lang="ts">
+    import { Head, router } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import TheForm from '@/components/theForm.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import useSells from '@/composables/sell';
-    import { Head, router } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
-    import Fields from './Fields.vue';
     import PurchaseFormChrome from '../purchase/PurchaseFormChrome.vue';
+    import Fields from './Fields.vue';
 
     const pageProps = defineProps({
         id: {
@@ -80,6 +80,18 @@
         }
 
         Notify(response.data?.message || 'Successfully Saved', 'success');
+
+        const stockWarnings = (response.data?.stock_warnings ?? []) as Array<{ product_name?: string; requested: number; available: number }>;
+
+        if (stockWarnings.length > 0) {
+            Notify(
+                `Saved, but stock is short: ${stockWarnings
+                    .map((item) => `${item.product_name || 'Product'} (need ${item.requested}, have ${item.available})`)
+                    .join(', ')}`,
+                'alert',
+            );
+        }
+
         isLeaving.value = true;
         await router.visit(saveAction.value === 'add-new' ? '/sell/add' : '/sell');
 

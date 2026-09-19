@@ -163,16 +163,18 @@
         return line.unit_name || line.units?.find((unit) => String(unit.id) === String(line.unit_id))?.short_name || '';
     }
 
-    function quantityMax(line: SellLineRow): number | undefined {
+    /**
+     * Selling more than is in stock is allowed on this form (the POS is the one that blocks it): the
+     * stock pill just turns red and the save reports a warning.
+     */
+    function lineExceedsStock(line: SellLineRow): boolean {
         const status = String(props.status || 'final').toLowerCase();
 
         if (status === 'draft' || status === 'quotation') {
-            return undefined;
+            return false;
         }
 
-        const stock = Number(line.current_stock ?? 0);
-
-        return stock > 0 ? stock : undefined;
+        return Number(line.quantity || 0) > Number(line.current_stock ?? 0);
     }
 
     function onSearch(event: Event) {
@@ -423,7 +425,11 @@
                                 <span class="pricing-table__name" :title="line.product_name">{{ line.product_name }}</span>
                                 <div class="purchase-lines__meta">
                                     <span v-if="line.sku" class="purchase-lines__sku">{{ line.sku }}</span>
-                                    <span class="purchase-lines__stock-pill">
+                                    <span
+                                        class="purchase-lines__stock-pill"
+                                        :class="{ 'is-danger': lineExceedsStock(line) }"
+                                        :title="lineExceedsStock(line) ? 'More than in stock. You can still save; you will get a warning.' : undefined"
+                                    >
                                         {{ line.current_stock ?? 0 }} {{ packingLabel(line) }} in stock
                                     </span>
                                 </div>
@@ -434,7 +440,6 @@
                                 <input
                                     type="number"
                                     min="1"
-                                    :max="quantityMax(line)"
                                     class="purchase-lines__qty-input"
                                     :value="line.quantity"
                                     :disabled="disabled"

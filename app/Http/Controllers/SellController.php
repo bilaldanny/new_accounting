@@ -46,6 +46,7 @@ class SellController extends Controller
             'billty_image' => 'nullable',
             'bilty_image' => 'nullable',
             'additional_note' => 'nullable|string',
+            'is_pos' => 'nullable|boolean',
             'final_amount' => 'nullable|numeric|min:0',
             'tax_id' => 'nullable|integer',
             'tax_amount' => 'nullable|numeric|min:0',
@@ -160,7 +161,7 @@ class SellController extends Controller
 
         DB::beginTransaction();
         try {
-            Transaction::createSell($request);
+            $sell = Transaction::createSell($request);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -171,7 +172,7 @@ class SellController extends Controller
             return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
-        return response()->json(['message' => 'Successfully Saved']);
+        return response()->json(['message' => 'Successfully Saved', 'stock_warnings' => $sell->stockWarnings]);
     }
 
     public function show($id)
@@ -251,7 +252,7 @@ class SellController extends Controller
 
         DB::beginTransaction();
         try {
-            Transaction::updateSell($request, (int) $id);
+            $sell = Transaction::updateSell($request, (int) $id);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -262,7 +263,7 @@ class SellController extends Controller
             return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
-        return response()->json(['message' => 'Successfully Saved']);
+        return response()->json(['message' => 'Successfully Saved', 'stock_warnings' => $sell->stockWarnings]);
     }
 
     public function updateShipping(Request $request, $id)

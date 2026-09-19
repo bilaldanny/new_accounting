@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\StockMovements;
 use Database\Factories\PurchaseLineFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -115,17 +116,19 @@ class PurchaseLine extends Model
         $this->packing_qty = (int) self::resolveNumeric($row['packing_qty'] ?? 1, 1);
     }
 
-    public static function currentStock(int $productId, int $variationId, int $unitId, ?int $branchId = null): float
+    /**
+     * Stock of one variation in the given unit. The definition lives in StockMovements: it is always
+     * tracked in the product's base unit and includes sales and sale returns; a child unit gets the
+     * whole units that fit. A null branch is the total across every branch, and $excludeSaleId leaves
+     * one sale out (used to show a sale's own stock while it is being viewed or edited).
+     */
+    public static function currentStock(int $productId, int $variationId, int $unitId, ?int $branchId = null, ?int $excludeSaleId = null): float
     {
-        return (float) self::query()
-            ->where('product_id', $productId)
-            ->where('variation_id', $variationId)
-            ->where('unit_id', $unitId)
-            ->whereHas('transaction', function ($query) use ($branchId) {
-                $query->where('type', Transaction::TYPE_PURCHASE)
-                    ->when($branchId !== null, fn ($branchQuery) => $branchQuery->where('branch_id', $branchId));
-            })
-            ->selectRaw('COALESCE(SUM(quantity_received - qunatity_sold - quantity_returned - quantity_adjustment), 0) as stock')
-            ->value('stock');
+        return StockMovements::inUnit(
+            StockMovements::baseStock($productId, $variationId, $branchId, $excludeSaleId),
+            $productId,
+            $variationId,
+            $unitId,
+        );
     }
 }
