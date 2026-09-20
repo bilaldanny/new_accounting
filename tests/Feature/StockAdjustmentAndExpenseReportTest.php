@@ -7,7 +7,7 @@ use Laravel\Sanctum\Sanctum;
 uses(RefreshDatabase::class);
 
 /**
- * Stock adjustment report (completed adjustments by default, split by type) and the expense report
+ * Stock adjustment report (every status by default, split by type) and the expense report
  * (approved EXP vouchers only, one row per debit line).
  */
 
@@ -27,17 +27,38 @@ function sarAdjustment(array $scope, string $type, float $amount, array $attribu
     ], $attributes));
 }
 
-test('only completed adjustments are listed unless another status is asked for', function () {
+test('every status is listed by default and a status filter narrows it', function () {
     $scope = trpScope();
     trpActAsSuperadmin();
 
     $completed = sarAdjustment($scope, 'normal', 100);
     $pending = sarAdjustment($scope, 'normal', 50, ['status' => 'pending']);
+    $other = sarAdjustment($scope, 'abnormal', 25, ['status' => 'cancelled']);
 
-    expect(trpIds($this->getJson('/api/reports/stock-adjustment')))->toBe([$completed])
-        ->and(trpIds($this->getJson('/api/reports/stock-adjustment?status=completed')))->toBe([$completed])
-        ->and(trpIds($this->getJson('/api/reports/stock-adjustment?status=pending')))->toBe([$pending])
-        ->and(collect(trpIds($this->getJson('/api/reports/stock-adjustment?status=all')))->sort()->values()->all())->toBe(collect([$completed, $pending])->sort()->values()->all());
+    $ids = fn (string $query): array => collect(trpIds($this->getJson("/api/reports/stock-adjustment{$query}")))->sort()->values()->all();
+    $everything = collect([$completed, $pending, $other])->sort()->values()->all();
+
+    expect($ids(''))->toBe($everything)
+        ->and($ids('?status='))->toBe($everything)
+        ->and($ids('?status=all'))->toBe($everything)
+        ->and($ids('?status=completed'))->toBe([$completed])
+        ->and($ids('?status=pending'))->toBe([$pending]);
+});
+
+test('the default summary covers every status and a status filter narrows it too', function () {
+    $scope = trpScope();
+    trpActAsSuperadmin();
+
+    sarAdjustment($scope, 'normal', 100);
+    sarAdjustment($scope, 'normal', 50, ['status' => 'pending']);
+
+    $all = $this->getJson('/api/reports/stock-adjustment')->assertSuccessful();
+    $completed = $this->getJson('/api/reports/stock-adjustment?status=completed')->assertSuccessful();
+
+    expect($all->json('summary.count'))->toBe(2)
+        ->and($all->json('summary.total'))->toEqual(150)
+        ->and($completed->json('summary.count'))->toBe(1)
+        ->and($completed->json('summary.total'))->toEqual(100);
 });
 
 test('only adjustment documents are listed', function () {
@@ -63,7 +84,7 @@ test('the summary splits the value by adjustment type', function () {
     sarAdjustment($scope, 'opening', 1000);
     sarAdjustment($scope, 'normal', 999, ['status' => 'pending']);
 
-    $response = $this->getJson('/api/reports/stock-adjustment?show_record=2')->assertSuccessful();
+    $response = $this->getJson('/api/reports/stock-adjustment?show_record=2&status=completed')->assertSuccessful();
 
     expect($response->json('data.data'))->toHaveCount(2)
         ->and($response->json('summary.count'))->toBe(5)

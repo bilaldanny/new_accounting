@@ -10,10 +10,11 @@ use stdClass;
 /**
  * Stock adjustments, one row per adjustment document.
  *
- * Only completed adjustments are listed by default because those are the ones StockMovements applies
- * to stock; `status` can ask for pending ones or all. The value is the document's final amount, split
- * by adjustment type (normal, abnormal, unboxing, opening). The old report's "amount recovered"
- * column has no counterpart in the schema and is not carried over.
+ * Every adjustment is listed, whatever its status, until `status` narrows it to one (completed or
+ * pending); `all` is the same as no status. Only completed ones reach stock (StockMovements), so a
+ * report that mixes statuses shows pending value that has not moved stock yet. The value is the
+ * document's final amount, split by adjustment type (normal, abnormal, unboxing, opening). The old
+ * report's "amount recovered" column has no counterpart in the schema and is not carried over.
  */
 class StockAdjustmentReport
 {
@@ -97,15 +98,13 @@ class StockAdjustmentReport
         $endDate = trim((string) ($filters['end_date'] ?? ''));
         $search = trim((string) ($filters['search'] ?? ''));
 
-        $status = $status === '' ? 'completed' : $status;
-
         return DB::table('transactions as t')
             ->leftJoin('branches as b', 'b.id', '=', 't.branch_id')
             ->leftJoin('companies as co', 'co.id', '=', 't.company_id')
             ->leftJoin('users as u', 'u.id', '=', 't.created_by')
             ->where('t.type', Transaction::TYPE_ADJUSTMENT)
             ->whereNull('t.deleted_at')
-            ->when($status !== 'all', fn (Builder $query) => $query->where('t.status', $status))
+            ->when($status !== '' && $status !== 'all', fn (Builder $query) => $query->where('t.status', $status))
             ->when($companyId !== null, fn (Builder $query) => $query->where('t.company_id', $companyId))
             ->when($branchId !== null, fn (Builder $query) => $query->where('t.branch_id', $branchId))
             ->when($type !== '' && $type !== 'all', fn (Builder $query) => $query->where('t.adjustment_type', $type))

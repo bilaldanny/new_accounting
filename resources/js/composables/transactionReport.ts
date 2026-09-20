@@ -212,15 +212,15 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
     },
     'stock-adjustment': {
         title: 'Stock Adjustment Report',
-        subtitle: 'Completed stock adjustments by date and branch, with their value by type',
+        subtitle: 'Stock adjustments by date and branch, with their value by type',
         exportName: 'stock-adjustment-report',
         filters: {
             statuses: [
+                { value: 'all', label: 'All' },
                 { value: 'completed', label: 'Completed' },
                 { value: 'pending', label: 'Pending' },
-                { value: 'all', label: 'All' },
             ],
-            defaultStatus: 'completed',
+            defaultStatus: 'all',
             adjustmentTypes: true,
         },
         columns: [
