@@ -87,7 +87,7 @@ test('the superadmin sidebar renders reports as a dropdown with the ledger link'
 
     expect($reports)->not->toBeNull()
         ->and((int) $reports['type'])->toBe(2)
-        ->and(collect($reports['children'])->pluck('my_route')->all())->toBe(['/report/ledger']);
+        ->and(collect($reports['children'])->pluck('my_route')->first())->toBe('/report/ledger');
 });
 
 test('running the migration twice does not duplicate the group or the report', function () {
@@ -103,6 +103,8 @@ test('rolling back removes the report and the group and it can be applied again'
     $ledgerId = DB::table('menus')->where('route_path', '/report/ledger')->value('id');
     DB::table('permissions')->insert(['role_id' => 1, 'menu_id' => $ledgerId, 'status' => 1, 'created_at' => now(), 'updated_at' => now()]);
 
+    // The transaction reports live in the same group; the group only goes once they are gone too.
+    (require database_path('migrations/2026_09_20_214054_add_transaction_report_menus.php'))->down();
     reportsMenuMigration()->down();
 
     expect(reportsGroupId())->toBeNull()

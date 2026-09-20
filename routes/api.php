@@ -49,6 +49,7 @@ use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TimezoneController;
+use App\Http\Controllers\TransactionReportController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
@@ -459,6 +460,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     /* Low Stock */
     Route::get('lowstock', [LowStockController::class, 'index']);
     /* Low Stock */
+
+    /* Transaction list reports */
+    foreach (array_keys(TransactionReportController::PERMISSIONS) as $report) {
+        Route::get('reports/'.$report, [TransactionReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Transaction list reports */
 
     /* Purchase Payment */
     Route::get('purchase-payments/eligible-purchases', [PurchasePaymentController::class, 'eligiblePurchases']);

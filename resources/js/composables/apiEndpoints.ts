@@ -112,6 +112,7 @@ export const API_ENDPOINTS = {
     priceListSearchProducts: '/api/pricelists/search-products',
     printLabelSearchProducts: '/api/printlabels/search-products',
     lowStock: '/api/lowstock',
+    reports: '/api/reports',
     receivingNotes: '/api/receiving-notes',
     receivingNoteEligiblePurchases: '/api/receiving-notes/eligible-purchases',
     receivingNotePurchase: (id: number | string) => `/api/receiving-notes/purchase/${id}`,
