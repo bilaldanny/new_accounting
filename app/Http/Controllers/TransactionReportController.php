@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesReportScope;
 use App\Services\ExpenseReport;
 use App\Services\PaymentListReport;
 use App\Services\StockAdjustmentReport;
@@ -10,7 +11,6 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
-use Illuminate\Support\Facades\Auth;
 use stdClass;
 
 /**
@@ -24,6 +24,8 @@ use stdClass;
  */
 class TransactionReportController extends Controller
 {
+    use ResolvesReportScope;
+
     /**
      * Menu permission per report: the page path of the report.
      *
@@ -64,19 +66,7 @@ class TransactionReportController extends Controller
             'cur_page' => 'nullable|integer|min:1',
         ]);
 
-        $user = Auth::user();
-        $isSuperadmin = $user->hasRole('superadmin');
-
-        if (! $isSuperadmin && ! $user->company_id) {
-            abort(403);
-        }
-
-        $companyId = $isSuperadmin
-            ? ($request->integer('company_id') ?: null)
-            : (int) $user->company_id;
-        $branchId = $user->branch_id && ! $isSuperadmin && ! $user->hasRole('companyadmin')
-            ? (int) $user->branch_id
-            : ($request->integer('branch_id') ?: null);
+        [$companyId, $branchId] = $this->reportScope($request);
 
         $filters = $request->only([
             'contact_id', 'account_id', 'status', 'payment_status', 'method', 'adjustment_type', 'start_date', 'end_date', 'search',

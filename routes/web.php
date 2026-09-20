@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PartyReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TransactionReportController;
 use Illuminate\Support\Facades\Route;
@@ -400,6 +401,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('report.ledger');
 
     foreach (TransactionReportController::PERMISSIONS as $report => $path) {
+        Route::get(ltrim($path, '/'), function () use ($report, $path) {
+            abortUnlessMenuPermission($path);
+
+            return Inertia::render('report/transaction', ['report' => $report]);
+        })->name('report.'.$report);
+    }
+
+    foreach (PartyReportController::PERMISSIONS as $report => $path) {
         Route::get(ltrim($path, '/'), function () use ($report, $path) {
             abortUnlessMenuPermission($path);
 

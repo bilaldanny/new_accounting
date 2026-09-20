@@ -26,6 +26,7 @@ use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\PartyReportController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PriceListController;
@@ -466,6 +467,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('reports/'.$report, [TransactionReportController::class, 'index'])->defaults('report', $report);
     }
     /* Transaction list reports */
+
+    /* Party reports */
+    foreach (array_keys(PartyReportController::PERMISSIONS) as $report) {
+        Route::get('reports/'.$report, [PartyReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Party reports */
 
     /* Purchase Payment */
     Route::get('purchase-payments/eligible-purchases', [PurchasePaymentController::class, 'eligiblePurchases']);
