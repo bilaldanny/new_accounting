@@ -32,7 +32,7 @@
 
     const { state, summary, config, load, changeOrder, checkAll, select_data } = useTransactionReport(pageProps.report);
 
-    const { formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata } = useCommons();
+    const { formatedText, fetchCompany, fetchBranch, fetchCustomerGroup, companiesdata, branchesdata, customergroupsdata } = useCommons();
     const { customersdata, fetchCustomersDropdown } = useCustomers();
     const { suppliersdata, fetchSuppliersDropdown } = useSuppliers();
     const { fetchActiveFinancialYear } = useActiveFinancialYear();
@@ -75,6 +75,15 @@
 
     const columns = computed(() => config.columns);
 
+    /** Outstanding and aging are a position on one day; the other reports cover a period. */
+    const isAsOf = computed(() => config.filters.asOf === true);
+
+    const CONTACT_TYPES = [
+        { value: 'all', label: 'Customers & suppliers' },
+        { value: 'customer', label: 'Customers' },
+        { value: 'supplier', label: 'Suppliers' },
+    ];
+
     const cards = computed(() =>
         config.summary.map((card) => {
             const value = card.key.split('.').reduce<unknown>(
@@ -89,7 +98,7 @@
         }),
     );
 
-    const hasRange = computed(() => Boolean(state.search.start_date && state.search.end_date));
+    const hasRange = computed(() => Boolean(state.search.end_date) && (isAsOf.value || Boolean(state.search.start_date)));
 
     const filterOpen = ref(false);
     const applyingFiscalYear = ref(false);
@@ -100,6 +109,11 @@
 
     async function loadParties() {
         state.search.contact_id = '';
+        state.search.customer_group_id = '';
+
+        if (config.filters.customerGroup) {
+            await fetchCustomerGroup(state.search.company_id, state.search.branch_id);
+        }
 
         if (party.value === 'supplier') {
             await fetchSuppliersDropdown(state.search.company_id, state.search.branch_id);
@@ -108,8 +122,21 @@
         }
     }
 
-    /** Starts on the active financial year; without one the report is not limited by date. */
+    /** Today as a `Y-m-d` string in the browser's own time zone. */
+    const today = (): string => new Date().toLocaleDateString('en-CA');
+
+    /**
+     * A position on one day starts on today; a period starts on the active financial year, and without
+     * one the report is not limited by date.
+     */
     async function applyActiveFiscalYear() {
+        if (isAsOf.value) {
+            state.search.start_date = '';
+            state.search.end_date = today();
+
+            return;
+        }
+
         applyingFiscalYear.value = true;
 
         try {
@@ -150,6 +177,9 @@
         state.search.show_record = 10;
         state.search.page = 1;
         state.search.contact_id = '';
+        state.search.customer_group_id = '';
+        state.search.contact_type = 'all';
+        state.search.include_zero = false;
         state.search.status = config.filters.defaultStatus ?? '';
         state.search.payment_status = 'all';
         state.search.method = 'all';
@@ -260,6 +290,30 @@
                     </select>
                 </div>
 
+                <div v-if="config.filters.customerGroup" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-group">Customer group</label>
+                    <select
+                        id="report-filter-group"
+                        v-model="state.search.customer_group_id"
+                        class="form-select form-select-sm"
+                        :disabled="partyFilterDisabled"
+                    >
+                        <option value="">All</option>
+                        <option v-for="group in customergroupsdata" :key="group.id" :value="group.id">
+                            {{ group.text ?? group.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <div v-if="config.filters.contactTypes" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-contact-type">Show</label>
+                    <select id="report-filter-contact-type" v-model="state.search.contact_type" class="form-select form-select-sm">
+                        <option v-for="option in CONTACT_TYPES" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
+                </div>
+
                 <div v-if="config.filters.statuses" class="col-md-4 col-lg-3 admin-filter-field">
                     <label class="form-label" for="report-filter-status">Status</label>
                     <select id="report-filter-status" v-model="state.search.status" class="form-select form-select-sm">
@@ -296,7 +350,29 @@
                     </select>
                 </div>
 
-                <div class="col-md-8 col-lg-4 admin-filter-field">
+                <div v-if="isAsOf" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-as-of">As of</label>
+                    <input
+                        id="report-filter-as-of"
+                        v-model="state.search.end_date"
+                        type="date"
+                        class="form-control form-control-sm"
+                    />
+                </div>
+
+                <div v-if="config.filters.includeZero" class="col-md-4 col-lg-3 admin-filter-field d-flex align-items-end">
+                    <div class="form-check">
+                        <input
+                            id="report-filter-zero"
+                            v-model="state.search.include_zero"
+                            type="checkbox"
+                            class="form-check-input"
+                        />
+                        <label class="form-check-label" for="report-filter-zero">Include settled contacts</label>
+                    </div>
+                </div>
+
+                <div v-if="!isAsOf" class="col-md-8 col-lg-4 admin-filter-field">
                     <FiscalYearDateRange
                         v-model:start-date="state.search.start_date"
                         v-model:end-date="state.search.end_date"
@@ -321,7 +397,12 @@
                 </div>
 
                 <p v-if="hasRange" class="transaction-report__range">
-                    <strong>{{ state.search.start_date }}</strong> to <strong>{{ state.search.end_date }}</strong>
+                    <template v-if="isAsOf">
+                        As of <strong>{{ state.search.end_date }}</strong>
+                    </template>
+                    <template v-else>
+                        <strong>{{ state.search.start_date }}</strong> to <strong>{{ state.search.end_date }}</strong>
+                    </template>
                 </p>
 
                 <div class="admin-list-table">

@@ -103,8 +103,9 @@ test('rolling back removes the report and the group and it can be applied again'
     $ledgerId = DB::table('menus')->where('route_path', '/report/ledger')->value('id');
     DB::table('permissions')->insert(['role_id' => 1, 'menu_id' => $ledgerId, 'status' => 1, 'created_at' => now(), 'updated_at' => now()]);
 
-    // The transaction reports live in the same group; the group only goes once they are gone too.
+    // The transaction and party reports live in the same group; the group only goes once they are gone too.
     (require database_path('migrations/2026_09_20_214054_add_transaction_report_menus.php'))->down();
+    (require database_path('migrations/2026_09_21_120000_add_party_report_menus.php'))->down();
     reportsMenuMigration()->down();
 
     expect(reportsGroupId())->toBeNull()

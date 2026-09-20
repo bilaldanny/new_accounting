@@ -66,6 +66,32 @@ class ContactLedger
     }
 
     /**
+     * The closing balance `forContact` reports for the same arguments, without the purchase and sell
+     * totals, so a report can put one figure next to every contact. A contact seen as a customer
+     * (`user_type` customer) is positive when they owe us, as a supplier when we owe them.
+     */
+    public function closingBalance(
+        Contact $contact,
+        CarbonInterface $fromDate,
+        CarbonInterface $toDate,
+        ?string $branchId = null,
+        bool $postedOnly = false,
+    ): float {
+        $from = $fromDate->toDateString();
+        $to = $toDate->toDateString();
+        $accountCodes = $this->accountCodes($contact);
+        $resolvedBranchId = $this->resolvedBranchId($branchId);
+        $hasJournals = $this->hasJournalLines($contact, $accountCodes, $resolvedBranchId);
+
+        $rows = $hasJournals
+            ? $this->journalRows($contact, $accountCodes, $from, $to, $resolvedBranchId)
+            : $this->transactionRows($contact, $from, $to, $resolvedBranchId, $postedOnly);
+        $opening = $this->openingBalance($contact, $accountCodes, $from, $resolvedBranchId, $hasJournals);
+
+        return $this->closingFromRows($contact, $opening, $rows);
+    }
+
+    /**
      * Closing balance over the ledger screen's default range (the active financial year, or all
      * time when the company has none). For a customer a positive value is what they still owe.
      */

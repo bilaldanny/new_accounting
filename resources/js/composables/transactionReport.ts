@@ -15,7 +15,13 @@ export type ReportKey =
     | 'purchase-payment'
     | 'sell-payment'
     | 'stock-adjustment'
-    | 'expense';
+    | 'expense'
+    | 'customer-outstanding'
+    | 'supplier-outstanding'
+    | 'customer-supplier'
+    | 'customer-group'
+    | 'customer-aging'
+    | 'supplier-aging';
 
 export type ReportColumn = {
     key: string;
@@ -44,6 +50,13 @@ export type ReportFilters = {
     paymentStatus?: boolean;
     methods?: boolean;
     adjustmentTypes?: boolean;
+    /** One "as of" day instead of a date range. */
+    asOf?: boolean;
+    customerGroup?: boolean;
+    /** The customer / supplier / all selector of the customer & supplier summary. */
+    contactTypes?: boolean;
+    /** The option to list contacts whose balance is settled. */
+    includeZero?: boolean;
 };
 
 export type ReportConfig = {
@@ -117,6 +130,44 @@ const documentFilters = (party: 'customer' | 'supplier', statuses: string[]): Re
 
 const documentSearch = 'Invoice, reference or party';
 
+const count = (key: string, label: string, responsive: string[] = ALL): ReportColumn => ({
+    key,
+    label,
+    format: 'number',
+    decimals: 0,
+    responsive,
+    emptyDisplay: '0',
+});
+
+/** Customer and supplier aging differ only in wording. */
+const agingReport = (title: string, party: 'customer' | 'supplier', document: string, owed: string): ReportConfig => ({
+    title: `${title} Aging Report`,
+    subtitle: `What is still ${owed} on each open ${document}, by days past its due date on the day. The due date is the invoice date plus its pay term, or the invoice date itself when there is none.`,
+    exportName: `${party}-aging-report`,
+    filters: { party, asOf: true },
+    columns: [
+        text('contact_name', title, ALL, 'primary'),
+        text('code', 'Code', WIDE),
+        count('invoices', 'Invoices', MID),
+        count('oldest_days', 'Oldest (days)', MID),
+        money('not_due', 'Not Yet Due', WIDE),
+        money('days_0_30', '0 - 30', MID),
+        money('days_31_60', '31 - 60', MID),
+        money('days_61_90', '61 - 90', MID),
+        money('days_90_plus', '90+', MID),
+        money('total', 'Total'),
+    ],
+    summary: [
+        { key: 'count', label: `${title}s`, kind: 'count' },
+        { key: 'not_due', label: 'Not yet due' },
+        { key: 'days_0_30', label: '0 - 30' },
+        { key: 'days_31_60', label: '31 - 60' },
+        { key: 'days_61_90', label: '61 - 90' },
+        { key: 'days_90_plus', label: '90+' },
+        { key: 'total', label: 'Total', accent: true },
+    ],
+    searchPlaceholder: `${title} name or code`,
+});
 export const REPORTS: Record<ReportKey, ReportConfig> = {
     purchase: {
         title: 'Purchase Report',
@@ -266,6 +317,98 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
         ],
         searchPlaceholder: 'Voucher, reference, account or description',
     },
+    'customer-outstanding': {
+        title: 'Customer Outstanding Report',
+        subtitle: 'What each customer still owes on the day, the same figure their ledger closes on. A negative amount is an advance.',
+        exportName: 'customer-outstanding-report',
+        filters: { party: 'customer', asOf: true, customerGroup: true, includeZero: true },
+        columns: [
+            text('contact_name', 'Customer', ALL, 'primary'),
+            text('code', 'Code', MID),
+            text('group_name', 'Group', WIDE),
+            text('account_code', 'Account', WIDE),
+            text('position', 'Position', MID),
+            money('balance', 'Outstanding'),
+        ],
+        summary: [
+            { key: 'count', label: 'Customers', kind: 'count' },
+            { key: 'total_due', label: 'Total due', accent: true },
+            { key: 'total_advance', label: 'Advances' },
+            { key: 'net', label: 'Net' },
+        ],
+        searchPlaceholder: 'Customer name or code',
+    },
+    'supplier-outstanding': {
+        title: 'Supplier Outstanding Report',
+        subtitle: 'What is still owed to each supplier on the day, the same figure their ledger closes on. A negative amount is an advance paid.',
+        exportName: 'supplier-outstanding-report',
+        filters: { party: 'supplier', asOf: true, includeZero: true },
+        columns: [
+            text('contact_name', 'Supplier', ALL, 'primary'),
+            text('code', 'Code', MID),
+            text('account_code', 'Account', WIDE),
+            text('position', 'Position', MID),
+            money('balance', 'Outstanding'),
+        ],
+        summary: [
+            { key: 'count', label: 'Suppliers', kind: 'count' },
+            { key: 'total_due', label: 'Total payable', accent: true },
+            { key: 'total_advance', label: 'Advances paid' },
+            { key: 'net', label: 'Net' },
+        ],
+        searchPlaceholder: 'Supplier name or code',
+    },
+    'customer-supplier': {
+        title: 'Customer & Supplier Report',
+        subtitle: 'Sales, purchases and returns per customer and supplier over a period. Both dues are positive while money is still to move and negative for an overpayment.',
+        exportName: 'customer-supplier-report',
+        filters: { contactTypes: true, customerGroup: true },
+        columns: [
+            text('contact_name', 'Contact', ALL, 'primary'),
+            text('user_type', 'Type', MID),
+            text('group_name', 'Group', WIDE),
+            money('purchases', 'Purchases', WIDE),
+            money('purchase_returns', 'Purchase Returns', WIDE),
+            money('sales', 'Sales', MID),
+            money('sell_returns', 'Sell Returns', WIDE),
+            money('received', 'Received', WIDE),
+            money('paid', 'Paid', WIDE),
+            money('receivable_due', 'Receivable Due'),
+            money('payable_due', 'Payable Due'),
+        ],
+        summary: [
+            { key: 'count', label: 'Contacts', kind: 'count' },
+            { key: 'sales', label: 'Sales' },
+            { key: 'purchases', label: 'Purchases' },
+            { key: 'receivable_due', label: 'Receivable due', accent: true },
+            { key: 'payable_due', label: 'Payable due', accent: true },
+        ],
+        searchPlaceholder: 'Contact name or code',
+    },
+    'customer-group': {
+        title: 'Customer Group Report',
+        subtitle: 'Sales per customer group over a period. A sale belongs to the group its customer is in; sell returns are taken off.',
+        exportName: 'customer-group-report',
+        filters: { customerGroup: true },
+        columns: [
+            text('group_name', 'Customer Group', ALL, 'primary'),
+            count('customers', 'Customers', MID),
+            count('invoices', 'Invoices', MID),
+            money('sales', 'Sales', MID),
+            money('sell_returns', 'Sell Returns', WIDE),
+            money('net_sales', 'Net Sales'),
+        ],
+        summary: [
+            { key: 'count', label: 'Groups', kind: 'count' },
+            { key: 'customers', label: 'Customers', kind: 'count' },
+            { key: 'sales', label: 'Sales' },
+            { key: 'sell_returns', label: 'Sell returns' },
+            { key: 'net_sales', label: 'Net sales', accent: true },
+        ],
+        searchPlaceholder: 'Group name',
+    },
+    'customer-aging': agingReport('Customer', 'customer', 'customer invoice', 'owed'),
+    'supplier-aging': agingReport('Supplier', 'supplier', 'purchase invoice', 'payable'),
 };
 
 export const ADJUSTMENT_TYPES = [
@@ -315,6 +458,9 @@ export default function useTransactionReport(report: ReportKey) {
             company_id: '' as string | number,
             branch_id: '' as string | number,
             contact_id: '' as string | number,
+            customer_group_id: '' as string | number,
+            contact_type: 'all',
+            include_zero: false,
             status: config.filters.defaultStatus ?? '',
             payment_status: 'all',
             method: 'all',
