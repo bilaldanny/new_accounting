@@ -32,7 +32,10 @@ export type ReportKey =
     | 'tax'
     | 'trending-products'
     | 'stock'
-    | 'stock-transfer';
+    | 'stock-transfer'
+    | 'account-ledger'
+    | 'trial-balance'
+    | 'vouchers';
 
 export type ReportColumn = {
     key: string;
@@ -55,7 +58,7 @@ export type SummaryCard = {
 
 export type ReportFilters = {
     /** Which party the contact filter lists, if any. */
-    party?: 'customer' | 'supplier';
+    party?: 'customer' | 'supplier' | 'both';
     statuses?: { value: string; label: string }[];
     defaultStatus?: string;
     paymentStatus?: boolean;
@@ -78,6 +81,14 @@ export type ReportFilters = {
     byBranch?: boolean;
     /** The from and to branch selectors of the transfer report. */
     transferBranches?: boolean;
+    /** The report works from one company's books, so nothing loads until a company is chosen. */
+    requiresCompany?: boolean;
+    /** The chart-of-accounts selector of the account ledger. */
+    accountSelector?: boolean;
+    /** The account class selector of the trial balance. */
+    accountGroups?: boolean;
+    /** The receipt / payment selector of the voucher report. */
+    voucherTypes?: boolean;
 };
 
 export type ReportConfig = {
@@ -715,6 +726,81 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
         ],
         searchPlaceholder: 'Reference or note',
     },
+    'account-ledger': {
+        title: 'Account Ledger',
+        subtitle: 'The statement of any chart-of-accounts account; a group account is the sum of the accounts below it. Approved vouchers only, balance on the side the account normally carries.',
+        exportName: 'account-ledger',
+        filters: { requiresCompany: true, accountSelector: true },
+        columns: [
+            text('voucher_date', 'Date'),
+            text('voucher_no', 'Voucher No', ALL, 'primary'),
+            text('ref_no', 'Reference', WIDE),
+            text('account_code', 'Account', WIDE),
+            text('account_name', 'Account Name', WIDE),
+            text('description', 'Description', MID),
+            text('branch_name', 'Branch', WIDE),
+            money('debit', 'Debit', MID),
+            money('credit', 'Credit', MID),
+            money('balance', 'Balance'),
+        ],
+        summary: [
+            { key: 'opening', label: 'Opening balance' },
+            { key: 'debit', label: 'Debit' },
+            { key: 'credit', label: 'Credit' },
+            { key: 'closing', label: 'Closing balance', accent: true },
+        ],
+        searchPlaceholder: 'Voucher, reference or description',
+    },
+    'trial-balance': {
+        title: 'Trial Balance',
+        subtitle: 'Every posting account with its opening balance, the period\'s debits and credits and its closing balance. Classes follow the first digit of the code. The difference should be zero.',
+        exportName: 'trial-balance',
+        filters: { requiresCompany: true, accountGroups: true },
+        columns: [
+            text('code', 'Code', ALL, 'primary'),
+            text('name', 'Account'),
+            text('class', 'Class', WIDE),
+            money('opening_debit', 'Opening Dr', WIDE),
+            money('opening_credit', 'Opening Cr', WIDE),
+            money('debit', 'Debit', MID),
+            money('credit', 'Credit', MID),
+            money('closing_debit', 'Closing Dr'),
+            money('closing_credit', 'Closing Cr'),
+        ],
+        summary: [
+            { key: 'count', label: 'Accounts', kind: 'count' },
+            { key: 'closing_debit', label: 'Closing debit' },
+            { key: 'closing_credit', label: 'Closing credit' },
+            { key: 'closing_difference', label: 'Difference', accent: true },
+        ],
+        searchPlaceholder: 'Account code or name',
+    },
+    vouchers: {
+        title: 'Receipts & Payments Report',
+        subtitle: 'Approved receipt vouchers (bank, cash, online deposits and customer payments) and payment vouchers (bank, cash, online and supplier payments).',
+        exportName: 'receipts-payments-report',
+        filters: { party: 'both', voucherTypes: true },
+        columns: [
+            text('voucher_date', 'Date'),
+            text('voucher_no', 'Voucher No', ALL, 'primary'),
+            text('label', 'Type', MID),
+            text('party_name', 'Party', MID),
+            text('accounts', 'Accounts', WIDE),
+            text('header_account', 'Bank / Cash', WIDE),
+            text('ref_no', 'Reference', WIDE),
+            text('cheque_no', 'Cheque No', WIDE),
+            text('cheque_date', 'Cheque Date', WIDE),
+            text('branch_name', 'Branch', WIDE),
+            money('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'count', label: 'Vouchers', kind: 'count' },
+            { key: 'receipts', label: 'Receipts' },
+            { key: 'payments', label: 'Payments' },
+            { key: 'net', label: 'Receipts less payments', accent: true },
+        ],
+        searchPlaceholder: 'Voucher, reference, cheque or description',
+    },
 };
 
 export const ADJUSTMENT_TYPES = [
@@ -775,6 +861,9 @@ export default function useTransactionReport(report: ReportKey) {
             by_branch: false,
             from_branch_id: '' as string | number,
             to_branch_id: '' as string | number,
+            account_code: '',
+            account_group: '' as string | number,
+            voucher_type: 'all',
             status: config.filters.defaultStatus ?? '',
             payment_status: 'all',
             method: 'all',
@@ -798,6 +887,13 @@ export default function useTransactionReport(report: ReportKey) {
 
     /** Loads the current page of rows and the totals for the filters in `state.search`. */
     const load = async (): Promise<void> => {
+        if (config.filters.requiresCompany && !state.search.company_id) {
+            state.records = { data: [], from: 0, to: 0, total: 0, last_page: 0, current_page: 1 };
+            summary.value = {};
+
+            return;
+        }
+
         state.loading = true;
 
         try {
