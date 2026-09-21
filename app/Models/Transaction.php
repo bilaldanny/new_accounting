@@ -70,6 +70,7 @@ class Transaction extends Model
         'parent_id',
         'tax_id',
         'transporter_id',
+        'commission_agent_id',
         'created_by',
         'updated_by',
         'approved_by',
@@ -179,6 +180,16 @@ class Transaction extends Model
     public function directContact(): BelongsTo
     {
         return $this->belongsTo(Contact::class, 'direct_contact_id');
+    }
+
+    /**
+     * The sales commission agent a sale is assigned to (sells only, optional).
+     *
+     * @return BelongsTo<CommissionAgent, $this>
+     */
+    public function commissionAgent(): BelongsTo
+    {
+        return $this->belongsTo(CommissionAgent::class);
     }
 
     /**
@@ -829,6 +840,45 @@ class Transaction extends Model
             ->delete();
     }
 
+    /**
+     * The sales commission agent a sale is assigned to, or null for none. The agent has to belong to the
+     * sale's company and be active; an agent the sale already has is kept as it is, even if they have
+     * been switched off or deleted since, so editing an old sale never fails because of it.
+     *
+     * @throws ValidationException
+     */
+    private function resolveCommissionAgentId(mixed $value, ?int $companyId): ?int
+    {
+        $agentId = self::resolveScopedId($value);
+
+        if ($agentId === null) {
+            return null;
+        }
+
+        if ($this->exists && (int) $this->getOriginal('commission_agent_id') === $agentId) {
+            return $agentId;
+        }
+
+        $agent = CommissionAgent::query()->where('company_id', $companyId)->find($agentId);
+
+        if ($agent === null || ! $agent->is_active) {
+            throw ValidationException::withMessages([
+                'commission_agent_id' => ['Choose an active commission agent of this company.'],
+            ]);
+        }
+
+        return $agentId;
+    }
+
+    /**
+     * Whether the request carries the field at all, even as null or empty. A client that does not know
+     * the field (the POS screen, say) then leaves what an existing sale has as it is.
+     */
+    private static function requestSends(object $request, string $field): bool
+    {
+        return ! method_exists($request, 'has') || $request->has($field);
+    }
+
     public function fillFromSellRequest(object $request, ?int $companyId, ?int $branchId): void
     {
         $isDirect = $request->is_direct === true
@@ -850,6 +900,9 @@ class Transaction extends Model
         $this->branch_id = $branchId;
         $this->contact_id = self::resolveScopedId($request->contact_id);
         $this->direct_contact_id = $isDirect ? self::resolveScopedId($request->direct_contact_id) : null;
+        $this->commission_agent_id = $this->exists && ! self::requestSends($request, 'commission_agent_id')
+            ? $this->commission_agent_id
+            : $this->resolveCommissionAgentId($request->commission_agent_id ?? null, $companyId);
         $this->transaction_date = self::parseTransactionDate($request->transaction_date);
         $this->pay_term = $request->pay_term;
         $this->pay_type = in_array($request->pay_type, ['day', 'month', 'year'], true) ? $request->pay_type : 'day';

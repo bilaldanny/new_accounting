@@ -54,6 +54,7 @@ class SellController extends Controller
             'total_item' => 'nullable|integer|min:0',
             'is_direct' => 'nullable|boolean',
             'direct_contact_id' => 'required_if:is_direct,1,true|nullable',
+            'commission_agent_id' => 'nullable|integer',
             'status' => 'nullable|in:final,draft,quotation,approved',
             'payment_status' => 'nullable|in:paid,due,partial',
             'selllines' => 'bail|required|array|min:1',
@@ -193,6 +194,7 @@ class SellController extends Controller
                 'selllines.unit:id,name,short_name',
                 'contact:id,business_name,first_name,middle_name,last_name,pay_term,pay_type,credit_limit,address,mobile',
                 'directContact:id,business_name',
+                'commissionAgent:id,name,commission_percent',
                 'company:id,name,address,phone,cell,email,fb_link,logo',
                 'company.companySetting:id,company_id,business_name,address,logo',
                 'branch:id,name',
@@ -210,6 +212,7 @@ class SellController extends Controller
         $payload['transaction_date'] = $sell->transaction_date?->format('Y-m-d');
         $payload['billty_date'] = $sell->billty_date?->format('Y-m-d');
         $payload['customer_name'] = $sell->contact?->business_name;
+        $payload['commission_agent_name'] = $sell->commissionAgent?->name;
         $payload['credit_limit'] = $sell->contact?->credit_limit ?? 0;
         $payload['company_name'] = $sell->company?->name;
         $payload['company_address'] = $sell->company?->address;
