@@ -87,9 +87,7 @@ trait HandlesIndexAndBulkDelete
 
             return response()->json(['message' => $successMessage]);
         } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
+            return $this->failedTransaction($e);
         }
     }
 }

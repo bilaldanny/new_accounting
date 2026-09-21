@@ -70,6 +70,7 @@ use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarrantyController;
+use App\Http\Middleware\ValidateBulkActionBody;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -84,7 +85,7 @@ Route::post('fetchcities', [CityController::class, 'fetch']);
 Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
 Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(function () {
     /* Menu */
     Route::get('menus/trash', [MenuController::class, 'trash']);
     Route::resource('menus', MenuController::class);

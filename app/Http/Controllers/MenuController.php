@@ -252,6 +252,11 @@ class MenuController extends Controller
         DB::beginTransaction();
         try {
             $menu = Menu::find($request->id);
+
+            if ($menu === null) {
+                abort(404);
+            }
+
             $duplicator = $menu->replicate();
             $duplicator->name = $menu->name.' Copy';
             $duplicator->save();
@@ -259,9 +264,7 @@ class MenuController extends Controller
 
             return response()->json(['message' => 'Successfully Duplicated']);
         } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
+            return $this->failedTransaction($e);
         }
     }
 
