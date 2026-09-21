@@ -73,7 +73,7 @@ test('a fresh schema groups software setting, country, state and city under the 
         ->and((int) $parent->is_permission)->toBe(1);
 
     expect(DB::table('menus')->where('parent_id', $parent->id)->orderBy('sort_order')->pluck('route_path')->all())
-        ->toBe(['/software/setting', '/country', '/state', '/city']);
+        ->toBe(['/software/setting', '/country', '/state', '/city', '/backup']);
 
     foreach (['/software/setting', '/country', '/state', '/city'] as $path) {
         expect(DB::table('menus')->whereNull('parent_id')->where('route_path', $path)->exists())->toBeFalse();
@@ -85,7 +85,8 @@ test('with the live-only roots present all seven menus move under settings in th
     rerunSettingsGroupMigration();
 
     expect(DB::table('menus')->where('parent_id', settingsParentId())->orderBy('sort_order')->pluck('route_path')->all())
-        ->toBe(['/menu', '/currency', '/timezone', '/software/setting', '/country', '/state', '/city']);
+        // '/backup' (Database Backup, 2026_09_21_250100) is the newest row in the group
+        ->toBe(['/menu', '/currency', '/timezone', '/software/setting', '/country', '/state', '/city', '/backup']);
 
     expect(DB::table('menus')->where('name', 'Settings')->where('type', 2)->count())->toBe(1);
 });
@@ -110,7 +111,7 @@ test('the superadmin sidebar renders settings as a dropdown with all seven links
     expect($settings)->not->toBeNull()
         ->and((int) $settings['type'])->toBe(2)
         ->and(collect($settings['children'])->pluck('my_route')->all())
-        ->toBe(['/menu', '/currency', '/timezone', '/software/setting', '/country', '/state', '/city']);
+        ->toBe(['/menu', '/currency', '/timezone', '/software/setting', '/country', '/state', '/city', '/backup']);
 });
 
 test('a role granted only country still sees the settings parent in its sidebar', function () {

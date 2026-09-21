@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountBalanceController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BankIssuerController;
 use App\Http\Controllers\BranchController;
@@ -455,6 +456,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Backup */
+    Route::get('backups', [BackupController::class, 'index']);
+    Route::post('backups', [BackupController::class, 'store']);
+    Route::get('backups/{id}/download', [BackupController::class, 'download']);
+    Route::delete('backups/{id}', [BackupController::class, 'destroy']);
+    /* Backup */
 
     /* Document settings (barcode, invoice, receipt printer) */
     Route::get('document-settings/{group}', [DocumentSettingController::class, 'show']);
