@@ -399,6 +399,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('discount.trash');
     /* Discount */
 
+    /* Gift Card */
+    Route::get('giftcard', function () {
+        abortUnlessMenuPermission('/giftcard');
+
+        return Inertia::render('giftcard/index');
+    })->name('giftcard');
+
+    Route::get('giftcard/add', function () {
+        abortUnlessMenuPermission('/giftcard/add');
+
+        return Inertia::render('giftcard/add');
+    })->name('giftcard.add');
+
+    Route::get('giftcard/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/giftcard/:id/edit');
+
+        return Inertia::render('giftcard/edit', ['id' => $id]);
+    })->name('giftcard.edit');
+
+    Route::get('giftcard/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/giftcard/:id/view');
+
+        return Inertia::render('giftcard/view', ['id' => $id]);
+    })->name('giftcard.view');
+
+    Route::get('giftcard/trash', function () {
+        abortUnlessMenuPermission('/giftcard/restore');
+
+        return Inertia::render('giftcard/trash');
+    })->name('giftcard.trash');
+    /* Gift Card */
+
     /* Transporter */
     Route::get('transporter', function () {
         abortUnlessMenuPermission('/transporter');
