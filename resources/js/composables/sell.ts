@@ -75,6 +75,7 @@ export default function useSells(){
       status: 'final',
       is_direct: false,
       direct_contact_id: '',
+      commission_agent_id: '',
       selllines: [] as SellLineRow[],
     });
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CityController;
+use App\Http\Controllers\CommissionAgentController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\ConsumerController;
@@ -55,6 +56,7 @@ use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TimezoneController;
+use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
@@ -448,6 +450,26 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Transporter */
+    Route::get('transporters/trash', [TransporterController::class, 'trash']);
+    Route::get('fetchtransporters', [TransporterController::class, 'fetch']);
+    Route::resource('transporters', TransporterController::class);
+    Route::post('transporters/statusupdate', [TransporterController::class, 'updatestatus']);
+    Route::post('transporters/bulk_delete', [TransporterController::class, 'bulk_delete']);
+    Route::post('transporters/bulk_delete_per', [TransporterController::class, 'bulk_delete_per']);
+    Route::post('transporters/restore_records', [TransporterController::class, 'restore_records']);
+    /* Transporter */
+
+    /* Commission Agent */
+    Route::get('commission-agents/trash', [CommissionAgentController::class, 'trash']);
+    Route::get('fetchcommissionagents', [CommissionAgentController::class, 'fetch']);
+    Route::resource('commission-agents', CommissionAgentController::class);
+    Route::post('commission-agents/statusupdate', [CommissionAgentController::class, 'updatestatus']);
+    Route::post('commission-agents/bulk_delete', [CommissionAgentController::class, 'bulk_delete']);
+    Route::post('commission-agents/bulk_delete_per', [CommissionAgentController::class, 'bulk_delete_per']);
+    Route::post('commission-agents/restore_records', [CommissionAgentController::class, 'restore_records']);
+    /* Commission Agent */
 
     /* Price List */
     Route::get('pricelists/search-products', [PriceListController::class, 'searchProducts']);

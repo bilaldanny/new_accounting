@@ -89,6 +89,7 @@
 
     const customersdata = ref<Array<{ id: number | string; text?: string; business_name?: string; pay_term?: number | string; pay_type?: string; credit_limit?: number | string }>>([]);
     const suppliersdata = ref<Array<{ id: number | string; text?: string; business_name?: string }>>([]);
+    const commissionAgentsdata = ref<Array<{ id: number | string; text?: string; name?: string }>>([]);
     const productSuggestions = ref<any[]>([]);
     const searchingProducts = ref(false);
     const lastFetchedCompanyId = ref('');
@@ -293,6 +294,24 @@
             customersdata.value = response.data ?? [];
         } catch {
             customersdata.value = [];
+        }
+    }
+
+    /** The active commission agents of the company, for the optional agent of the sale. */
+    async function loadCommissionAgents(companyId: string | number | null | undefined) {
+        if (! normalizeId(companyId)) {
+            commissionAgentsdata.value = [];
+
+            return;
+        }
+
+        try {
+            const response = await window.axios.get(API_ENDPOINTS.fetchCommissionAgents, {
+                params: { company_id: companyId },
+            });
+            commissionAgentsdata.value = response.data ?? [];
+        } catch {
+            commissionAgentsdata.value = [];
         }
     }
 
@@ -627,6 +646,7 @@
         () => normalizeId(params.formData?.company_id) || normalizeId(authUser.value?.company_id),
         async (companyId) => {
             await loadCompanySettings(companyId || undefined);
+            await loadCommissionAgents(companyId || undefined);
             await loadProductOptions();
         },
         { immediate: true },
@@ -855,6 +875,23 @@
         :floating="false"
         :can-clear="false"
         rules="required"
+    />
+
+    <SelectElement
+        name="commission_agent_id"
+        :native="false"
+        :items="commissionAgentsdata"
+        id="CommissionAgentId"
+        field-name="CommissionAgentId"
+        placeholder="No commission agent"
+        label="Commission agent"
+        :columns="colThird"
+        label-prop="text"
+        value-prop="id"
+        :search="true"
+        :floating="false"
+        :can-clear="true"
+        info="Optional. The sales commission agent this sale is credited to."
     />
     </GroupElement>
 

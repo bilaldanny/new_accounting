@@ -367,6 +367,70 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bankissuer.trash');
     /* Bank Issuer */
 
+    /* Transporter */
+    Route::get('transporter', function () {
+        abortUnlessMenuPermission('/transporter');
+
+        return Inertia::render('transporter/index');
+    })->name('transporter');
+
+    Route::get('transporter/add', function () {
+        abortUnlessMenuPermission('/transporter/add');
+
+        return Inertia::render('transporter/add');
+    })->name('transporter.add');
+
+    Route::get('transporter/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/transporter/:id/edit');
+
+        return Inertia::render('transporter/edit', ['id' => $id]);
+    })->name('transporter.edit');
+
+    Route::get('transporter/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/transporter/:id/view');
+
+        return Inertia::render('transporter/view', ['id' => $id]);
+    })->name('transporter.view');
+
+    Route::get('transporter/trash', function () {
+        abortUnlessMenuPermission('/transporter/restore');
+
+        return Inertia::render('transporter/trash');
+    })->name('transporter.trash');
+    /* Transporter */
+
+    /* Commission Agent */
+    Route::get('commissionagent', function () {
+        abortUnlessMenuPermission('/commissionagent');
+
+        return Inertia::render('commissionagent/index');
+    })->name('commissionagent');
+
+    Route::get('commissionagent/add', function () {
+        abortUnlessMenuPermission('/commissionagent/add');
+
+        return Inertia::render('commissionagent/add');
+    })->name('commissionagent.add');
+
+    Route::get('commissionagent/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/commissionagent/:id/edit');
+
+        return Inertia::render('commissionagent/edit', ['id' => $id]);
+    })->name('commissionagent.edit');
+
+    Route::get('commissionagent/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/commissionagent/:id/view');
+
+        return Inertia::render('commissionagent/view', ['id' => $id]);
+    })->name('commissionagent.view');
+
+    Route::get('commissionagent/trash', function () {
+        abortUnlessMenuPermission('/commissionagent/restore');
+
+        return Inertia::render('commissionagent/trash');
+    })->name('commissionagent.trash');
+    /* Commission Agent */
+
     /* Price List */
     Route::get('pricelist', function () {
         return Inertia::render('pricelist/index');
