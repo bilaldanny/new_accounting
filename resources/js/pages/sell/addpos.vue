@@ -229,7 +229,7 @@
         Object.assign(formData.value, {
             net_sub_total: Number(netSubTotal.toFixed(2)),
             discount_val: Number(discountVal.toFixed(2)),
-            final_amount: Number(Math.max(netSubTotal + toNumber(formData.value.shipping_charges) - discountVal - toNumber(formData.value.coupon_discount_amount), 0).toFixed(2)),
+            final_amount: Number(Math.max(netSubTotal + toNumber(formData.value.shipping_charges) - discountVal - toNumber(formData.value.coupon_discount_amount) - toNumber(formData.value.loyalty_discount_amount), 0).toFixed(2)),
         });
     }
 
@@ -565,7 +565,16 @@
         try {
             const response = await window.axios.post(API_ENDPOINTS.sells, {
                 ...formData.value,
-                ...(status === 'final' ? {} : { gift_card_code: '', gift_card_amount: 0 }),
+                ...(status === 'final'
+                    ? {}
+                    : {
+                        gift_card_code: '',
+                        gift_card_amount: 0,
+                        // points are only spent on a finished sale: a draft is saved without them, at the full price
+                        loyalty_points: 0,
+                        loyalty_discount_amount: 0,
+                        final_amount: toNumber(formData.value.final_amount) + toNumber(formData.value.loyalty_discount_amount),
+                    }),
                 status,
                 payment_status: 'due',
                 is_pos: true,
@@ -1077,7 +1086,7 @@
     });
 
     watch(
-        () => [formData.value.discount_type, formData.value.discount_amount, formData.value.shipping_charges, formData.value.coupon_discount_amount],
+        () => [formData.value.discount_type, formData.value.discount_amount, formData.value.shipping_charges, formData.value.coupon_discount_amount, formData.value.loyalty_discount_amount],
         () => recalculateTotals(),
     );
 

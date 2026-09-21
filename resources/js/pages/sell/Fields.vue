@@ -217,7 +217,7 @@
         persist({
             net_sub_total: Number(netSubTotal.toFixed(2)),
             discount_val: Number(discountVal.toFixed(2)),
-            final_amount: Number(Math.max(netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal - toNumber(params.formData?.coupon_discount_amount), 0).toFixed(2)),
+            final_amount: Number(Math.max(netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal - toNumber(params.formData?.coupon_discount_amount) - toNumber(params.formData?.loyalty_discount_amount), 0).toFixed(2)),
             total_item: lines.length,
             total_pack_qty: lines.reduce((sum, line) => sum + toNumber(line.packing_qty), 0),
         });
@@ -681,7 +681,7 @@
     );
 
     watch(
-        () => [params.formData?.discount_type, params.formData?.discount_amount, params.formData?.shipping_charges, params.formData?.coupon_discount_amount],
+        () => [params.formData?.discount_type, params.formData?.discount_amount, params.formData?.shipping_charges, params.formData?.coupon_discount_amount, params.formData?.loyalty_discount_amount],
         () => recalculateTotals(),
     );
 
@@ -707,6 +707,8 @@
     <TextElement name="credit_limit" hidden="true" />
     <TextElement name="discount_code" hidden="true" />
     <TextElement name="coupon_discount_amount" hidden="true" />
+    <TextElement name="loyalty_points" hidden="true" />
+    <TextElement name="loyalty_discount_amount" hidden="true" />
     <TextElement name="gift_card_code" hidden="true" />
     <TextElement name="gift_card_amount" hidden="true" />
     <TextElement name="gift_card_payment_account" hidden="true" />
@@ -1171,6 +1173,10 @@
                         <div v-if="Number(params.formData?.coupon_discount_amount) > 0" class="flex items-center justify-between">
                             <span>Coupon {{ params.formData?.discount_code }}</span>
                             <span class="font-mono text-slate-700">− {{ money(params.formData?.coupon_discount_amount) }}</span>
+                        </div>
+                        <div v-if="Number(params.formData?.loyalty_discount_amount) > 0" class="flex items-center justify-between">
+                            <span>Loyalty points ({{ params.formData?.loyalty_points }})</span>
+                            <span class="font-mono text-slate-700">− {{ money(params.formData?.loyalty_discount_amount) }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span>Shipping</span>

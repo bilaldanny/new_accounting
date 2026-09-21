@@ -82,6 +82,10 @@ export default function useSells(){
       gift_card_amount: 0,
       gift_card_payment_account: '',
       gift_card_payments: [] as Array<{ code: string; amount: number }>,
+      loyalty_points: 0,
+      loyalty_discount_amount: 0,
+      loyalty_saved_contact_id: null as number | null,
+      loyalty_points_spent: 0,
       selllines: [] as SellLineRow[],
     });
 

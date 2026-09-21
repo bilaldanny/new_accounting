@@ -6,8 +6,11 @@ use App\Models\Discount;
 use App\Models\DocumentSetting;
 use App\Models\GiftCard;
 use App\Models\GiftCardEntry;
+use App\Models\LoyaltyPointEntry;
+use App\Models\LoyaltySetting;
 use App\Models\Payment;
 use App\Models\SaleDiscount;
+use App\Models\SaleLoyaltyRedemption;
 use App\Models\SellLine;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -36,6 +39,12 @@ use RuntimeException;
  *   into a draft or returned (in proportion) and takes it out again when the sale comes back.
  * - **Loyalty**: points follow the sale through LoyaltyPoints::syncForSale (earned when it is a finished
  *   sale, corrected on edit, reversed on a return or delete).
+ * - **Loyalty redemption** (`loyalty_points`, `loyalty_discount_amount`): a customer can spend points on a
+ *   finished sale; the client takes their value (points x the company's point value) off `final_amount`, the
+ *   server re-works the value and refuses a sale whose amount differs by more than a cent. The points asked for
+ *   are stored in `sale_loyalty_redemptions` and LoyaltyPoints::syncRedemptionForSale keeps the ledger in step
+ *   (spent on save, given back when the sale is deleted, drafted or returned, spent again when it comes back).
+ *   Sending 0 removes the redemption, not sending the field leaves it alone.
  *
  * Discount codes and gift cards only work for a company that switched them on in Checkout Extras.
  */
@@ -46,8 +55,10 @@ class SaleIncentives
     public function afterSave(Transaction $sale, object $request): void
     {
         $this->applyDiscountCode($sale, $request);
+        $this->applyLoyaltyRedemption($sale, $request);
         $this->spendGiftCard($sale, $request);
         $this->giftCards->syncForSale($sale, Auth::id());
+        $this->syncLoyaltyRedemption($sale);
         $this->loyalty->syncForSale($sale, Auth::id());
     }
 
@@ -57,6 +68,7 @@ class SaleIncentives
     public function afterDelete(Transaction $sale): void
     {
         $this->giftCards->syncForSale($sale, Auth::id(), reverseAll: true);
+        $this->loyalty->syncRedemptionForSale($sale, Auth::id(), reverseAll: true);
         $this->loyalty->syncForSale($sale, Auth::id(), reverseAll: true);
     }
 
@@ -69,6 +81,7 @@ class SaleIncentives
         $sale = $sale->fresh() ?? $sale;
 
         $this->giftCards->syncForSale($sale, Auth::id());
+        $this->syncLoyaltyRedemption($sale);
         $this->loyalty->syncForSale($sale, Auth::id());
     }
 
@@ -154,6 +167,105 @@ class SaleIncentives
         'expired' => 'This gift card has expired.',
         'insufficient_balance' => 'The gift card balance is less than the amount.',
     ];
+
+    /**
+     * Checks and stores the points a customer redeems on this sale. The programme must be on (unless the sale
+     * already redeems exactly these points), the sale must be a finished sale of a customer, the customer must
+     * hold the points (the ones this sale already spent count as theirs again), and the amount the client took
+     * off must be what the points are worth. The ledger is moved by syncLoyaltyRedemption afterwards.
+     */
+    private function applyLoyaltyRedemption(Transaction $sale, object $request): void
+    {
+        if (method_exists($request, 'has') && ! $request->has('loyalty_points')) {
+            return;
+        }
+
+        $raw = $request->loyalty_points ?? 0;
+        $raw = $raw === '' || $raw === null ? 0 : $raw;
+        $existing = SaleLoyaltyRedemption::query()->where('transaction_id', $sale->id)->first();
+
+        if (! is_numeric($raw) || (float) $raw != (int) $raw || (int) $raw < 0) {
+            throw ValidationException::withMessages(['loyalty_points' => ['Points must be a whole number, 0 or more.']]);
+        }
+
+        $points = (int) $raw;
+
+        if ($points === 0) {
+            // kept at 0 rather than deleted: the ledger is only moved for a sale that has a row, and this
+            // is what gives the points back
+            $existing?->update(['points' => 0, 'amount' => 0]);
+
+            return;
+        }
+
+        if ($sale->contact_id === null) {
+            throw ValidationException::withMessages(['loyalty_points' => ['Choose a customer to redeem points.']]);
+        }
+
+        if (! LoyaltyPoints::isPostedSale($sale)) {
+            throw ValidationException::withMessages(['loyalty_points' => ['Points can only be redeemed on a finished sale, not a draft or a quotation.']]);
+        }
+
+        $settings = LoyaltySetting::forCompany((int) $sale->company_id);
+        $unchanged = $existing !== null && $existing->points === $points && (int) $existing->contact_id === (int) $sale->contact_id;
+
+        if (! $unchanged && ! $settings->is_enabled) {
+            throw ValidationException::withMessages(['loyalty_points' => ['Loyalty points are not switched on for this company.']]);
+        }
+
+        // redeeming takes money off the sale, so it needs the same permission as redeeming on the Loyalty page
+        if (! $unchanged && ! hasMenuPermission('/loyalty/redeem')) {
+            throw ValidationException::withMessages(['loyalty_points' => ['You do not have permission to redeem loyalty points.']]);
+        }
+
+        if (! $unchanged && $points < max(1, $settings->min_redeem_points)) {
+            throw ValidationException::withMessages(['loyalty_points' => ['At least '.max(1, $settings->min_redeem_points).' points must be redeemed at once.']]);
+        }
+
+        $alreadySpent = -(int) LoyaltyPointEntry::query()
+            ->where('transaction_id', $sale->id)
+            ->where('contact_id', $sale->contact_id)
+            ->where('type', LoyaltyPointEntry::TYPE_REDEEM)
+            ->sum('points');
+        $available = $this->loyalty->balance((int) $sale->contact_id) + $alreadySpent;
+
+        if ($points > $available) {
+            throw ValidationException::withMessages(['loyalty_points' => ['The customer has only '.$available.' points to redeem.']]);
+        }
+
+        $amount = $unchanged ? $existing->amount : $settings->valueOf($points);
+        $sent = round((float) ($request->loyalty_discount_amount ?? 0), 2);
+
+        if ((int) round(abs($sent - $amount) * 100) > 1) {
+            throw ValidationException::withMessages(['loyalty_discount_amount' => ['The points discount changed since it was applied ('.number_format($amount, 2, '.', '').'). Apply the points again.']]);
+        }
+
+        $subtotal = round((float) SellLine::query()->where('transaction_id', $sale->id)->sum('subtotal'), 2);
+        $coupon = (float) SaleDiscount::query()->where('transaction_id', $sale->id)->value('amount');
+
+        if ((int) round(($amount - max($subtotal - $coupon, 0)) * 100) > 1) {
+            throw ValidationException::withMessages(['loyalty_points' => ['These points are worth more than the sale.']]);
+        }
+
+        SaleLoyaltyRedemption::query()->updateOrCreate(['transaction_id' => $sale->id], [
+            'contact_id' => $sale->contact_id,
+            'points' => $points,
+            'amount' => $amount,
+        ]);
+    }
+
+    /**
+     * Moves the points ledger to what the sale is meant to have spent (see LoyaltyPoints::syncRedemptionForSale);
+     * a customer who no longer has the points refuses the save or the restore.
+     */
+    private function syncLoyaltyRedemption(Transaction $sale): void
+    {
+        try {
+            $this->loyalty->syncRedemptionForSale($sale, Auth::id());
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages(['loyalty_points' => ['The customer no longer has the points redeemed on this sale, so it cannot be finished again.']]);
+        }
+    }
 
     private function spendGiftCard(Transaction $sale, object $request): void
     {
