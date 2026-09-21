@@ -6,6 +6,7 @@ use App\Http\Controllers\BankController;
 use App\Http\Controllers\BankIssuerController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CashCollectionController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CityController;
@@ -456,6 +457,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Cash Collection */
+    Route::get('cash-collections/trash', [CashCollectionController::class, 'trash']);
+    Route::get('cash-collections/open-invoices', [CashCollectionController::class, 'openInvoices']);
+    Route::resource('cash-collections', CashCollectionController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::post('cash-collections/{id}/complete', [CashCollectionController::class, 'complete']);
+    Route::post('cash-collections/{id}/cancel', [CashCollectionController::class, 'cancel']);
+    Route::post('cash-collections/bulk_delete', [CashCollectionController::class, 'bulk_delete']);
+    Route::post('cash-collections/bulk_delete_per', [CashCollectionController::class, 'bulk_delete_per']);
+    Route::post('cash-collections/restore_records', [CashCollectionController::class, 'restore_records']);
+    /* Cash Collection */
 
     /* Backup */
     Route::get('backups', [BackupController::class, 'index']);

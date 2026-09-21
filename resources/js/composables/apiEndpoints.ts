@@ -113,6 +113,8 @@ export const API_ENDPOINTS = {
     giftCards: '/api/gift-cards',
     fetchGiftCards: '/api/fetchgiftcards',
     documentSettings: (group: string) => `/api/document-settings/${group}`,
+    cashCollections: '/api/cash-collections',
+    cashCollectionOpenInvoices: '/api/cash-collections/open-invoices',
     backups: '/api/backups',
     stockTakes: '/api/stock-takes',
     loyalty: '/api/loyalty',

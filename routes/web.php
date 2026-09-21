@@ -368,6 +368,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bankissuer.trash');
     /* Bank Issuer */
 
+    /* Cash Collection */
+    Route::get('cashcollection', function () {
+        abortUnlessMenuPermission('/cashcollection');
+
+        return Inertia::render('cashcollection/index');
+    })->name('cashcollection');
+
+    Route::get('cashcollection/add', function () {
+        abortUnlessMenuPermission('/cashcollection/add');
+
+        return Inertia::render('cashcollection/add');
+    })->name('cashcollection.add');
+
+    Route::get('cashcollection/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/cashcollection/:id/edit');
+
+        return Inertia::render('cashcollection/edit', ['id' => $id]);
+    })->name('cashcollection.edit');
+
+    Route::get('cashcollection/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/cashcollection/:id/view');
+
+        return Inertia::render('cashcollection/view', ['id' => $id]);
+    })->name('cashcollection.view');
+
+    Route::get('cashcollection/trash', function () {
+        abortUnlessMenuPermission('/cashcollection/restore');
+
+        return Inertia::render('cashcollection/trash');
+    })->name('cashcollection.trash');
+    /* Cash Collection */
+
     /* Backup */
     Route::get('backup', function () {
         abort_unless(auth()->user()?->hasRole('superadmin'), 403);
