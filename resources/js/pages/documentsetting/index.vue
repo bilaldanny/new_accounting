@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { Head, usePage } from '@inertiajs/vue3';
+    import { Head, setLayoutProps, usePage } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -24,17 +24,15 @@
 
     const heading = titles[routeProps.group] ?? { title: 'Settings', subtitle: '' };
 
-    defineOptions({
-        layout: {
-            title: 'Settings',
-            subtitle: '',
-            breadcrumbs: [
-                {
-                    title: 'Settings',
-                    href: 'NULL',
-                },
-            ],
-        },
+    setLayoutProps({
+        title: heading.title,
+        subtitle: heading.subtitle,
+        breadcrumbs: [
+            {
+                title: heading.title,
+                href: 'NULL',
+            },
+        ],
     });
 
     type Field = {
@@ -124,11 +122,6 @@
 
     <div class="admin-list-page">
         <div class="admin-list-card">
-            <div class="admin-list-card__toolbar p-3">
-                <h5 class="mb-0">{{ heading.title }}</h5>
-                <p class="text-muted small mb-0">{{ heading.subtitle }}</p>
-            </div>
-
             <div class="admin-list-card__body p-3 p-md-4">
                 <div v-if="isSuperadmin" class="row g-3 mb-4">
                     <div class="col-md-4">
