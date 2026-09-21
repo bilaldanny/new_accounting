@@ -39,8 +39,11 @@ class StockMovements
     /**
      * One row per movement line: product_id, variation_id, branch_id, qty (base units, signed).
      * `as_of` (a `Y-m-d` day) keeps only movements whose document is dated on or before that day.
+     * `with_kinds` adds a `kind` column and splits each line into its parts (purchase, purchase_return,
+     * sale, sale_return, transfer_in, transfer_out, adjustment); the parts always add up to the same
+     * `qty` the plain rows give, so a report can show the breakdown without a second definition.
      *
-     * @param  array{product_id?: int|null, variation_id?: int|null, branch_id?: int|null, exclude_sale_id?: int|null, as_of?: string|null}  $filters
+     * @param  array{product_id?: int|null, variation_id?: int|null, branch_id?: int|null, exclude_sale_id?: int|null, as_of?: string|null, with_kinds?: bool}  $filters
      */
     public static function query(array $filters = []): Builder
     {
@@ -49,6 +52,7 @@ class StockMovements
         $branchId = $filters['branch_id'] ?? null;
         $excludeSaleId = $filters['exclude_sale_id'] ?? null;
         $asOf = $filters['as_of'] ?? null;
+        $withKinds = (bool) ($filters['with_kinds'] ?? false);
 
         $scope = fn (Builder $query, string $line, string $branchColumn): Builder => $query
             ->when($productId !== null, fn (Builder $q) => $q->where("{$line}.product_id", $productId))
@@ -62,25 +66,37 @@ class StockMovements
             ->where('t.type', $type)
             ->when($completedOnly, fn (Builder $query) => $query->where('t.status', 'completed'));
 
-        $purchased = $scope($lines(Transaction::TYPE_PURCHASE, false), 'pl', 't.branch_id')
-            ->select('pl.product_id', 'pl.variation_id', 't.branch_id as branch_id', DB::raw('(pl.quantity_received - pl.qunatity_sold - pl.quantity_returned - pl.quantity_adjustment) * (case when pl.packing_qty is null or pl.packing_qty < 1 then 1 else pl.packing_qty end) as qty'));
+        $packing = fn (string $alias): string => "(case when {$alias}.packing_qty is null or {$alias}.packing_qty < 1 then 1 else {$alias}.packing_qty end)";
 
-        $transferredOut = $scope($lines(Transaction::TYPE_TRANSFER, true), 'pl', 't.branch_id')
-            ->select('pl.product_id', 'pl.variation_id', 't.branch_id as branch_id', DB::raw('-pl.quantity * (case when pl.packing_qty is null or pl.packing_qty < 1 then 1 else pl.packing_qty end) as qty'));
+        /** One movement select: the columns every part shares, the quantity expression and, if asked, its kind. */
+        $movement = function (Builder $query, string $branchColumn, string $expression, string $kind, string $alias = 'pl') use ($withKinds): Builder {
+            $columns = ["{$alias}.product_id", "{$alias}.variation_id", "{$branchColumn} as branch_id", DB::raw("{$expression} as qty")];
 
-        $transferredIn = $scope($lines(Transaction::TYPE_TRANSFER, true), 'pl', 't.tobranch_id')
-            ->select('pl.product_id', 'pl.variation_id', 't.tobranch_id as branch_id', DB::raw('pl.quantity * (case when pl.packing_qty is null or pl.packing_qty < 1 then 1 else pl.packing_qty end) as qty'));
+            if ($withKinds) {
+                $columns[] = DB::raw("'{$kind}' as kind");
+            }
 
-        $adjusted = $scope($lines(Transaction::TYPE_ADJUSTMENT, true), 'pl', 't.branch_id')
-            ->select('pl.product_id', 'pl.variation_id', 't.branch_id as branch_id', DB::raw('pl.quantity_adjustment * (case when pl.packing_qty is null or pl.packing_qty < 1 then 1 else pl.packing_qty end) as qty'));
+            return $query->select($columns);
+        };
 
-        $movements = $purchased
-            ->unionAll($transferredOut)
-            ->unionAll($transferredIn)
-            ->unionAll($adjusted);
+        $pack = $packing('pl');
+        $purchases = fn (): Builder => $scope($lines(Transaction::TYPE_PURCHASE, false), 'pl', 't.branch_id');
+
+        if ($withKinds) {
+            $movements = $movement($purchases(), 't.branch_id', "pl.quantity_received * {$pack}", 'purchase')
+                ->unionAll($movement($purchases(), 't.branch_id', "-pl.quantity_returned * {$pack}", 'purchase_return'))
+                ->unionAll($movement($purchases(), 't.branch_id', "-(pl.qunatity_sold + pl.quantity_adjustment) * {$pack}", 'adjustment'));
+        } else {
+            $movements = $movement($purchases(), 't.branch_id', "(pl.quantity_received - pl.qunatity_sold - pl.quantity_returned - pl.quantity_adjustment) * {$pack}", 'purchase');
+        }
+
+        $movements
+            ->unionAll($movement($scope($lines(Transaction::TYPE_TRANSFER, true), 'pl', 't.branch_id'), 't.branch_id', "-pl.quantity * {$pack}", 'transfer_out'))
+            ->unionAll($movement($scope($lines(Transaction::TYPE_TRANSFER, true), 'pl', 't.tobranch_id'), 't.tobranch_id', "pl.quantity * {$pack}", 'transfer_in'))
+            ->unionAll($movement($scope($lines(Transaction::TYPE_ADJUSTMENT, true), 'pl', 't.branch_id'), 't.branch_id', "pl.quantity_adjustment * {$pack}", 'adjustment'));
 
         if (self::salesAreTracked()) {
-            $sold = $scope(DB::table('sell_lines as sl')->join('transactions as t', 't.id', '=', 'sl.transaction_id'), 'sl', 't.branch_id')
+            $sales = fn (): Builder => $scope(DB::table('sell_lines as sl')->join('transactions as t', 't.id', '=', 'sl.transaction_id'), 'sl', 't.branch_id')
                 ->whereNull('t.deleted_at')
                 ->where('t.type', Transaction::TYPE_SELL)
                 ->whereNotIn('t.status', Transaction::UNPOSTED_SELL_STATUSES)
@@ -88,10 +104,16 @@ class StockMovements
                     $query->whereRaw('(select stock_sales_cutover_at from settings limit 1) is null')
                         ->orWhereRaw('t.created_at >= (select stock_sales_cutover_at from settings limit 1)');
                 })
-                ->when($excludeSaleId !== null, fn (Builder $query) => $query->where('t.id', '!=', $excludeSaleId))
-                ->select('sl.product_id', 'sl.variation_id', 't.branch_id as branch_id', DB::raw('-(sl.quantity - sl.quantity_returned) * (case when sl.packing_qty is null or sl.packing_qty < 1 then 1 else sl.packing_qty end) as qty'));
+                ->when($excludeSaleId !== null, fn (Builder $query) => $query->where('t.id', '!=', $excludeSaleId));
+            $salePack = $packing('sl');
 
-            $movements->unionAll($sold);
+            if ($withKinds) {
+                $movements
+                    ->unionAll($movement($sales(), 't.branch_id', "-sl.quantity * {$salePack}", 'sale', 'sl'))
+                    ->unionAll($movement($sales(), 't.branch_id', "sl.quantity_returned * {$salePack}", 'sale_return', 'sl'));
+            } else {
+                $movements->unionAll($movement($sales(), 't.branch_id', "-(sl.quantity - sl.quantity_returned) * {$salePack}", 'sale', 'sl'));
+            }
         }
 
         return $movements;

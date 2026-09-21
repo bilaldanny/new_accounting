@@ -47,6 +47,7 @@ use App\Http\Controllers\SellReturnController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockReportController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
@@ -474,6 +475,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('reports/'.$report, [ProductReportController::class, 'index'])->defaults('report', $report);
     }
     /* Product and tax reports */
+
+    /* Stock reports */
+    foreach (array_keys(StockReportController::PERMISSIONS) as $report) {
+        Route::get('reports/'.$report, [StockReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Stock reports */
 
     /* Party reports */
     foreach (array_keys(PartyReportController::PERMISSIONS) as $report) {
