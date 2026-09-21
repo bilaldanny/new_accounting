@@ -106,6 +106,7 @@ test('rolling back removes the report and the group and it can be applied again'
     // The transaction and party reports live in the same group; the group only goes once they are gone too.
     (require database_path('migrations/2026_09_20_214054_add_transaction_report_menus.php'))->down();
     (require database_path('migrations/2026_09_21_120000_add_party_report_menus.php'))->down();
+    (require database_path('migrations/2026_09_21_130000_add_product_report_menus.php'))->down();
     reportsMenuMigration()->down();
 
     expect(reportsGroupId())->toBeNull()

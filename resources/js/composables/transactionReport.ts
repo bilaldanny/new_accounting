@@ -21,7 +21,16 @@ export type ReportKey =
     | 'customer-supplier'
     | 'customer-group'
     | 'customer-aging'
-    | 'supplier-aging';
+    | 'supplier-aging'
+    | 'product-purchase'
+    | 'product-sell'
+    | 'product-sell-summary'
+    | 'item-profit-loss'
+    | 'item-purchase'
+    | 'item-sell'
+    | 'purchase-sale'
+    | 'tax'
+    | 'trending-products';
 
 export type ReportColumn = {
     key: string;
@@ -57,6 +66,12 @@ export type ReportFilters = {
     contactTypes?: boolean;
     /** The option to list contacts whose balance is settled. */
     includeZero?: boolean;
+    /** Category, brand and product selectors. */
+    productFilters?: boolean;
+    /** The number of products to rank. */
+    topN?: boolean;
+    /** The input / output tax selector. */
+    taxSides?: boolean;
 };
 
 export type ReportConfig = {
@@ -129,6 +144,52 @@ const documentFilters = (party: 'customer' | 'supplier', statuses: string[]): Re
 });
 
 const documentSearch = 'Invoice, reference or party';
+
+/** A quantity: up to four decimals are meaningful, so it is not shown as money. */
+const qty = (key: string, label: string, responsive: string[] = ALL): ReportColumn => ({
+    key,
+    label,
+    format: 'number',
+    decimals: 2,
+    responsive,
+    emptyDisplay: '0.00',
+});
+
+/** A figure that can be unknown: it shows a dash instead of a false zero. */
+const known = (key: string, label: string, responsive: string[] = ALL): ReportColumn => ({
+    key,
+    label,
+    format: 'number',
+    decimals: 2,
+    responsive,
+    emptyDisplay: '-',
+});
+
+const lineColumns = (party: string, supplierRef: boolean): ReportColumn[] => [
+    text('transaction_date', 'Date'),
+    text('invoice_no', 'Invoice No', ALL, 'primary'),
+    ...(supplierRef ? [text('sup_ref_no', 'Supplier Ref', WIDE)] : []),
+    text('contact_name', party, MID),
+    text('product_name', 'Product'),
+    text('sku', 'SKU', WIDE),
+    text('brand_name', 'Brand', WIDE),
+    text('branch_name', 'Branch', WIDE),
+    text('unit_name', 'Unit', WIDE),
+    qty('quantity', 'Quantity', MID),
+    qty('net_quantity', 'Net Qty', WIDE),
+    money('unit_price', 'Rate', WIDE),
+    money('discount_percent', 'Discount %', WIDE),
+    money('amount', 'Amount', MID),
+    money('net_amount', 'Net Amount'),
+];
+
+const lineSummary = (): SummaryCard[] => [
+    { key: 'count', label: 'Lines', kind: 'count' },
+    { key: 'quantity', label: 'Quantity (base units)' },
+    { key: 'net_quantity', label: 'Net quantity' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'net_amount', label: 'Net amount', accent: true },
+];
 
 const count = (key: string, label: string, responsive: string[] = ALL): ReportColumn => ({
     key,
@@ -409,6 +470,183 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
     },
     'customer-aging': agingReport('Customer', 'customer', 'customer invoice', 'owed'),
     'supplier-aging': agingReport('Supplier', 'supplier', 'purchase invoice', 'payable'),
+    'product-purchase': {
+        title: 'Product Purchase Report',
+        subtitle: 'Every purchase line by date, supplier and product. Drafts are left out; what was returned comes off the net figures.',
+        exportName: 'product-purchase-report',
+        filters: { party: 'supplier', productFilters: true },
+        columns: lineColumns('Supplier', true),
+        summary: lineSummary(),
+        searchPlaceholder: 'Product, SKU, invoice or supplier',
+    },
+    'product-sell': {
+        title: 'Product Sell Report',
+        subtitle: 'Every sell line by date, customer and product. Drafts and quotations are left out; what was returned comes off the net figures.',
+        exportName: 'product-sell-report',
+        filters: { party: 'customer', productFilters: true },
+        columns: lineColumns('Customer', false),
+        summary: lineSummary(),
+        searchPlaceholder: 'Product, SKU, invoice or customer',
+    },
+    'product-sell-summary': {
+        title: 'Product Sell Summary',
+        subtitle: 'Sales per product over a period, with the stock left on the last day of the period.',
+        exportName: 'product-sell-summary',
+        filters: { party: 'customer', productFilters: true },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            text('brand_name', 'Brand', WIDE),
+            text('unit_name', 'Unit', WIDE),
+            qty('quantity', 'Sold', MID),
+            qty('returned_quantity', 'Returned', WIDE),
+            qty('net_quantity', 'Net Sold', MID),
+            money('net_amount', 'Net Amount'),
+            qty('current_stock', 'Stock', MID),
+        ],
+        summary: [
+            { key: 'count', label: 'Products', kind: 'count' },
+            { key: 'quantity', label: 'Sold (base units)' },
+            { key: 'net_quantity', label: 'Net sold' },
+            { key: 'net_amount', label: 'Net amount', accent: true },
+        ],
+        searchPlaceholder: 'Product, SKU, invoice or customer',
+    },
+    'item-profit-loss': {
+        title: 'Item Profit & Loss Report',
+        subtitle: 'Every sold line with its cost and profit. Cost is the weighted average purchase cost on the day of the sale; a product never purchased has no cost and no profit.',
+        exportName: 'item-profit-loss-report',
+        filters: { party: 'customer', productFilters: true },
+        columns: [
+            text('transaction_date', 'Date'),
+            text('invoice_no', 'Invoice No', ALL, 'primary'),
+            text('contact_name', 'Customer', MID),
+            text('product_name', 'Product'),
+            text('sku', 'SKU', WIDE),
+            qty('net_base_quantity', 'Qty', MID),
+            money('net_amount', 'Sales', MID),
+            known('average_cost', 'Avg Cost', WIDE),
+            known('cost', 'Cost', MID),
+            known('profit', 'Profit'),
+            known('margin', 'Margin %', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Lines', kind: 'count' },
+            { key: 'sales', label: 'Sales' },
+            { key: 'cost', label: 'Cost (costed lines)' },
+            { key: 'profit', label: 'Profit', accent: true },
+            { key: 'margin', label: 'Margin %' },
+            { key: 'without_cost', label: 'Lines without cost', kind: 'count' },
+        ],
+        searchPlaceholder: 'Product, SKU, invoice or customer',
+    },
+    'item-purchase': {
+        title: 'Item Purchase Report',
+        subtitle: 'How much of each product was bought from each supplier, in the product\'s base unit and net of returns.',
+        exportName: 'item-purchase-report',
+        filters: { party: 'supplier', productFilters: true },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            text('contact_name', 'Supplier'),
+            text('unit_name', 'Unit', WIDE),
+            count('invoices', 'Lines', WIDE),
+            qty('quantity', 'Quantity', MID),
+            money('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'count', label: 'Rows', kind: 'count' },
+            { key: 'quantity', label: 'Quantity (base units)' },
+            { key: 'amount', label: 'Amount', accent: true },
+        ],
+        searchPlaceholder: 'Product, SKU, invoice or supplier',
+    },
+    'item-sell': {
+        title: 'Item Sell Report',
+        subtitle: 'How much of each product was sold to each customer, in the product\'s base unit and net of returns.',
+        exportName: 'item-sell-report',
+        filters: { party: 'customer', productFilters: true },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            text('contact_name', 'Customer'),
+            text('unit_name', 'Unit', WIDE),
+            count('invoices', 'Lines', WIDE),
+            qty('quantity', 'Quantity', MID),
+            money('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'count', label: 'Rows', kind: 'count' },
+            { key: 'quantity', label: 'Quantity (base units)' },
+            { key: 'amount', label: 'Amount', accent: true },
+        ],
+        searchPlaceholder: 'Product, SKU, invoice or customer',
+    },
+    'purchase-sale': {
+        title: 'Purchase & Sale Report',
+        subtitle: 'What was bought and sold in the period, what came back, what was paid or received and what is still due. Returns are taken off both sides.',
+        exportName: 'purchase-sale-report',
+        filters: {},
+        columns: [
+            text('section', 'Section', MID),
+            text('label', 'Item', ALL, 'primary'),
+            money('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'net_sales', label: 'Net sales' },
+            { key: 'net_purchases', label: 'Net purchases' },
+            { key: 'sales_due', label: 'Sales due' },
+            { key: 'purchase_due', label: 'Purchase due' },
+            { key: 'overall', label: 'Sales less purchases', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    tax: {
+        title: 'Tax Report',
+        subtitle: 'Tax on purchases (input) and sales (output), returns included. Net tax payable = output tax - input tax.',
+        exportName: 'tax-report',
+        filters: { taxSides: true },
+        columns: [
+            text('transaction_date', 'Date'),
+            text('document', 'Document', MID),
+            text('side', 'Side', MID),
+            text('invoice_no', 'Invoice No', ALL, 'primary'),
+            text('contact_name', 'Contact'),
+            text('branch_name', 'Branch', WIDE),
+            money('total_before_tax', 'Before Tax', WIDE),
+            money('tax_amount', 'Tax'),
+            money('final_amount', 'Total', MID),
+        ],
+        summary: [
+            { key: 'count', label: 'Documents', kind: 'count' },
+            { key: 'output_tax', label: 'Output tax' },
+            { key: 'input_tax', label: 'Input tax' },
+            { key: 'net_tax', label: 'Net tax payable', accent: true },
+        ],
+        searchPlaceholder: 'Invoice or contact',
+    },
+    'trending-products': {
+        title: 'Trending Products Report',
+        subtitle: 'The best selling products of the period by base units sold, net of returns.',
+        exportName: 'trending-products-report',
+        filters: { productFilters: true, topN: true },
+        columns: [
+            count('rank', 'Rank', ALL),
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            text('brand_name', 'Brand', WIDE),
+            text('unit_name', 'Unit', WIDE),
+            count('invoices', 'Lines', WIDE),
+            qty('quantity', 'Quantity Sold', MID),
+            money('net_amount', 'Net Amount'),
+        ],
+        summary: [
+            { key: 'count', label: 'Products', kind: 'count' },
+            { key: 'quantity', label: 'Quantity (base units)' },
+            { key: 'net_amount', label: 'Net amount', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
 };
 
 export const ADJUSTMENT_TYPES = [
@@ -461,6 +699,11 @@ export default function useTransactionReport(report: ReportKey) {
             customer_group_id: '' as string | number,
             contact_type: 'all',
             include_zero: false,
+            product_id: '' as string | number,
+            brand_id: '' as string | number,
+            category_id: '' as string | number,
+            top: 10,
+            tax_side: 'all',
             status: config.filters.defaultStatus ?? '',
             payment_status: 'all',
             method: 'all',

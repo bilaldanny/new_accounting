@@ -53,3 +53,4 @@ require __DIR__.'/Support/stockadjustment.php';
 require __DIR__.'/Support/voucherApproval.php';
 require __DIR__.'/Support/transactionReports.php';
 require __DIR__.'/Support/partyReports.php';
+require __DIR__.'/Support/productReports.php';

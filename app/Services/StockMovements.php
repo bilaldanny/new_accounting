@@ -38,8 +38,9 @@ class StockMovements
 
     /**
      * One row per movement line: product_id, variation_id, branch_id, qty (base units, signed).
+     * `as_of` (a `Y-m-d` day) keeps only movements whose document is dated on or before that day.
      *
-     * @param  array{product_id?: int|null, variation_id?: int|null, branch_id?: int|null, exclude_sale_id?: int|null}  $filters
+     * @param  array{product_id?: int|null, variation_id?: int|null, branch_id?: int|null, exclude_sale_id?: int|null, as_of?: string|null}  $filters
      */
     public static function query(array $filters = []): Builder
     {
@@ -47,11 +48,13 @@ class StockMovements
         $variationId = $filters['variation_id'] ?? null;
         $branchId = $filters['branch_id'] ?? null;
         $excludeSaleId = $filters['exclude_sale_id'] ?? null;
+        $asOf = $filters['as_of'] ?? null;
 
         $scope = fn (Builder $query, string $line, string $branchColumn): Builder => $query
             ->when($productId !== null, fn (Builder $q) => $q->where("{$line}.product_id", $productId))
             ->when($variationId !== null, fn (Builder $q) => $q->where("{$line}.variation_id", $variationId))
-            ->when($branchId !== null, fn (Builder $q) => $q->where($branchColumn, $branchId));
+            ->when($branchId !== null, fn (Builder $q) => $q->where($branchColumn, $branchId))
+            ->when($asOf !== null, fn (Builder $q) => $q->whereDate('t.transaction_date', '<=', $asOf));
 
         $lines = fn (string $type, bool $completedOnly): Builder => DB::table('purchase_lines as pl')
             ->join('transactions as t', 't.id', '=', 'pl.transaction_id')

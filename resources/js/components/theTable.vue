@@ -110,6 +110,11 @@ import { formatNumber } from '@/utils/numberFormat';
 
     const exportPdfTitle = computed(() => tableData.exportTitle || exportBaseName.value);
 
+    /** An empty number cell shows its `emptyDisplay` as a number (`0.00`) unless that is text such as `-`. */
+    function isNumeric(value: unknown): boolean {
+        return value !== '' && value !== null && !Number.isNaN(Number(value));
+    }
+
     function formatCellNumber(value: unknown, col: Column): string {
         return formatNumber(value, col.decimals ?? 2);
     }
@@ -119,7 +124,7 @@ import { formatNumber } from '@/utils/numberFormat';
         const raw = row[key];
 
         if (col.emptyDisplay !== undefined && (raw === null || raw === undefined || raw === '')) {
-            if (col.format === 'number') {
+            if (col.format === 'number' && isNumeric(col.emptyDisplay)) {
                 return formatCellNumber(col.emptyDisplay, col);
             }
 
@@ -139,7 +144,7 @@ import { formatNumber } from '@/utils/numberFormat';
 
         if (v === null || v === undefined || v === '') {
             if (col.emptyDisplay !== undefined) {
-                if (col.format === 'number') {
+                if (col.format === 'number' && isNumeric(col.emptyDisplay)) {
                     return formatCellNumber(col.emptyDisplay, col);
                 }
 
