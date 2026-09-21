@@ -30,7 +30,9 @@ export type ReportKey =
     | 'item-sell'
     | 'purchase-sale'
     | 'tax'
-    | 'trending-products';
+    | 'trending-products'
+    | 'stock'
+    | 'stock-transfer';
 
 export type ReportColumn = {
     key: string;
@@ -72,6 +74,10 @@ export type ReportFilters = {
     topN?: boolean;
     /** The input / output tax selector. */
     taxSides?: boolean;
+    /** The option to show stock per branch instead of all branches together. */
+    byBranch?: boolean;
+    /** The from and to branch selectors of the transfer report. */
+    transferBranches?: boolean;
 };
 
 export type ReportConfig = {
@@ -647,6 +653,68 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
         ],
         searchPlaceholder: '',
     },
+    stock: {
+        title: 'Stock Report',
+        subtitle: 'Stock per product on a day, in the product\'s base unit, with how it got there. Value uses the weighted average purchase cost on that day and the default sell price.',
+        exportName: 'stock-report',
+        filters: { asOf: true, productFilters: true, byBranch: true },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            text('branch_name', 'Branch', WIDE),
+            text('unit_name', 'Unit', WIDE),
+            qty('purchased', 'Purchased', MID),
+            qty('purchase_returned', 'Purch. Returned', WIDE),
+            qty('sold', 'Sold', MID),
+            qty('sale_returned', 'Sale Returned', WIDE),
+            qty('transferred_in', 'Transfer In', WIDE),
+            qty('transferred_out', 'Transfer Out', WIDE),
+            qty('adjusted', 'Adjusted', WIDE),
+            qty('current_stock', 'Current Stock'),
+            known('stock_value', 'Stock Value', MID),
+            known('potential_profit', 'Potential Profit', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Products', kind: 'count' },
+            { key: 'stock_value', label: 'Stock value', accent: true },
+            { key: 'sell_value', label: 'Value at sell price' },
+            { key: 'potential_profit', label: 'Potential profit' },
+            { key: 'without_cost', label: 'Without cost', kind: 'count' },
+        ],
+        searchPlaceholder: 'Product or SKU',
+    },
+    'stock-transfer': {
+        title: 'Stock Transfer Report',
+        subtitle: 'Transfers between branches by date, with their value by status. Only completed transfers move stock.',
+        exportName: 'stock-transfer-report',
+        filters: {
+            transferBranches: true,
+            statuses: [
+                { value: 'all', label: 'All' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'pending', label: 'Pending' },
+            ],
+            defaultStatus: 'all',
+        },
+        columns: [
+            text('transaction_date', 'Date'),
+            text('invoice_no', 'Reference', ALL, 'primary'),
+            text('from_branch', 'From Branch'),
+            text('to_branch', 'To Branch'),
+            text('status', 'Status', MID),
+            count('total_item', 'Items', MID),
+            money('final_amount', 'Value'),
+            text('created_by_name', 'Made By', WIDE),
+            text('additional_note', 'Note', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Transfers', kind: 'count' },
+            { key: 'total', label: 'Total value', accent: true },
+            { key: 'completed', label: 'Completed' },
+            { key: 'pending', label: 'Pending' },
+        ],
+        searchPlaceholder: 'Reference or note',
+    },
 };
 
 export const ADJUSTMENT_TYPES = [
@@ -704,6 +772,9 @@ export default function useTransactionReport(report: ReportKey) {
             category_id: '' as string | number,
             top: 10,
             tax_side: 'all',
+            by_branch: false,
+            from_branch_id: '' as string | number,
+            to_branch_id: '' as string | number,
             status: config.filters.defaultStatus ?? '',
             payment_status: 'all',
             method: 'all',

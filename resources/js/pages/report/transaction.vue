@@ -227,6 +227,9 @@
         state.search.include_zero = false;
         state.search.top = 10;
         state.search.tax_side = 'all';
+        state.search.by_branch = false;
+        state.search.from_branch_id = '';
+        state.search.to_branch_id = '';
         state.search.status = config.filters.defaultStatus ?? '';
         state.search.payment_status = 'all';
         state.search.method = 'all';
@@ -373,6 +376,35 @@
                         </select>
                     </div>
                 </template>
+
+                <template v-if="config.filters.transferBranches">
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-from-branch">From branch</label>
+                        <select id="report-filter-from-branch" v-model="state.search.from_branch_id" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option v-for="branch in branchesdata" :key="branch.id" :value="branch.id">
+                                {{ branch.text ?? branch.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-to-branch">To branch</label>
+                        <select id="report-filter-to-branch" v-model="state.search.to_branch_id" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option v-for="branch in branchesdata" :key="branch.id" :value="branch.id">
+                                {{ branch.text ?? branch.name }}
+                            </option>
+                        </select>
+                    </div>
+                </template>
+
+                <div v-if="config.filters.byBranch" class="col-md-4 col-lg-3 admin-filter-field d-flex align-items-end">
+                    <div class="form-check">
+                        <input id="report-filter-by-branch" v-model="state.search.by_branch" type="checkbox" class="form-check-input" />
+                        <label class="form-check-label" for="report-filter-by-branch">Show each branch separately</label>
+                    </div>
+                </div>
 
                 <div v-if="config.filters.topN" class="col-md-4 col-lg-3 admin-filter-field">
                     <label class="form-label" for="report-filter-top">Number of products</label>
