@@ -72,7 +72,7 @@ function fstLine(TestResponse $response, string $line, string $section, string $
 
 // ------------------------------------------------------------------ profit and loss
 
-test('the profit and loss sorts accounts into revenue, cost of goods sold and expenses by their digit', function () {
+test('the profit and loss sorts accounts into revenue, purchases and expenses by their digit, and with no stock the cost is the purchases', function () {
     $books = fstBooks();
     trpActAsSuperadmin();
 
@@ -82,12 +82,16 @@ test('the profit and loss sorts accounts into revenue, cost of goods sold and ex
         ->and(fstLine($response, 'account', 'revenue', '512-00001'))->toBe(300.0)
         ->and(fstLine($response, 'total', 'revenue'))->toBe(900.0)
         ->and(fstLine($response, 'account', 'cogs', '611-00001'))->toBe(200.0)
+        // These books hold no stock, so both stock lines are 0 and cost of goods sold = 0 + purchases - 0.
+        ->and(fstLine($response, 'stock', 'cogs', 'Opening stock'))->toBe(0.0)
+        ->and(fstLine($response, 'subtotal', 'cogs', 'Add: purchases'))->toBe(200.0)
+        ->and(fstLine($response, 'stock', 'cogs', 'Less: closing stock'))->toBe(0.0)
         ->and(fstLine($response, 'total', 'cogs'))->toBe(200.0)
         ->and(fstLine($response, 'result', 'gross_profit'))->toBe(700.0)
         ->and(fstLine($response, 'account', 'expenses', '441-00001'))->toBe(150.0)
         ->and(fstLine($response, 'total', 'expenses'))->toBe(150.0)
         ->and(fstLine($response, 'result', 'net_profit'))->toBe(550.0)
-        ->and($response->json('summary'))->toMatchArray(['count' => 4, 'revenue' => 900, 'cogs' => 200, 'gross_profit' => 700, 'expenses' => 150, 'net_profit' => 550, 'net_margin' => 61.11]);
+        ->and($response->json('summary'))->toMatchArray(['count' => 4, 'revenue' => 900, 'opening_stock' => 0, 'purchases' => 200, 'closing_stock' => 0, 'cogs' => 200, 'uncosted_stock' => 0, 'gross_profit' => 700, 'expenses' => 150, 'net_profit' => 550, 'net_margin' => 61.11]);
 });
 
 test('assets, liabilities and equity are not in the profit and loss', function () {
