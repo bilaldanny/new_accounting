@@ -379,12 +379,15 @@ class SellController extends Controller
                     ->get()
                     ->each(function (Transaction $sell) {
                         app(SellJournal::class)->sync($sell);
-                        app(SaleIncentives::class)->refreshLoyalty($sell);
+                        app(SaleIncentives::class)->refreshSale($sell);
                     });
 
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
+            } catch (ValidationException $e) {
+                DB::rollBack();
+                throw $e;
             } catch (Throwable $e) {
                 DB::rollBack();
 
@@ -416,7 +419,7 @@ class SellController extends Controller
                     $sell->status = $request->status;
                     app(CustomerCreditLimit::class)->assertWithinLimit($sell, $previous);
                     $sell->save();
-                    app(SaleIncentives::class)->refreshLoyalty($sell);
+                    app(SaleIncentives::class)->refreshSale($sell);
                 }
             }
             DB::commit();
@@ -540,6 +543,10 @@ class SellController extends Controller
                 ->get()
                 ->map(fn (GiftCardEntry $entry): array => ['code' => $entry->giftCard?->code, 'amount' => (float) $entry->amount, 'balance_after' => (float) $entry->balance_after])
                 ->all(),
+            'gift_card_refunded' => round((float) GiftCardEntry::query()
+                ->where('transaction_id', $sell->id)
+                ->where('type', GiftCardEntry::TYPE_TOPUP)
+                ->sum('amount'), 2),
             'loyalty_points_earned' => $points,
         ];
     }
