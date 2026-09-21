@@ -23,6 +23,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -806,9 +807,11 @@ class Transaction extends Model
             abort(404);
         }
 
-        app(SellJournal::class)->deleteFor($transaction);
-        app(SaleIncentives::class)->afterDelete($transaction);
-        $transaction->delete();
+        DB::transaction(function () use ($transaction): void {
+            app(SellJournal::class)->deleteFor($transaction);
+            app(SaleIncentives::class)->afterDelete($transaction);
+            $transaction->delete();
+        });
     }
 
     /**
@@ -3537,7 +3540,7 @@ class Transaction extends Model
         $note->created_by = Auth::id();
         $note->save();
 
-        app(SaleIncentives::class)->refreshLoyalty($sell);
+        app(SaleIncentives::class)->refreshSale($sell);
 
         return $note;
     }
@@ -3565,7 +3568,7 @@ class Transaction extends Model
         $note->updated_by = Auth::id();
         $note->save();
 
-        app(SaleIncentives::class)->refreshLoyalty($sell);
+        app(SaleIncentives::class)->refreshSale($sell);
 
         return $note;
     }
@@ -3587,7 +3590,7 @@ class Transaction extends Model
         $note->delete();
 
         if ($sell !== null) {
-            app(SaleIncentives::class)->refreshLoyalty($sell);
+            app(SaleIncentives::class)->refreshSale($sell);
         }
     }
 

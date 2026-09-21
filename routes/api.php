@@ -514,6 +514,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /* Gift Card */
     Route::post('gift-cards/lookup', [GiftCardController::class, 'lookup']);
+    Route::get('gift-cards/orphan-refunds', [GiftCardController::class, 'orphanRefunds']);
+    Route::post('gift-cards/orphan-refunds/{id}/resolve', [GiftCardController::class, 'resolveOrphanRefund']);
     Route::post('gift-cards/{id}/redeem', [GiftCardController::class, 'redeem']);
     Route::post('gift-cards/{id}/topup', [GiftCardController::class, 'topup']);
     Route::get('gift-cards/trash', [GiftCardController::class, 'trash']);

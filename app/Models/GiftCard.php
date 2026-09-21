@@ -202,6 +202,81 @@ class GiftCard extends Model
     }
 
     /**
+     * Credits money back to a card because the sale it paid was deleted, returned or reopened as a draft.
+     * It is written as a `topup` entry that names the sale (a manual top-up has no sale), and it is always
+     * accepted: an inactive, expired or even trashed card still gets the money back, so a customer's money
+     * is never lost to a card's state. Returns null when the card no longer exists at all.
+     */
+    public static function refundForSale(int $cardId, float $amount, int $transactionId, string $note, ?int $userId = null): ?GiftCardEntry
+    {
+        $amount = round($amount, 2);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($cardId, $amount, $transactionId, $note, $userId): ?GiftCardEntry {
+            $card = self::withTrashed()->lockForUpdate()->find($cardId);
+
+            if ($card === null) {
+                return null;
+            }
+
+            $card->balance = round((float) $card->balance + $amount, 2);
+            $card->save();
+
+            return $card->entries()->create([
+                'type' => GiftCardEntry::TYPE_TOPUP,
+                'amount' => $amount,
+                'balance_after' => $card->balance,
+                'transaction_id' => $transactionId,
+                'user_id' => $userId,
+                'note' => $note,
+            ]);
+        });
+    }
+
+    /**
+     * Takes money out again for a sale that is back (restored, or finished again) after a refund. Unlike a
+     * refund this needs a usable card: a RuntimeException says why not (`missing`, `deleted`, `inactive`,
+     * `expired`, `insufficient_balance`).
+     */
+    public static function chargeForSale(int $cardId, float $amount, int $transactionId, string $note, ?int $userId = null): GiftCardEntry
+    {
+        $amount = round($amount, 2);
+
+        return DB::transaction(function () use ($cardId, $amount, $transactionId, $note, $userId): GiftCardEntry {
+            $card = self::withTrashed()->lockForUpdate()->find($cardId);
+
+            if ($card === null) {
+                throw new RuntimeException('missing');
+            }
+
+            if ($card->trashed()) {
+                throw new RuntimeException('deleted');
+            }
+
+            $reason = $card->rejectionReason($amount);
+
+            if ($reason !== null) {
+                throw new RuntimeException($reason);
+            }
+
+            $card->balance = round((float) $card->balance - $amount, 2);
+            $card->save();
+
+            return $card->entries()->create([
+                'type' => GiftCardEntry::TYPE_REDEEM,
+                'amount' => $amount,
+                'balance_after' => $card->balance,
+                'transaction_id' => $transactionId,
+                'user_id' => $userId,
+                'note' => $note,
+            ]);
+        });
+    }
+
+    /**
      * A code no card of the company (trashed ones included) has: `GC-` and 10 characters.
      */
     public static function generateCode(?int $companyId): string

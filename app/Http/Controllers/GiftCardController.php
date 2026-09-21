@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\GiftCard;
+use App\Models\GiftCardOrphanRefund;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -280,6 +281,56 @@ class GiftCardController extends Controller
             'usable' => $reason === null,
             'reason' => $reason,
         ]);
+    }
+
+    /**
+     * Refunds owed for gift card payments whose card was deleted for good (see SaleGiftCards): the open
+     * ones by default, `status=all` for the settled ones too. A superadmin sees every company's.
+     */
+    public function orphanRefunds(Request $request): JsonResponse
+    {
+        $rows = GiftCardOrphanRefund::query()
+            ->with('transaction:id,invoice_no')
+            ->when(! Auth::user()?->hasRole('superadmin'), fn ($q) => $q->where('company_id', Auth::user()?->company_id ?: 0))
+            ->when($request->input('status') !== 'all', fn ($q) => $q->whereNull('resolved_at'))
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (GiftCardOrphanRefund $row): array => [
+                'id' => $row->id,
+                'gift_card_code' => $row->gift_card_code,
+                'invoice_no' => $row->transaction?->invoice_no,
+                'amount' => $row->amount,
+                'reason' => $row->reason,
+                'resolved_at' => $row->resolved_at?->toDateTimeString(),
+                'resolved_note' => $row->resolved_note,
+                'created_at' => $row->created_at?->toDateTimeString(),
+            ]);
+
+        return response()->json(['data' => $rows, 'open_total' => round((float) $rows->whereNull('resolved_at')->sum('amount'), 2)]);
+    }
+
+    /**
+     * Marks an orphaned refund as settled by hand.
+     */
+    public function resolveOrphanRefund(Request $request, $id): JsonResponse
+    {
+        $this->authorizeMenuPermission('/giftcard/topup');
+
+        $data = $request->validate(['note' => 'required|string|min:3|max:500']);
+
+        $row = GiftCardOrphanRefund::query()
+            ->when(! Auth::user()?->hasRole('superadmin'), fn ($q) => $q->where('company_id', Auth::user()?->company_id ?: 0))
+            ->find($id);
+
+        if ($row === null) {
+            abort(404);
+        }
+
+        if ($row->resolved_at === null) {
+            $row->update(['resolved_at' => now(), 'resolved_note' => trim($data['note'])]);
+        }
+
+        return response()->json(['message' => 'Successfully Saved']);
     }
 
     /**

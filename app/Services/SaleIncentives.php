@@ -32,6 +32,8 @@ use RuntimeException;
  *   amount is spent from the card and recorded as an ordinary sell payment (method `other`, note "Gift card
  *   CODE") posted to the given cash / bank account, so the invoice shows partly or fully paid and the rest
  *   is paid the usual way. A sale that already spent a card is never charged again by an edit.
+ * - **Refunds**: SaleGiftCards::syncForSale gives a card its money back when the sale is deleted, turned
+ *   into a draft or returned (in proportion) and takes it out again when the sale comes back.
  * - **Loyalty**: points follow the sale through LoyaltyPoints::syncForSale (earned when it is a finished
  *   sale, corrected on edit, reversed on a return or delete).
  *
@@ -39,30 +41,35 @@ use RuntimeException;
  */
 class SaleIncentives
 {
-    public function __construct(private readonly LoyaltyPoints $loyalty) {}
+    public function __construct(private readonly LoyaltyPoints $loyalty, private readonly SaleGiftCards $giftCards) {}
 
     public function afterSave(Transaction $sale, object $request): void
     {
         $this->applyDiscountCode($sale, $request);
         $this->spendGiftCard($sale, $request);
+        $this->giftCards->syncForSale($sale, Auth::id());
         $this->loyalty->syncForSale($sale, Auth::id());
     }
 
     /**
-     * Called when a sale is deleted: takes its loyalty points back.
+     * Called when a sale is deleted: gives its gift card money and its loyalty points back.
      */
     public function afterDelete(Transaction $sale): void
     {
+        $this->giftCards->syncForSale($sale, Auth::id(), reverseAll: true);
         $this->loyalty->syncForSale($sale, Auth::id(), reverseAll: true);
     }
 
     /**
      * Called when a sale changes without a full save (status change, restore) or when one of its returns
-     * changes: brings its loyalty points in line again.
+     * changes: brings its gift card money and its loyalty points in line again.
      */
-    public function refreshLoyalty(Transaction $sale): void
+    public function refreshSale(Transaction $sale): void
     {
-        $this->loyalty->syncForSale($sale->fresh() ?? $sale, Auth::id());
+        $sale = $sale->fresh() ?? $sale;
+
+        $this->giftCards->syncForSale($sale, Auth::id());
+        $this->loyalty->syncForSale($sale, Auth::id());
     }
 
     /**
