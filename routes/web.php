@@ -367,6 +367,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bankissuer.trash');
     /* Bank Issuer */
 
+    /* Loyalty */
+    Route::get('loyalty', function () {
+        abortUnlessMenuPermission('/loyalty');
+
+        return Inertia::render('loyalty/index');
+    })->name('loyalty');
+
+    Route::get('loyalty/settings', function () {
+        abortUnlessMenuPermission('/loyalty/settings');
+
+        return Inertia::render('loyalty/settings');
+    })->name('loyalty.settings');
+
+    Route::get('loyalty/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/loyalty/:id/view');
+
+        return Inertia::render('loyalty/view', ['id' => $id]);
+    })->name('loyalty.view');
+    /* Loyalty */
+
     /* Discount */
     Route::get('discount', function () {
         abortUnlessMenuPermission('/discount');
