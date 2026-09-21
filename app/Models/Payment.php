@@ -476,6 +476,111 @@ class Payment extends Model
     }
 
     /**
+     * Money received from a customer before any invoice asks for it (the part of a cash collection that was
+     * more than the invoices it settled). It is posted like a sell payment (cash / bank debit, the customer's
+     * account credit, so the ledger shows the customer's credit) but it belongs to no invoice: `transaction_id`
+     * stays empty and the row is only reached through the collection that made it.
+     *
+     * @throws ValidationException
+     */
+    public static function createSellAdvance(Contact $contact, int $companyId, int $branchId, float $amount, string $paidOn, int $cashOrBankAccountId, string $note): self
+    {
+        $cashOrBank = ChartOfAccount::query()->find($cashOrBankAccountId);
+
+        if ($cashOrBank === null) {
+            throw ValidationException::withMessages([
+                'payment_account' => ['Select a valid cash or bank account before saving the payment.'],
+            ]);
+        }
+
+        $anchor = new Transaction;
+        $anchor->company_id = $companyId;
+        $anchor->branch_id = $branchId;
+
+        $ledger = app(LedgerJournal::class);
+        $contactAccount = $ledger->accountByCode($anchor, (string) ($contact->customer_gl_id ?: $contact->gl_id));
+
+        if ($contactAccount === null) {
+            throw ValidationException::withMessages([
+                'contact_id' => ['Link the customer to a chart of account before keeping an advance for them.'],
+            ]);
+        }
+
+        $amount = round($amount, 2);
+        $contactName = $contact->business_name ?: trim($contact->first_name.' '.$contact->last_name);
+
+        $payment = new self;
+        $payment->company_id = $companyId;
+        $payment->branch_id = $branchId;
+        $payment->transaction_id = null;
+        $payment->contact_id = $contact->id;
+        $payment->payment_account = $cashOrBank->id;
+        $payment->is_return = false;
+        $payment->amount = $amount;
+        $payment->method = 'cash';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'sell');
+
+        $journal = $ledger->postPayment($payment, $cashOrBank, 'Advance from '.$contactName, 'SP', [
+            ['account' => $cashOrBank, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $contact->id],
+            ['account' => $contactAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $contact->id],
+        ]);
+
+        $payment->t_account_id = $journal->id;
+        $payment->save();
+
+        return $payment;
+    }
+
+    /**
+     * A payment on an invoice that is paid out of an advance already taken. No cash moves and no journal is
+     * posted (the customer's account already holds the credit): it only settles the invoice's payment status.
+     *
+     * @throws ValidationException
+     */
+    public static function createSellPaymentFromAdvance(Transaction $sell, float $amount, string $paidOn, string $note): self
+    {
+        $amount = round($amount, 2);
+
+        self::assertAmountWithinRemaining($sell, $amount);
+
+        $payment = new self;
+        $payment->company_id = $sell->company_id;
+        $payment->branch_id = $sell->branch_id;
+        $payment->transaction_id = $sell->id;
+        $payment->contact_id = $sell->contact_id;
+        $payment->payment_account = null;
+        $payment->is_return = false;
+        $payment->amount = $amount;
+        $payment->method = 'other';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo((int) $sell->company_id, (int) $sell->branch_id, 'sell');
+        $payment->save();
+
+        self::syncTransactionPaymentStatus((int) $sell->id);
+
+        return $payment;
+    }
+
+    /**
+     * Removes a payment made through a cash collection: its ledger voucher (when it has one) and the row, and
+     * puts its invoice's payment status right again.
+     */
+    public static function removeCollectedPayment(self $payment): void
+    {
+        $transactionId = $payment->transaction_id;
+
+        self::deleteLedgerEntry($payment);
+        $payment->delete();
+
+        if ($transactionId !== null) {
+            self::syncTransactionPaymentStatus((int) $transactionId);
+        }
+    }
+
+    /**
      * @throws ValidationException
      */
     public static function updatePurchasePayment(object $request, int $id): self

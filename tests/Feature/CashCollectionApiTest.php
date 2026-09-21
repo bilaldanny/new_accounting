@@ -2,6 +2,7 @@
 
 use App\Models\CashCollection;
 use App\Models\CashCollectionAllocation;
+use App\Models\CompanySetting;
 use App\Models\Contact;
 use App\Models\Payment;
 use App\Models\Role;
@@ -24,6 +25,10 @@ function cclScope(): array
     $scope = seedSellScope();
     $cashId = insertPurchaseChartAccount($scope, '111-00001', 'Cash in Hand', 'dr', false);
     insertPurchaseAccountMapping($scope, 'Cash', 'cash', $cashId);
+
+    // the module only works for a company that switched it on in Company Settings
+    (CompanySetting::query()->where('company_id', $scope['company_id'])->first() ?? CompanySetting::createCompanySettings((int) $scope['company_id']))
+        ->forceFill(['cash_collection' => true])->save();
 
     return array_merge($scope, ['cash_account_id' => $cashId]);
 }
