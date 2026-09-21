@@ -271,7 +271,7 @@ class CustomerController extends Controller
         $customers = Contact::query()
             ->customers()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($customers->isEmpty()) {

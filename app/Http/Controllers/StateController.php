@@ -273,7 +273,7 @@ class StateController extends Controller
     public function updatestatus(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/state/:id/edit');
-        $states = State::query()->whereIn('id', $request->ids)->get();
+        $states = State::query()->whereIn('id', (array) $request->ids)->get();
 
         if ($states->isEmpty()) {
             return response()->json(['errormessage' => 'Something went wrong']);

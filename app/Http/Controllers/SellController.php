@@ -380,7 +380,7 @@ class SellController extends Controller
         $sells = Transaction::query()
             ->sells()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($sells->isEmpty()) {

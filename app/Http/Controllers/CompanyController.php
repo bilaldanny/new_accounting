@@ -302,7 +302,7 @@ class CompanyController extends Controller
     {
         $this->authorizeSuperadmin($request);
         $this->authorizeMenuPermission('/company/:id/edit');
-        $companies = Company::whereIn('id', $request->ids)->get();
+        $companies = Company::whereIn('id', (array) $request->ids)->get();
 
         if (isset($companies)) {
             DB::beginTransaction();

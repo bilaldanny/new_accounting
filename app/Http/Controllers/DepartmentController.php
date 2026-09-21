@@ -202,7 +202,7 @@ class DepartmentController extends Controller
         $this->authorizeMenuPermission('/department/:id/edit');
         $departments = Department::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($departments)) {

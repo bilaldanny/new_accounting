@@ -190,7 +190,7 @@ class ConsumerController extends Controller
 
         $consumers = Consumer::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($consumers->isEmpty()) {

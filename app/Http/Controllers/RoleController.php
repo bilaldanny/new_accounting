@@ -208,7 +208,7 @@ class RoleController extends Controller
         $this->authorizeMenuPermission('/role/:id/edit');
         $roles = Role::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($roles)) {

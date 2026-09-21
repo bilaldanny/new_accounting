@@ -264,7 +264,7 @@ class VariationController extends Controller
         $this->authorizeMenuPermission('/variation/:id/edit');
         $variations = Variation::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($variations)) {

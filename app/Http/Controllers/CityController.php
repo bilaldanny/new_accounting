@@ -284,7 +284,7 @@ class CityController extends Controller
     public function updatestatus(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/city/:id/edit');
-        $cities = City::query()->whereIn('id', $request->ids)->get();
+        $cities = City::query()->whereIn('id', (array) $request->ids)->get();
 
         if ($cities->isEmpty()) {
             return response()->json(['errormessage' => 'Something went wrong']);

@@ -183,7 +183,9 @@ class TAccount extends Model
      */
     public function scopeMatchingListFilters(Builder $query, Request $request, string $status = 'all'): Builder
     {
-        $search = $request->search ?? '';
+        // a list filter that arrives as an array (?search[]=x) is not a filter
+        $search = is_string($request->search) ? $request->search : '';
+        $scalar = fn (string $key): bool => $request->filled($key) && is_scalar($request->input($key));
 
         return $query
             ->when($status !== 'all', function ($q) use ($status) {
@@ -194,10 +196,10 @@ class TAccount extends Model
                     $sub->whereAny(['voucher_no', 'comments'], 'like', "%{$search}%");
                 });
             })
-            ->when($request->filled('company_id'), function ($q) use ($request) {
+            ->when($scalar('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);
             })
-            ->when($request->filled('branch_id'), function ($q) use ($request) {
+            ->when($scalar('branch_id'), function ($q) use ($request) {
                 $q->where('branch_id', $request->branch_id);
             });
     }

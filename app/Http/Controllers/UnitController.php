@@ -203,7 +203,7 @@ class UnitController extends Controller
         $this->authorizeMenuPermission('/unit/:id/edit');
         $units = Unit::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($units)) {

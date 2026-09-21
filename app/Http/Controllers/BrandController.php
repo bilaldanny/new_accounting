@@ -198,7 +198,7 @@ class BrandController extends Controller
 
         $brands = Brand::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($brands)) {

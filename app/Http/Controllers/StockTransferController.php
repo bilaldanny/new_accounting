@@ -242,7 +242,7 @@ class StockTransferController extends Controller
         $transfers = Transaction::query()
             ->transfers()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($transfers->isEmpty()) {

@@ -199,7 +199,7 @@ class CategoryController extends Controller
         $this->authorizeMenuPermission('/category/:id/edit');
         $categories = Category::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($categories)) {

@@ -190,7 +190,7 @@ class CustomerGroupController extends Controller
         $this->authorizeMenuPermission('/customer-group/:id/edit');
         $customerGroups = CustomerGroup::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($customerGroups)) {
