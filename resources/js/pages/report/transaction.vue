@@ -82,8 +82,20 @@
     const branchFilterDisabled = computed(() => showCompanyFilter.value && !state.search.company_id);
 
     const party = computed(() => config.filters.party);
-    const partyLabel = computed(() => (party.value === 'supplier' ? 'Supplier' : 'Customer'));
-    const parties = computed(() => (party.value === 'supplier' ? suppliersdata.value : customersdata.value));
+    const partyLabel = computed(() => {
+        if (party.value === 'both') {
+            return 'Customer / Supplier';
+        }
+
+        return party.value === 'supplier' ? 'Supplier' : 'Customer';
+    });
+    const parties = computed(() => {
+        if (party.value === 'both') {
+            return [...customersdata.value, ...suppliersdata.value];
+        }
+
+        return party.value === 'supplier' ? suppliersdata.value : customersdata.value;
+    });
     const partyFilterDisabled = computed(() => !state.search.company_id || !state.search.branch_id);
 
     const columns = computed(() => config.columns);
@@ -98,6 +110,23 @@
     ];
 
     const productsdata = ref<{ id: number | string; name?: string; text?: string }[]>([]);
+    const accountsdata = ref<{ code: string; text: string }[]>([]);
+
+    const ACCOUNT_GROUPS = [
+        { value: '', label: 'All' },
+        { value: 1, label: '1xx Equity' },
+        { value: 2, label: '2xx Assets' },
+        { value: 3, label: '3xx Liabilities' },
+        { value: 4, label: '4xx Expenses' },
+        { value: 5, label: '5xx Revenue' },
+        { value: 6, label: '6xx Cost of goods sold' },
+    ];
+
+    const VOUCHER_TYPES = [
+        { value: 'all', label: 'Receipts & payments' },
+        { value: 'receipt', label: 'Receipts' },
+        { value: 'payment', label: 'Payments' },
+    ];
 
     const CONTACT_TYPES = [
         { value: 'all', label: 'Customers & suppliers' },
@@ -127,6 +156,35 @@
     const getData = async () => {
         await load();
     };
+
+    /** The account list belongs to the company; a code shared by several branches is listed once. */
+    async function loadAccounts() {
+        state.search.account_code = '';
+        accountsdata.value = [];
+
+        if (!config.filters.accountSelector || !state.search.company_id) {
+            return;
+        }
+
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchallaccounts', {
+                params: { company_id: state.search.company_id },
+            });
+            const seen = new Set<string>();
+
+            accountsdata.value = (response.data as { code: string; text: string }[]).filter((account) => {
+                if (seen.has(account.code)) {
+                    return false;
+                }
+
+                seen.add(account.code);
+
+                return true;
+            });
+        } catch {
+            accountsdata.value = [];
+        }
+    }
 
     /** Category, brand and product lists belong to the company, so they follow the company filter. */
     async function loadProductFilters() {
@@ -159,9 +217,11 @@
             await fetchCustomerGroup(state.search.company_id, state.search.branch_id);
         }
 
-        if (party.value === 'supplier') {
+        if (party.value === 'supplier' || party.value === 'both') {
             await fetchSuppliersDropdown(state.search.company_id, state.search.branch_id);
-        } else if (party.value === 'customer') {
+        }
+
+        if (party.value === 'customer' || party.value === 'both') {
             await fetchCustomersDropdown(state.search.company_id, state.search.branch_id);
         }
     }
@@ -197,6 +257,7 @@
         state.search.branch_id = '';
         await fetchBranch(state.search.company_id);
         await loadProductFilters();
+        await loadAccounts();
         await loadParties();
         await applyActiveFiscalYear();
     }
@@ -230,6 +291,8 @@
         state.search.by_branch = false;
         state.search.from_branch_id = '';
         state.search.to_branch_id = '';
+        state.search.account_group = '';
+        state.search.voucher_type = 'all';
         state.search.status = config.filters.defaultStatus ?? '';
         state.search.payment_status = 'all';
         state.search.method = 'all';
@@ -239,6 +302,7 @@
 
         void applyActiveFiscalYear()
             .then(() => loadProductFilters())
+            .then(() => loadAccounts())
             .then(() => loadParties())
             .then(getData);
     }
@@ -269,6 +333,7 @@
         await applyActiveFiscalYear();
 
         await loadProductFilters();
+        await loadAccounts();
 
         if (state.search.company_id && state.search.branch_id) {
             await loadParties();
@@ -404,6 +469,34 @@
                         <input id="report-filter-by-branch" v-model="state.search.by_branch" type="checkbox" class="form-check-input" />
                         <label class="form-check-label" for="report-filter-by-branch">Show each branch separately</label>
                     </div>
+                </div>
+
+                <div v-if="config.filters.accountSelector" class="col-md-6 col-lg-4 admin-filter-field">
+                    <label class="form-label" for="report-filter-account">Account</label>
+                    <select id="report-filter-account" v-model="state.search.account_code" class="form-select form-select-sm">
+                        <option value="">Choose an account</option>
+                        <option v-for="account in accountsdata" :key="account.code" :value="account.code">
+                            {{ account.text }}
+                        </option>
+                    </select>
+                </div>
+
+                <div v-if="config.filters.accountGroups" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-account-group">Account class</label>
+                    <select id="report-filter-account-group" v-model="state.search.account_group" class="form-select form-select-sm">
+                        <option v-for="option in ACCOUNT_GROUPS" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
+                </div>
+
+                <div v-if="config.filters.voucherTypes" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-voucher-type">Vouchers</label>
+                    <select id="report-filter-voucher-type" v-model="state.search.voucher_type" class="form-select form-select-sm">
+                        <option v-for="option in VOUCHER_TYPES" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
                 </div>
 
                 <div v-if="config.filters.topN" class="col-md-4 col-lg-3 admin-filter-field">

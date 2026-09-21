@@ -24,6 +24,7 @@ use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\LedgerReportController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PartyReportController;
@@ -481,6 +482,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('reports/'.$report, [StockReportController::class, 'index'])->defaults('report', $report);
     }
     /* Stock reports */
+
+    /* Ledger reports */
+    foreach (array_keys(LedgerReportController::PERMISSIONS) as $report) {
+        Route::get('reports/'.$report, [LedgerReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Ledger reports */
 
     /* Party reports */
     foreach (array_keys(PartyReportController::PERMISSIONS) as $report) {
