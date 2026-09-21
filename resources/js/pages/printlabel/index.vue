@@ -90,10 +90,38 @@
         }
     }
 
+    /**
+     * Starts the label options from the company's Barcode Settings (Company Settings > Barcode Settings).
+     * Nothing changes when they cannot be read: the page keeps its own defaults.
+     */
+    async function applyBarcodeDefaults(id: string | number | null | undefined) {
+        if (! id) {
+            return;
+        }
+
+        try {
+            const response = await window.axios.get(API_ENDPOINTS.documentSettings('barcode'), { params: { company_id: id } });
+            const saved = response.data?.values ?? {};
+
+            settings.value = {
+                ...settings.value,
+                barcode_type: saved.barcode_type ?? settings.value.barcode_type,
+                barcode_setting: saved.layout === 'compact' ? 2 : 1,
+                show_price: saved.show_price ?? settings.value.show_price,
+                business_name: saved.show_business_name ?? settings.value.business_name,
+                product_name: saved.show_product_name ?? settings.value.product_name,
+                product_variation: saved.show_variation ?? settings.value.product_variation,
+                product_price: saved.show_product_price ?? settings.value.product_price,
+            };
+        } catch {
+            // keep the page defaults
+        }
+    }
+
     async function handleCompanyChange() {
         branchId.value = '';
         products.value = [];
-        await loadBranches(companyId.value);
+        await Promise.all([loadBranches(companyId.value), applyBarcodeDefaults(companyId.value)]);
     }
 
     async function fetchProductSuggestions(term: string) {
@@ -210,7 +238,7 @@
         }
 
         if (companyId.value) {
-            await loadBranches(companyId.value);
+            await Promise.all([loadBranches(companyId.value), applyBarcodeDefaults(companyId.value)]);
         }
     });
 </script>

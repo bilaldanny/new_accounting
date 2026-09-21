@@ -20,6 +20,7 @@ use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\DocumentSettingController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\FundTransferController;
@@ -454,6 +455,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Document settings (barcode, invoice, receipt printer) */
+    Route::get('document-settings/{group}', [DocumentSettingController::class, 'show']);
+    Route::put('document-settings/{group}', [DocumentSettingController::class, 'update']);
+    /* Document settings */
 
     /* Stock Take */
     Route::get('stock-takes/trash', [StockTakeController::class, 'trash']);
