@@ -805,7 +805,7 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
     },
     'profit-loss': {
         title: 'Profit & Loss',
-        subtitle: 'Revenue, cost of goods sold and expenses of the period, classed by the first digit of the account code. Cost of goods sold is what the ledger holds in the 6xx accounts (purchases as posted), not a stock-adjusted cost.',
+        subtitle: 'Revenue, cost of goods sold and expenses of the period, classed by the first digit of the account code. Cost of goods sold = opening stock + purchases - closing stock, with stock valued at the weighted average purchase cost on the day (the Stock Report\'s value).',
         exportName: 'profit-and-loss',
         filters: { requiresCompany: true },
         columns: [
@@ -815,17 +815,20 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
         ],
         summary: [
             { key: 'revenue', label: 'Revenue' },
-            { key: 'cogs', label: 'Cost of goods sold' },
+            { key: 'opening_stock', label: 'Opening stock' },
+            { key: 'purchases', label: '+ Purchases' },
+            { key: 'closing_stock', label: '- Closing stock' },
+            { key: 'cogs', label: '= Cost of goods sold' },
             { key: 'gross_profit', label: 'Gross profit' },
             { key: 'expenses', label: 'Expenses' },
             { key: 'net_profit', label: 'Net profit', accent: true },
-            { key: 'net_margin', label: 'Net margin %' },
+            { key: 'uncosted_stock', label: 'Products without cost', kind: 'count' },
         ],
         searchPlaceholder: '',
     },
     'balance-sheet': {
         title: 'Balance Sheet',
-        subtitle: 'Assets against liabilities and equity on the day, with the profit of the year to date in equity. The difference must be zero.',
+        subtitle: 'Assets against liabilities and equity on the day, with the profit of the year to date in equity. That profit comes straight from the ledger, before the stock adjustment of the Profit & Loss. The difference must be zero.',
         exportName: 'balance-sheet',
         filters: { requiresCompany: true, asOf: true },
         columns: [
