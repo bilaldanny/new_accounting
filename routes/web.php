@@ -400,6 +400,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('cashcollection.trash');
     /* Cash Collection */
 
+    /* Exchange rates */
+    Route::get('currencyrate', function () {
+        abortUnlessMenuPermission('/currencyrate');
+
+        return Inertia::render('currencyrate/index');
+    })->name('currencyrate');
+    /* Exchange rates */
+
     /* API keys */
     Route::get('apikeys', function () {
         abortUnlessMenuPermission('/apikeys');
