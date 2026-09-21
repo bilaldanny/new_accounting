@@ -35,7 +35,9 @@ export type ReportKey =
     | 'stock-transfer'
     | 'account-ledger'
     | 'trial-balance'
-    | 'vouchers';
+    | 'vouchers'
+    | 'profit-loss'
+    | 'balance-sheet';
 
 export type ReportColumn = {
     key: string;
@@ -800,6 +802,44 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             { key: 'net', label: 'Receipts less payments', accent: true },
         ],
         searchPlaceholder: 'Voucher, reference, cheque or description',
+    },
+    'profit-loss': {
+        title: 'Profit & Loss',
+        subtitle: 'Revenue, cost of goods sold and expenses of the period, classed by the first digit of the account code. Cost of goods sold is what the ledger holds in the 6xx accounts (purchases as posted), not a stock-adjusted cost.',
+        exportName: 'profit-and-loss',
+        filters: { requiresCompany: true },
+        columns: [
+            text('code', 'Code', MID),
+            text('name', 'Account', ALL, 'primary'),
+            known('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'revenue', label: 'Revenue' },
+            { key: 'cogs', label: 'Cost of goods sold' },
+            { key: 'gross_profit', label: 'Gross profit' },
+            { key: 'expenses', label: 'Expenses' },
+            { key: 'net_profit', label: 'Net profit', accent: true },
+            { key: 'net_margin', label: 'Net margin %' },
+        ],
+        searchPlaceholder: '',
+    },
+    'balance-sheet': {
+        title: 'Balance Sheet',
+        subtitle: 'Assets against liabilities and equity on the day, with the profit of the year to date in equity. The difference must be zero.',
+        exportName: 'balance-sheet',
+        filters: { requiresCompany: true, asOf: true },
+        columns: [
+            text('code', 'Code', MID),
+            text('name', 'Account', ALL, 'primary'),
+            known('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'total_assets', label: 'Total assets' },
+            { key: 'total_liabilities', label: 'Liabilities' },
+            { key: 'total_equity', label: 'Equity (with profit)' },
+            { key: 'difference', label: 'Difference', accent: true },
+        ],
+        searchPlaceholder: '',
     },
 };
 

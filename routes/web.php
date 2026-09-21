@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FinancialReportController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LedgerReportController;
 use App\Http\Controllers\PartyReportController;
@@ -436,6 +437,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     }
 
     foreach (LedgerReportController::PERMISSIONS as $report => $path) {
+        Route::get(ltrim($path, '/'), function () use ($report, $path) {
+            abortUnlessMenuPermission($path);
+
+            return Inertia::render('report/transaction', ['report' => $report]);
+        })->name('report.'.$report);
+    }
+
+    foreach (FinancialReportController::PERMISSIONS as $report => $path) {
         Route::get(ltrim($path, '/'), function () use ($report, $path) {
             abortUnlessMenuPermission($path);
 

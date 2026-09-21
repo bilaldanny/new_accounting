@@ -421,5 +421,5 @@ test('one report permission does not open another report', function () {
 test('an unknown report is not found', function () {
     trpActAsSuperadmin();
 
-    $this->getJson('/api/reports/profit-loss')->assertNotFound();
+    $this->getJson('/api/reports/no-such-report')->assertNotFound();
 });

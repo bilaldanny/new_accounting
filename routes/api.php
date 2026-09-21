@@ -19,6 +19,7 @@ use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinancialReportController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\IssueNoteController;
@@ -488,6 +489,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('reports/'.$report, [LedgerReportController::class, 'index'])->defaults('report', $report);
     }
     /* Ledger reports */
+
+    /* Financial statements */
+    foreach (array_keys(FinancialReportController::PERMISSIONS) as $report) {
+        Route::get('reports/'.$report, [FinancialReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Financial statements */
 
     /* Party reports */
     foreach (array_keys(PartyReportController::PERMISSIONS) as $report) {
