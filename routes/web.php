@@ -400,6 +400,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('cashcollection.trash');
     /* Cash Collection */
 
+    /* API keys */
+    Route::get('apikeys', function () {
+        abortUnlessMenuPermission('/apikeys');
+
+        return Inertia::render('apikey/index');
+    })->name('apikeys');
+    /* API keys */
+
     /* Backup */
     Route::get('backup', function () {
         abort_unless(auth()->user()?->hasRole('superadmin'), 403);

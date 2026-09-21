@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountBalanceController;
+use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BankIssuerController;
@@ -87,6 +88,11 @@ Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
 Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
 Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(function () {
+    /* API keys (Sanctum personal access tokens) */
+    Route::get('api-keys', [ApiKeyController::class, 'index']);
+    Route::post('api-keys', [ApiKeyController::class, 'store']);
+    Route::delete('api-keys/{id}', [ApiKeyController::class, 'destroy']);
+
     /* Dashboard: one lazy call per card group (sales, receivables, inventory, approvals, financial, stats, recent) */
     Route::get('dashboard/{widget}', [DashboardController::class, 'show']);
 
