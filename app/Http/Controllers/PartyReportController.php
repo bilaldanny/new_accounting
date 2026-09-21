@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesReportRows;
 use App\Http\Controllers\Concerns\ResolvesReportScope;
 use App\Services\CustomerGroupReport;
 use App\Services\PartyAgingReport;
@@ -9,7 +10,6 @@ use App\Services\PartyOutstandingReport;
 use App\Services\PartySummaryReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -24,6 +24,7 @@ use Illuminate\Support\Collection;
  */
 class PartyReportController extends Controller
 {
+    use PaginatesReportRows;
     use ResolvesReportScope;
 
     /**
@@ -70,16 +71,7 @@ class PartyReportController extends Controller
 
         [$rows, $summary, $sortable, $defaultSort] = $this->prepare($report, $companyId, $branchId, $filters);
 
-        $sortBy = (string) $request->input('sort_by');
-        $isKnownSort = array_key_exists($sortBy, $sortable);
-        $field = $isKnownSort ? $sortable[$sortBy] : $sortable[$defaultSort];
-        $descending = $isKnownSort ? $request->input('sort_type') !== 'asc' : true;
-
-        return response()->json([
-            'data' => $this->paginate($rows, $field, $descending, $request),
-            'summary' => $summary,
-            'trash_count' => 0,
-        ]);
+        return $this->reportResponse($request, $rows, $summary, $sortable, $defaultSort);
     }
 
     /**
@@ -113,34 +105,5 @@ class PartyReportController extends Controller
         $rows = $service->rows(str_replace('-aging', '', $report), $companyId, $branchId, $filters);
 
         return [$rows, $service->summary($rows, $filters['end_date'] ?? null), PartyAgingReport::SORTABLE, 'total'];
-    }
-
-    /**
-     * @param  Collection<int, array<string, mixed>>  $rows
-     * @return LengthAwarePaginator<int, array<string, mixed>>
-     */
-    private function paginate(Collection $rows, string $field, bool $descending, Request $request): LengthAwarePaginator
-    {
-        $sorted = $rows->sort(function (array $a, array $b) use ($field, $descending): int {
-            $left = $a[$field] ?? null;
-            $right = $b[$field] ?? null;
-            $order = is_string($left) || is_string($right)
-                ? strcasecmp((string) $left, (string) $right)
-                : $left <=> $right;
-
-            return ($descending ? -$order : $order) ?: ($a['id'] <=> $b['id']);
-        })->values();
-
-        $perPage = $request->integer('show_record', 10);
-        $lastPage = max((int) ceil($sorted->count() / $perPage), 1);
-        $page = min(max($request->integer('cur_page', 1), 1), $lastPage);
-
-        return new LengthAwarePaginator(
-            $sorted->forPage($page, $perPage)->values(),
-            $sorted->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url()],
-        );
     }
 }

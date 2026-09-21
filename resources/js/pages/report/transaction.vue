@@ -32,7 +32,20 @@
 
     const { state, summary, config, load, changeOrder, checkAll, select_data } = useTransactionReport(pageProps.report);
 
-    const { formatedText, fetchCompany, fetchBranch, fetchCustomerGroup, companiesdata, branchesdata, customergroupsdata } = useCommons();
+    const {
+        formatedText,
+        fetchCompany,
+        fetchBranch,
+        fetchCustomerGroup,
+        fetchCategory,
+        fetchBrand,
+        fetchWithRetry,
+        companiesdata,
+        branchesdata,
+        customergroupsdata,
+        categoriesdata,
+        brandsdata,
+    } = useCommons();
     const { customersdata, fetchCustomersDropdown } = useCustomers();
     const { suppliersdata, fetchSuppliersDropdown } = useSuppliers();
     const { fetchActiveFinancialYear } = useActiveFinancialYear();
@@ -78,6 +91,14 @@
     /** Outstanding and aging are a position on one day; the other reports cover a period. */
     const isAsOf = computed(() => config.filters.asOf === true);
 
+    const TAX_SIDES = [
+        { value: 'all', label: 'Input & output' },
+        { value: 'input', label: 'Input (purchases)' },
+        { value: 'output', label: 'Output (sales)' },
+    ];
+
+    const productsdata = ref<{ id: number | string; name?: string; text?: string }[]>([]);
+
     const CONTACT_TYPES = [
         { value: 'all', label: 'Customers & suppliers' },
         { value: 'customer', label: 'Customers' },
@@ -106,6 +127,29 @@
     const getData = async () => {
         await load();
     };
+
+    /** Category, brand and product lists belong to the company, so they follow the company filter. */
+    async function loadProductFilters() {
+        state.search.category_id = '';
+        state.search.brand_id = '';
+        state.search.product_id = '';
+
+        if (!config.filters.productFilters || !state.search.company_id) {
+            return;
+        }
+
+        await fetchCategory(state.search.company_id);
+        await fetchBrand(state.search.company_id);
+
+        try {
+            const response = await fetchWithRetry(window.axios.get, '/api/fetchproducts', {
+                params: { company_id: state.search.company_id },
+            });
+            productsdata.value = response.data;
+        } catch {
+            productsdata.value = [];
+        }
+    }
 
     async function loadParties() {
         state.search.contact_id = '';
@@ -152,6 +196,7 @@
     async function handleCompanyChange() {
         state.search.branch_id = '';
         await fetchBranch(state.search.company_id);
+        await loadProductFilters();
         await loadParties();
         await applyActiveFiscalYear();
     }
@@ -180,6 +225,8 @@
         state.search.customer_group_id = '';
         state.search.contact_type = 'all';
         state.search.include_zero = false;
+        state.search.top = 10;
+        state.search.tax_side = 'all';
         state.search.status = config.filters.defaultStatus ?? '';
         state.search.payment_status = 'all';
         state.search.method = 'all';
@@ -187,7 +234,10 @@
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
 
-        void applyActiveFiscalYear().then(() => loadParties()).then(getData);
+        void applyActiveFiscalYear()
+            .then(() => loadProductFilters())
+            .then(() => loadParties())
+            .then(getData);
     }
 
     function search() {
@@ -214,6 +264,8 @@
         }
 
         await applyActiveFiscalYear();
+
+        await loadProductFilters();
 
         if (state.search.company_id && state.search.branch_id) {
             await loadParties();
@@ -286,6 +338,59 @@
                         <option value="">All</option>
                         <option v-for="item in parties" :key="item.id" :value="item.id">
                             {{ item.text ?? item.business_name }}
+                        </option>
+                    </select>
+                </div>
+
+                <template v-if="config.filters.productFilters">
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-category">Category</label>
+                        <select id="report-filter-category" v-model="state.search.category_id" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option v-for="category in categoriesdata" :key="category.id" :value="category.id">
+                                {{ category.text ?? category.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-brand">Brand</label>
+                        <select id="report-filter-brand" v-model="state.search.brand_id" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option v-for="brand in brandsdata" :key="brand.id" :value="brand.id">
+                                {{ brand.text ?? brand.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-product">Product</label>
+                        <select id="report-filter-product" v-model="state.search.product_id" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option v-for="product in productsdata" :key="product.id" :value="product.id">
+                                {{ product.text ?? product.name }}
+                            </option>
+                        </select>
+                    </div>
+                </template>
+
+                <div v-if="config.filters.topN" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-top">Number of products</label>
+                    <input
+                        id="report-filter-top"
+                        v-model.number="state.search.top"
+                        type="number"
+                        min="1"
+                        max="500"
+                        class="form-control form-control-sm"
+                    />
+                </div>
+
+                <div v-if="config.filters.taxSides" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-tax-side">Tax</label>
+                    <select id="report-filter-tax-side" v-model="state.search.tax_side" class="form-select form-select-sm">
+                        <option v-for="option in TAX_SIDES" :key="option.value" :value="option.value">
+                            {{ option.label }}
                         </option>
                     </select>
                 </div>
