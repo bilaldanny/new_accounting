@@ -112,6 +112,7 @@ export const API_ENDPOINTS = {
     fetchDiscounts: '/api/fetchdiscounts',
     giftCards: '/api/gift-cards',
     fetchGiftCards: '/api/fetchgiftcards',
+    stockTakes: '/api/stock-takes',
     loyalty: '/api/loyalty',
     loyaltySettings: '/api/loyalty/settings',
     transporters: '/api/transporters',

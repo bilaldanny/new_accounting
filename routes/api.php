@@ -55,6 +55,7 @@ use App\Http\Controllers\SellReturnController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockTakeController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
@@ -453,6 +454,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Stock Take */
+    Route::get('stock-takes/trash', [StockTakeController::class, 'trash']);
+    Route::resource('stock-takes', StockTakeController::class)->only(['index', 'store', 'show', 'destroy']);
+    Route::put('stock-takes/{id}/counts', [StockTakeController::class, 'counts']);
+    Route::post('stock-takes/{id}/complete', [StockTakeController::class, 'complete']);
+    Route::post('stock-takes/bulk_delete', [StockTakeController::class, 'bulk_delete']);
+    Route::post('stock-takes/bulk_delete_per', [StockTakeController::class, 'bulk_delete_per']);
+    Route::post('stock-takes/restore_records', [StockTakeController::class, 'restore_records']);
+    /* Stock Take */
 
     /* Loyalty */
     Route::get('loyalty/settings', [LoyaltyController::class, 'settings']);
