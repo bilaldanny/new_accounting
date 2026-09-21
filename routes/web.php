@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DocumentSettingController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Reports\FinancialReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
@@ -366,6 +367,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('bankissuer/trash');
     })->name('bankissuer.trash');
     /* Bank Issuer */
+
+    /* Document settings */
+    Route::get('barcode/settings', fn () => app(DocumentSettingController::class)->page('barcode'))->name('barcode.settings');
+    Route::get('invoice/settings', fn () => app(DocumentSettingController::class)->page('invoice'))->name('invoice.settings');
+    Route::get('receipt/settings', fn () => app(DocumentSettingController::class)->page('receipt'))->name('receipt.settings');
+    /* Document settings */
 
     /* Stock Take */
     Route::get('stocktake', function () {
