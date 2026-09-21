@@ -19,6 +19,7 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\DiscountController;
@@ -86,6 +87,9 @@ Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
 Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
 Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(function () {
+    /* Dashboard: one lazy call per card group (sales, receivables, inventory, approvals, financial, stats, recent) */
+    Route::get('dashboard/{widget}', [DashboardController::class, 'show']);
+
     /* Menu */
     Route::get('menus/trash', [MenuController::class, 'trash']);
     Route::resource('menus', MenuController::class);
