@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
+use App\Support\ListSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -231,7 +232,7 @@ class SellReturnController extends Controller
 
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
 
@@ -252,7 +253,7 @@ class SellReturnController extends Controller
                         });
                 });
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(fn () => $curPage);
 

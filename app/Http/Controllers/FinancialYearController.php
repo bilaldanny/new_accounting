@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FinancialYear;
+use App\Support\ListSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -14,7 +15,7 @@ class FinancialYearController extends Controller
     {
         $sortBy = $request->input('sort_by', 'created_at');
         $sortType = $request->input('sort_type', 'desc');
-        $showRecord = (int) $request->input('show_record', 10);
+        $showRecord = ListSort::wholeNumber($request->input('show_record'), 10, 1000);
         $curPage = (int) $request->input('cur_page', 1);
         $search = $request->input('search', '');
 
@@ -29,7 +30,7 @@ class FinancialYearController extends Controller
                 });
             })
             ->when($request->input('status') !== 'all' && $request->filled('status'), fn ($q) => $q->where('status', $request->boolean('status')))
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(fn () => $curPage);
 

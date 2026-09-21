@@ -10,8 +10,8 @@ return new class extends Migration
      * Run the migrations.
      *
      * A discount rule: a percentage or a fixed amount off a sale, optionally behind a coupon code, a
-     * minimum purchase, a cap and a validity window. `code` is unique per company among the live rows
-     * (checked in the controller, not by an index, so a trashed row does not block its code).
+     * minimum purchase, a cap and a validity window. `code` is unique per company among all rows, trashed included
+     * (checked in the controller, so a restore can never bring back a duplicate).
      */
     public function up(): void
     {

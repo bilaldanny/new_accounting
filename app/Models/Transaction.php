@@ -9,6 +9,7 @@ use App\Services\SaleStockCheck;
 use App\Services\SellJournal;
 use App\Services\StockMovements;
 use App\Support\Base64Upload;
+use App\Support\ListSort;
 use Database\Factories\TransactionFactory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -1316,7 +1317,7 @@ class Transaction extends Model
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $status = $filters['status'] ?? 'all';
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
@@ -1357,7 +1358,7 @@ class Transaction extends Model
             ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
                 $query->whereDate('transaction_date', $filters['transaction_date']);
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(function () use ($curPage) {
             return $curPage;
@@ -1489,7 +1490,7 @@ class Transaction extends Model
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $status = $filters['status'] ?? 'all';
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
@@ -1528,7 +1529,7 @@ class Transaction extends Model
             ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
                 $query->whereDate('transaction_date', $filters['transaction_date']);
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(function () use ($curPage) {
             return $curPage;
@@ -1801,7 +1802,7 @@ class Transaction extends Model
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $status = $filters['status'] ?? 'all';
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
@@ -1844,7 +1845,7 @@ class Transaction extends Model
             ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
                 $query->whereDate('transaction_date', $filters['transaction_date']);
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(function () use ($curPage) {
             return $curPage;
@@ -2169,7 +2170,7 @@ class Transaction extends Model
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $status = $filters['status'] ?? 'all';
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
@@ -2212,7 +2213,7 @@ class Transaction extends Model
             ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
                 $query->whereDate('transaction_date', $filters['transaction_date']);
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(function () use ($curPage) {
             return $curPage;
@@ -3006,7 +3007,7 @@ class Transaction extends Model
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $status = $filters['status'] ?? 'all';
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
@@ -3049,7 +3050,7 @@ class Transaction extends Model
             ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
                 $query->whereDate('transaction_date', $filters['transaction_date']);
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(function () use ($curPage) {
             return $curPage;
@@ -3407,7 +3408,7 @@ class Transaction extends Model
     {
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortType = $filters['sort_type'] ?? 'desc';
-        $showRecord = $filters['show_record'] ?? 10;
+        $showRecord = ListSort::wholeNumber($filters['show_record'] ?? null, 10, 1000);
         $status = $filters['status'] ?? 'all';
         $search = $filters['search'] ?? '';
         $curPage = (int) ($filters['cur_page'] ?? $filters['page'] ?? 1);
@@ -3450,7 +3451,7 @@ class Transaction extends Model
             ->when(! empty($filters['transaction_date']), function ($query) use ($filters) {
                 $query->whereDate('transaction_date', $filters['transaction_date']);
             })
-            ->orderBy($sortBy, $sortType);
+            ->orderBy(ListSort::column($sortBy), ListSort::direction($sortType, 'desc'));
 
         Paginator::currentPageResolver(function () use ($curPage) {
             return $curPage;
