@@ -367,6 +367,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bankissuer.trash');
     /* Bank Issuer */
 
+    /* Stock Take */
+    Route::get('stocktake', function () {
+        abortUnlessMenuPermission('/stocktake');
+
+        return Inertia::render('stocktake/index');
+    })->name('stocktake');
+
+    Route::get('stocktake/add', function () {
+        abortUnlessMenuPermission('/stocktake/add');
+
+        return Inertia::render('stocktake/add');
+    })->name('stocktake.add');
+
+    Route::get('stocktake/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/stocktake/:id/view');
+
+        return Inertia::render('stocktake/view', ['id' => $id]);
+    })->name('stocktake.view');
+
+    Route::get('stocktake/trash', function () {
+        abortUnlessMenuPermission('/stocktake/restore');
+
+        return Inertia::render('stocktake/trash');
+    })->name('stocktake.trash');
+    /* Stock Take */
+
     /* Loyalty */
     Route::get('loyalty', function () {
         abortUnlessMenuPermission('/loyalty');
