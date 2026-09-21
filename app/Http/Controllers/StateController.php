@@ -170,7 +170,7 @@ class StateController extends Controller
 
         $request->merge([
             'name' => State::normalizeName($request->input('name')),
-            'iso2' => State::normalizeIso2($request->input('iso2')),
+            'iso2' => $this->normalizeUnlessArray($request->input('iso2'), State::normalizeIso2(...)),
         ]);
 
         $request->validate($this->stateFormRules());
@@ -204,7 +204,7 @@ class StateController extends Controller
 
         $request->merge([
             'name' => State::normalizeName($request->input('name')),
-            'iso2' => State::normalizeIso2($request->input('iso2')),
+            'iso2' => $this->normalizeUnlessArray($request->input('iso2'), State::normalizeIso2(...)),
         ]);
 
         $request->validate($this->stateFormRules($id));

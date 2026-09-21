@@ -8,6 +8,9 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Fluent;
+use Illuminate\Validation\ConditionalRules;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -16,14 +19,23 @@ class RoleController extends Controller
     use HandlesBulkImport, HandlesIndexAndBulkDelete;
 
     /**
-     * @return array<string, string>
+     * The company and branch must be ids that exist (an unknown one used to end in a foreign key error, a 500).
+     * The string 'undefined' is still read as "none", as Role::resolveScopedId always has.
+     *
+     * @return array<string, mixed>
      */
     protected function roleFormRules(): array
     {
         return [
-            'name' => 'bail|required',
-            'branch_id' => Auth::user()?->hasRole('companyadmin') ? 'required' : 'nullable',
+            'name' => 'bail|required|string|max:255',
+            'company_id' => ['nullable', $this->existingIdUnlessUndefined('company_id', 'companies')],
+            'branch_id' => [Auth::user()?->hasRole('companyadmin') ? 'required' : 'nullable', $this->existingIdUnlessUndefined('branch_id', 'branches')],
         ];
+    }
+
+    private function existingIdUnlessUndefined(string $key, string $table): ConditionalRules
+    {
+        return Rule::when(fn (Fluent $input): bool => $input->get($key) !== 'undefined', ['integer', 'exists:'.$table.',id']);
     }
 
     public function index(Request $request)
