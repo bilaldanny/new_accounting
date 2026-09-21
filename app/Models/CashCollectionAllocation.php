@@ -10,10 +10,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CashCollectionAllocation extends Model
 {
+    /** Cash that was collected and spread over an invoice when the collection was completed. */
+    public const KIND_COLLECTED = 'collected';
+
+    /** A part of the customer advance the collection kept, used to settle an invoice later. */
+    public const KIND_ADVANCE = 'advance';
+
     protected $fillable = [
         'cash_collection_id',
         'transaction_id',
         'payment_id',
+        'kind',
         'amount',
     ];
 

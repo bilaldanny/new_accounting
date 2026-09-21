@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Auth;
  * Cash a collector took from a customer. It is `pending` until someone completes it against the
  * customer's open invoices (App\Services\CashCollections), which is the only moment anything is posted;
  * a `cancelled` one never had any effect. Only pending collections can be edited, and only pending or
- * cancelled ones deleted: a completed one is the record of the payments it made.
+ * cancelled ones deleted: a completed one is the record of the payments it made. A completed collection can
+ * keep part of the cash as a customer advance and can be reversed (its payments are removed and it is pending
+ * again), see CashCollections.
  */
 class CashCollection extends Model
 {
@@ -39,13 +41,17 @@ class CashCollection extends Model
         'reference',
         'collected_on',
         'amount',
+        'advance_amount',
         'note',
         'status',
         'payment_account',
+        'advance_payment_id',
         'collected_by',
         'completed_by',
         'completed_at',
         'cancelled_at',
+        'reversed_at',
+        'reversed_by',
     ];
 
     protected function casts(): array
@@ -53,8 +59,10 @@ class CashCollection extends Model
         return [
             'collected_on' => 'date:Y-m-d',
             'amount' => 'float',
+            'advance_amount' => 'float',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'reversed_at' => 'datetime',
         ];
     }
 
@@ -101,6 +109,16 @@ class CashCollection extends Model
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * What is left of the advance this collection kept: the advance less the parts already used on invoices.
+     */
+    public function advanceRemaining(): float
+    {
+        $used = (float) $this->allocations()->where('kind', CashCollectionAllocation::KIND_ADVANCE)->sum('amount');
+
+        return round(max((float) $this->advance_amount - $used, 0), 2);
     }
 
     /**

@@ -35,6 +35,7 @@
 
     type Allocation = {
         id: number;
+        kind?: 'collected' | 'advance';
         invoice_no?: string | null;
         payment_ref_no?: string | null;
         amount: number;
@@ -47,6 +48,10 @@
         collected_on?: string;
         amount?: number;
         note?: string | null;
+        advance_amount?: number;
+        advance_remaining?: number;
+        enabled?: boolean;
+        reversed_at?: string | null;
         contact_id?: number;
         company_id?: number;
         company_name?: string | null;
@@ -71,16 +76,29 @@
     const accounts = ref<Array<{ id: number; text?: string; name?: string }>>([]);
     const amounts = ref<Record<number, number | null>>({});
     const paymentAccount = ref<number | ''>('');
+    const keepAdvance = ref(false);
+    const advanceAmounts = ref<Record<number, number | null>>({});
 
     const permissionPaths = computed(() => (page.props.auth?.user as { permission_paths?: string[] } | null)?.permission_paths ?? []);
     const isPending = computed(() => collection.value.status === 'pending');
     const canEdit = computed(() => isPending.value && permissionPaths.value.includes('/cashcollection/:id/edit'));
     const canComplete = computed(() => isPending.value && permissionPaths.value.includes('/cashcollection/complete'));
     const canCancel = computed(() => isPending.value && permissionPaths.value.includes('/cashcollection/cancel'));
+    const isCompleted = computed(() => collection.value.status === 'completed');
+    const canReverse = computed(() => isCompleted.value && permissionPaths.value.includes('/cashcollection/reverse'));
+    const advanceLeft = computed(() => Number(collection.value.advance_remaining ?? 0));
+    const canUseAdvance = computed(() => isCompleted.value && advanceLeft.value > 0 && permissionPaths.value.includes('/cashcollection/advance'));
+    const switchedOff = computed(() => collection.value.enabled === false);
+    const collectedAllocations = computed(() => (collection.value.allocations ?? []).filter((allocation) => allocation.kind !== 'advance'));
+    const advanceAllocations = computed(() => (collection.value.allocations ?? []).filter((allocation) => allocation.kind === 'advance'));
 
     const allocatedTotal = computed(() => Math.round(Object.values(amounts.value).reduce<number>((sum, value) => sum + (Number(value) || 0), 0) * 100) / 100);
     const remainingToAllocate = computed(() => Math.round(((collection.value.amount ?? 0) - allocatedTotal.value) * 100) / 100);
-    const canSubmit = computed(() => remainingToAllocate.value === 0 && allocatedTotal.value > 0 && paymentAccount.value !== '');
+    // the invoices may take all of it, or less with the rest kept as an advance (never more)
+    const canSubmit = computed(() => paymentAccount.value !== '' && ! switchedOff.value && remainingToAllocate.value >= 0
+        && (remainingToAllocate.value === 0 ? allocatedTotal.value > 0 : keepAdvance.value));
+    const advanceAllocatedTotal = computed(() => Math.round(Object.values(advanceAmounts.value).reduce<number>((sum, value) => sum + (Number(value) || 0), 0) * 100) / 100);
+    const canApplyAdvance = computed(() => advanceAllocatedTotal.value > 0 && advanceAllocatedTotal.value <= advanceLeft.value);
 
     function errorMessage(error: unknown): string {
         if (! window.axios.isAxiosError(error)) {
@@ -107,7 +125,7 @@
     }
 
     async function loadPayables() {
-        if (! canComplete.value || ! collection.value.contact_id) {
+        if (! (canComplete.value || canUseAdvance.value) || ! collection.value.contact_id) {
             return;
         }
 
@@ -118,7 +136,12 @@
             ]);
             invoices.value = invoiceResponse.data;
             accounts.value = accountResponse.data;
-            autoAllocate();
+            keepAdvance.value = false;
+            advanceAmounts.value = {};
+
+            if (canComplete.value) {
+                autoAllocate();
+            }
         } catch {
             Notify('Unable to load the customer\'s open invoices.', 'alert');
         }
@@ -148,9 +171,52 @@
 
             const response = await window.axios.post(`${API_ENDPOINTS.cashCollections}/${routeProps.id}/complete`, {
                 payment_account: paymentAccount.value,
+                keep_advance: keepAdvance.value,
                 allocations,
             });
             Notify(response.data?.message || 'Successfully Saved', 'success');
+            await load();
+        } catch (error: unknown) {
+            Notify(errorMessage(error), 'alert');
+        } finally {
+            saving.value = false;
+        }
+    }
+
+    async function applyAdvance() {
+        saving.value = true;
+
+        try {
+            const allocations = invoices.value
+                .filter((invoice) => Number(advanceAmounts.value[invoice.id]) > 0)
+                .map((invoice) => ({ transaction_id: invoice.id, amount: Number(advanceAmounts.value[invoice.id]) }));
+
+            const response = await window.axios.post(`${API_ENDPOINTS.cashCollections}/${routeProps.id}/apply-advance`, { allocations });
+            Notify(response.data?.message || 'Successfully Saved', 'success');
+            await load();
+        } catch (error: unknown) {
+            Notify(errorMessage(error), 'alert');
+        } finally {
+            saving.value = false;
+        }
+    }
+
+    async function reverseCollection() {
+        if (! window.confirm('Reverse this collection? Every payment it made, and any invoice settled from its advance, is removed and the collection goes back to pending.')) {
+            return;
+        }
+
+        const note = window.prompt('Why is it being reversed? (optional)');
+
+        if (note === null) {
+            return;
+        }
+
+        saving.value = true;
+
+        try {
+            await window.axios.post(`${API_ENDPOINTS.cashCollections}/${routeProps.id}/reverse`, { note: note.trim() || undefined });
+            Notify('Collection reversed', 'success');
             await load();
         } catch (error: unknown) {
             Notify(errorMessage(error), 'alert');
@@ -203,6 +269,9 @@
                     <button v-if="canCancel" type="button" class="btn btn-outline-danger btn-sm" :disabled="saving" @click="cancelCollection">
                         Cancel collection
                     </button>
+                    <button v-if="canReverse" type="button" class="btn btn-outline-danger btn-sm" :disabled="saving" @click="reverseCollection">
+                        Reverse collection
+                    </button>
                 </div>
             </div>
 
@@ -210,6 +279,12 @@
                 <Loader v-if="loading" message="Loading cash collection…" />
 
                 <div v-else class="row g-4">
+                    <div v-if="switchedOff" class="col-12">
+                        <div class="alert alert-warning mb-0">
+                            Cash collection is switched off for this company, so this collection cannot be completed or its advance used. Switch it on in Company Settings.
+                        </div>
+                    </div>
+
                     <div class="col-12">
                         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
                             <div>
@@ -239,6 +314,10 @@
                                 <dd class="col-7">{{ collection.contact_name || '—' }}</dd>
                                 <dt class="col-5 text-muted">Amount</dt>
                                 <dd class="col-7 fw-semibold">{{ collection.amount }}</dd>
+                                <dt v-if="isCompleted && (collection.advance_amount ?? 0) > 0" class="col-5 text-muted">Advance kept</dt>
+                                <dd v-if="isCompleted && (collection.advance_amount ?? 0) > 0" class="col-7">{{ collection.advance_amount }} (left: {{ advanceLeft }})</dd>
+                                <dt v-if="collection.reversed_at" class="col-5 text-muted">Reversed</dt>
+                                <dd v-if="collection.reversed_at" class="col-7">{{ String(collection.reversed_at).slice(0, 10) }}</dd>
                                 <dt class="col-5 text-muted">Collected on</dt>
                                 <dd class="col-7">{{ collection.collected_on }}</dd>
                                 <dt class="col-5 text-muted">Collected by</dt>
@@ -261,13 +340,57 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="allocation in collection.allocations ?? []" :key="allocation.id">
+                                    <tr v-for="allocation in collectedAllocations" :key="allocation.id">
                                         <td>{{ allocation.invoice_no || '—' }}</td>
+                                        <td>{{ allocation.payment_ref_no || '—' }}</td>
+                                        <td class="text-end">{{ allocation.amount }}</td>
+                                    </tr>
+                                    <tr v-for="allocation in advanceAllocations" :key="`advance-${allocation.id}`">
+                                        <td>{{ allocation.invoice_no || '—' }} <span class="badge bg-info-subtle text-info">from advance</span></td>
                                         <td>{{ allocation.payment_ref_no || '—' }}</td>
                                         <td class="text-end">{{ allocation.amount }}</td>
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <div v-if="canUseAdvance" class="col-12">
+                        <div class="border rounded p-3">
+                            <h6 class="mb-1">Use the advance ({{ advanceLeft }} left)</h6>
+                            <p class="text-muted small">Settle open invoices of this customer out of the advance kept from this collection. No cash moves.</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice</th>
+                                            <th class="text-end">Still owed</th>
+                                            <th class="text-end" style="width: 9rem">Use advance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="invoice in invoices" :key="`use-${invoice.id}`">
+                                            <td>{{ invoice.invoice_no || `#${invoice.id}` }}</td>
+                                            <td class="text-end">{{ invoice.remaining }}</td>
+                                            <td class="text-end">
+                                                <input
+                                                    v-model.number="advanceAmounts[invoice.id]"
+                                                    type="number"
+                                                    min="0"
+                                                    :max="Math.min(invoice.remaining, advanceLeft)"
+                                                    step="0.01"
+                                                    class="form-control form-control-sm text-end"
+                                                    :aria-label="`Advance to use on ${invoice.invoice_no ?? invoice.id}`"
+                                                >
+                                            </td>
+                                        </tr>
+                                        <tr v-if="! invoices.length">
+                                            <td colspan="3" class="text-center text-muted">This customer has no open invoices.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" :disabled="saving || ! canApplyAdvance" @click="applyAdvance">Use advance</button>
                         </div>
                     </div>
 
@@ -290,11 +413,19 @@
                                 </div>
                                 <div class="col-md-8 d-flex align-items-end gap-3">
                                     <button type="button" class="btn btn-outline-secondary btn-sm" @click="autoAllocate">Allocate oldest first</button>
-                                    <span :class="remainingToAllocate === 0 ? 'text-success' : 'text-danger'">
+                                    <span :class="remainingToAllocate === 0 ? 'text-success' : (remainingToAllocate > 0 && keepAdvance ? 'text-info' : 'text-danger')">
                                         Left to allocate: {{ remainingToAllocate }}
                                     </span>
                                 </div>
                             </div>
+
+                            <div v-if="remainingToAllocate > 0" class="form-check mb-3">
+                                <input id="cashcollection-advance" v-model="keepAdvance" class="form-check-input" type="checkbox">
+                                <label class="form-check-label" for="cashcollection-advance">
+                                    Keep the remaining {{ remainingToAllocate }} as an advance for this customer (it can settle their later invoices)
+                                </label>
+                            </div>
+                            <p v-if="remainingToAllocate < 0" class="text-danger small">The invoices add up to more than was collected.</p>
 
                             <div class="table-responsive">
                                 <table class="table table-sm align-middle">

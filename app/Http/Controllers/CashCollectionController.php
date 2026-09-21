@@ -24,7 +24,10 @@ class CashCollectionController extends Controller
      */
     private const REJECTIONS = [
         'not_pending' => 'Only a pending collection can be changed.',
-        'allocation_mismatch' => 'The invoice amounts must add up to exactly the collected amount.',
+        'not_completed' => 'Only a completed collection can do this.',
+        'allocation_mismatch' => 'The invoice amounts must add up to exactly the collected amount, or be less with the rest kept as an advance, and never more.',
+        'advance_exceeded' => 'The amounts must be above zero and no more than the advance that is left.',
+        'disabled' => 'Cash collection is switched off for this company. Switch it on in Company Settings.',
     ];
 
     public function __construct(private readonly CashCollections $collections) {}
@@ -75,6 +78,11 @@ class CashCollectionController extends Controller
         $request->validate($this->collectionFormRules($request));
 
         $companyId = (int) $this->companyIdFor($request);
+
+        if (! $this->collections->enabledFor($companyId)) {
+            return $this->rejection('disabled');
+        }
+
         $branchId = $this->branchIdFor($request);
 
         $collection = CashCollection::query()->create([
@@ -105,12 +113,15 @@ class CashCollectionController extends Controller
 
         $payload = $this->withNames($collection)->toArray();
         $payload['collector_name'] = trim(($collection->collector?->first_name ?? '').' '.($collection->collector?->last_name ?? '')) ?: null;
+        $payload['advance_remaining'] = $collection->advanceRemaining();
+        $payload['enabled'] = $this->collections->enabledFor((int) $collection->company_id);
         $payload['allocations'] = $collection->allocations()
             ->with(['transaction:id,invoice_no', 'payment:id,payment_ref_no'])
             ->orderBy('id')
             ->get()
             ->map(fn ($allocation): array => [
                 'id' => $allocation->id,
+                'kind' => $allocation->kind,
                 'transaction_id' => $allocation->transaction_id,
                 'invoice_no' => $allocation->transaction?->invoice_no,
                 'payment_id' => $allocation->payment_id,
@@ -181,20 +192,78 @@ class CashCollectionController extends Controller
 
         $collection = $this->findVisible($id);
 
+        $keepAdvance = $request->boolean('keep_advance');
+
         $data = $request->validate([
             'payment_account' => 'required|integer|exists:chart_of_accounts,id',
+            'keep_advance' => 'nullable|boolean',
+            'allocations' => [$keepAdvance ? 'nullable' : 'required', 'array', $keepAdvance ? 'min:0' : 'min:1', 'max:200'],
+            'allocations.*.transaction_id' => 'required|integer|distinct',
+            'allocations.*.amount' => 'required|numeric|decimal:0,2|gt:0|max:9999999.99',
+        ]);
+
+        if (! $this->collections->enabledFor((int) $collection->company_id)) {
+            return $this->rejection('disabled');
+        }
+
+        try {
+            $completed = $this->collections->complete($collection, (int) $data['payment_account'], $data['allocations'] ?? [], Auth::id(), $keepAdvance);
+        } catch (RuntimeException $e) {
+            return $this->rejection($e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Successfully Saved',
+            'payments' => $completed->allocations()->pluck('payment_id')->all(),
+            'advance_amount' => $completed->advance_amount,
+        ]);
+    }
+
+    /**
+     * Uses the advance a completed collection kept to settle invoices of the customer (no cash moves).
+     */
+    public function applyAdvance(Request $request, $id): JsonResponse
+    {
+        $this->authorizeMenuPermission('/cashcollection/advance');
+
+        $collection = $this->findVisible($id);
+
+        $data = $request->validate([
             'allocations' => 'required|array|min:1|max:200',
             'allocations.*.transaction_id' => 'required|integer|distinct',
             'allocations.*.amount' => 'required|numeric|decimal:0,2|gt:0|max:9999999.99',
         ]);
 
+        if (! $this->collections->enabledFor((int) $collection->company_id)) {
+            return $this->rejection('disabled');
+        }
+
         try {
-            $completed = $this->collections->complete($collection, (int) $data['payment_account'], $data['allocations'], Auth::id());
+            $this->collections->applyAdvance($collection, $data['allocations']);
         } catch (RuntimeException $e) {
             return $this->rejection($e->getMessage());
         }
 
-        return response()->json(['message' => 'Successfully Saved', 'payments' => $completed->allocations()->pluck('payment_id')->all()]);
+        return response()->json(['message' => 'Successfully Saved', 'advance_remaining' => $collection->fresh()->advanceRemaining()]);
+    }
+
+    /**
+     * Undoes a completed collection: its payments are removed and it is pending again.
+     */
+    public function reverse(Request $request, $id): JsonResponse
+    {
+        $this->authorizeMenuPermission('/cashcollection/reverse');
+
+        $collection = $this->findVisible($id);
+        $data = $request->validate(['note' => 'nullable|string|max:300']);
+
+        try {
+            $this->collections->reverse($collection, Auth::id(), $data['note'] ?? null);
+        } catch (RuntimeException $e) {
+            return $this->rejection($e->getMessage());
+        }
+
+        return response()->json(['message' => 'Successfully Reversed']);
     }
 
     public function cancel($id): JsonResponse

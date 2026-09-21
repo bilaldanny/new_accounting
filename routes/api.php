@@ -469,6 +469,8 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::resource('cash-collections', CashCollectionController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('cash-collections/{id}/complete', [CashCollectionController::class, 'complete']);
     Route::post('cash-collections/{id}/cancel', [CashCollectionController::class, 'cancel']);
+    Route::post('cash-collections/{id}/apply-advance', [CashCollectionController::class, 'applyAdvance']);
+    Route::post('cash-collections/{id}/reverse', [CashCollectionController::class, 'reverse']);
     Route::post('cash-collections/bulk_delete', [CashCollectionController::class, 'bulk_delete']);
     Route::post('cash-collections/bulk_delete_per', [CashCollectionController::class, 'bulk_delete_per']);
     Route::post('cash-collections/restore_records', [CashCollectionController::class, 'restore_records']);
