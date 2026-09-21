@@ -293,9 +293,7 @@ class DepartmentController extends Controller
 
             return response()->json(['message' => 'Successfully Duplicated']);
         } catch (Throwable $e) {
-            DB::rollBack();
-
-            return response()->json(['errormessage' => $e->getMessage()], 500);
+            return $this->failedTransaction($e);
         }
     }
 
