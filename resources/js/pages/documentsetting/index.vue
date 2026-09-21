@@ -20,6 +20,7 @@
         barcode: { title: 'Barcode Settings', subtitle: 'Defaults for barcode labels' },
         invoice: { title: 'Invoice Settings', subtitle: 'Invoice number format, terms and footer' },
         receipt: { title: 'Receipt Printer Settings', subtitle: 'Printer type, paper size and receipt content' },
+        checkout: { title: 'Checkout Extras', subtitle: 'Discount codes and gift cards on the sell form and the POS' },
     };
 
     const heading = titles[routeProps.group] ?? { title: 'Settings', subtitle: '' };

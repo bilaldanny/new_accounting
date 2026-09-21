@@ -413,6 +413,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('barcode/settings', fn () => app(DocumentSettingController::class)->page('barcode'))->name('barcode.settings');
     Route::get('invoice/settings', fn () => app(DocumentSettingController::class)->page('invoice'))->name('invoice.settings');
     Route::get('receipt/settings', fn () => app(DocumentSettingController::class)->page('receipt'))->name('receipt.settings');
+    Route::get('checkout/settings', fn () => app(DocumentSettingController::class)->page('checkout'))->name('checkout.settings');
     /* Document settings */
 
     /* Stock Take */

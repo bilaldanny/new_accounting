@@ -1,6 +1,6 @@
 import { reactive, ref } from "vue";
-import useCommons from "./common";
 import { API_ENDPOINTS } from './apiEndpoints'
+import useCommons from "./common";
 
 export type SellLineRow = {
     id?: number | string;
@@ -76,6 +76,12 @@ export default function useSells(){
       is_direct: false,
       direct_contact_id: '',
       commission_agent_id: '',
+      discount_code: '',
+      coupon_discount_amount: 0,
+      gift_card_code: '',
+      gift_card_amount: 0,
+      gift_card_payment_account: '',
+      gift_card_payments: [] as Array<{ code: string; amount: number }>,
       selllines: [] as SellLineRow[],
     });
 

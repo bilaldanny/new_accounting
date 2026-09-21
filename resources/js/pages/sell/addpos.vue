@@ -37,6 +37,7 @@
     import useSellPayments from '@/composables/sellPayment';
     import debounce from '@/utils/debounce';
     import PaymentModal from './payment/add.vue';
+    import SaleIncentivesPanel from './SaleIncentivesPanel.vue';
 
     // This page renders without AppLayout (see resources/js/app.ts) so the POS
     // screen can use the full viewport like a kiosk, with no app header or sidebar.
@@ -228,7 +229,7 @@
         Object.assign(formData.value, {
             net_sub_total: Number(netSubTotal.toFixed(2)),
             discount_val: Number(discountVal.toFixed(2)),
-            final_amount: Number((netSubTotal + toNumber(formData.value.shipping_charges) - discountVal).toFixed(2)),
+            final_amount: Number(Math.max(netSubTotal + toNumber(formData.value.shipping_charges) - discountVal - toNumber(formData.value.coupon_discount_amount), 0).toFixed(2)),
         });
     }
 
@@ -514,6 +515,10 @@
         return productStock(product) > 0;
     }
 
+    function persistPatch(patch: Record<string, unknown>) {
+        Object.assign(formData.value, patch);
+    }
+
     function resetSale() {
         formData.value = {
             ...emptyForm(),
@@ -536,7 +541,7 @@
         resetSale();
     }
 
-    async function createSellRecord(status: 'final' | 'draft' | 'quotation'): Promise<{ id: number; invoice_no: string; final_amount: number } | null> {
+    async function createSellRecord(status: 'final' | 'draft' | 'quotation'): Promise<{ id: number; invoice_no: string; final_amount: number; remaining_amount: number } | null> {
         if (! formData.value.company_id || ! formData.value.branch_id) {
             Notify('Select a company and branch', 'alert');
 
@@ -560,6 +565,7 @@
         try {
             const response = await window.axios.post(API_ENDPOINTS.sells, {
                 ...formData.value,
+                ...(status === 'final' ? {} : { gift_card_code: '', gift_card_amount: 0 }),
                 status,
                 payment_status: 'due',
                 is_pos: true,
@@ -575,6 +581,7 @@
                 id: Number(response.data?.id),
                 invoice_no: String(response.data?.invoice_no ?? ''),
                 final_amount: Number(response.data?.final_amount ?? formData.value.final_amount ?? 0),
+                remaining_amount: Number(response.data?.remaining_amount ?? response.data?.final_amount ?? formData.value.final_amount ?? 0),
             };
         } catch (error) {
             // `type: 'submit'` is what shows the server's validation message (credit limit,
@@ -617,7 +624,7 @@
         }
 
         Notify(`Sale completed on credit (${sell.invoice_no})`, 'success');
-        broadcastDisplay('completed', { totalPaying: 0, changeReturn: 0, balance: sell.final_amount });
+        broadcastDisplay('completed', { totalPaying: sell.final_amount - sell.remaining_amount, changeReturn: 0, balance: sell.remaining_amount });
         resetSale();
     }
 
@@ -625,6 +632,14 @@
         const sell = await createSellRecord('final');
 
         if (! sell) {
+            return;
+        }
+
+        if (sell.remaining_amount <= 0) {
+            Notify(`Sale completed (${sell.invoice_no}) — paid in full by gift card`, 'success');
+            broadcastDisplay('completed', { totalPaying: sell.final_amount, changeReturn: 0, balance: 0 });
+            resetSale();
+
             return;
         }
 
@@ -647,7 +662,7 @@
                 company_id: formData.value.company_id,
                 branch_id: formData.value.branch_id,
                 transaction_id: sell.id,
-                amount: sell.final_amount,
+                amount: sell.remaining_amount,
                 paid_on: new Date().toISOString().slice(0, 10),
                 method: 'cash',
                 payment_account: cashAccount.id,
@@ -670,6 +685,13 @@
             return;
         }
 
+        if (sell.remaining_amount <= 0) {
+            Notify(`Sale completed (${sell.invoice_no}) — paid in full by gift card`, 'success');
+            resetSale();
+
+            return;
+        }
+
         pendingPaymentSnapshot.value = buildDisplaySnapshot();
         paymentModalMode.value = mode;
         paymentModalLoading.value = true;
@@ -681,8 +703,8 @@
             transaction_id: sell.id,
             invoice_no: sell.invoice_no,
             final_amount: sell.final_amount,
-            remaining_amount: sell.final_amount,
-            amount: sell.final_amount,
+            remaining_amount: sell.remaining_amount,
+            amount: sell.remaining_amount,
             method: mode === 'card' ? 'card' : 'cash',
         };
 
@@ -1017,7 +1039,7 @@
     });
 
     watch(
-        () => [formData.value.discount_type, formData.value.discount_amount, formData.value.shipping_charges],
+        () => [formData.value.discount_type, formData.value.discount_amount, formData.value.shipping_charges, formData.value.coupon_discount_amount],
         () => recalculateTotals(),
     );
 
@@ -1232,6 +1254,12 @@
                             >
                             <strong>{{ money(formData.shipping_charges) }}</strong>
                         </div>
+                        <SaleIncentivesPanel
+                            variant="pos"
+                            :form-data="formData"
+                            :net-sub-total="Number(formData.net_sub_total ?? 0)"
+                            :persist="persistPatch"
+                        />
                         <div class="pos-summary__total">
                             <span>Total due</span>
                             <strong>{{ money(formData.final_amount) }}</strong>

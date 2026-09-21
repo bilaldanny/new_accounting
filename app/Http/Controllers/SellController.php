@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Company;
+use App\Models\GiftCardEntry;
+use App\Models\LoyaltyPointEntry;
 use App\Models\Payment;
+use App\Models\SaleDiscount;
 use App\Models\Transaction;
 use App\Services\CustomerCreditLimit;
+use App\Services\SaleIncentives;
 use App\Services\SellJournal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -67,6 +71,11 @@ class SellController extends Controller
             'selllines.*.discount_percent' => 'nullable|numeric|min:0',
             'selllines.*.unit_price_after_discount' => 'nullable|numeric|min:0',
             'selllines.*.row_subtotal' => 'nullable|numeric|min:0',
+            'discount_code' => 'nullable|string|max:50',
+            'coupon_discount_amount' => 'nullable|required_with:discount_code|numeric|min:0',
+            'gift_card_code' => 'nullable|string|max:50',
+            'gift_card_amount' => 'nullable|numeric|min:0|decimal:0,2',
+            'gift_card_payment_account' => 'nullable|integer|exists:chart_of_accounts,id',
         ];
     }
 
@@ -179,6 +188,8 @@ class SellController extends Controller
             'id' => $sell->id,
             'invoice_no' => $sell->invoice_no,
             'final_amount' => $sell->final_amount,
+            'remaining_amount' => Payment::remainingAmountForTransaction($sell),
+            'payment_status' => $sell->payment_status,
             'stock_warnings' => $sell->stockWarnings,
         ]);
     }
@@ -250,6 +261,7 @@ class SellController extends Controller
             (int) $sell->id,
         );
         $payload['balance'] = round((float) $sell->final_amount - $paid, 2);
+        $payload = array_merge($payload, $this->checkoutExtrasPayload($sell));
 
         return response()->json($payload);
     }
@@ -273,7 +285,12 @@ class SellController extends Controller
             return response()->json(['errormessage' => $e->getMessage()], 500);
         }
 
-        return response()->json(['message' => 'Successfully Saved', 'stock_warnings' => $sell->stockWarnings]);
+        return response()->json([
+            'message' => 'Successfully Saved',
+            'remaining_amount' => Payment::remainingAmountForTransaction($sell),
+            'payment_status' => $sell->payment_status,
+            'stock_warnings' => $sell->stockWarnings,
+        ]);
     }
 
     public function updateShipping(Request $request, $id)
@@ -322,6 +339,7 @@ class SellController extends Controller
                 ->pluck('id');
 
             app(SellJournal::class)->deleteForIds($ids);
+            Transaction::whereIn('id', $ids)->get()->each(fn (Transaction $sell) => app(SaleIncentives::class)->afterDelete($sell));
             Transaction::whereIn('id', $ids)->delete();
         });
     }
@@ -359,7 +377,10 @@ class SellController extends Controller
                     ->sells()
                     ->whereIn('id', $ids)
                     ->get()
-                    ->each(fn (Transaction $sell) => app(SellJournal::class)->sync($sell));
+                    ->each(function (Transaction $sell) {
+                        app(SellJournal::class)->sync($sell);
+                        app(SaleIncentives::class)->refreshLoyalty($sell);
+                    });
 
                 DB::commit();
 
@@ -395,6 +416,7 @@ class SellController extends Controller
                     $sell->status = $request->status;
                     app(CustomerCreditLimit::class)->assertWithinLimit($sell, $previous);
                     $sell->save();
+                    app(SaleIncentives::class)->refreshLoyalty($sell);
                 }
             }
             DB::commit();
@@ -484,5 +506,41 @@ class SellController extends Controller
         });
 
         return response()->json(['data' => $sells]);
+    }
+
+    /**
+     * What the edit page and the invoice need to know about the discount code, the gift card payments and
+     * the loyalty points of a sale.
+     *
+     * @return array<string, mixed>
+     */
+    private function checkoutExtrasPayload(Transaction $sell): array
+    {
+        $discount = SaleDiscount::query()->where('transaction_id', $sell->id)->first();
+        $points = (int) LoyaltyPointEntry::query()
+            ->where('transaction_id', $sell->id)
+            ->whereIn('type', [LoyaltyPointEntry::TYPE_EARN, LoyaltyPointEntry::TYPE_ADJUST])
+            ->sum('points');
+
+        return [
+            'discount_code' => $discount?->code ?? '',
+            'coupon_discount_amount' => $discount?->amount ?? 0,
+            'applied_discount' => $discount === null ? null : [
+                'code' => $discount->code,
+                'name' => $discount->name,
+                'discount_type' => $discount->discount_type,
+                'value' => $discount->value,
+                'amount' => $discount->amount,
+            ],
+            'gift_card_payments' => GiftCardEntry::query()
+                ->with('giftCard:id,code')
+                ->where('transaction_id', $sell->id)
+                ->where('type', GiftCardEntry::TYPE_REDEEM)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (GiftCardEntry $entry): array => ['code' => $entry->giftCard?->code, 'amount' => (float) $entry->amount, 'balance_after' => (float) $entry->balance_after])
+                ->all(),
+            'loyalty_points_earned' => $points,
+        ];
     }
 }

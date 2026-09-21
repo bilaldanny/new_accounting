@@ -32,7 +32,7 @@ function dstStaff(int $companyId, array $paths = []): User
     return createStaffUserForRole($role, ['company_id' => $companyId]);
 }
 
-dataset('setting groups', ['barcode', 'invoice', 'receipt']);
+dataset('setting groups', ['barcode', 'invoice', 'receipt', 'checkout']);
 
 // --- the registry ------------------------------------------------------------------------------
 

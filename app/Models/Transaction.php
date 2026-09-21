@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Exceptions\InsufficientStockException;
 use App\Services\CustomerCreditLimit;
 use App\Services\PurchaseJournal;
+use App\Services\SaleIncentives;
 use App\Services\SaleStockCheck;
 use App\Services\SellJournal;
 use App\Services\StockMovements;
@@ -701,6 +702,8 @@ class Transaction extends Model
 
         self::syncSellLines($transaction, $request->selllines ?? []);
         app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
+        app(SaleIncentives::class)->afterSave($transaction, $request);
+        $transaction->refresh();
 
         $transaction->stockWarnings = $stockShortages;
 
@@ -753,6 +756,8 @@ class Transaction extends Model
 
         self::syncSellLines($transaction, $request->selllines ?? []);
         app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
+        app(SaleIncentives::class)->afterSave($transaction, $request);
+        $transaction->refresh();
 
         $transaction->stockWarnings = $stockShortages;
 
@@ -802,6 +807,7 @@ class Transaction extends Model
         }
 
         app(SellJournal::class)->deleteFor($transaction);
+        app(SaleIncentives::class)->afterDelete($transaction);
         $transaction->delete();
     }
 
@@ -3531,6 +3537,8 @@ class Transaction extends Model
         $note->created_by = Auth::id();
         $note->save();
 
+        app(SaleIncentives::class)->refreshLoyalty($sell);
+
         return $note;
     }
 
@@ -3557,6 +3565,8 @@ class Transaction extends Model
         $note->updated_by = Auth::id();
         $note->save();
 
+        app(SaleIncentives::class)->refreshLoyalty($sell);
+
         return $note;
     }
 
@@ -3575,6 +3585,10 @@ class Transaction extends Model
         }
 
         $note->delete();
+
+        if ($sell !== null) {
+            app(SaleIncentives::class)->refreshLoyalty($sell);
+        }
     }
 
     /**
