@@ -28,6 +28,7 @@ use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LowStockController;
+use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionController;
@@ -452,6 +453,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Loyalty */
+    Route::get('loyalty/settings', [LoyaltyController::class, 'settings']);
+    Route::put('loyalty/settings', [LoyaltyController::class, 'updateSettings']);
+    Route::post('loyalty/earn', [LoyaltyController::class, 'earn']);
+    Route::post('loyalty/redeem', [LoyaltyController::class, 'redeem']);
+    Route::post('loyalty/adjust', [LoyaltyController::class, 'adjust']);
+    Route::get('loyalty', [LoyaltyController::class, 'index']);
+    Route::get('loyalty/{id}', [LoyaltyController::class, 'show']);
+    /* Loyalty */
 
     /* Discount */
     Route::post('discounts/apply', [DiscountController::class, 'apply']);
