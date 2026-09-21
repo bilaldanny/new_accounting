@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Branch;
+use App\Support\ListSort;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,10 +22,10 @@ class BranchController extends Controller
     {
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'asc';
-        $show_record = $request->show_record ?? 10;
+        $show_record = ListSort::wholeNumber($request->show_record, 10, 1000);
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
+        $cur_page = ListSort::wholeNumber($request->cur_page, 1);
 
         $query = Branch::query()
             ->visibleToCurrentUser()
@@ -52,7 +53,7 @@ class BranchController extends Controller
             ->when($request->filled('city_id'), function ($q) use ($request) {
                 $q->where('city_id', $request->city_id);
             })
-            ->orderBy($sort_by, $sort_type);
+            ->orderBy(ListSort::column($sort_by), ListSort::direction($sort_type, 'asc'));
 
         Paginator::currentPageResolver(function () use ($cur_page) {
             return $cur_page;
@@ -301,10 +302,10 @@ class BranchController extends Controller
     {
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'asc';
-        $show_record = $request->show_record ?? 10;
+        $show_record = ListSort::wholeNumber($request->show_record, 10, 1000);
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
-        $cur_page = $request->cur_page ?? 1;
+        $cur_page = ListSort::wholeNumber($request->cur_page, 1);
 
         $query = Branch::onlyTrashed()
             ->visibleToCurrentUser()
@@ -332,7 +333,7 @@ class BranchController extends Controller
             ->when($request->filled('city_id'), function ($q) use ($request) {
                 $q->where('city_id', $request->city_id);
             })
-            ->orderBy($sort_by, $sort_type);
+            ->orderBy(ListSort::column($sort_by), ListSort::direction($sort_type, 'asc'));
 
         Paginator::currentPageResolver(function () use ($cur_page) {
             return $cur_page;

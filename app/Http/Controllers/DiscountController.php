@@ -54,7 +54,8 @@ class DiscountController extends Controller
     }
 
     /**
-     * A coupon code is unique among a company's live discounts, whatever its case.
+     * A coupon code is unique among ALL of a company's discounts, trashed ones included (restoring a
+     * discount must never bring back a second live rule with the same code), whatever its case.
      */
     private function uniqueCodeRule(Request $request, ?int $ignoreId): Closure
     {
@@ -65,7 +66,7 @@ class DiscountController extends Controller
                 return;
             }
 
-            $taken = Discount::query()
+            $taken = Discount::withTrashed()
                 ->where('company_id', Discount::scopedCompanyId($request))
                 ->where('code', $code)
                 ->when($ignoreId !== null, fn ($q) => $q->where('id', '!=', $ignoreId))

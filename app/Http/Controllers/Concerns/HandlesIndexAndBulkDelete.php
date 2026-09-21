@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Support\ListSort;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -22,16 +23,21 @@ use Throwable;
 trait HandlesIndexAndBulkDelete
 {
     /**
+     * Largest page a list request can ask for (the table export asks for at most 500 at a time).
+     */
+    protected const MAX_PAGE_SIZE = 1000;
+
+    /**
      * Apply the common sort_by/sort_type/show_record/cur_page request params
      * to $query and paginate, re-resolving the page when cur_page overshoots
      * the last page (identical to the inline block every index()/trash() has).
      */
     protected function paginateSorted(Builder $query, Request $request): LengthAwarePaginator
     {
-        $sortBy = $request->sort_by ?? 'created_at';
-        $sortType = $request->sort_type ?? 'desc';
-        $showRecord = $request->show_record ?? 10;
-        $curPage = $request->cur_page ?? 1;
+        $sortBy = ListSort::column($request->sort_by);
+        $sortType = ListSort::direction($request->sort_type);
+        $showRecord = ListSort::wholeNumber($request->show_record, 10, self::MAX_PAGE_SIZE);
+        $curPage = ListSort::wholeNumber($request->cur_page, 1);
 
         $query->orderBy($sortBy, $sortType);
 

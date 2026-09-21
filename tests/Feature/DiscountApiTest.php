@@ -178,7 +178,7 @@ test('the boundary values are accepted: 100 percent, the largest amount, a singl
     expect(Discount::query()->count())->toBe(2);
 });
 
-test('a coupon code is unique among the live discounts of a company, whatever its case', function () {
+test('a coupon code is unique among all the discounts of a company, trashed ones included, whatever its case', function () {
     $companyId = dscCompany('DSC001');
     $otherCompany = dscCompany('DSC002');
     $existing = dscMake($companyId, ['code' => 'SAVE5']);
@@ -194,9 +194,11 @@ test('a coupon code is unique among the live discounts of a company, whatever it
     // a rule may keep its own code when it is edited
     $this->putJson('/api/discounts/'.$existing->id, dscPayload($companyId, ['code' => 'Save5', 'name' => 'Renamed']))->assertSuccessful();
 
-    // a trashed rule frees its code
+    // a trashed rule keeps its code, so restoring it can never bring back a second live rule with it
     $existing->delete();
-    $this->postJson('/api/discounts', dscPayload($companyId, ['code' => 'SAVE5']))->assertSuccessful();
+    $this->postJson('/api/discounts', dscPayload($companyId, ['code' => 'SAVE5']))->assertUnprocessable()->assertJsonValidationErrors(['code']);
+    $this->postJson('/api/discounts/restore_records', [$existing->id])->assertSuccessful();
+    expect(Discount::query()->where('code', 'SAVE5')->where('company_id', $companyId)->count())->toBe(1);
 
     // but two live rules of one company cannot share it after an edit either
     $second = dscMake($companyId, ['code' => 'OTHER1']);
