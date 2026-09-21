@@ -355,6 +355,8 @@ class CityController extends Controller
 
     public function fetch(Request $request): JsonResponse
     {
+        $request->validate(['state_id' => 'nullable|integer']);
+
         $state = State::query()->find($request->state_id);
 
         $cities = [];

@@ -132,8 +132,8 @@ class CountryController extends Controller
 
         $request->merge([
             'name' => Country::normalizeName($request->input('name')),
-            'iso2' => Country::normalizeIso2($request->input('iso2')),
-            'iso3' => Country::normalizeIso3($request->input('iso3')),
+            'iso2' => $this->normalizeUnlessArray($request->input('iso2'), Country::normalizeIso2(...)),
+            'iso3' => $this->normalizeUnlessArray($request->input('iso3'), Country::normalizeIso3(...)),
         ]);
 
         $request->validate($this->countryFormRules());
@@ -167,8 +167,8 @@ class CountryController extends Controller
 
         $request->merge([
             'name' => Country::normalizeName($request->input('name')),
-            'iso2' => Country::normalizeIso2($request->input('iso2')),
-            'iso3' => Country::normalizeIso3($request->input('iso3')),
+            'iso2' => $this->normalizeUnlessArray($request->input('iso2'), Country::normalizeIso2(...)),
+            'iso3' => $this->normalizeUnlessArray($request->input('iso3'), Country::normalizeIso3(...)),
         ]);
 
         $request->validate($this->countryFormRules($id));
