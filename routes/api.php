@@ -23,6 +23,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\FundTransferController;
+use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
@@ -462,6 +463,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('discounts/bulk_delete_per', [DiscountController::class, 'bulk_delete_per']);
     Route::post('discounts/restore_records', [DiscountController::class, 'restore_records']);
     /* Discount */
+
+    /* Gift Card */
+    Route::post('gift-cards/lookup', [GiftCardController::class, 'lookup']);
+    Route::post('gift-cards/{id}/redeem', [GiftCardController::class, 'redeem']);
+    Route::post('gift-cards/{id}/topup', [GiftCardController::class, 'topup']);
+    Route::get('gift-cards/trash', [GiftCardController::class, 'trash']);
+    Route::get('fetchgiftcards', [GiftCardController::class, 'fetch']);
+    Route::resource('gift-cards', GiftCardController::class);
+    Route::post('gift-cards/statusupdate', [GiftCardController::class, 'updatestatus']);
+    Route::post('gift-cards/bulk_delete', [GiftCardController::class, 'bulk_delete']);
+    Route::post('gift-cards/bulk_delete_per', [GiftCardController::class, 'bulk_delete_per']);
+    Route::post('gift-cards/restore_records', [GiftCardController::class, 'restore_records']);
+    /* Gift Card */
 
     /* Transporter */
     Route::get('transporters/trash', [TransporterController::class, 'trash']);

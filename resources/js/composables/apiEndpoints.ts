@@ -110,6 +110,8 @@ export const API_ENDPOINTS = {
     fetchBankIssuers: '/api/fetchbankissuers',
     discounts: '/api/discounts',
     fetchDiscounts: '/api/fetchdiscounts',
+    giftCards: '/api/gift-cards',
+    fetchGiftCards: '/api/fetchgiftcards',
     transporters: '/api/transporters',
     fetchTransporters: '/api/fetchtransporters',
     commissionAgents: '/api/commission-agents',
