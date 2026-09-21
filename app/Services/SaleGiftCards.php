@@ -57,9 +57,10 @@ class SaleGiftCards
 
     /**
      * How much of what the gift cards paid the sale still keeps: 0 when it is deleted or not a finished sale,
-     * else the share of the goods that has not been returned.
+     * else the share of the goods that has not been returned. LoyaltyPoints uses the same share to give back a
+     * return's part of the points redeemed on the sale.
      */
-    private function keepShare(Transaction $sale, bool $reverseAll): float
+    public function keepShare(Transaction $sale, bool $reverseAll): float
     {
         if ($reverseAll || ! LoyaltyPoints::isPostedSale($sale)) {
             return 0.0;

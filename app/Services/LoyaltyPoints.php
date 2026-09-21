@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Contact;
 use App\Models\LoyaltyPointEntry;
 use App\Models\LoyaltySetting;
+use App\Models\SaleLoyaltyRedemption;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -102,6 +103,105 @@ class LoyaltyPoints
             $userId,
             $returned > 0 ? 'Sale changed or returned' : 'Sale changed',
         );
+    }
+
+    /**
+     * Keeps the points redeemed on a sale in line with the sale, the way SaleGiftCards keeps a card's money:
+     * the row in `sale_loyalty_redemptions` is what the sale is meant to spend, the redeem entries naming the
+     * sale are what is spent now, and only the difference is written (a redeem entry with negative points
+     * spends, one with positive points gives back), so it can be called any number of times.
+     *
+     * - a deleted sale or one that is not a finished sale spends nothing: the points go back;
+     * - a finished sale spends the redeemed points less the share a return took back (rounded down);
+     * - restoring a sale or finishing a draft spends them again, and if the customer no longer has them the
+     *   RuntimeException('insufficient_points') refuses it;
+     * - points spent for this sale by a customer other than the row's (the customer was changed) go back.
+     *
+     * A redeem made from the Loyalty page against a sale (no row) is left alone until the sale is deleted or
+     * stops being a finished sale, then it goes back too.
+     */
+    public function syncRedemptionForSale(Transaction $sale, ?int $userId = null, bool $reverseAll = false): void
+    {
+        if ($sale->type !== Transaction::TYPE_SELL) {
+            return;
+        }
+
+        $row = SaleLoyaltyRedemption::query()->where('transaction_id', $sale->id)->first();
+        $held = LoyaltyPointEntry::query()
+            ->where('transaction_id', $sale->id)
+            ->where('type', LoyaltyPointEntry::TYPE_REDEEM)
+            ->get()
+            ->groupBy('contact_id');
+
+        if ($row === null && $held->isEmpty()) {
+            return;
+        }
+
+        $keep = app(SaleGiftCards::class)->keepShare($sale, $reverseAll);
+        $reference = $sale->invoice_no ?: '#'.$sale->id;
+
+        foreach ($held as $contactId => $entries) {
+            if ($row !== null && (int) $contactId === (int) $row->contact_id) {
+                continue;
+            }
+
+            if ($row === null && $keep > 0) {
+                continue;
+            }
+
+            $this->moveRedeemed((int) $contactId, $sale, -(int) $entries->sum('points'), 0, null, 'Sale '.$reference.' is no longer a finished sale', $userId);
+        }
+
+        if ($row === null) {
+            return;
+        }
+
+        $this->moveRedeemed(
+            (int) $row->contact_id,
+            $sale,
+            -(int) ($held[$row->contact_id] ?? collect())->sum('points'),
+            (int) floor(round($row->points * $keep, 6)),
+            $row,
+            'Sale '.$reference.($keep >= 1 ? ' is back' : ' changed, returned or deleted'),
+            $userId,
+        );
+    }
+
+    /**
+     * The points a sale has spent on its customer's behalf right now (redeems less what went back).
+     */
+    public function redeemedOn(Transaction $sale): int
+    {
+        return -(int) LoyaltyPointEntry::query()
+            ->where('transaction_id', $sale->id)
+            ->where('type', LoyaltyPointEntry::TYPE_REDEEM)
+            ->sum('points');
+    }
+
+    /**
+     * Moves the points one sale has spent from $current to $target as one redeem entry: negative points to
+     * spend more (refused when the customer does not have them), positive points to give some back.
+     */
+    private function moveRedeemed(int $contactId, Transaction $sale, int $current, int $target, ?SaleLoyaltyRedemption $row, string $note, ?int $userId): void
+    {
+        $delta = $target - $current;
+
+        if ($delta === 0) {
+            return;
+        }
+
+        $this->locked($contactId, function (Contact $contact) use ($sale, $delta, $row, $note, $userId): void {
+            if ($delta > 0 && $delta > $this->balance((int) $contact->id)) {
+                throw new RuntimeException('insufficient_points');
+            }
+
+            $points = abs($delta);
+            $value = $row !== null && $row->points > 0
+                ? round($row->amount * $points / $row->points, 2)
+                : LoyaltySetting::forCompany((int) $contact->company_id)->valueOf($points);
+
+            $this->record($contact, LoyaltyPointEntry::TYPE_REDEEM, -$delta, $value, $sale->id, $note, $userId);
+        });
     }
 
     /**

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import { usePage } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
 
@@ -24,7 +25,7 @@
     const inputClass = computed(() => (isPos.value ? 'pos-select pos-select--sm' : 'form-control form-control-sm'));
 
     const enabled = reactive({ discount: false, gift: false, loyalty: false });
-    const loyalty = reactive({ amountPerPoint: 100, pointValue: 1, balance: null as number | null, balanceValue: 0 });
+    const loyalty = reactive({ amountPerPoint: 100, pointValue: 1, minRedeem: 0, balance: null as number | null, balanceValue: 0 });
     const accounts = ref<Array<{ id: number; text?: string; name?: string }>>([]);
 
     const discountInput = ref(String(props.formData.discount_code ?? ''));
@@ -42,6 +43,27 @@
     const couponAmount = computed(() => Number(props.formData.coupon_discount_amount ?? 0));
     const finalAmount = computed(() => Number(props.formData.final_amount ?? 0));
     const estimatedPoints = computed(() => (loyalty.amountPerPoint > 0 ? Math.floor(Math.max(finalAmount.value, 0) / loyalty.amountPerPoint) : 0));
+
+    // Redeeming: the points the customer holds (the ones this sale already spent are theirs again while it is
+    // edited), capped so their value never exceeds what is left of the goods after a coupon
+    const redeemedPoints = computed(() => Number(props.formData.loyalty_points ?? 0));
+    const alreadySpent = computed(() => (String(props.formData.loyalty_saved_contact_id ?? '') === String(props.formData.contact_id ?? '') ? Number(props.formData.loyalty_points_spent ?? 0) : 0));
+    const availablePoints = computed(() => (loyalty.balance ?? 0) + alreadySpent.value);
+    const redeemableMax = computed(() => {
+        if (loyalty.pointValue <= 0) {
+            return 0;
+        }
+
+        const byValue = Math.floor(Math.max(props.netSubTotal - couponAmount.value, 0) / loyalty.pointValue);
+
+        return Math.max(Math.min(availablePoints.value, byValue), 0);
+    });
+    const canRedeem = computed(() => {
+        const user = usePage().props.auth?.user as { rolename?: string; permission_paths?: string[] } | null;
+
+        return String(user?.rolename ?? '').toLowerCase().replace(/\s+/g, '') === 'superadmin' || (user?.permission_paths ?? []).includes('/loyalty/redeem');
+    });
+    const showRedeem = computed(() => enabled.loyalty && canRedeem.value && isFinal.value && Boolean(props.formData.contact_id) && (redeemableMax.value > 0 || redeemedPoints.value > 0));
 
     const money = (value: unknown) => Number(value ?? 0).toFixed(2);
 
@@ -80,6 +102,7 @@
             enabled.loyalty = Boolean(programme.value.data?.is_enabled);
             loyalty.amountPerPoint = Number(programme.value.data?.amount_per_point ?? 100);
             loyalty.pointValue = Number(programme.value.data?.point_value ?? 1);
+            loyalty.minRedeem = Number(programme.value.data?.min_redeem_points ?? 0);
         }
 
         if (enabled.gift) {
@@ -208,6 +231,16 @@
         props.persist({ gift_card_code: '', gift_card_amount: 0 });
     }
 
+    function setRedeemedPoints(points: number) {
+        const whole = Math.max(Math.min(Math.floor(Number.isFinite(points) ? points : 0), redeemableMax.value), 0);
+
+        props.persist({ loyalty_points: whole, loyalty_discount_amount: Number((whole * loyalty.pointValue).toFixed(2)) });
+    }
+
+    function redeemAll() {
+        setRedeemedPoints(redeemableMax.value);
+    }
+
     function setGiftAmount(event: Event) {
         const raw = Number((event.target as HTMLInputElement).value);
         const ceiling = Math.min(giftBalance.value ?? raw, Math.max(finalAmount.value, 0));
@@ -228,7 +261,21 @@
     });
 
     watch(() => [props.formData.company_id, props.formData.branch_id], () => loadSettings());
-    watch(() => props.formData.contact_id, () => loadBalance());
+    watch(() => props.formData.contact_id, () => {
+        // points belong to a customer: another customer starts with none redeemed
+        if (redeemedPoints.value > 0 && String(props.formData.loyalty_saved_contact_id ?? '') !== String(props.formData.contact_id ?? '')) {
+            setRedeemedPoints(0);
+        }
+
+        void loadBalance();
+    });
+
+    // the goods or the coupon moved: the points can never be worth more than what is left of them
+    watch(redeemableMax, (ceiling) => {
+        if (redeemedPoints.value > ceiling && loyalty.balance !== null) {
+            setRedeemedPoints(ceiling);
+        }
+    });
 
     // the line total moved: price the code again against it
     watch(() => props.netSubTotal, () => {
@@ -248,6 +295,10 @@
     watch(isFinal, (final) => {
         if (! final && props.formData.gift_card_code) {
             removeGiftCard();
+        }
+
+        if (! final && redeemedPoints.value > 0) {
+            setRedeemedPoints(0);
         }
     });
 
@@ -348,6 +399,29 @@
                 <span>Loyalty points</span>
                 <strong>{{ loyalty.balance === null ? '—' : loyalty.balance }}<span v-if="loyalty.balance" class="text-muted small"> (worth {{ money(loyalty.balanceValue) }})</span></strong>
             </div>
+            <div v-if="showRedeem" :class="rowClass">
+                <span>Redeem points</span>
+                <div class="d-flex gap-1">
+                    <input
+                        :value="redeemedPoints"
+                        type="number"
+                        min="0"
+                        :max="redeemableMax"
+                        step="1"
+                        :class="inputClass"
+                        aria-label="Loyalty points to redeem"
+                        @input="setRedeemedPoints(Number(($event.target as HTMLInputElement).value))"
+                    >
+                    <button v-if="! redeemedPoints" type="button" class="btn btn-outline-primary btn-sm" :disabled="redeemableMax < 1" @click="redeemAll">Use max</button>
+                    <button v-else type="button" class="btn btn-outline-secondary btn-sm" @click="setRedeemedPoints(0)">Clear</button>
+                </div>
+            </div>
+            <div v-if="showRedeem && redeemedPoints > 0" :class="rowClass">
+                <span class="text-success">Points discount</span>
+                <strong>− {{ money(formData.loyalty_discount_amount) }}</strong>
+            </div>
+            <p v-if="showRedeem && loyalty.minRedeem > redeemedPoints && redeemedPoints > 0" class="small text-danger mb-1">At least {{ loyalty.minRedeem }} points must be redeemed at once.</p>
+            <p v-else-if="showRedeem" class="small text-muted mb-1">1 point = {{ money(loyalty.pointValue) }}<span v-if="loyalty.minRedeem > 0">, at least {{ loyalty.minRedeem }} to redeem</span></p>
             <div v-if="isFinal && estimatedPoints > 0" :class="rowClass">
                 <span class="text-muted small">This sale earns about</span>
                 <span class="text-muted small">+{{ estimatedPoints }} points</span>

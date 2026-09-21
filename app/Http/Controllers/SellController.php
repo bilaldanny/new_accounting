@@ -9,8 +9,10 @@ use App\Models\GiftCardEntry;
 use App\Models\LoyaltyPointEntry;
 use App\Models\Payment;
 use App\Models\SaleDiscount;
+use App\Models\SaleLoyaltyRedemption;
 use App\Models\Transaction;
 use App\Services\CustomerCreditLimit;
+use App\Services\LoyaltyPoints;
 use App\Services\SaleIncentives;
 use App\Services\SellJournal;
 use Illuminate\Http\Request;
@@ -537,6 +539,7 @@ class SellController extends Controller
     private function checkoutExtrasPayload(Transaction $sell): array
     {
         $discount = SaleDiscount::query()->where('transaction_id', $sell->id)->first();
+        $redemption = SaleLoyaltyRedemption::query()->where('transaction_id', $sell->id)->first();
         $points = (int) LoyaltyPointEntry::query()
             ->where('transaction_id', $sell->id)
             ->whereIn('type', [LoyaltyPointEntry::TYPE_EARN, LoyaltyPointEntry::TYPE_ADJUST])
@@ -565,6 +568,10 @@ class SellController extends Controller
                 ->where('type', GiftCardEntry::TYPE_TOPUP)
                 ->sum('amount'), 2),
             'loyalty_points_earned' => $points,
+            'loyalty_points' => $redemption?->points ?? 0,
+            'loyalty_discount_amount' => $redemption?->amount ?? 0,
+            'loyalty_saved_contact_id' => $redemption?->contact_id,
+            'loyalty_points_spent' => app(LoyaltyPoints::class)->redeemedOn($sell),
         ];
     }
 }
