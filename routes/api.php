@@ -19,6 +19,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\FundTransferController;
@@ -450,6 +451,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('bank-issuers/bulk_delete_per', [BankIssuerController::class, 'bulk_delete_per']);
     Route::post('bank-issuers/restore_records', [BankIssuerController::class, 'restore_records']);
     /* Bank Issuer */
+
+    /* Discount */
+    Route::post('discounts/apply', [DiscountController::class, 'apply']);
+    Route::get('discounts/trash', [DiscountController::class, 'trash']);
+    Route::get('fetchdiscounts', [DiscountController::class, 'fetch']);
+    Route::resource('discounts', DiscountController::class);
+    Route::post('discounts/statusupdate', [DiscountController::class, 'updatestatus']);
+    Route::post('discounts/bulk_delete', [DiscountController::class, 'bulk_delete']);
+    Route::post('discounts/bulk_delete_per', [DiscountController::class, 'bulk_delete_per']);
+    Route::post('discounts/restore_records', [DiscountController::class, 'restore_records']);
+    /* Discount */
 
     /* Transporter */
     Route::get('transporters/trash', [TransporterController::class, 'trash']);

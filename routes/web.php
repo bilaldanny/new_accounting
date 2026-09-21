@@ -367,6 +367,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bankissuer.trash');
     /* Bank Issuer */
 
+    /* Discount */
+    Route::get('discount', function () {
+        abortUnlessMenuPermission('/discount');
+
+        return Inertia::render('discount/index');
+    })->name('discount');
+
+    Route::get('discount/add', function () {
+        abortUnlessMenuPermission('/discount/add');
+
+        return Inertia::render('discount/add');
+    })->name('discount.add');
+
+    Route::get('discount/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/discount/:id/edit');
+
+        return Inertia::render('discount/edit', ['id' => $id]);
+    })->name('discount.edit');
+
+    Route::get('discount/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/discount/:id/view');
+
+        return Inertia::render('discount/view', ['id' => $id]);
+    })->name('discount.view');
+
+    Route::get('discount/trash', function () {
+        abortUnlessMenuPermission('/discount/restore');
+
+        return Inertia::render('discount/trash');
+    })->name('discount.trash');
+    /* Discount */
+
     /* Transporter */
     Route::get('transporter', function () {
         abortUnlessMenuPermission('/transporter');
