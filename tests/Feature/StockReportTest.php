@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\StockReportController;
+use App\Http\Controllers\Reports\StockReportController;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -354,7 +354,7 @@ test('a page needs the same menu row and a signed in user', function (string $re
     $this->actingAs(User::query()->findOrFail(1))
         ->get(route("report.{$report}"))
         ->assertSuccessful()
-        ->assertInertia(fn ($page) => $page->component('report/transaction')->where('report', $report));
+        ->assertInertia(fn ($page) => $page->component('report/index')->where('report', $report));
     $this->actingAs(jeaUserWith($scope, []))->get(route("report.{$report}"))->assertForbidden();
     $this->actingAs(jeaUserWith($scope, [$path]))->get(route("report.{$report}"))->assertSuccessful();
 

@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\PartyAgingReport;
+use App\Services\Reports\PartyAgingReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 
