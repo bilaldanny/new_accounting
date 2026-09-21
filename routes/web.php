@@ -524,6 +524,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         return Inertia::render('giftcard/trash');
     })->name('giftcard.trash');
+
+    Route::get('giftcard/orphan-refunds', function () {
+        abortUnlessMenuPermission('/giftcard/orphan-refunds');
+
+        return Inertia::render('giftcard/orphan-refunds');
+    })->name('giftcard.orphan-refunds');
     /* Gift Card */
 
     /* Transporter */

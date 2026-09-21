@@ -111,6 +111,7 @@ export const API_ENDPOINTS = {
     discounts: '/api/discounts',
     fetchDiscounts: '/api/fetchdiscounts',
     giftCards: '/api/gift-cards',
+    giftCardOrphanRefunds: '/api/gift-cards/orphan-refunds',
     fetchGiftCards: '/api/fetchgiftcards',
     documentSettings: (group: string) => `/api/document-settings/${group}`,
     discountApply: '/api/discounts/apply',

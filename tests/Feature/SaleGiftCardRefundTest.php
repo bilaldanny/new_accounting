@@ -298,12 +298,14 @@ test('orphaned refunds are private to their company and settling needs the permi
     $otherCompany = DB::table('companies')->insertGetId(['code' => 'SGR002', 'name' => 'Other Co', 'address' => 'x', 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()]);
     $outsider = Role::query()->create(['name' => 'companyadmin', 'company_id' => $otherCompany, 'is_active' => true]);
     grantMenuPermission($outsider->id, '/giftcard/topup');
+    grantMenuPermission($outsider->id, '/giftcard/orphan-refunds');
     Sanctum::actingAs(createStaffUserForRole($outsider, ['company_id' => $otherCompany]));
 
     $this->getJson('/api/gift-cards/orphan-refunds')->assertJsonCount(0, 'data');
     $this->postJson('/api/gift-cards/orphan-refunds/'.$row->id.'/resolve', ['note' => 'not mine'])->assertNotFound();
 
     $insider = Role::query()->create(['name' => 'companyadmin', 'company_id' => $scope['company_id'], 'is_active' => true]);
+    grantMenuPermission($insider->id, '/giftcard/orphan-refunds');
     Sanctum::actingAs(createStaffUserForRole($insider, ['company_id' => $scope['company_id']]));
 
     $this->getJson('/api/gift-cards/orphan-refunds')->assertJsonCount(1, 'data');

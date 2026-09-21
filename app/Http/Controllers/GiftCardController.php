@@ -285,32 +285,46 @@ class GiftCardController extends Controller
 
     /**
      * Refunds owed for gift card payments whose card was deleted for good (see SaleGiftCards): the open
-     * ones by default, `status=all` for the settled ones too. A superadmin sees every company's.
+     * ones by default, `status=all` for the settled ones too. A superadmin sees every company's. Needs the
+     * Orphaned Refunds page permission.
      */
     public function orphanRefunds(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/giftcard/orphan-refunds');
+
         $rows = GiftCardOrphanRefund::query()
-            ->with('transaction:id,invoice_no')
+            ->with(['transaction:id,invoice_no', 'company:id,name'])
             ->when(! Auth::user()?->hasRole('superadmin'), fn ($q) => $q->where('company_id', Auth::user()?->company_id ?: 0))
             ->when($request->input('status') !== 'all', fn ($q) => $q->whereNull('resolved_at'))
             ->orderByDesc('id')
-            ->get()
-            ->map(fn (GiftCardOrphanRefund $row): array => [
-                'id' => $row->id,
-                'gift_card_code' => $row->gift_card_code,
-                'invoice_no' => $row->transaction?->invoice_no,
-                'amount' => $row->amount,
-                'reason' => $row->reason,
-                'resolved_at' => $row->resolved_at?->toDateTimeString(),
-                'resolved_note' => $row->resolved_note,
-                'created_at' => $row->created_at?->toDateTimeString(),
-            ]);
+            ->get();
 
-        return response()->json(['data' => $rows, 'open_total' => round((float) $rows->whereNull('resolved_at')->sum('amount'), 2)]);
+        // the card is gone by definition, but a new card may have been issued under the same code since
+        $reissued = GiftCard::query()
+            ->whereIn('code', $rows->pluck('gift_card_code')->unique())
+            ->get(['id', 'company_id', 'code'])
+            ->keyBy(fn (GiftCard $card): string => $card->company_id.'|'.$card->code);
+
+        $data = $rows->map(fn (GiftCardOrphanRefund $row): array => [
+            'id' => $row->id,
+            'company_name' => $row->company?->name,
+            'gift_card_code' => $row->gift_card_code,
+            'gift_card_id' => $reissued->get($row->company_id.'|'.$row->gift_card_code)?->id,
+            'transaction_id' => $row->transaction_id,
+            'invoice_no' => $row->transaction?->invoice_no,
+            'amount' => $row->amount,
+            'reason' => $row->reason,
+            'resolved_at' => $row->resolved_at?->toDateTimeString(),
+            'resolved_note' => $row->resolved_note,
+            'created_at' => $row->created_at?->toDateTimeString(),
+        ]);
+
+        return response()->json(['data' => $data, 'open_total' => round((float) $data->whereNull('resolved_at')->sum('amount'), 2)]);
     }
 
     /**
-     * Marks an orphaned refund as settled by hand.
+     * Marks an orphaned refund as settled by hand. Once settled it stays settled: a second attempt is refused
+     * and never overwrites the first note or date.
      */
     public function resolveOrphanRefund(Request $request, $id): JsonResponse
     {
@@ -326,8 +340,13 @@ class GiftCardController extends Controller
             abort(404);
         }
 
-        if ($row->resolved_at === null) {
-            $row->update(['resolved_at' => now(), 'resolved_note' => trim($data['note'])]);
+        $settled = GiftCardOrphanRefund::query()
+            ->whereKey($row->id)
+            ->whereNull('resolved_at')
+            ->update(['resolved_at' => now(), 'resolved_note' => trim($data['note']), 'updated_at' => now()]);
+
+        if ($settled === 0) {
+            return response()->json(['message' => 'This refund has already been resolved.'], 422);
         }
 
         return response()->json(['message' => 'Successfully Saved']);
