@@ -368,6 +368,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('bankissuer.trash');
     /* Bank Issuer */
 
+    /* Backup */
+    Route::get('backup', function () {
+        abort_unless(auth()->user()?->hasRole('superadmin'), 403);
+        abortUnlessMenuPermission('/backup');
+
+        return Inertia::render('backup/index');
+    })->name('backup');
+    /* Backup */
+
     /* Document settings */
     Route::get('barcode/settings', fn () => app(DocumentSettingController::class)->page('barcode'))->name('barcode.settings');
     Route::get('invoice/settings', fn () => app(DocumentSettingController::class)->page('invoice'))->name('invoice.settings');
