@@ -31,10 +31,20 @@ class GiftCardOrphanRefund extends Model
     }
 
     /**
+     * The sale, trashed or not: a refund is owed because the sale was deleted.
+     *
      * @return BelongsTo<Transaction, $this>
      */
     public function transaction(): BelongsTo
     {
-        return $this->belongsTo(Transaction::class);
+        return $this->belongsTo(Transaction::class)->withTrashed();
+    }
+
+    /**
+     * @return BelongsTo<Company, $this>
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 }

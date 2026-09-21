@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { Head, usePage } from '@inertiajs/vue3';
+    import { Head, Link, usePage } from '@inertiajs/vue3';
     import { onMounted, ref, watchEffect, computed } from 'vue';
     import TheFilter from '@/components/theFilter.vue';
     import TheTable from '@/components/theTable.vue';
@@ -47,6 +47,7 @@
     const roleName = computed(() => normalizeRoleName(authUser.value?.rolename));
     const isSuperadmin = computed(() => roleName.value === 'superadmin');
     const showCompanyFilter = computed(() => isSuperadmin.value);
+    const canOpenOrphanRefunds = computed(() => isSuperadmin.value || ((props.auth?.user as { permission_paths?: string[] } | null)?.permission_paths ?? []).includes('/giftcard/orphan-refunds'));
 
     const columns = computed(() => [
         ...(isSuperadmin.value ? [
@@ -172,6 +173,9 @@
     <div class="admin-list-page">
         <div class="admin-list-card">
             <div class="admin-list-card__toolbar">
+                <div v-if="canOpenOrphanRefunds" class="d-flex justify-content-end px-3 pt-3">
+                    <Link href="/giftcard/orphan-refunds" class="btn btn-outline-primary btn-sm">Orphaned refunds</Link>
+                </div>
                 <TopButtons
                     :state="state"
                     :filter-open="filterOpen"
