@@ -18,6 +18,7 @@ use App\Http\Controllers\ConsumerController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\CurrencyRateController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\DashboardController;
@@ -88,6 +89,10 @@ Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
 Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
 Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(function () {
+    /* Exchange rates (display only) */
+    Route::get('currency-rates', [CurrencyRateController::class, 'index']);
+    Route::put('currency-rates', [CurrencyRateController::class, 'update']);
+
     /* API keys (Sanctum personal access tokens) */
     Route::get('api-keys', [ApiKeyController::class, 'index']);
     Route::post('api-keys', [ApiKeyController::class, 'store']);

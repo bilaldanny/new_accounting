@@ -12,6 +12,7 @@ use App\Models\SaleDiscount;
 use App\Models\SaleLoyaltyRedemption;
 use App\Models\Transaction;
 use App\Services\CustomerCreditLimit;
+use App\Services\DisplayCurrency;
 use App\Services\LoyaltyPoints;
 use App\Services\SaleIncentives;
 use App\Services\SellJournal;
@@ -266,6 +267,7 @@ class SellController extends Controller
         $payload['balance'] = round((float) $sell->final_amount - $paid, 2);
         $payload = array_merge($payload, $this->checkoutExtrasPayload($sell));
         $payload['print_settings'] = $this->printSettingsPayload($sell);
+        $payload['display_currency'] = app(DisplayCurrency::class)->forSale($sell);
 
         return response()->json($payload);
     }

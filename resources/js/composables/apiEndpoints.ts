@@ -120,6 +120,7 @@ export const API_ENDPOINTS = {
     cashCollectionOpenInvoices: '/api/cash-collections/open-invoices',
     backups: '/api/backups',
     apiKeys: '/api/api-keys',
+    currencyRates: '/api/currency-rates',
     stockTakes: '/api/stock-takes',
     loyalty: '/api/loyalty',
     loyaltySettings: '/api/loyalty/settings',

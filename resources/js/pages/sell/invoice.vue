@@ -39,6 +39,10 @@
     const termsAndConditions = computed<string | null>(() => invoice.value.print_settings?.terms_and_conditions ?? null);
     const footerNote = computed<string | null>(() => invoice.value.print_settings?.footer_note ?? null);
 
+    // The total in the customer's currency, when the company has entered a rate for it (display only; the
+    // invoice itself is in the company's base currency)
+    const displayCurrency = computed<Record<string, any> | null>(() => invoice.value.display_currency ?? null);
+
     function money(value: unknown): string {
         return Number(value || 0).toLocaleString(undefined, {
             minimumFractionDigits: 2,
@@ -176,6 +180,13 @@
                                 <tr><th>Shipping Charges</th><td class="text-end">{{ money(invoice.shipping_charges) }}</td></tr>
                                 <tr><th>Paid</th><td class="text-end">{{ money(invoice.paid) }}</td></tr>
                                 <tr><th>Balance</th><td class="text-end">{{ money(invoice.balance) }}</td></tr>
+                                <tr v-if="displayCurrency" data-test="invoice-converted">
+                                    <th>Total in {{ displayCurrency.code }}</th>
+                                    <td class="text-end">
+                                        {{ displayCurrency.symbol || '' }} {{ money(displayCurrency.total) }}
+                                        <small class="d-block text-muted">1 {{ displayCurrency.base_code }} = {{ displayCurrency.rate }} {{ displayCurrency.code }}</small>
+                                    </td>
+                                </tr>
                             </table>
                         </td>
                     </tr>
