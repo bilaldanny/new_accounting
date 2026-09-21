@@ -1,13 +1,14 @@
 ﻿<script setup lang="ts">
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
-    import useCommons from '@/composables/common';
-    import type { SellLineRow } from '@/composables/sell';
-    import { openLfmImagePickerCallback } from '@/utils/openLfmImagePicker';
     import { usePage } from '@inertiajs/vue3';
     import { Boxes, CalendarDays, ImagePlus, Truck } from '@lucide/vue';
     import { computed, onMounted, ref, watch } from 'vue';
-    import LineItemsEditor from './LineItemsEditor.vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useCommons from '@/composables/common';
+    import type { SellLineRow } from '@/composables/sell';
     import FieldHint from '@/pages/journalentry/FieldHint.vue';
+    import { openLfmImagePickerCallback } from '@/utils/openLfmImagePicker';
+    import LineItemsEditor from './LineItemsEditor.vue';
+    import SaleIncentivesPanel from './SaleIncentivesPanel.vue';
 
     const params = defineProps({
         type: String,
@@ -216,7 +217,7 @@
         persist({
             net_sub_total: Number(netSubTotal.toFixed(2)),
             discount_val: Number(discountVal.toFixed(2)),
-            final_amount: Number((netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal).toFixed(2)),
+            final_amount: Number(Math.max(netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal - toNumber(params.formData?.coupon_discount_amount), 0).toFixed(2)),
             total_item: lines.length,
             total_pack_qty: lines.reduce((sum, line) => sum + toNumber(line.packing_qty), 0),
         });
@@ -680,7 +681,7 @@
     );
 
     watch(
-        () => [params.formData?.discount_type, params.formData?.discount_amount, params.formData?.shipping_charges],
+        () => [params.formData?.discount_type, params.formData?.discount_amount, params.formData?.shipping_charges, params.formData?.coupon_discount_amount],
         () => recalculateTotals(),
     );
 
@@ -704,6 +705,11 @@
     <TextElement name="discount_val" hidden="true" />
     <TextElement name="final_amount" hidden="true" />
     <TextElement name="credit_limit" hidden="true" />
+    <TextElement name="discount_code" hidden="true" />
+    <TextElement name="coupon_discount_amount" hidden="true" />
+    <TextElement name="gift_card_code" hidden="true" />
+    <TextElement name="gift_card_amount" hidden="true" />
+    <TextElement name="gift_card_payment_account" hidden="true" />
 
     <GroupElement name="group_details" :columns="colFull" :add-classes="cardClasses">
         <StaticElement name="section_invoice" :columns="colFull">
@@ -1127,6 +1133,14 @@
             :rows="4"
         />
 
+        <StaticElement name="sell_incentives" :columns="colFull">
+            <SaleIncentivesPanel
+                :form-data="params.formData"
+                :net-sub-total="Number(params.formData?.net_sub_total ?? 0)"
+                :persist="persist"
+            />
+        </StaticElement>
+
         <StaticElement name="sell_summary" :columns="colFull">
             <div class="space-y-3.5 rounded-xl border border-slate-200/90 bg-slate-50/70 p-5">
                     <div>
@@ -1153,6 +1167,10 @@
                         <div class="flex items-center justify-between">
                             <span>Discount</span>
                             <span class="font-mono text-slate-700">− {{ money(params.formData?.discount_val) }}</span>
+                        </div>
+                        <div v-if="Number(params.formData?.coupon_discount_amount) > 0" class="flex items-center justify-between">
+                            <span>Coupon {{ params.formData?.discount_code }}</span>
+                            <span class="font-mono text-slate-700">− {{ money(params.formData?.coupon_discount_amount) }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span>Shipping</span>

@@ -61,6 +61,14 @@ class DocumentSetting extends Model
                 'footer_text' => ['label' => 'Footer text', 'type' => 'text', 'default' => 'Thank you for your business', 'rules' => 'nullable|string|max:300'],
             ],
         ],
+        'checkout' => [
+            'label' => 'Checkout Extras',
+            'path' => '/checkout/settings',
+            'fields' => [
+                'discount_codes_enabled' => ['label' => 'Discount codes at checkout', 'type' => 'switch', 'default' => false, 'rules' => 'required|boolean', 'help' => 'Shows the Apply Discount Code field on the sell form and the POS.'],
+                'gift_cards_enabled' => ['label' => 'Gift cards as payment', 'type' => 'switch', 'default' => false, 'rules' => 'required|boolean', 'help' => 'Shows the Pay with Gift Card field on the sell form and the POS.'],
+            ],
+        ],
     ];
 
     protected $fillable = [
