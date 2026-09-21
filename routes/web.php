@@ -795,6 +795,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('sell/invoice', ['id' => $id]);
     })->name('sell.invoice');
 
+    Route::get('sell/{id}/receipt', function ($id) {
+        return Inertia::render('sell/receipt', ['id' => $id]);
+    })->name('sell.receipt');
+
     Route::get('sell/{id}/edit', function ($id) {
         return Inertia::render('sell/edit', ['id' => $id]);
     })->name('sell.edit');

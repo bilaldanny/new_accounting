@@ -484,6 +484,8 @@ class Transaction extends Model
             }
         }
 
+        $format = DocumentSetting::invoiceNumberFormat($companyId);
+
         $lastId = (int) self::query()
             ->withTrashed()
             ->sells()
@@ -493,7 +495,7 @@ class Transaction extends Model
         $next = $lastId + 1;
 
         do {
-            $invoiceNo = $prefix.'-'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+            $invoiceNo = DocumentSetting::formatInvoiceNumber($prefix, $next, $format);
             $next++;
         } while (
             self::query()

@@ -35,6 +35,10 @@
 
     const invoice = computed(() => viewData.value as Record<string, any>);
 
+    // From the company's Invoice Settings; null (section not printed) when switched off or empty.
+    const termsAndConditions = computed<string | null>(() => invoice.value.print_settings?.terms_and_conditions ?? null);
+    const footerNote = computed<string | null>(() => invoice.value.print_settings?.footer_note ?? null);
+
     function money(value: unknown): string {
         return Number(value || 0).toLocaleString(undefined, {
             minimumFractionDigits: 2,
@@ -74,6 +78,7 @@
     <div class="sell-invoice-page">
         <div class="sell-invoice-page__toolbar no-print">
             <Link href="/sell" class="btn btn-light btn-sm">Back</Link>
+            <Link :href="`/sell/${props.id}/receipt`" class="btn btn-light btn-sm">Receipt</Link>
             <button type="button" class="btn btn-outline-secondary btn-sm" @click="printInvoice">Print</button>
         </div>
 
@@ -176,6 +181,11 @@
                     </tr>
                 </table>
 
+                <div v-if="termsAndConditions" class="invoice-terms mt-4" data-test="invoice-terms">
+                    <strong>Terms and Conditions</strong>
+                    <p class="mb-0">{{ termsAndConditions }}</p>
+                </div>
+
                 <div class="row mt-5 signaturemain">
                     <div class="col-md-6">
                         <div class="signature-line"></div>
@@ -186,12 +196,19 @@
                         <span>Signature &amp; Stamp</span>
                     </div>
                 </div>
+
+                <p v-if="footerNote" class="invoice-footer-note text-center mt-4 mb-0" data-test="invoice-footer">{{ footerNote }}</p>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
+.invoice-terms p,
+.invoice-footer-note {
+    white-space: pre-line;
+}
+
 .signature-line {
     border-top: 1px solid #333;
     width: 220px;

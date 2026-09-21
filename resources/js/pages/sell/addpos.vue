@@ -594,6 +594,36 @@
         }
     }
 
+    /**
+     * Prints the receipt of a finished sale when the company's Receipt Printer Settings ask for it
+     * ("Print automatically after a sale"). The receipt page opens in a hidden frame and prints itself, so no
+     * pop-up is needed and the cashier stays on the POS. A failure here never affects the sale.
+     */
+    async function printReceiptIfEnabled(saleId: number) {
+        const companyId = formData.value.company_id;
+
+        if (! saleId) {
+            return;
+        }
+
+        try {
+            const response = await window.axios.get(API_ENDPOINTS.documentSettings('receipt'), { params: { company_id: companyId } });
+
+            if (! response.data?.values?.auto_print) {
+                return;
+            }
+        } catch {
+            return;
+        }
+
+        const frame = document.createElement('iframe');
+        frame.setAttribute('aria-hidden', 'true');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        frame.src = `/sell/${saleId}/receipt?autoprint=1`;
+        document.body.appendChild(frame);
+        window.setTimeout(() => frame.remove(), 120000);
+    }
+
     async function checkoutDraft() {
         const sell = await createSellRecord('draft');
 
@@ -625,6 +655,7 @@
 
         Notify(`Sale completed on credit (${sell.invoice_no})`, 'success');
         broadcastDisplay('completed', { totalPaying: sell.final_amount - sell.remaining_amount, changeReturn: 0, balance: sell.remaining_amount });
+        void printReceiptIfEnabled(sell.id);
         resetSale();
     }
 
@@ -638,6 +669,7 @@
         if (sell.remaining_amount <= 0) {
             Notify(`Sale completed (${sell.invoice_no}) — paid in full by gift card`, 'success');
             broadcastDisplay('completed', { totalPaying: sell.final_amount, changeReturn: 0, balance: 0 });
+            void printReceiptIfEnabled(sell.id);
             resetSale();
 
             return;
@@ -670,6 +702,7 @@
 
             Notify(`Cash sale completed (${sell.invoice_no})`, 'success');
             broadcastDisplay('completed', { totalPaying: sell.final_amount, changeReturn: 0, balance: 0 });
+            void printReceiptIfEnabled(sell.id);
         } catch (error) {
             handleError(error);
             Notify(`Sale ${sell.invoice_no} was saved but the cash payment could not be recorded — record it from Sell Payments`, 'alert');
@@ -687,6 +720,7 @@
 
         if (sell.remaining_amount <= 0) {
             Notify(`Sale completed (${sell.invoice_no}) — paid in full by gift card`, 'success');
+            void printReceiptIfEnabled(sell.id);
             resetSale();
 
             return;
@@ -731,6 +765,10 @@
                 balance: Math.max(finalAmount - totalPaying, 0),
             }, pendingPaymentSnapshot.value);
             pendingPaymentSnapshot.value = null;
+
+            if (totalPaying >= finalAmount) {
+                void printReceiptIfEnabled(Number(paymentFormData.value.transaction_id));
+            }
         }
     }
 

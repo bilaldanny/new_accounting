@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Company;
+use App\Models\DocumentSetting;
 use App\Models\GiftCardEntry;
 use App\Models\LoyaltyPointEntry;
 use App\Models\Payment;
@@ -262,8 +263,26 @@ class SellController extends Controller
         );
         $payload['balance'] = round((float) $sell->final_amount - $paid, 2);
         $payload = array_merge($payload, $this->checkoutExtrasPayload($sell));
+        $payload['print_settings'] = $this->printSettingsPayload($sell);
 
         return response()->json($payload);
+    }
+
+    /**
+     * What the invoice and receipt pages print from the company's Invoice and Receipt Printer Settings: the
+     * terms and footer note (null when off or empty, so the page drops the section) and the receipt options.
+     *
+     * @return array<string, mixed>
+     */
+    private function printSettingsPayload(Transaction $sell): array
+    {
+        $companyId = (int) $sell->getRawOriginal('company_id');
+
+        if ($companyId === 0) {
+            return ['terms_and_conditions' => null, 'footer_note' => null, 'receipt' => null];
+        }
+
+        return DocumentSetting::invoicePrintBlocks($companyId) + ['receipt' => DocumentSetting::valuesFor($companyId, 'receipt')];
     }
 
     public function update(Request $request, $id)
