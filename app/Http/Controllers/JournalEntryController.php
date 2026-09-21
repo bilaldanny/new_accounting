@@ -50,7 +50,7 @@ class JournalEntryController extends Controller
                 'company:id,name',
                 'branch:id,name',
             ])
-            ->matchingListFilters($request, (string) ($request->status ?? 'all'));
+            ->matchingListFilters($request, is_string($request->status) ? $request->status : 'all');
 
         $journals = $this->paginateSorted($query, $request);
 

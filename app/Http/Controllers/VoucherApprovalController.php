@@ -38,7 +38,7 @@ class VoucherApprovalController extends Controller
             ->manualFamily($family)
             ->visibleToCurrentUser()
             ->with(['company:id,name', 'branch:id,name'])
-            ->matchingListFilters($request, (string) $request->input('status', TAccount::STATUS_PENDING));
+            ->matchingListFilters($request, is_string($request->input('status')) ? $request->input('status') : TAccount::STATUS_PENDING);
 
         $vouchers = $this->paginateSorted($query, $request);
 

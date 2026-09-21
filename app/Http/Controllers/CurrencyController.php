@@ -206,7 +206,7 @@ class CurrencyController extends Controller
     public function updatestatus(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/currency/:id/edit');
-        $currencies = Currency::query()->whereIn('id', $request->ids)->get();
+        $currencies = Currency::query()->whereIn('id', (array) $request->ids)->get();
 
         if ($currencies->isEmpty()) {
             return response()->json(['errormessage' => 'Something went wrong']);

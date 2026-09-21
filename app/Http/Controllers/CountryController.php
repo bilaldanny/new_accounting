@@ -237,7 +237,7 @@ class CountryController extends Controller
     public function updatestatus(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/country/:id/edit');
-        $countries = Country::query()->whereIn('id', $request->ids)->get();
+        $countries = Country::query()->whereIn('id', (array) $request->ids)->get();
 
         if ($countries->isEmpty()) {
             return response()->json(['errormessage' => 'Something went wrong']);

@@ -292,7 +292,7 @@ class ProductController extends Controller
         $this->authorizeMenuPermission('/product/:id/edit');
         $products = Product::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($products)) {

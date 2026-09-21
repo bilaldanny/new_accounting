@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\DropArrayForScalarFields;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+        $middleware->api(append: [
+            DropArrayForScalarFields::class,
+        ]);
+
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo('/dashboard');
 
@@ -30,6 +35,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // /api/banks/abc reaches a controller method typed `int $id`; that is a missing record, not a server error
+        $exceptions->render(function (TypeError $e, Request $request) {
+            if ($request->is('api/*')
+                && str_contains($e->getMessage(), 'ControllerDispatcher')
+                && str_contains($e->getMessage(), 'must be of type int, string given')) {
+                return response()->json(['message' => 'Not Found'], 404);
+            }
+        });
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

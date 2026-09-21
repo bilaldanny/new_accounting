@@ -197,7 +197,7 @@ class ItemTypeController extends Controller
         $this->authorizeMenuPermission('/itemtype/:id/edit');
         $itemTypes = ItemType::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($itemTypes)) {

@@ -186,7 +186,7 @@ class WarehouseController extends Controller
 
         $warehouses = Warehouse::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($warehouses->isEmpty()) {

@@ -282,7 +282,7 @@ class PurchaseController extends Controller
         $purchases = Transaction::query()
             ->purchases()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($purchases->isEmpty()) {

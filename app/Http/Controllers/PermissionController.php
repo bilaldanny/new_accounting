@@ -215,7 +215,7 @@ class PermissionController extends Controller
     public function updatestatus(Request $request)
     {
         $this->authorizeMenuPermission('/role/:id/permission');
-        $permissions = Permission::query()->whereIn('id', $request->ids)->get();
+        $permissions = Permission::query()->whereIn('id', (array) $request->ids)->get();
 
         if (isset($permissions)) {
             DB::beginTransaction();

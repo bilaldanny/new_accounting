@@ -173,7 +173,7 @@ class BankIssuerController extends Controller
 
         $bankIssuers = BankIssuer::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($bankIssuers->isEmpty()) {

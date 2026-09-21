@@ -140,7 +140,7 @@ class MenuController extends Controller
     {
         $this->authorizeSuperadmin($request);
         $this->authorizeMenuPermission('/menu/:id/edit');
-        $menus = Menu::whereIn('id', $request->ids)->get();
+        $menus = Menu::whereIn('id', (array) $request->ids)->get();
 
         if (isset($menus)) {
             DB::beginTransaction();

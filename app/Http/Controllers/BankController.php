@@ -251,7 +251,7 @@ class BankController extends Controller
         $this->authorizeMenuPermission('/bank/:id/edit');
         $banks = Bank::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if ($banks->isEmpty()) {

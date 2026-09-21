@@ -208,7 +208,7 @@ class BranchController extends Controller
         $this->authorizeMenuPermission('/branch/:id/edit');
         $branches = Branch::query()
             ->visibleToCurrentUser()
-            ->whereIn('id', $request->ids)
+            ->whereIn('id', (array) $request->ids)
             ->get();
 
         if (isset($branches)) {
