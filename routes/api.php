@@ -38,6 +38,8 @@ use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalUserController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
@@ -89,6 +91,13 @@ Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
 Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
 Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(function () {
+    /* Customer / supplier portal and the accounts for it */
+    Route::get('portal', [PortalController::class, 'show']);
+    Route::get('portal-users', [PortalUserController::class, 'index']);
+    Route::post('portal-users', [PortalUserController::class, 'store']);
+    Route::post('portal-users/{id}/reset-password', [PortalUserController::class, 'resetPassword']);
+    Route::delete('portal-users/{id}', [PortalUserController::class, 'destroy']);
+
     /* Exchange rates (display only) */
     Route::get('currency-rates', [CurrencyRateController::class, 'index']);
     Route::put('currency-rates', [CurrencyRateController::class, 'update']);

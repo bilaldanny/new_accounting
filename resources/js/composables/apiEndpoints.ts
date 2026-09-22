@@ -121,6 +121,8 @@ export const API_ENDPOINTS = {
     backups: '/api/backups',
     apiKeys: '/api/api-keys',
     currencyRates: '/api/currency-rates',
+    portal: '/api/portal',
+    portalUsers: '/api/portal-users',
     stockTakes: '/api/stock-takes',
     loyalty: '/api/loyalty',
     loyaltySettings: '/api/loyalty/settings',

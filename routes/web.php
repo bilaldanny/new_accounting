@@ -400,6 +400,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('cashcollection.trash');
     /* Cash Collection */
 
+    /* Customer / supplier portal */
+    Route::get('portal', function () {
+        abort_unless(auth()->user()?->contact_id !== null, 403);
+
+        return Inertia::render('portal/index');
+    })->name('portal');
+
+    Route::get('portalusers', function () {
+        abortUnlessMenuPermission('/portalusers');
+
+        return Inertia::render('portalusers/index');
+    })->name('portalusers');
+    /* Customer / supplier portal */
+
     /* Exchange rates */
     Route::get('currencyrate', function () {
         abortUnlessMenuPermission('/currencyrate');

@@ -108,6 +108,16 @@ class User extends Authenticatable implements PasskeyUser
     }
 
     /**
+     * The customer or supplier a portal user is tied to (null for an ordinary user).
+     *
+     * @return BelongsTo<Contact, $this>
+     */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
+    /**
      * @return BelongsTo<Company, $this>
      */
     public function company(): BelongsTo
