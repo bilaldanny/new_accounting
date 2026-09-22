@@ -341,6 +341,7 @@ createInertiaApp({
             case name === 'sell/addpos':
             case name === 'sell/posdisplay':
             case name === 'sell/receipt':
+            case name === 'portal/index':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
