@@ -47,6 +47,7 @@ class DashboardController extends Controller
         'financial' => ['net_profit' => '/report/profit-loss', 'cash_bank' => '/chart-of-account'],
         'stats' => ['customers' => '/customer', 'suppliers' => '/supplier', 'products' => '/product'],
         'recent' => ['recent_sales' => '/sell'],
+        'forecast' => ['sales_forecast' => '/report/purchase-sale'],
     ];
 
     /**
@@ -162,6 +163,16 @@ class DashboardController extends Controller
     private function stats(array $wanted, ?int $companyId, ?int $branchId): array
     {
         return $this->metrics->stats($companyId, $branchId, $wanted);
+    }
+
+    /**
+     * @param  list<string>  $wanted
+     * @param  list<string>  $cachedAt
+     * @return array<string, mixed>
+     */
+    private function forecast(array $wanted, ?int $companyId, ?int $branchId, bool $refresh, array &$cachedAt): array
+    {
+        return ['sales_forecast' => $this->cached('sales_forecast', $companyId, $branchId, $refresh, $cachedAt, fn (): array => $this->metrics->salesForecast($companyId, $branchId, $this->today()))];
     }
 
     /**
