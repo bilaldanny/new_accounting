@@ -47,6 +47,7 @@ class DashboardMetrics
         private readonly StockValuation $stockValue,
         private readonly ProfitLossReport $profitLoss,
         private readonly AccountFigures $figures,
+        private readonly SalesForecast $forecast,
     ) {}
 
     /**
@@ -85,6 +86,16 @@ class DashboardMetrics
                 'change_percent' => $this->change($month['net_purchases'], $lastToDate['net_purchases']),
             ],
         ];
+    }
+
+    /**
+     * The estimate of next month's sales from the recent months (see SalesForecast).
+     *
+     * @return array<string, mixed>
+     */
+    public function salesForecast(?int $companyId, ?int $branchId, CarbonInterface $today): array
+    {
+        return $this->forecast->forCompany($companyId, $branchId, $today);
     }
 
     /**

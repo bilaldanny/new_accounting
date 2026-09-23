@@ -24,7 +24,7 @@ import useCommons from '@/composables/common';
  * open the page of; the permission check here just decides which cards are drawn while they load.
  */
 
-type WidgetName = 'sales' | 'receivables' | 'inventory' | 'approvals' | 'financial' | 'stats' | 'recent';
+type WidgetName = 'sales' | 'receivables' | 'inventory' | 'approvals' | 'financial' | 'stats' | 'recent' | 'forecast';
 
 interface WidgetState {
     status: 'loading' | 'ready' | 'error';
@@ -56,6 +56,7 @@ const widgets = reactive<Record<WidgetName, WidgetState>>({
     financial: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     stats: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     recent: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
+    forecast: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
 });
 
 const money = (value: unknown): string => Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -90,7 +91,7 @@ async function loadWidget(name: WidgetName, refresh = false): Promise<void> {
 
 /** The quick, set-based cards first, then the ones that read every ledger or every stock movement. */
 const LIGHT: WidgetName[] = ['sales', 'approvals', 'stats', 'recent'];
-const HEAVY: WidgetName[] = ['inventory', 'financial', 'receivables'];
+const HEAVY: WidgetName[] = ['inventory', 'financial', 'receivables', 'forecast'];
 
 function loadAll(refresh = false): void {
     [...LIGHT, ...HEAVY].forEach((name) => {
@@ -154,6 +155,26 @@ const stockValue = computed(() => widgets.inventory.data.stock_value as Record<s
 const netProfit = computed(() => widgets.financial.data.net_profit as Record<string, any> | undefined);
 const cashBank = computed(() => widgets.financial.data.cash_bank as { total: number; accounts: Array<Record<string, any>> } | undefined);
 const recentSales = computed(() => (widgets.recent.data.recent_sales ?? []) as Array<Record<string, any>>);
+const forecast = computed(() => widgets.forecast.data.sales_forecast as Record<string, any> | undefined);
+
+/** The months the outlook card draws as bars: the history, then the estimate for next month. */
+const outlookBars = computed(() => {
+    const f = forecast.value;
+
+    if (! f) {
+        return [] as Array<{ month: string; value: number; estimate: boolean }>;
+    }
+
+    const bars = (f.history as Array<{ month: string; net_sales: number }>).map((row) => ({ month: row.month, value: Number(row.net_sales), estimate: false }));
+
+    if (f.estimate !== null && f.estimate !== undefined) {
+        bars.push({ month: f.target_month, value: Number(f.estimate), estimate: true });
+    }
+
+    return bars;
+});
+const outlookMax = computed(() => Math.max(...outlookBars.value.map((bar) => bar.value), 1));
+const methodLabel = (method: string | null | undefined): string => (method === 'linear' ? 'trend line of the last months' : 'average of the last months');
 
 /* Pending approvals: one row per approval page the user may open */
 const approvalRows = [
@@ -180,10 +201,11 @@ const showInventory = computed(() => can('/lowstock') || can('/report/stock'));
 const showCredit = computed(() => can('/customer'));
 const showStats = computed(() => can('/customer') || can('/supplier') || can('/product'));
 const showRecent = computed(() => can('/sell'));
+const showForecast = computed(() => can('/report/purchase-sale'));
 
 const showAnything = computed(() => [
     showSales.value, showPurchases.value, showReceivables.value, showPayables.value, showFinancial.value,
-    showApprovals.value, showInventory.value, showCredit.value, showStats.value, showRecent.value,
+    showApprovals.value, showInventory.value, showCredit.value, showStats.value, showRecent.value, showForecast.value,
 ].some(Boolean));
 
 const statCards = computed(() => [
@@ -426,6 +448,52 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                         </Link>
                     </div>
                 </div>
+            </div>
+
+            <!-- Sales outlook: a simple estimate of next month from the recent ones -->
+            <div v-if="showForecast" class="dash-card" data-card="forecast">
+                <div class="dash-card__header">
+                    <div class="dash-card__title-group">
+                        <h3 class="dash-card__title">Sales outlook</h3>
+                        <span v-if="forecast?.trend" class="dash-card__badge" :class="{ 'dash-card__badge--success': forecast.trend === 'up' }">
+                            Trend: {{ forecast.trend }}
+                        </span>
+                    </div>
+                    <span class="dash-stat-card__icon dash-stat-card__icon--primary"><TrendingUp aria-hidden="true" /></span>
+                </div>
+
+                <p v-if="failed('forecast')" class="text-danger mb-0">The outlook could not be loaded. <a href="#" @click.prevent="loadWidget('forecast')">Try again</a></p>
+                <div v-else-if="isLoading('forecast')"><span class="dash-skel dash-skel--wide" /></div>
+                <p v-else-if="! forecast || forecast.estimate === null" class="text-secondary mb-0">
+                    Not enough sales history for an estimate yet: it needs at least two months of sales.
+                </p>
+                <template v-else>
+                    <div class="dash-fin-row">
+                        <span>Estimated sales in {{ forecast.target_month }}</span>
+                        <strong data-test="forecast-estimate">{{ money(forecast.estimate) }}</strong>
+                    </div>
+                    <div class="dash-fin-sub">
+                        Likely between {{ money(forecast.low) }} and {{ money(forecast.high) }} · from the {{ methodLabel(forecast.method) }}
+                        <span v-if="forecast.method === 'linear'"> (fit {{ forecast.fit }})</span>
+                    </div>
+
+                    <div class="dash-country-list mt-3">
+                        <div v-for="bar in outlookBars" :key="bar.month" class="dash-country-row">
+                            <div class="dash-country-row__top">
+                                <div class="dash-country-row__id"><span class="dash-country-row__name">{{ bar.month }}<span v-if="bar.estimate" class="text-muted"> (estimate)</span></span></div>
+                                <div class="dash-country-row__value"><span class="dash-country-row__num">{{ money(bar.value) }}</span></div>
+                            </div>
+                            <div class="dash-country-row__bar-track">
+                                <div class="dash-country-row__bar-fill" :style="{ width: Math.max((bar.value / outlookMax) * 100, 1) + '%', background: bar.estimate ? '#8b5cf6' : '#6366f1', opacity: bar.estimate ? 0.65 : 1 }"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dash-fin-sub mt-2">
+                        {{ forecast.this_month.month }} so far: {{ money(forecast.this_month.sold_so_far) }} after {{ forecast.this_month.days_elapsed }} of {{ forecast.this_month.days_in_month }} days,
+                        on course for {{ money(forecast.this_month.run_rate) }}
+                    </div>
+                </template>
             </div>
 
             <!-- Row 3: quick stats and recent sales -->
