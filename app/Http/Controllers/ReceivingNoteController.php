@@ -35,6 +35,7 @@ class ReceivingNoteController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/receivingnote');
         $filters = $request->only([
             'sort_by',
             'sort_type',

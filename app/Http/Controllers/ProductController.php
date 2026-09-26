@@ -49,6 +49,7 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/product');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -110,7 +111,7 @@ class ProductController extends Controller
             return $product;
         });
 
-        $trash_count = Product::onlyTrashed()->count();
+        $trash_count = Product::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $products, 'trash_count' => $trash_count]);
     }

@@ -38,6 +38,7 @@ class CurrencyController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/currency');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

@@ -411,7 +411,7 @@ test('a company user cannot see or change the discounts of another company', fun
     $otherCompany = dscCompany('DSC002');
     $mine = dscMake($ownCompany, ['name' => 'Mine']);
     $theirs = dscMake($otherCompany, ['name' => 'Theirs']);
-    Sanctum::actingAs(dscStaff($ownCompany, ['/discount/:id/edit', '/discount/delete']));
+    Sanctum::actingAs(dscStaff($ownCompany, ['/discount', '/discount/:id/edit', '/discount/delete']));
 
     $listed = collect($this->getJson('/api/discounts')->assertSuccessful()->json('data.data'))->pluck('name')->all();
 

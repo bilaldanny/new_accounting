@@ -70,6 +70,7 @@ class VariationController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/variation');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -124,7 +125,7 @@ class VariationController extends Controller
             return $variation;
         });
 
-        $trash_count = Variation::onlyTrashed()->count();
+        $trash_count = Variation::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $variations, 'trash_count' => $trash_count]);
     }

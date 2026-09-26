@@ -29,6 +29,7 @@ class CustomerGroupController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/customer-group');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -65,7 +66,7 @@ class CustomerGroupController extends Controller
             return $customerGroup;
         });
 
-        $trash_count = CustomerGroup::onlyTrashed()->count();
+        $trash_count = CustomerGroup::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $customerGroups, 'trash_count' => $trash_count]);
     }

@@ -40,6 +40,7 @@ class DepartmentController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/department');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -76,7 +77,7 @@ class DepartmentController extends Controller
             return $department;
         });
 
-        $trash_count = Department::onlyTrashed()->count();
+        $trash_count = Department::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $departments, 'trash_count' => $trash_count]);
     }

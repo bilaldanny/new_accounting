@@ -44,6 +44,7 @@ class ExpenseController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/expense');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

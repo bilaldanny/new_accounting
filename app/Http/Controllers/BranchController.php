@@ -20,6 +20,7 @@ class BranchController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/branch');
         $sort_by = $request->sort_by ?? 'created_at';
         $sort_type = $request->sort_type ?? 'asc';
         $show_record = ListSort::wholeNumber($request->show_record, 10, 1000);
@@ -288,6 +289,7 @@ class BranchController extends Controller
         }
 
         $branches = Branch::query()
+            ->visibleToCurrentUser()
             ->where('is_active', true)
             ->where('company_id', $request->company_id)
             ->select('branches.*')

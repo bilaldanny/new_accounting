@@ -80,6 +80,7 @@ class DiscountController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/discount');
         $query = $this->listQuery(Discount::query(), $request)
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);

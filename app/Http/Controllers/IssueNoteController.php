@@ -35,6 +35,7 @@ class IssueNoteController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/issuenote');
         $filters = $request->only([
             'sort_by',
             'sort_type',

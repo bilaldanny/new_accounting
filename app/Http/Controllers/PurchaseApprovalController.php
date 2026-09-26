@@ -10,6 +10,7 @@ class PurchaseApprovalController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/purchase/approval');
         $filters = $request->only([
             'sort_by',
             'sort_type',

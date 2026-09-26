@@ -60,6 +60,7 @@ class PurchaseController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/purchase');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

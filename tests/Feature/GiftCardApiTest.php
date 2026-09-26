@@ -644,7 +644,7 @@ test('a company user cannot see or change the gift cards of another company', fu
     $otherCompany = gcdCompany('GCD002');
     $mine = gcdMake($ownCompany, ['code' => 'MINE']);
     $theirs = gcdMake($otherCompany, ['code' => 'THEIRS']);
-    Sanctum::actingAs(gcdStaff($ownCompany, ['/giftcard/:id/edit', '/giftcard/delete']));
+    Sanctum::actingAs(gcdStaff($ownCompany, ['/giftcard', '/giftcard/:id/edit', '/giftcard/delete']));
 
     $listed = collect($this->getJson('/api/gift-cards')->assertSuccessful()->json('data.data'))->pluck('code')->all();
 

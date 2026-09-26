@@ -138,6 +138,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/user');
         $request->merge(['status' => $request->status ?? 'all']);
 
         $users = $this->paginateSorted($this->baseQuery($request), $request);

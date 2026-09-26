@@ -44,6 +44,7 @@ class DepositController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/deposit');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

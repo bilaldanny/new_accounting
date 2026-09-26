@@ -30,6 +30,7 @@ class UnitController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/unit');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -63,7 +64,7 @@ class UnitController extends Controller
             return $unit;
         });
 
-        $trash_count = Unit::onlyTrashed()->count();
+        $trash_count = Unit::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $units, 'trash_count' => $trash_count]);
     }

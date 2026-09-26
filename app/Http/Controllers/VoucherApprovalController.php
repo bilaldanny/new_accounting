@@ -33,6 +33,7 @@ class VoucherApprovalController extends Controller
     public function index(Request $request, string $family): JsonResponse
     {
         $this->assertKnownFamily($family);
+        $this->authorizeMenuPermission(self::PERMISSIONS[$family]['approve']);
 
         $query = TAccount::query()
             ->manualFamily($family)

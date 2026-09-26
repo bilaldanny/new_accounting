@@ -66,6 +66,7 @@ class BankController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/bank');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

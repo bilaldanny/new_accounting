@@ -344,7 +344,7 @@ test('the approval list only shows the current company', function () {
     $own = jeaJournal($mine);
     jeaJournal($theirs);
 
-    Sanctum::actingAs(jeaUserWith($mine, []));
+    Sanctum::actingAs(jeaUserWith($mine, ['/journalentry/:id/approve']));
 
     $response = $this->getJson('/api/journal-entry-approvals')->assertSuccessful();
 

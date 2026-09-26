@@ -75,6 +75,7 @@ class ChartOfAccountController extends Controller
 
     public function index(Request $request, AccountCurrentBalance $balances): JsonResponse
     {
+        $this->authorizeMenuPermission('/chart-of-account');
         $status = $request->status ?? 'all';
 
         $accounts = ChartOfAccount::query()
@@ -245,6 +246,7 @@ class ChartOfAccountController extends Controller
         ]);
 
         $accounts = ChartOfAccount::query()
+            ->visibleToCurrentUser()
             ->where('active', true)
             ->when($request->filled('company_id'), fn ($query) => $query->where('company_id', $request->integer('company_id')))
             ->when($request->filled('branch_id'), fn ($query) => $query->where('branch_id', $request->integer('branch_id')))
@@ -265,6 +267,7 @@ class ChartOfAccountController extends Controller
     public function fetchObAccounts(Request $request): JsonResponse
     {
         $accounts = ChartOfAccount::query()
+            ->visibleToCurrentUser()
             ->where('active', true)
             ->where('bs', true)
             ->when($request->filled('company_id'), fn ($query) => $query->where('company_id', $request->integer('company_id')))
@@ -282,6 +285,7 @@ class ChartOfAccountController extends Controller
     private function accountOptions(Request $request, ?string $accType = null)
     {
         return ChartOfAccount::query()
+            ->visibleToCurrentUser()
             ->where('active', true)
             ->when($request->filled('company_id'), fn ($query) => $query->where('company_id', $request->integer('company_id')))
             ->when($request->filled('branch_id'), fn ($query) => $query->where('branch_id', $request->integer('branch_id')))

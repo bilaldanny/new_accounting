@@ -36,6 +36,7 @@ class TimezoneController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/timezone');
         $search = $request->search ?? '';
 
         $query = Timezone::query()

@@ -44,6 +44,7 @@ class FundTransferController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/fundtransfer');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

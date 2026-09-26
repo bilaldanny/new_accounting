@@ -100,8 +100,9 @@ test('every permission key checked by the controller has a row under the page', 
     $parentId = DB::table('menus')->where('route_path', $path)->value('id');
     $childPaths = DB::table('menus')->where('parent_id', $parentId)->where('is_hidden', 1)->pluck('route_path')->all();
 
+    // the page's own base path (its list-page permission) always exists too, since it's $path itself
     expect($required)->not->toBeEmpty()
-        ->and(array_diff($required, $childPaths))->toBe([]);
+        ->and(array_diff($required, $childPaths, [$path]))->toBe([]);
 })->with('sell return and payment menus');
 
 test('the sidebar page paths resolve to real web routes', function (string $path) {

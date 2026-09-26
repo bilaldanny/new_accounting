@@ -40,6 +40,7 @@ class RoleController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/role');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -78,7 +79,7 @@ class RoleController extends Controller
             return $role;
         });
 
-        $trash_count = Role::onlyTrashed()->count();
+        $trash_count = Role::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $roles, 'trash_count' => $trash_count]);
 

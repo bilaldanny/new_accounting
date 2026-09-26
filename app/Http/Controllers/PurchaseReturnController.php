@@ -37,6 +37,7 @@ class PurchaseReturnController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/purchase/return');
         $filters = $request->only([
             'sort_by',
             'sort_type',

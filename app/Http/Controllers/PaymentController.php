@@ -44,6 +44,7 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/acpayment');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

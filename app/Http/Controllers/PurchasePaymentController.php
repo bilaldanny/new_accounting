@@ -50,6 +50,7 @@ class PurchasePaymentController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/purchase/payment');
         $search = $request->search ?? '';
 
         $query = Payment::query()

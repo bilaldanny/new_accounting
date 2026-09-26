@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -15,6 +16,10 @@ class PermissionController extends Controller
         $this->authorizeMenuPermission('/role/:id/permission');
 
         if (! Menu::assignerCanManageMenu((int) $request->user()->role_id, (int) $request->menuid)) {
+            return response()->json(['message' => 'You are not allowed to manage this permission.'], 403);
+        }
+
+        if (Role::findVisibleToCurrentUser((int) $request->integer('role_id')) === null) {
             return response()->json(['message' => 'You are not allowed to manage this permission.'], 403);
         }
 
@@ -215,7 +220,10 @@ class PermissionController extends Controller
     public function updatestatus(Request $request)
     {
         $this->authorizeMenuPermission('/role/:id/permission');
-        $permissions = Permission::query()->whereIn('id', (array) $request->ids)->get();
+        $permissions = Permission::query()
+            ->whereIn('id', (array) $request->ids)
+            ->whereIn('role_id', Role::query()->visibleToCurrentUser()->pluck('id'))
+            ->get();
 
         if (isset($permissions)) {
             DB::beginTransaction();
@@ -243,8 +251,17 @@ class PermissionController extends Controller
 
     public function fetch(Request $request)
     {
+        $this->authorizeMenuPermission('/role/:id/permission');
 
-        $query = Permission::query()->where('status', 1);
+        $request->validate([
+            'role_id' => 'required|integer',
+        ]);
+
+        if (Role::findVisibleToCurrentUser($request->integer('role_id')) === null) {
+            return response()->json(['message' => 'You are not allowed to view this permission.'], 403);
+        }
+
+        $query = Permission::query()->where('status', 1)->where('role_id', $request->integer('role_id'));
 
         if ($request->filled('company_id')) {
             $query->where('company_id', $request->integer('company_id'));
@@ -256,10 +273,6 @@ class PermissionController extends Controller
 
         if ($request->filled('department_id')) {
             $query->where('department_id', $request->integer('department_id'));
-        }
-
-        if ($request->filled('role_id')) {
-            $query->where('role_id', $request->integer('role_id'));
         }
 
         $permission = $query->pluck('menu_id')->toArray();

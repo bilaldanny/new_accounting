@@ -30,6 +30,7 @@ class WarehouseController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/warehouse');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

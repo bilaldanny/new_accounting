@@ -628,7 +628,7 @@ test('a user tied to a branch only records, sees and works on their own branch',
     $otherBranch = trpBranch($scope['company_id'], 'Second Branch');
     $mine = cclMake($scope);
     $theirs = cclMake($scope, ['branch_id' => $otherBranch]);
-    Sanctum::actingAs(cclStaff($scope, ['/cashcollection/add', '/cashcollection/:id/edit', '/cashcollection/cancel'], 'collector', $scope['branch_id']));
+    Sanctum::actingAs(cclStaff($scope, ['/cashcollection', '/cashcollection/add', '/cashcollection/:id/edit', '/cashcollection/cancel'], 'collector', $scope['branch_id']));
 
     expect(collect($this->getJson('/api/cash-collections')->assertSuccessful()->json('data.data'))->pluck('id')->all())->toBe([$mine->id]);
 
@@ -652,7 +652,7 @@ test('a company user cannot see or change the collections of another company', f
         'company_id' => $otherCompany, 'branch_id' => $otherBranch, 'contact_id' => $otherCustomer, 'reference' => 'CC-00001',
         'collected_on' => '2026-09-01', 'amount' => 50, 'status' => 'pending',
     ]);
-    Sanctum::actingAs(cclStaff($scope, ['/cashcollection/:id/edit', '/cashcollection/complete', '/cashcollection/cancel', '/cashcollection/delete']));
+    Sanctum::actingAs(cclStaff($scope, ['/cashcollection', '/cashcollection/:id/edit', '/cashcollection/complete', '/cashcollection/cancel', '/cashcollection/delete']));
 
     expect(collect($this->getJson('/api/cash-collections')->assertSuccessful()->json('data.data'))->pluck('id')->all())->toBe([$mine->id]);
 

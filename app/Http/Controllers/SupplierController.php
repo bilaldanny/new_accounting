@@ -76,6 +76,7 @@ class SupplierController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/supplier');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

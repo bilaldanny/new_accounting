@@ -38,6 +38,7 @@ class StockAdjustmentController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/stockadjustment');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

@@ -327,7 +327,7 @@ test('a company user cannot see or change the transporters of another company', 
     $otherCompany = tpCompany('TPR002');
     $mine = tpMake($ownCompany, ['name' => 'Mine']);
     $theirs = tpMake($otherCompany, ['name' => 'Theirs']);
-    Sanctum::actingAs(tpStaff($ownCompany, ['/transporter/:id/edit', '/transporter/delete']));
+    Sanctum::actingAs(tpStaff($ownCompany, ['/transporter', '/transporter/:id/edit', '/transporter/delete']));
 
     $listed = collect($this->getJson('/api/transporters')->assertSuccessful()->json('data.data'))->pluck('name')->all();
 

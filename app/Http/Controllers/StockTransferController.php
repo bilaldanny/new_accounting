@@ -39,6 +39,7 @@ class StockTransferController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/stocktransfer');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

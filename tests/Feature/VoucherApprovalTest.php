@@ -405,7 +405,7 @@ test('the approval list only shows the current company', function () {
     $own = jeaVoucher($mine, 'payment');
     jeaVoucher($theirs, 'payment');
 
-    Sanctum::actingAs(jeaUserWith($mine, []));
+    Sanctum::actingAs(jeaUserWith($mine, ['/acpayment/:id/approve']));
 
     $response = $this->getJson('/api/payment-approvals')->assertSuccessful();
 

@@ -49,6 +49,7 @@ class CityController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/city');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

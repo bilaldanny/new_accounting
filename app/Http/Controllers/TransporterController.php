@@ -34,6 +34,7 @@ class TransporterController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/transporter');
         $query = $this->listQuery(Transporter::query(), $request)
             ->when($request->filled('company_id'), function ($q) use ($request) {
                 $q->where('company_id', $request->company_id);

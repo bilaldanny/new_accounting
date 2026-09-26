@@ -85,6 +85,7 @@ class SellController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/sell');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

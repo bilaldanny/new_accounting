@@ -28,6 +28,7 @@ class CategoryController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/category');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -61,7 +62,7 @@ class CategoryController extends Controller
             return $category;
         });
 
-        $trash_count = Category::onlyTrashed()->count();
+        $trash_count = Category::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $categories, 'trash_count' => $trash_count]);
     }

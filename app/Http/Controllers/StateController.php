@@ -42,6 +42,7 @@ class StateController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/state');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

@@ -54,6 +54,7 @@ class LoyaltyController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/loyalty');
         $search = trim((string) ($request->search ?? ''));
 
         $query = Contact::query()

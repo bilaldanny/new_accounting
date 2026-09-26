@@ -28,6 +28,7 @@ class BrandController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/brand');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -59,7 +60,7 @@ class BrandController extends Controller
             return $brand;
         });
 
-        $trash_count = Brand::onlyTrashed()->count();
+        $trash_count = Brand::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $brands, 'trash_count' => $trash_count]);
     }

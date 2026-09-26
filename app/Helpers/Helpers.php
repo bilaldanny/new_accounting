@@ -191,6 +191,8 @@ function forgetUserPermissionsCache(?int $roleId = null): void
 {
     if ($roleId !== null) {
         Cache::forget("user_menu_permissions:{$roleId}");
+        Cache::forget("user_menu_permissions_tree:{$roleId}");
+        Cache::forget("user_permission_paths:{$roleId}");
 
         return;
     }

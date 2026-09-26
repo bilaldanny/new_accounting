@@ -58,6 +58,8 @@ test('non superadmin users cannot see companyadmin roles in the roles api', func
     $managerRole = createRole('manager');
     $user = createUserForRole($managerRole);
 
+    grantMenuPermission((int) $managerRole->id, '/role');
+
     Sanctum::actingAs($user);
 
     $response = $this->getJson('/api/roles');

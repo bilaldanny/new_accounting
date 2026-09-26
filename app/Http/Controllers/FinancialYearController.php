@@ -13,6 +13,8 @@ class FinancialYearController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeCompanySettingMenuPermission();
+
         $sortBy = $request->input('sort_by', 'created_at');
         $sortType = $request->input('sort_type', 'desc');
         $showRecord = ListSort::wholeNumber($request->input('show_record'), 10, 1000);

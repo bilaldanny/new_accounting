@@ -11,6 +11,7 @@ class ContactController extends Controller
     public function fetchCustomers(Request $request): JsonResponse
     {
         $contacts = Contact::query()
+            ->visibleToCurrentUser()
             ->where('active', true)
             ->where(function ($query) {
                 $query->where('user_type', 'customer')

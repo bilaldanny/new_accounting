@@ -50,6 +50,7 @@ class SellPaymentController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/sell/payment');
         $search = $request->search ?? '';
 
         $query = Payment::query()

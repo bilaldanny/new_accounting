@@ -30,6 +30,7 @@ class WarrantyController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/warranty');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -62,7 +63,7 @@ class WarrantyController extends Controller
             return $warranty;
         });
 
-        $trash_count = Warranty::onlyTrashed()->count();
+        $trash_count = Warranty::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $warranties, 'trash_count' => $trash_count]);
     }

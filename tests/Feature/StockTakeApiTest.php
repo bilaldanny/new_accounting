@@ -662,7 +662,7 @@ test('a user cannot see or change the sheets of another company or of another br
     $this->postJson('/api/stock-takes', tktPayload($foreign))->assertSuccessful();
     $theirs = StockTake::query()->where('company_id', $foreign['company_id'])->firstOrFail();
 
-    Sanctum::actingAs(tktStaff($scope, ['/stocktake/count', '/stocktake/complete', '/stocktake/delete'], 'storekeeper', $scope['branch_id']));
+    Sanctum::actingAs(tktStaff($scope, ['/stocktake', '/stocktake/count', '/stocktake/complete', '/stocktake/delete'], 'storekeeper', $scope['branch_id']));
 
     expect(collect($this->getJson('/api/stock-takes')->assertSuccessful()->json('data.data'))->pluck('id')->all())->toBe([$mine->id]);
 

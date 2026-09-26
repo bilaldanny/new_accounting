@@ -96,7 +96,8 @@ test('every permission key the product controller checks now has a row', functio
     $required = array_values(array_unique($matches[1]));
 
     // add / edit / delete already exist in live data; import and restore were the missing ones.
-    $alreadyInLiveData = ['/product/add', '/product/:id/edit', '/product/delete'];
+    // /product itself is the anchor row seedProductMenuAnchor() creates, so it always exists too.
+    $alreadyInLiveData = ['/product', '/product/add', '/product/:id/edit', '/product/delete'];
     $childPaths = DB::table('menus')->where('parent_id', $productId)->pluck('route_path')->all();
 
     expect($required)->toContain('/product/import', '/product/restore')

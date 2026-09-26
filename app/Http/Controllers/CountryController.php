@@ -47,6 +47,7 @@ class CountryController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/country');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 

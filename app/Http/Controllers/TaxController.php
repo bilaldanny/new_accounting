@@ -15,6 +15,8 @@ class TaxController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeCompanySettingMenuPermission();
+
         $status = $request->input('status', 'all');
         $search = $request->input('search', '');
 

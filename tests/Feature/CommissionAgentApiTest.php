@@ -329,7 +329,7 @@ test('a company user cannot see or change the agents of another company', functi
     $otherCompany = caCompany('CAG002');
     $mine = caMake($ownCompany, ['name' => 'Mine Agent']);
     $theirs = caMake($otherCompany, ['name' => 'Theirs Agent']);
-    Sanctum::actingAs(caStaff($ownCompany, ['/commissionagent/:id/edit', '/commissionagent/delete']));
+    Sanctum::actingAs(caStaff($ownCompany, ['/commissionagent', '/commissionagent/:id/edit', '/commissionagent/delete']));
 
     $listed = collect($this->getJson('/api/commission-agents')->assertSuccessful()->json('data.data'))->pluck('name')->all();
 

@@ -43,6 +43,7 @@ class JournalEntryController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/journalentry');
         $query = TAccount::query()
             ->manualJournals()
             ->visibleToCurrentUser()

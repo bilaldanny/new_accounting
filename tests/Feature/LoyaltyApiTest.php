@@ -512,7 +512,7 @@ test('a company user sees only the customers of their own company', function () 
     $other = trpScope('LY2');
     loyEntry($own['customer_id'], 10);
     loyEntry($other['customer_id'], 20);
-    Sanctum::actingAs(loyStaff($own['company_id']));
+    Sanctum::actingAs(loyStaff($own['company_id'], ['/loyalty']));
 
     expect(collect($this->getJson('/api/loyalty')->assertSuccessful()->json('data.data'))->pluck('name')->all())->toBe(['Acme Retail LY1']);
 

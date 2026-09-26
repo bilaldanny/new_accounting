@@ -28,6 +28,7 @@ class ItemTypeController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeMenuPermission('/itemtype');
         $status = $request->status ?? 'all';
         $search = $request->search ?? '';
 
@@ -59,7 +60,7 @@ class ItemTypeController extends Controller
             return $itemType;
         });
 
-        $trash_count = ItemType::onlyTrashed()->count();
+        $trash_count = ItemType::onlyTrashed()->visibleToCurrentUser()->count();
 
         return response()->json(['data' => $itemTypes, 'trash_count' => $trash_count]);
     }
