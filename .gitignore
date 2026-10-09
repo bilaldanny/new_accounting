@@ -1,4 +1,6 @@
 /.phpunit.cache
+/database/dusk.sqlite
+/public/hot.dusk-aside
 /backup
 /bootstrap/ssr
 /node_modules

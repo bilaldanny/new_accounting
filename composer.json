@@ -24,6 +24,7 @@
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^3.9",
         "laravel/boost": "^2.2",
+        "laravel/dusk": "*",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",
@@ -82,6 +83,15 @@
             "@lint:check",
             "@types:check",
             "@php artisan test"
+        ],
+        "test:browser": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan dusk"
+        ],
+        "test:all": [
+            "Composer\\Config::disableProcessTimeout",
+            "@test",
+            "@test:browser"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

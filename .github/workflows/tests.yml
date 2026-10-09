@@ -36,3 +36,8 @@ jobs:
 
       - name: Run CI Checks
         run: composer ci:check
+
+      - name: Run browser tests (Dusk)
+        run: |
+          php artisan dusk:chrome-driver --detect
+          composer test:browser

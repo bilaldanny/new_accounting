@@ -28,6 +28,7 @@ function voucherFamilies(): array
         'expense' => ['create' => '/api/expenses', 'type' => 'EXP', 'column' => 'expense_approval', 'menu' => '/expense', 'approvals' => '/api/expense-approvals'],
         'deposit' => ['create' => '/api/deposits', 'type' => 'BD', 'column' => 'deposit_approval', 'menu' => '/deposit', 'approvals' => '/api/deposit-approvals'],
         'fundtransfer' => ['create' => '/api/fundtransfers', 'type' => 'FT', 'column' => 'fund_transfer_approval', 'menu' => '/fundtransfer', 'approvals' => '/api/fund-transfer-approvals'],
+        'creditdebitnote' => ['create' => '/api/credit-debit-notes', 'type' => 'CN', 'column' => 'credit_debit_note_approval', 'menu' => '/creditdebitnote', 'approvals' => '/api/credit-debit-note-approvals'],
     ];
 }
 

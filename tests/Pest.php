@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\DuskTestCase;
 use Tests\TestCase;
 
 /*
@@ -17,6 +18,8 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+pest()->extend(DuskTestCase::class)->in('Browser');
 
 /*
 |--------------------------------------------------------------------------
@@ -55,3 +58,4 @@ require __DIR__.'/Support/transactionReports.php';
 require __DIR__.'/Support/partyReports.php';
 require __DIR__.'/Support/productReports.php';
 require __DIR__.'/Support/ledgerReports.php';
+require __DIR__.'/Browser/Support/browser.php';
