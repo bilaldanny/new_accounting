@@ -108,6 +108,11 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Self-service sign-up from the landing page: same 5 per minute per IP as the lead capture form.
+        RateLimiter::for('self-signup', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
         // The public REST API (api/v1/*, Integrations & Open API) — keyed by the authenticated token
         // (every request here already passed auth:sanctum), not by IP, since a key's owner may call
         // from a shared office/server IP shared with other tenants' keys.

@@ -135,6 +135,40 @@ final class RolePresets
     }
 
     /**
+     * Creates the starter roles of a company branch and turns their menus on (what `roles:sync-presets` does). A role that
+     * already exists is only topped up. With `$dryRun` nothing is written and the menu count is what would be granted.
+     *
+     * @param  list<string>  $only  preset names; empty means all of them
+     * @return array<string, array{created: bool, menus: int}> keyed by preset name
+     */
+    public static function sync(int $companyId, int $branchId, array $only = [], bool $dryRun = false): array
+    {
+        $only = array_map(Role::normalizeName(...), $only);
+        $result = [];
+
+        foreach (array_keys(self::PRESETS) as $preset) {
+            if ($only !== [] && ! in_array(Role::normalizeName($preset), $only, true)) {
+                continue;
+            }
+
+            $role = Role::query()->where('company_id', $companyId)->where('branch_id', $branchId)
+                ->whereRaw("LOWER(REPLACE(name, ' ', '')) = ?", [Role::normalizeName($preset)])->first();
+
+            if ($dryRun) {
+                $result[$preset] = ['created' => $role === null, 'menus' => count(self::menuIds($preset))];
+
+                continue;
+            }
+
+            $created = $role === null;
+            $role ??= Role::query()->create(['name' => $preset, 'company_id' => $companyId, 'branch_id' => $branchId, 'is_active' => true]);
+            $result[$preset] = ['created' => $created, 'menus' => self::grant((int) $role->id, $companyId, $branchId, $preset)];
+        }
+
+        return $result;
+    }
+
+    /**
      * Turns the preset's menus on for a role in its own company / branch scope. Existing rows are switched on, nothing is
      * ever switched off.
      */

@@ -3,7 +3,9 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentSettingController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\PublicLeadCaptureController;
+use App\Http\Controllers\PublicRegistrationController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
@@ -69,7 +71,13 @@ Route::prefix('idle-timeout-alert')->middleware('auth')->group(function () {
 Route::post('checkSMTP', [HomeController::class, 'check_smtp'])->middleware('auth')->name('checkSMTP');
 /* Check Smtp Connection */
 
-Route::inertia('/', 'Welcome')->name('home');
+/* Public landing page and self-service sign-up (guests only; a signed-in user is sent to the dashboard) */
+Route::middleware('guest')->group(function () {
+    Route::get('/', [LandingController::class, 'index'])->name('home');
+    Route::get('register', [PublicRegistrationController::class, 'create'])->name('register');
+    Route::post('register', [PublicRegistrationController::class, 'store'])->middleware('throttle:self-signup')->name('register.store');
+});
+/* Public landing page and self-service sign-up */
 
 /* Public Lead Capture Form (no auth — embeddable on an external site) */
 Route::get('capture/{code}', [PublicLeadCaptureController::class, 'show'])->name('leadcapture.show');

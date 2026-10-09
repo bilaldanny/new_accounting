@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Role;
 use App\Support\RolePresets;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -35,27 +34,14 @@ class SyncRolePresets extends Command
             return self::FAILURE;
         }
 
-        $only = array_map(Role::normalizeName(...), (array) $this->option('only'));
+        $dryRun = (bool) $this->option('dry-run');
 
-        foreach (array_keys(RolePresets::PRESETS) as $preset) {
-            if ($only !== [] && ! in_array(Role::normalizeName($preset), $only, true)) {
-                continue;
+        foreach (RolePresets::sync($companyId, $branchId, (array) $this->option('only'), $dryRun) as $preset => $outcome) {
+            if ($dryRun) {
+                $this->line("{$preset}: would ".($outcome['created'] ? 'create the role and ' : 'top up the existing role and ')."grant up to {$outcome['menus']} menus (dry run, nothing changed).");
+            } else {
+                $this->info("{$preset}: {$outcome['menus']} menus granted.");
             }
-
-            $role = Role::query()->where('company_id', $companyId)->where('branch_id', $branchId)
-                ->whereRaw("LOWER(REPLACE(name, ' ', '')) = ?", [Role::normalizeName($preset)])->first();
-
-            if ($this->option('dry-run')) {
-                $menus = count(RolePresets::menuIds($preset));
-                $this->line("{$preset}: would ".($role === null ? 'create the role and ' : 'top up the existing role and ')."grant up to {$menus} menus (dry run, nothing changed).");
-
-                continue;
-            }
-
-            $role ??= Role::query()->create(['name' => $preset, 'company_id' => $companyId, 'branch_id' => $branchId, 'is_active' => true]);
-
-            $count = RolePresets::grant((int) $role->id, $companyId, $branchId, $preset);
-            $this->info("{$preset}: {$count} menus granted.");
         }
 
         return self::SUCCESS;
