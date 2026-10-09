@@ -14,7 +14,8 @@ return [
     // false: the Register button becomes "Contact us" and /register answers 403.
     'registration_enabled' => (bool) env('PUBLIC_REGISTRATION_ENABLED', true),
 
-    'brand' => env('LANDING_BRAND', 'ACCUNIVO'),
+    // Only a last resort: the name shown is the one in Software Settings.
+    'brand' => env('LANDING_BRAND', ''),
 
     // A plan has a price but no currency of its own; this label is printed next to it (for example "PKR"). Empty = number only.
     'currency_label' => env('LANDING_CURRENCY_LABEL', ''),

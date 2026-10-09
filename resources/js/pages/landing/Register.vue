@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
+import BrandMark from '@/components/landing/BrandMark.vue';
 
 const props = defineProps<{
-    brand: string;
+    branding: { name: string; logoUrl: string | null };
     contact: { email?: string; phone?: string; address?: string };
     plan: string | null;
     plans: Array<{ code: string; name: string; trial_days: number }>;
     old: Record<string, string>;
 }>();
 
+const brand = computed(() => props.branding.name);
 const page = usePage();
 const errors = computed(() => (page.props.errors ?? {}) as Record<string, string>);
 const csrfToken = computed(() => String(page.props.csrfToken ?? ''));
@@ -44,7 +46,7 @@ const fields = reactive({
 
     <div class="lp lp-form-page">
         <main class="lp-form-card">
-            <a class="lp-logo" href="/">{{ brand }}</a>
+            <BrandMark :branding="branding" />
             <h1 style="font-size: 1.6rem; margin-top: 18px">Create your account</h1>
             <p class="lp-note" style="margin-top: 0">You become the administrator of a new company. Starter staff roles are set up for you.</p>
 

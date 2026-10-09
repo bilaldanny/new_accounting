@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubscriptionPlan;
+use App\Support\PublicBranding;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,7 +34,7 @@ class LandingController extends Controller
 
         return Inertia::render('landing/Index', [
             'plans' => $plans,
-            'brand' => config('landing.brand'),
+            'branding' => PublicBranding::get(),
             'currencyLabel' => config('landing.currency_label'),
             'contact' => array_filter(config('landing.contact')),
             'registrationEnabled' => (bool) config('landing.registration_enabled'),

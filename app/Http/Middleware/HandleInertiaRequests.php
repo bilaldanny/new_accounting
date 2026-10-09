@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\CompanySetting;
+use App\Support\PublicBranding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
@@ -38,6 +39,20 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+
+        // The public pages get no settings row, no IP lookup: only what PublicBranding hands them.
+        if ($user === null && in_array(Route::currentRouteName(), ['home', 'register', 'register.store', 'blog.index', 'blog.show'], true)) {
+            return [
+                ...parent::share($request),
+                'csrfToken' => csrf_token(),
+                'routeName' => Route::currentRouteName(),
+                'name' => PublicBranding::get()['name'],
+                'url' => config('app.url'),
+                'auth' => ['user' => null],
+                'setting' => null,
+                'sidebarOpen' => true,
+            ];
+        }
 
         if ($user) {
             $user->loadMissing('company');

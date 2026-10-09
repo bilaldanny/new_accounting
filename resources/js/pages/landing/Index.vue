@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import BrandMark from '@/components/landing/BrandMark.vue';
 
 interface Plan {
     code: string;
@@ -20,7 +21,7 @@ interface Plan {
 
 const props = defineProps<{
     plans: Plan[];
-    brand: string;
+    branding: { name: string; logoUrl: string | null };
     currencyLabel: string;
     contact: { email?: string; phone?: string; address?: string };
     registrationEnabled: boolean;
@@ -28,6 +29,8 @@ const props = defineProps<{
 
 const description =
     'Sales, purchases, inventory, accounting, tax, CRM and reports for a growing business, with approvals and role-based access. Start a free trial.';
+
+const brand = computed(() => props.branding.name);
 
 const menuOpen = ref(false);
 
@@ -209,12 +212,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
 
         <header class="lp-nav">
             <div class="lp-wrap lp-nav-row">
-                <a class="lp-logo" href="/" :aria-label="`${brand} home`">
-                    <span class="lp-logo-mark" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L12 4l8 16M8 14h8" /></svg>
-                    </span>
-                    {{ brand }}
-                </a>
+                <BrandMark :branding="branding" />
                 <button class="lp-menu-btn" type="button" :aria-expanded="menuOpen" aria-controls="lp-links" @click="menuOpen = !menuOpen">
                     Menu
                 </button>
@@ -436,7 +434,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
         <footer id="contact" class="lp-footer">
             <div class="lp-wrap lp-footer-grid">
                 <div>
-                    <a class="lp-logo" href="/">{{ brand }}</a>
+                    <BrandMark :branding="branding" />
                     <p style="margin-top: 8px">Sales, stock, accounts and tax for your business.</p>
                 </div>
                 <div>

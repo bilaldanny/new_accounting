@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\SelfSignup;
+use App\Support\PublicBranding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,7 @@ class PublicRegistrationController extends Controller
         $this->ensureEnabled();
 
         return Inertia::render('landing/Register', [
-            'brand' => config('landing.brand'),
+            'branding' => PublicBranding::get(),
             'contact' => array_filter(config('landing.contact')),
             'plan' => $request->query('plan'),
             'old' => collect($request->session()->getOldInput())->only(['company_name', 'name', 'email', 'phone', 'plan'])->map(fn ($value): string => (string) $value)->all(),

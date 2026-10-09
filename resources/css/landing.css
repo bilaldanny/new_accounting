@@ -806,3 +806,21 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* Logo from Software Settings */
+.lp-logo-chip {
+    display: grid;
+    place-items: center;
+    height: 38px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.lp-logo-chip img {
+    display: block;
+    height: 28px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+}
