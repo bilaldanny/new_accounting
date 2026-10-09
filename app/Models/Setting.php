@@ -32,13 +32,15 @@ class Setting extends Model
         'system_logo',
         'email_logo',
         'login_logo',
+        'header_logo',
+        'footer_logo',
     ];
 
     /**
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'system_logo' => 'assets/images/logo-img.png',
+        'system_logo' => self::PLACEHOLDER_LOGO,
     ];
 
     /**
@@ -53,13 +55,23 @@ class Setting extends Model
     }
 
     /**
+     * The text-only placeholder a fresh install carries until a logo is uploaded.
+     */
+    public const PLACEHOLDER_LOGO = 'assets/images/logo-placeholder.svg';
+
+    /**
+     * Defaults earlier versions shipped (another product's logo); a row still holding one counts as no logo.
+     */
+    public const LEGACY_PLACEHOLDER_LOGOS = ['assets/images/logo-img.png'];
+
+    /**
      * @var list<string>
      */
     protected $hidden = [
         'smtp_password',
     ];
 
-    protected $appends = ['system_logo_url', 'email_logo_url', 'login_logo_url'];
+    protected $appends = ['system_logo_url', 'email_logo_url', 'login_logo_url', 'header_logo_url', 'footer_logo_url'];
 
     public function getSystemLogoUrlAttribute(): ?string
     {
@@ -74,6 +86,16 @@ class Setting extends Model
     public function getLoginLogoUrlAttribute(): ?string
     {
         return self::logoUrl($this->login_logo);
+    }
+
+    public function getHeaderLogoUrlAttribute(): ?string
+    {
+        return self::logoUrl($this->header_logo);
+    }
+
+    public function getFooterLogoUrlAttribute(): ?string
+    {
+        return self::logoUrl($this->footer_logo);
     }
 
     public static function instance(): self
@@ -104,6 +126,10 @@ class Setting extends Model
             'email_logo_url' => self::logoUrl($setting->email_logo),
             'login_logo' => $setting->login_logo,
             'login_logo_url' => self::logoUrl($setting->login_logo),
+            'header_logo' => $setting->header_logo,
+            'header_logo_url' => self::logoUrl($setting->header_logo),
+            'footer_logo' => $setting->footer_logo,
+            'footer_logo_url' => self::logoUrl($setting->footer_logo),
             'smtp_host' => $setting->smtp_host,
             'smtp_port' => $setting->smtp_port,
             'smtp_username' => $setting->smtp_username,
@@ -114,6 +140,16 @@ class Setting extends Model
             'has_smtp_password' => filled($setting->smtp_password),
             'smtp_password' => '',
         ];
+    }
+
+    /**
+     * Whether a stored logo path is the placeholder (or an old default), i.e. nobody has uploaded a logo yet.
+     */
+    public static function isPlaceholderLogo(?string $path): bool
+    {
+        $path = ltrim(trim((string) $path), '/');
+
+        return $path === '' || $path === self::PLACEHOLDER_LOGO || in_array($path, self::LEGACY_PLACEHOLDER_LOGOS, true);
     }
 
     public static function logoUrl(?string $path): ?string
@@ -143,6 +179,8 @@ class Setting extends Model
             'system_logo',
             'email_logo',
             'login_logo',
+            'header_logo',
+            'footer_logo',
             'smtp_host',
             'smtp_port',
             'smtp_username',

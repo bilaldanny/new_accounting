@@ -44,10 +44,12 @@ test('a missing logo file falls back to the name and a broken image is never off
     $this->get('/')->assertInertia(fn (Assert $page) => $page->where('branding.name', 'Acme Books')->where('branding.logoUrl', null));
 });
 
-test('the placeholder logo of a fresh install counts as no logo', function () {
-    pbSetting(['name' => 'Acme Books', 'system_logo' => 'assets/images/logo-img.png']);
+test('the placeholder of a fresh install and the old default count as no logo', function () {
+    foreach ([Setting::PLACEHOLDER_LOGO, 'assets/images/logo-img.png', '/assets/images/logo-img.png'] as $path) {
+        pbSetting(['name' => 'Acme Books', 'system_logo' => $path]);
 
-    $this->get('/')->assertInertia(fn (Assert $page) => $page->where('branding.logoUrl', null));
+        $this->get('/')->assertInertia(fn (Assert $page) => $page->where('branding.logoUrl', null));
+    }
 });
 
 test('a full URL logo is used as it is, and an empty setting falls back to the app name', function () {
@@ -75,7 +77,7 @@ test('a guest on a public page receives no settings row and no other setting', f
         $props = json_encode($response->viewData('page')['props']);
 
         expect($props)->not->toContain('smtp_')->not->toContain('mailer-user')->not->toContain('Private Street')->not->toContain('smtp.secret.test');
-        $response->assertInertia(fn (Assert $page) => $page->where('setting', null));
+        $response->assertInertia(fn (Assert $page) => $page->where('setting.login_logo_url', null)->missing('setting.smtp_host')->missing('setting.email'));
     }
 });
 

@@ -10,6 +10,8 @@
         logoUrl: { type: String, default: '' },
         emailLogoUrl: { type: String, default: '' },
         loginLogoUrl: { type: String, default: '' },
+        headerLogoUrl: { type: String, default: '' },
+        footerLogoUrl: { type: String, default: '' },
     });
 
     const page = usePage();
@@ -18,6 +20,8 @@
     const logoInputId = 'SoftwareSettingLogo';
     const emailLogoInputId = 'SoftwareSettingEmailLogo';
     const loginLogoInputId = 'SoftwareSettingLoginLogo';
+    const headerLogoInputId = 'SoftwareSettingHeaderLogo';
+    const footerLogoInputId = 'SoftwareSettingFooterLogo';
 
     function chooseLogo(event: MouseEvent) {
         openLfmImagePicker(event, appUrl);
@@ -53,7 +57,15 @@
     watch(() => props.loginLogoUrl, (url) => {
         renderLogoPreview('software-setting-login-logo-holder', url, 'Login page logo preview');
     });
+    watch(() => props.headerLogoUrl, (url) => {
+        renderLogoPreview('software-setting-header-logo-holder', url, 'Website header logo preview');
+    });
+    watch(() => props.footerLogoUrl, (url) => {
+        renderLogoPreview('software-setting-footer-logo-holder', url, 'Website footer logo preview');
+    });
     onMounted(() => {
+        renderLogoPreview('software-setting-header-logo-holder', props.headerLogoUrl, 'Website header logo preview');
+        renderLogoPreview('software-setting-footer-logo-holder', props.footerLogoUrl, 'Website footer logo preview');
         renderLogoPreview('software-setting-logo-holder', props.logoUrl, 'Software logo preview');
         renderLogoPreview('software-setting-email-logo-holder', props.emailLogoUrl, 'Email logo preview');
         renderLogoPreview('software-setting-login-logo-holder', props.loginLogoUrl, 'Login page logo preview');
@@ -198,6 +210,69 @@
         </template>
         <template #after>
             <div id="software-setting-login-logo-holder" class="company-logo-preview"></div>
+        </template>
+    </TextElement>
+    <TextElement
+        :id="headerLogoInputId"
+        field-name="WebsiteHeaderLogo"
+        name="header_logo"
+        label="Website Header Logo"
+        placeholder="Select website header logo"
+        :columns="colThird"
+        :add-classes="{
+            ElementAddon: {
+                container: 'p-0',
+            },
+        }"
+        info="Shown on the public website. Leave empty to use the logo above."
+    >
+        <template #addon-before>
+            <button
+                :data-input="headerLogoInputId"
+                data-field-name="header_logo"
+                data-preview="software-setting-header-logo-holder"
+                type="button"
+                class="product-form-choose"
+                @click="chooseLogo"
+            >
+                <ImagePlus size="xs" />
+                <span>Choose</span>
+            </button>
+        </template>
+        <template #after>
+            <div id="software-setting-header-logo-holder" class="company-logo-preview"></div>
+        </template>
+    </TextElement>
+
+    <TextElement
+        :id="footerLogoInputId"
+        field-name="WebsiteFooterLogo"
+        name="footer_logo"
+        label="Website Footer Logo"
+        placeholder="Select website footer logo"
+        :columns="colThird"
+        :add-classes="{
+            ElementAddon: {
+                container: 'p-0',
+            },
+        }"
+        info="Shown on the public website. Leave empty to use the logo above."
+    >
+        <template #addon-before>
+            <button
+                :data-input="footerLogoInputId"
+                data-field-name="footer_logo"
+                data-preview="software-setting-footer-logo-holder"
+                type="button"
+                class="product-form-choose"
+                @click="chooseLogo"
+            >
+                <ImagePlus size="xs" />
+                <span>Choose</span>
+            </button>
+        </template>
+        <template #after>
+            <div id="software-setting-footer-logo-holder" class="company-logo-preview"></div>
         </template>
     </TextElement>
 </template>

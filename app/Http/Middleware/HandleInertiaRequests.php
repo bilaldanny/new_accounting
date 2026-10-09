@@ -40,16 +40,15 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        // The public pages get no settings row, no IP lookup: only what PublicBranding hands them.
-        if ($user === null && in_array(Route::currentRouteName(), ['home', 'register', 'register.store', 'blog.index', 'blog.show'], true)) {
+        // A signed-out visitor gets the name and the login logo only: no settings row (SMTP host, username, address, email), no IP lookup.
+        if ($user === null) {
             return [
                 ...parent::share($request),
                 'csrfToken' => csrf_token(),
                 'routeName' => Route::currentRouteName(),
-                'name' => PublicBranding::get()['name'],
+                ...PublicBranding::forGuest(),
                 'url' => config('app.url'),
                 'auth' => ['user' => null],
-                'setting' => null,
                 'sidebarOpen' => true,
             ];
         }

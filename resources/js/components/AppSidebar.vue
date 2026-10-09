@@ -72,7 +72,8 @@
         } | null | undefined;
         const url = String(setting?.system_logo_url ?? setting?.system_logo ?? '').trim();
 
-        return url !== '' ? url : '/assets/images/logo-icon.png';
+        // Nothing uploaded (or only the shipped placeholder): no image, the name is shown instead.
+        return url !== '' && !/logo-placeholder\.svg|logo-img\.png/.test(url) ? url : '';
     });
 
     const currentRouteName = computed(() => String(page.props.routeName ?? ''));
@@ -196,7 +197,8 @@
             <div>
                 <div class="sidebar-header">
                     <div>
-                        <img :src="softwareLogo" class="logo-icon" :alt="appName">
+                        <img v-if="softwareLogo" :src="softwareLogo" class="logo-icon" :alt="appName">
+                        <span v-else class="logo-icon" aria-hidden="true" style="display:inline-grid;place-items:center;height:40px;border-radius:10px;background:#199683;color:#fff;font-weight:800;font-size:20px">{{ appName.charAt(0).toUpperCase() }}</span>
                     </div>
                     <div class="logo-copy">
                         <h4 class="logo-text">{{ appName }}</h4>

@@ -30,7 +30,7 @@ final class SoftwareBranding
 
         return [
             'companyName' => $softwareName !== '' ? $softwareName : (string) config('app.name'),
-            'companyLogo' => Setting::logoUrl($setting?->email_logo ?: $setting?->system_logo),
+            'companyLogo' => Setting::isPlaceholderLogo($setting?->email_logo ?: $setting?->system_logo) ? null : Setting::logoUrl($setting?->email_logo ?: $setting?->system_logo),
             'supportEmail' => $supportEmail !== '' ? $supportEmail : (string) config('mail.from.address'),
             'companyEmail' => $setting?->email ? (string) $setting->email : null,
             'privacyUrl' => self::nullableUrl(config('mail.privacy_url')),

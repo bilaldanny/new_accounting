@@ -250,7 +250,7 @@ test('login page shares the configured login logo url', function () {
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('auth/Login')
-            ->where('setting.login_logo', 'photos/login-logo.png')
+            ->missing('setting.login_logo')
             ->where('setting.login_logo_url', Setting::logoUrl('photos/login-logo.png'))
         );
 });

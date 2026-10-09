@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Branding } from '@/components/landing/BrandMark.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import BrandMark from '@/components/landing/BrandMark.vue';
@@ -23,7 +24,7 @@ interface Plan {
 
 const props = defineProps<{
     plans: Plan[];
-    branding: { name: string; logoUrl: string | null };
+    branding: Branding;
     currencyLabel: string;
     contact: { email?: string; phone?: string; address?: string };
     registrationEnabled: boolean;
@@ -451,7 +452,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
         <footer id="contact" class="lp-footer">
             <div class="lp-wrap lp-footer-grid">
                 <div>
-                    <BrandMark :branding="branding" />
+                    <BrandMark :branding="branding" placement="footer" />
                     <p style="margin-top: 8px">Sales, stock, accounts and tax for your business.</p>
                 </div>
                 <div>

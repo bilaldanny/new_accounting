@@ -144,3 +144,13 @@ test('a signed-in user who opens the home page is taken to the dashboard', funct
         $this->signIn($browser, $this->adminUser())->visit('/')->waitForLocation('/dashboard', 40);
     });
 });
+
+test('Software Settings offers a website header and footer logo next to the other logos', function () {
+    $this->world();
+
+    $this->browse(function (Browser $browser) {
+        $this->signIn($browser, $this->superadmin())->visit('/software/setting')->waitForText('Software Logo', 40);
+        $browser->assertSee('Website Header Logo')->assertSee('Website Footer Logo')->assertSee('Login Page Logo')->assertSee('Email Logo');
+        $this->assertNoBrowserErrors($browser);
+    });
+});

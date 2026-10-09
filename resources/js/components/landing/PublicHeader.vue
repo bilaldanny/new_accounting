@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import BrandMark from '@/components/landing/BrandMark.vue';
+import type { Branding } from '@/components/landing/BrandMark.vue';
 
 defineProps<{
-    branding: { name: string; logoUrl: string | null };
+    branding: Branding;
     registrationEnabled: boolean;
 }>();
 

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { Branding } from '@/components/landing/BrandMark.vue';
 import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import BrandMark from '@/components/landing/BrandMark.vue';
 import PublicHeader from '@/components/landing/PublicHeader.vue';
 
 const props = defineProps<{
-    branding: { name: string; logoUrl: string | null };
+    branding: Branding;
     registrationEnabled: boolean;
     post: {
         title: string;
@@ -54,7 +56,10 @@ const dateText = computed(() =>
         </main>
 
         <footer class="lp-footer">
-            <div class="lp-wrap lp-legal" style="border-top: 0; margin-top: 0; padding-top: 0">&copy; {{ new Date().getFullYear() }} {{ brand }}</div>
+            <div class="lp-wrap">
+                <BrandMark :branding="branding" placement="footer" />
+            </div>
+            <div class="lp-wrap lp-legal">&copy; {{ new Date().getFullYear() }} {{ brand }}</div>
         </footer>
     </div>
 </template>

@@ -7,13 +7,18 @@ and a dark navy / teal theme in `resources/css/landing.css`.
 
 - Page: `/software/setting` (Software Settings, superadmin). The **System logo** and the **name** there are what the landing page, the register
   page and the blog show. The settings row is read on every visit, so a change shows at once.
+- Two more logos there are for the public website: **Website Header Logo** (nav bar) and **Website Footer Logo** (footer). Each falls back when
+  empty: footer to header, header to the software logo. A logo uploaded for the website is drawn as it is (make it for the dark navy
+  background, for example a white wordmark); the software logo, made for light screens, is drawn on a light chip.
 - The logo is picked with the file manager like the other logos there; it is stored as a path under `/storage/...` and served from the public
   disk (`public/storage` must be linked: `php artisan storage:link`).
-- If no logo is set, the file is missing, or the field still holds the placeholder of a fresh install (`assets/images/logo-img.png`), the pages
-  show the name only, never a broken image.
-- A light chip sits behind the logo so a dark logo stays readable on the navy background. The uploaded file is never changed.
-- A signed-out visitor receives only the name and the logo URL from the settings, nothing else.
-- Company logos (Company page) are not used on public pages. There is no favicon setting; the favicon is a static file.
+- If no logo is set, the file is missing, or the field still holds the placeholder of a fresh install (`assets/images/logo-placeholder.svg`, a
+  text-only "Your logo" file), the pages show the name only, never a broken image. A website header or footer logo is shown on its own (the name
+  is not repeated beside it); the software logo is shown with the name.
+- A light chip sits behind the software logo so a dark logo stays readable on the navy background. The uploaded file is never changed.
+- A signed-out visitor receives only the name and the logo URLs from the settings (and the login logo on the sign-in screens), nothing else.
+- Company logos (Company page) are not used on public pages. There is no favicon setting; the favicon is a set of static files in `public/`
+  (`favicon.ico`, `favicon.svg`, `apple-touch-icon.png`, `assets/images/favicon-32x32.png`).
 
 ## Pricing plans
 

@@ -974,3 +974,17 @@ body {
     padding: 8px 10px;
     text-align: left;
 }
+
+.lp-logo-bare {
+    display: grid;
+    place-items: center;
+    height: 38px;
+}
+
+.lp-logo-bare img {
+    display: block;
+    height: 32px;
+    width: auto;
+    max-width: 180px;
+    object-fit: contain;
+}

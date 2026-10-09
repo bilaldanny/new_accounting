@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { Branding } from '@/components/landing/BrandMark.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
 import BrandMark from '@/components/landing/BrandMark.vue';
 
 const props = defineProps<{
-    branding: { name: string; logoUrl: string | null };
+    branding: Branding;
     contact: { email?: string; phone?: string; address?: string };
     plan: string | null;
     plans: Array<{ code: string; name: string; trial_days: number }>;

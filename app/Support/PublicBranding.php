@@ -11,21 +11,40 @@ use App\Models\Setting;
 final class PublicBranding
 {
     /**
-     * The path a fresh install carries until someone uploads a logo; it is a different brand's placeholder, so it counts as unset.
-     */
-    private const PLACEHOLDER_LOGO = 'assets/images/logo-img.png';
-
-    /**
-     * @return array{name: string, logoUrl: string|null}
+     * The header logo, then the footer logo, each falling back (footer to header, header to the software logo). A logo uploaded
+     * for the website itself is drawn as it is; the software logo is drawn on a light chip, being made for light screens.
+     *
+     * @return array{name: string, logoUrl: string|null, headerLogoUrl: string|null, footerLogoUrl: string|null, headerChip: bool, footerChip: bool}
      */
     public static function get(): array
     {
         $setting = Setting::query()->first();
-        $name = trim((string) ($setting?->name ?? ''));
+        $system = self::logoUrl($setting?->system_logo);
+        $header = self::logoUrl($setting?->header_logo);
+        $footer = self::logoUrl($setting?->footer_logo);
 
         return [
-            'name' => $name !== '' ? $name : (string) (config('landing.brand') ?: config('app.name')),
-            'logoUrl' => self::logoUrl($setting?->system_logo),
+            'name' => self::name($setting),
+            'logoUrl' => $system,
+            'headerLogoUrl' => $header ?? $system,
+            'footerLogoUrl' => $footer ?? $header ?? $system,
+            'headerChip' => $header === null,
+            'footerChip' => $footer === null && $header === null,
+        ];
+    }
+
+    /**
+     * What every signed-out page may receive as shared data: the name, and the login logo the sign-in screens show.
+     *
+     * @return array{name: string, setting: array{login_logo_url: string|null}}
+     */
+    public static function forGuest(): array
+    {
+        $setting = Setting::query()->first();
+
+        return [
+            'name' => self::name($setting),
+            'setting' => ['login_logo_url' => Setting::logoUrl($setting?->login_logo)],
         ];
     }
 
@@ -36,7 +55,7 @@ final class PublicBranding
     {
         $path = trim((string) $path);
 
-        if ($path === '' || ltrim($path, '/') === self::PLACEHOLDER_LOGO) {
+        if (Setting::isPlaceholderLogo($path)) {
             return null;
         }
 
@@ -45,5 +64,12 @@ final class PublicBranding
         }
 
         return is_file(public_path(ltrim($path, '/'))) ? Setting::logoUrl($path) : null;
+    }
+
+    private static function name(?Setting $setting): string
+    {
+        $name = trim((string) ($setting?->name ?? ''));
+
+        return $name !== '' ? $name : (string) (config('landing.brand') ?: config('app.name'));
     }
 }

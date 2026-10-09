@@ -43,6 +43,8 @@
     const logoUrl = computed(() => String(formData.value?.system_logo_url ?? ''));
     const emailLogoUrl = computed(() => String(formData.value?.email_logo_url ?? ''));
     const loginLogoUrl = computed(() => String(formData.value?.login_logo_url ?? ''));
+    const headerLogoUrl = computed(() => String(formData.value?.header_logo_url ?? ''));
+    const footerLogoUrl = computed(() => String(formData.value?.footer_logo_url ?? ''));
     const hasSmtpPassword = computed(() => Boolean(formData.value?.has_smtp_password));
 
     const activeTabMeta = computed(() =>
@@ -153,6 +155,8 @@
                                 :logo-url="logoUrl"
                                 :email-logo-url="emailLogoUrl"
                                 :login-logo-url="loginLogoUrl"
+                                :header-logo-url="headerLogoUrl"
+                                :footer-logo-url="footerLogoUrl"
                                 :testing-smtp="testingSmtp"
                                 :sending-test="sendingTest"
                                 :has-smtp-password="hasSmtpPassword"

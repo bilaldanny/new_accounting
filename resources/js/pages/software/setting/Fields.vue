@@ -7,6 +7,8 @@
         logoUrl: { type: String, default: '' },
         emailLogoUrl: { type: String, default: '' },
         loginLogoUrl: { type: String, default: '' },
+        headerLogoUrl: { type: String, default: '' },
+        footerLogoUrl: { type: String, default: '' },
         testingSmtp: { type: Boolean, default: false },
         sendingTest: { type: Boolean, default: false },
         hasSmtpPassword: { type: Boolean, default: false },
@@ -27,6 +29,8 @@
         :logo-url="logoUrl"
         :email-logo-url="emailLogoUrl"
         :login-logo-url="loginLogoUrl"
+        :header-logo-url="headerLogoUrl"
+        :footer-logo-url="footerLogoUrl"
     />
 
     <SmtpSettingTab
