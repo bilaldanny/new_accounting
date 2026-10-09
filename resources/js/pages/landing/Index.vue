@@ -31,7 +31,46 @@ const description =
 
 const menuOpen = ref(false);
 
-/* Only things the product does today. */
+/* Every line below is something the product does today (checked against the feature audit). */
+const pillars = [
+    {
+        title: 'Double-entry accounting',
+        items: [
+            'Chart of accounts, journal entries and vouchers that must balance',
+            'Approval before a voucher counts, with cost centers and attachments',
+            'Trial balance, profit & loss and balance sheet for a period',
+            'Bank reconciliation with statement matching',
+        ],
+    },
+    {
+        title: 'Purchasing and stock',
+        items: [
+            'Purchase orders with an approval step and purchase returns',
+            'Goods received notes (GRN) and landed cost',
+            'Multi-warehouse stock view, transfers and adjustments',
+            'Serial and batch tracking with expiry',
+        ],
+    },
+    {
+        title: 'Branches, roles and access',
+        items: [
+            'Company data kept separate, branch-level users scoped to their branch',
+            'Permissions per menu and per button, starter roles included',
+            'Audit log with old and new values',
+            'Two-factor sign-in with an authenticator app',
+        ],
+    },
+    {
+        title: 'Visibility and control',
+        items: [
+            'Dashboard figures for sales, purchases, profit, cash and bank',
+            'Receivable and payable aging, consolidated branch report',
+            'Pending approvals with counts across document types',
+            'Budgets and budget vs actual',
+        ],
+    },
+];
+
 const featureGroups = [
     {
         title: 'Sales & POS',
@@ -39,24 +78,14 @@ const featureGroups = [
         items: ['Point of sale with cash shifts and a cash drawer log', 'Sales invoices, returns and payments', 'Customer cash collection'],
     },
     {
-        title: 'Purchases',
-        icon: 'M4 6h16v12H4zM4 10h16M9 14h2',
-        items: ['Purchases, purchase returns and payments', 'Goods received notes (GRN)', 'Landed cost on purchases'],
-    },
-    {
-        title: 'Inventory',
-        icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8',
-        items: ['Multi-warehouse stock view and locations', 'Serial and batch tracking with expiry', 'Stock transfers and adjustments'],
-    },
-    {
-        title: 'Accounting',
-        icon: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h4',
-        items: ['Chart of accounts and journal entries', 'Bank reconciliation', 'Fixed assets with depreciation', 'Cost centers and budgets'],
-    },
-    {
         title: 'Tax',
         icon: 'M6 18L18 6M8 8h.01M16 16h.01',
         items: ['Tax rates and compound (grouped) tax', 'Customer tax exemptions', 'Withholding tax on sales and purchases'],
+    },
+    {
+        title: 'Fixed assets',
+        icon: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h4',
+        items: ['Asset register with straight-line and declining balance depreciation', 'Revaluation, impairment and disposal with approval'],
     },
     {
         title: 'CRM',
@@ -69,16 +98,6 @@ const featureGroups = [
         items: ['Profit & loss and balance sheet', 'Ledgers and trial balance', 'Customer and supplier aging', 'Stock reports'],
     },
     {
-        title: 'Approvals',
-        icon: 'M5 12l4 4 10-10',
-        items: ['Approve vouchers, purchases, sales and stock documents before they count'],
-    },
-    {
-        title: 'Roles & permissions',
-        icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
-        items: ['Starter roles: Accountant, Cashier, Sales Representative, Manager, Warehouse Keeper', 'Menu-level permissions per role'],
-    },
-    {
         title: 'Public API & webhooks',
         icon: 'M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14',
         items: ['Read-only public API with keys', 'Webhooks for events in your account'],
@@ -87,6 +106,11 @@ const featureGroups = [
         title: 'Customer subscriptions',
         icon: 'M4 12a8 8 0 0 1 14-5l2-2v6h-6l2-2a5 5 0 1 0 1 4',
         items: ['Recurring plans and invoices for your own customers', 'Customer portal to view their ledger'],
+    },
+    {
+        title: 'Approvals',
+        icon: 'M5 12l4 4 10-10',
+        items: ['Approve vouchers, purchases, sales and stock documents before they count'],
     },
 ];
 
@@ -122,6 +146,11 @@ const faqs = [
         a: 'Each plan sets the number of users, branches, warehouses, products, invoices per month and the storage. They are listed on each plan card above.',
     },
 ];
+
+/* A tiny client-side demo of the rule every voucher follows: debit equals credit. Nothing is sent anywhere. */
+const demoDebit = ref(25000);
+const demoCredit = ref(25000);
+const demoDiff = computed(() => Math.round((Number(demoDebit.value) - Number(demoCredit.value)) * 100) / 100);
 
 const cycleLabels: Record<string, string> = { monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annual' };
 const cycleSuffix: Record<string, string> = { monthly: 'per month', quarterly: 'per quarter', annual: 'per year' };
@@ -204,7 +233,11 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
             <section class="lp-hero" aria-labelledby="hero-title">
                 <div class="lp-wrap lp-hero-grid">
                     <div>
-                        <h1 id="hero-title">Run sales, stock, accounts and tax from one place.</h1>
+                        <p class="lp-eyebrow">Sales, stock, accounts and tax</p>
+                        <h1 id="hero-title">
+                            Run your whole business
+                            <span class="lp-grad">from one ledger.</span>
+                        </h1>
                         <p class="lp-lead">
                             {{ brand }} brings your point of sale, purchases, inventory, accounting and reports together, with approvals and
                             role-based access for your team.
@@ -215,25 +248,62 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                             <a class="lp-btn lp-btn-ghost" href="/login">Login</a>
                         </div>
                         <p class="lp-note">Payment is arranged manually by bank transfer; no online payment gateway.</p>
+                        <ul class="lp-chips">
+                            <li>Approvals on vouchers</li>
+                            <li>Roles and permissions</li>
+                            <li>Two-factor sign-in</li>
+                            <li>Audit log</li>
+                        </ul>
                     </div>
-                    <div class="lp-preview" aria-hidden="true">
-                        <div class="lp-preview-bar"><i /><i /><i /></div>
-                        <div class="lp-preview-kpis"><b /><b /><b /></div>
-                        <div class="lp-preview-chart">
-                            <span style="height: 40%" /><span style="height: 65%" /><span style="height: 50%" /><span style="height: 82%" /><span
-                                style="height: 60%"
-                            /><span style="height: 90%" /><span style="height: 72%" />
+
+                    <div class="lp-voucher" role="img" aria-label="Sample journal voucher with balanced debit and credit lines">
+                        <div class="lp-voucher-bar"><i /><i /><i /><span>Sample data</span></div>
+                        <div class="lp-voucher-body">
+                            <div class="lp-voucher-head">
+                                <span>Journal voucher JV-0001</span>
+                                <small>Balanced</small>
+                            </div>
+                            <table class="lp-table" aria-hidden="true">
+                                <thead>
+                                    <tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Cash at bank</td><td class="num">25,000.00</td><td class="num">-</td></tr>
+                                    <tr><td>Sales</td><td class="num">-</td><td class="num">21,186.44</td></tr>
+                                    <tr><td>Output tax</td><td class="num">-</td><td class="num">3,813.56</td></tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr><td>Total</td><td class="num">25,000.00</td><td class="num">25,000.00</td></tr>
+                                </tfoot>
+                            </table>
                         </div>
-                        <div class="lp-preview-rows"><i /><i style="width: 80%" /><i style="width: 62%" /></div>
                     </div>
                 </div>
             </section>
 
-            <section id="features" class="lp-section lp-section-alt" aria-labelledby="features-title">
+            <section class="lp-section lp-section-alt" aria-labelledby="pillars-title">
                 <div class="lp-wrap">
                     <div class="lp-head">
-                        <h2 id="features-title">What you get</h2>
-                        <p>Everything below works in the product today.</p>
+                        <p class="lp-eyebrow">What it covers</p>
+                        <h2 id="pillars-title">Four areas of financial control</h2>
+                        <p>Each point below works in the product today.</p>
+                    </div>
+                    <div class="lp-pillars">
+                        <article v-for="(pillar, index) in pillars" :key="pillar.title" class="lp-card">
+                            <h3><span class="lp-num">0{{ index + 1 }}</span>{{ pillar.title }}</h3>
+                            <ul class="lp-checks">
+                                <li v-for="item in pillar.items" :key="item">{{ item }}</li>
+                            </ul>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section id="features" class="lp-section" aria-labelledby="features-title">
+                <div class="lp-wrap">
+                    <div class="lp-head">
+                        <p class="lp-eyebrow">And more</p>
+                        <h2 id="features-title">Everything else in the box</h2>
                     </div>
                     <div class="lp-groups">
                         <article v-for="group in featureGroups" :key="group.title" class="lp-card">
@@ -249,9 +319,36 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
+            <section class="lp-section lp-section-alt" aria-labelledby="demo-title">
+                <div class="lp-wrap lp-demo">
+                    <div>
+                        <p class="lp-eyebrow">Demo</p>
+                        <h2 id="demo-title">A voucher only counts when it balances</h2>
+                        <p class="lp-note" style="margin-top: 0">
+                            Change an amount to see the rule every journal voucher follows. This is a local demo: nothing is saved or sent.
+                        </p>
+                    </div>
+                    <div class="lp-card">
+                        <div class="lp-field">
+                            <label for="demo-debit">Debit total</label>
+                            <input id="demo-debit" v-model.number="demoDebit" type="number" min="0" step="0.01" />
+                        </div>
+                        <div class="lp-field">
+                            <label for="demo-credit">Credit total</label>
+                            <input id="demo-credit" v-model.number="demoCredit" type="number" min="0" step="0.01" />
+                        </div>
+                        <div class="lp-demo-status" role="status" aria-live="polite">
+                            <span v-if="demoDiff === 0" class="lp-ok">Balanced: it can be posted</span>
+                            <span v-else class="lp-bad">Out of balance by {{ number.format(Math.abs(demoDiff)) }}: it cannot be posted</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="lp-section" aria-labelledby="roadmap-title">
                 <div class="lp-wrap">
                     <div class="lp-head">
+                        <p class="lp-eyebrow">Roadmap</p>
                         <h2 id="roadmap-title">Coming soon</h2>
                         <p>Not available yet. Listed so you know what we are working towards.</p>
                     </div>
@@ -264,8 +361,8 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
             <section id="pricing" class="lp-section lp-section-alt" aria-labelledby="pricing-title">
                 <div class="lp-wrap">
                     <div class="lp-head">
-                        <h2 id="pricing-title">Pricing</h2>
-                        <p>Pick the plan whose limits fit your business.</p>
+                        <p class="lp-eyebrow">Pricing</p>
+                        <h2 id="pricing-title">Pick the plan whose limits fit your business</h2>
                     </div>
 
                     <template v-if="plans.length > 0">
@@ -310,12 +407,27 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
 
             <section id="faq" class="lp-section" aria-labelledby="faq-title">
                 <div class="lp-wrap">
-                    <div class="lp-head"><h2 id="faq-title">Frequently asked questions</h2></div>
+                    <div class="lp-head">
+                        <p class="lp-eyebrow">FAQ</p>
+                        <h2 id="faq-title">Frequently asked questions</h2>
+                    </div>
                     <div class="lp-faq">
                         <details v-for="item in faqs" :key="item.q">
                             <summary>{{ item.q }}</summary>
                             <p>{{ item.a }}</p>
                         </details>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lp-section lp-final" aria-labelledby="final-title">
+                <div class="lp-wrap">
+                    <h2 id="final-title">Ready to try it with your own numbers?</h2>
+                    <p class="lp-lead" style="margin-inline: auto">Create an account, or log in if you already have one.</p>
+                    <div class="lp-cta">
+                        <Link v-if="registrationEnabled" class="lp-btn" href="/register">Register</Link>
+                        <a v-else class="lp-btn" :href="contactHref">Contact us</a>
+                        <a class="lp-btn lp-btn-ghost" href="/login">Login</a>
                     </div>
                 </div>
             </section>
@@ -333,6 +445,11 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                         <li><a href="#features">Features</a></li>
                         <li><a href="#pricing">Pricing</a></li>
                         <li><a href="#faq">FAQ</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Account</h3>
+                    <ul>
                         <li><a href="/login">Login</a></li>
                         <li v-if="registrationEnabled"><Link href="/register">Register</Link></li>
                     </ul>
