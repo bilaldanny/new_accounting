@@ -1,19 +1,9 @@
 <?php
 
 use App\Models\Brand;
-use App\Models\Branch;
-use App\Models\Category;
-use App\Models\ChartOfAccount;
 use App\Models\Contact;
-use App\Models\CustomerGroup;
-use App\Models\Department;
-use App\Models\ItemType;
-use App\Models\Product;
 use App\Models\Role;
-use App\Models\Unit;
 use App\Models\User;
-use App\Models\Variation;
-use App\Models\Warranty;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
