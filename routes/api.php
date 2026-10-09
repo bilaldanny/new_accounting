@@ -14,6 +14,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BankIssuerController;
 use App\Http\Controllers\BankReconciliationController;
+use App\Http\Controllers\BlogPostController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\BudgetController;
@@ -843,6 +844,14 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('subscriptionplans/bulk_delete_per', [SubscriptionPlanController::class, 'bulk_delete_per']);
     Route::post('subscriptionplans/restore_records', [SubscriptionPlanController::class, 'restore_records']);
     /* Subscription Plans (SaaS Tenant Billing) */
+
+    /* Blog posts (public site content, superadmin only) */
+    Route::get('blog-posts/trash', [BlogPostController::class, 'trash']);
+    Route::apiResource('blog-posts', BlogPostController::class)->parameters(['blog-posts' => 'blog_post']);
+    Route::post('blog-posts/bulk_delete', [BlogPostController::class, 'bulk_delete']);
+    Route::post('blog-posts/bulk_delete_per', [BlogPostController::class, 'bulk_delete_per']);
+    Route::post('blog-posts/restore_records', [BlogPostController::class, 'restore_records']);
+    /* Blog posts */
 
     /* Coupons (SaaS Tenant Billing) */
     Route::get('coupons/trash', [CouponController::class, 'trash']);

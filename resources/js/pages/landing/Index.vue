@@ -2,6 +2,8 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import BrandMark from '@/components/landing/BrandMark.vue';
+import PostCard from '@/components/landing/PostCard.vue';
+import type { PostCardData } from '@/components/landing/PostCard.vue';
 
 interface Plan {
     code: string;
@@ -25,6 +27,7 @@ const props = defineProps<{
     currencyLabel: string;
     contact: { email?: string; phone?: string; address?: string };
     registrationEnabled: boolean;
+    posts: PostCardData[];
 }>();
 
 const description =
@@ -219,6 +222,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 <nav id="lp-links" class="lp-links" :class="{ 'is-open': menuOpen }" aria-label="Main">
                     <a href="#features" @click="menuOpen = false">Features</a>
                     <a href="#pricing" @click="menuOpen = false">Pricing</a>
+                    <a v-if="posts.length > 0" href="#blog" @click="menuOpen = false">Blog</a>
                     <a href="#faq" @click="menuOpen = false">FAQ</a>
                     <a href="/login">Login</a>
                     <Link v-if="registrationEnabled" class="lp-btn" href="/register">Register</Link>
@@ -403,7 +407,20 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
-            <section id="faq" class="lp-section" aria-labelledby="faq-title">
+            <section v-if="posts.length > 0" id="blog" class="lp-section" aria-labelledby="blog-title">
+                <div class="lp-wrap">
+                    <div class="lp-head">
+                        <p class="lp-eyebrow">Blog</p>
+                        <h2 id="blog-title">Latest from the blog</h2>
+                    </div>
+                    <div class="lp-posts">
+                        <PostCard v-for="post in posts" :key="post.slug" :post="post" />
+                    </div>
+                    <p style="margin-top: 22px"><a href="/blog">All posts &rarr;</a></p>
+                </div>
+            </section>
+
+            <section id="faq" class="lp-section" :class="{ 'lp-section-alt': posts.length > 0 }" aria-labelledby="faq-title">
                 <div class="lp-wrap">
                     <div class="lp-head">
                         <p class="lp-eyebrow">FAQ</p>
@@ -442,6 +459,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                     <ul>
                         <li><a href="#features">Features</a></li>
                         <li><a href="#pricing">Pricing</a></li>
+                        <li v-if="posts.length > 0"><a href="/blog">Blog</a></li>
                         <li><a href="#faq">FAQ</a></li>
                     </ul>
                 </div>

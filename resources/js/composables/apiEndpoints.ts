@@ -218,6 +218,7 @@ export const API_ENDPOINTS = {
     subscriptionPlans: '/api/subscriptionplans',
     fetchSubscriptionPlans: '/api/fetchsubscriptionplans',
     coupons: '/api/coupons',
+    blogPosts: '/api/blog-posts',
     fetchCoupons: '/api/fetchcoupons',
     tenants: '/api/tenants',
     tenantStatus: (id: number | string) => `/api/tenants/${id}/status`,

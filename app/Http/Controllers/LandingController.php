@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BlogPost;
 use App\Models\SubscriptionPlan;
 use App\Support\PublicBranding;
 use Inertia\Inertia;
@@ -38,6 +39,7 @@ class LandingController extends Controller
             'currencyLabel' => config('landing.currency_label'),
             'contact' => array_filter(config('landing.contact')),
             'registrationEnabled' => (bool) config('landing.registration_enabled'),
+            'posts' => BlogPost::query()->published()->orderByDesc('published_at')->limit(3)->get()->map(fn (BlogPost $post): array => BlogController::card($post))->all(),
         ]);
     }
 }

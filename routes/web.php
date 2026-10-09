@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentSettingController;
 use App\Http\Controllers\HomeController;
@@ -78,6 +79,11 @@ Route::middleware('guest')->group(function () {
     Route::post('register', [PublicRegistrationController::class, 'store'])->middleware('throttle:self-signup')->name('register.store');
 });
 /* Public landing page and self-service sign-up */
+
+/* Public blog (published posts only, for everyone) */
+Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+/* Public blog */
 
 /* Public Lead Capture Form (no auth — embeddable on an external site) */
 Route::get('capture/{code}', [PublicLeadCaptureController::class, 'show'])->name('leadcapture.show');
@@ -877,6 +883,29 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     /* Subscription Plans (SaaS Tenant Billing) */
 
     /* Coupons (SaaS Tenant Billing) */
+    /* Blog posts admin (superadmin) */
+    Route::get('blogposts', function () {
+        abort_unless(request()->user()?->hasRole('superadmin'), 403);
+        abortUnlessMenuPermission('/blogposts');
+
+        return Inertia::render('blogpost/index');
+    })->name('blogposts');
+
+    Route::get('blogposts/add', function () {
+        abort_unless(request()->user()?->hasRole('superadmin'), 403);
+        abortUnlessMenuPermission('/blogposts/add');
+
+        return Inertia::render('blogpost/add');
+    })->name('blogposts.add');
+
+    Route::get('blogposts/{id}/edit', function ($id) {
+        abort_unless(request()->user()?->hasRole('superadmin'), 403);
+        abortUnlessMenuPermission('/blogposts/:id/edit');
+
+        return Inertia::render('blogpost/edit', ['id' => $id]);
+    })->name('blogposts.edit');
+    /* Blog posts admin */
+
     Route::get('coupons', function () {
         abortUnlessMenuPermission('/coupons');
 

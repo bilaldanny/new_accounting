@@ -824,3 +824,153 @@ body {
     max-width: 160px;
     object-fit: contain;
 }
+
+/* Blog */
+.lp-posts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 960px) {
+    .lp-posts {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 620px) {
+    .lp-posts {
+        grid-template-columns: 1fr;
+    }
+}
+
+.lp-post {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 0 18px;
+    overflow: hidden;
+}
+
+.lp-post > :not(.lp-post-cover) {
+    margin-inline: 18px;
+}
+
+.lp-post-cover {
+    display: block;
+    aspect-ratio: 16 / 9;
+    background: var(--lp-bg-2);
+    margin-bottom: 8px;
+}
+
+.lp-post-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.lp-post-cover-empty {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgb(45 212 191 / 14%), rgb(56 189 248 / 8%));
+}
+
+.lp-post h3 a {
+    color: var(--lp-text);
+    text-decoration: none;
+}
+
+.lp-post h3 a:hover {
+    color: var(--lp-brand-strong);
+}
+
+.lp-post-date {
+    margin: 0;
+    color: var(--lp-brand);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.lp-post-excerpt {
+    margin: 0;
+    color: var(--lp-muted);
+}
+
+.lp-pager {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.lp-article {
+    max-width: 760px;
+    margin-inline: auto;
+}
+
+.lp-article-cover {
+    width: 100%;
+    border-radius: var(--lp-radius);
+    margin: 18px 0 26px;
+    display: block;
+}
+
+.lp-prose {
+    font-size: 1.06rem;
+    line-height: 1.75;
+}
+
+.lp-prose h2,
+.lp-prose h3 {
+    margin-top: 1.8em;
+}
+
+.lp-prose p,
+.lp-prose ul,
+.lp-prose ol,
+.lp-prose blockquote,
+.lp-prose pre {
+    margin: 0 0 1.1em;
+}
+
+.lp-prose blockquote {
+    border-left: 3px solid var(--lp-brand);
+    padding-left: 16px;
+    color: var(--lp-muted);
+}
+
+.lp-prose code {
+    background: var(--lp-card-2);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 0.92em;
+}
+
+.lp-prose pre {
+    background: var(--lp-card);
+    border: 1px solid var(--lp-line);
+    border-radius: 10px;
+    padding: 14px;
+    overflow-x: auto;
+}
+
+.lp-prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.lp-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 1.1em;
+}
+
+.lp-prose th,
+.lp-prose td {
+    border: 1px solid var(--lp-line);
+    padding: 8px 10px;
+    text-align: left;
+}
