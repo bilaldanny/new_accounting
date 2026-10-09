@@ -112,7 +112,9 @@ test('a visitor registers from the landing page and lands on the dashboard of a 
         $browser->logout()->visit('/')->waitFor('#pricing', 30);
         $browser->click('a[href="/register?plan=dusk-starter"]')->waitFor('#company_name', 20);
         $browser->type('#company_name', 'Dusk Signup Traders')
-            ->type('#name', 'Sana Malik')
+            ->type('#first_name', 'Sana')
+            ->type('#last_name', 'Malik')
+            ->type('#username', 'sana.dusk')
             ->type('#email', 'sana@dusk-signup.test')
             ->type('#phone', '+92 300 5550000')
             ->type('#password', 'Dusk!Signup7')
@@ -141,7 +143,8 @@ test('the register form refuses a weak password and keeps what was typed', funct
     $this->browse(function (Browser $browser) {
         $browser->logout()->visit('/register')->waitFor('#company_name', 30);
         $browser->type('#company_name', 'Weak Pass Co')
-            ->type('#name', 'Weak Person')
+            ->type('#first_name', 'Weak')
+            ->type('#username', 'weak.dusk')
             ->type('#email', 'weak@dusk-signup.test')
             ->type('#password', 'password')
             ->type('#password_confirmation', 'password')

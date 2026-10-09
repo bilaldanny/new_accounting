@@ -28,7 +28,14 @@ function srPayload(array $extra = []): array
 {
     return $extra + [
         'company_name' => 'Fresh Traders',
-        'name' => 'Amna Khan',
+        'company_phone' => '+92 21 3456789',
+        'address' => '12 Market Road',
+        'zipcode' => '75500',
+        'ntn_no' => '1234567-8',
+        'strn_no' => '17-00-0000-001-37',
+        'first_name' => 'Amna',
+        'last_name' => 'Khan',
+        'username' => 'Amna.Khan',
         'email' => 'amna@fresh-traders.test',
         'phone' => '+92 300 1234567',
         'password' => 'Str0ng!Pass',
@@ -64,6 +71,13 @@ test('signing up creates the company, first branch, admin, trial tenant, starter
         ->and(Role::query()->findOrFail($user->role_id)->name)->toBe('companyadmin')
         ->and(Role::query()->findOrFail($user->role_id)->company_id)->toBeNull()
         ->and($user->first_name)->toBe('Amna')
+        ->and($user->last_name)->toBe('Khan')
+        ->and($user->username)->toBe('amna.khan')
+        ->and($company->email)->toBe('amna@fresh-traders.test')
+        ->and($company->address)->toBe('12 Market Road')
+        ->and($company->zipcode)->toBe('75500')
+        ->and($company->ntn_no)->toBe('1234567-8')
+        ->and($company->strn_no)->toBe('17-00-0000-001-37')
         ->and($user->is_active)->toBeTrue()
         ->and(Role::query()->where('company_id', $company->id)->where('branch_id', $branch->id)->orderBy('name')->pluck('name')->all())
         ->toBe(['Accountant', 'Cashier', 'Manager', 'Sales Representative', 'Warehouse Keeper'])
@@ -154,7 +168,7 @@ test('a weak or unconfirmed password is refused', function () {
 test('the new admin sees only their own company', function () {
     $this->post('/register', srPayload())->assertRedirect('/dashboard');
     auth()->logout();
-    $this->post('/register', srPayload(['company_name' => 'Second Shop', 'email' => 'second@shop.test']))->assertRedirect('/dashboard');
+    $this->post('/register', srPayload(['company_name' => 'Second Shop', 'email' => 'second@shop.test', 'username' => 'second.shop']))->assertRedirect('/dashboard');
 
     $second = User::query()->where('email', 'second@shop.test')->firstOrFail();
     Sanctum::actingAs($second);
@@ -175,4 +189,23 @@ test('a database without the shared company-admin role falls back to a role of t
 
     $user = User::query()->where('email', 'amna@fresh-traders.test')->firstOrFail();
     expect(Role::query()->findOrFail($user->role_id)->company_id)->toBe($user->company_id);
+});
+
+test('a username that is taken is refused and nothing is created', function () {
+    $this->post('/register', srPayload())->assertRedirect('/dashboard');
+    auth()->logout();
+    $companies = Company::query()->count();
+
+    $this->post('/register', srPayload(['company_name' => 'Another Co', 'email' => 'other@fresh-traders.test', 'username' => 'AMNA.KHAN']))->assertSessionHasErrors('username');
+
+    expect(Company::query()->count())->toBe($companies);
+});
+
+test('the first name and username are required, and the username has to be plain', function () {
+    $this->post('/register', srPayload(['first_name' => '']))->assertSessionHasErrors('first_name');
+    $this->post('/register', srPayload(['username' => '']))->assertSessionHasErrors('username');
+    $this->post('/register', srPayload(['username' => 'no spaces!']))->assertSessionHasErrors('username');
+    $this->post('/register', srPayload(['country_id' => 999999]))->assertSessionHasErrors('country_id');
+
+    expect(Company::query()->where('name', 'Fresh Traders')->exists())->toBeFalse();
 });

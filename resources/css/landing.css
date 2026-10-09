@@ -1278,3 +1278,11 @@ body {
     color: var(--lp-muted);
     margin: 0 0 24px;
 }
+
+.lp-legend {
+    margin: 22px 0 4px;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--lp-accent, #2dd4bf);
+}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Country;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\SelfSignup;
@@ -31,7 +32,8 @@ class PublicRegistrationController extends Controller
             'branding' => PublicBranding::get(),
             'contact' => array_filter(config('landing.contact')),
             'plan' => $request->query('plan'),
-            'old' => collect($request->session()->getOldInput())->only(['company_name', 'name', 'email', 'phone', 'plan'])->map(fn ($value): string => (string) $value)->all(),
+            'countries' => Country::query()->orderBy('name')->get(['id', 'name'])->map(fn (Country $country): array => ['id' => $country->id, 'name' => $country->name])->all(),
+            'old' => collect($request->session()->getOldInput())->only(['company_name', 'company_email', 'company_phone', 'address', 'country_id', 'zipcode', 'ntn_no', 'strn_no', 'first_name', 'last_name', 'username', 'email', 'phone', 'plan'])->map(fn ($value): string => (string) $value)->all(),
             'plans' => SelfSignup::trialPlans()->map(fn (SubscriptionPlan $plan): array => [
                 'code' => $plan->code,
                 'name' => $plan->name,
@@ -51,7 +53,16 @@ class PublicRegistrationController extends Controller
 
         $data = $request->validate([
             'company_name' => 'bail|required|string|min:3|max:200',
-            'name' => 'bail|required|string|min:2|max:150',
+            'company_email' => 'nullable|email|max:190',
+            'company_phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9\s\-()]{6,30}$/'],
+            'address' => 'nullable|string|max:500',
+            'country_id' => 'nullable|integer|exists:countries,id',
+            'zipcode' => 'nullable|string|max:20',
+            'ntn_no' => 'nullable|string|max:30',
+            'strn_no' => 'nullable|string|max:30',
+            'first_name' => 'bail|required|string|min:2|max:75',
+            'last_name' => 'nullable|string|max:75',
+            'username' => ['bail', 'required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'],
             'email' => 'bail|required|email|max:190',
             'phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9\s\-()]{6,30}$/'],
             'password' => ['bail', 'required', 'confirmed', 'regex:'.SelfSignup::PASSWORD_REGEX],
@@ -59,9 +70,14 @@ class PublicRegistrationController extends Controller
         ], ['password.regex' => 'The password needs at least 8 characters with an uppercase letter, a lowercase letter, a number and a special character.']);
 
         $email = mb_strtolower(trim($data['email']));
+        $username = User::normalizeUsername($data['username']);
 
         if (User::query()->where('email', $email)->exists()) {
             throw ValidationException::withMessages(['email' => self::GENERIC_ERROR]);
+        }
+
+        if (User::query()->where('username', $username)->exists()) {
+            throw ValidationException::withMessages(['username' => 'This username is not available. Please choose another.']);
         }
 
         if (($data['plan'] ?? null) !== null && SelfSignup::trialPlans()->firstWhere('code', $data['plan']) === null) {
@@ -71,7 +87,16 @@ class PublicRegistrationController extends Controller
         try {
             $user = $signup->register([
                 'company_name' => trim($data['company_name']),
-                'name' => trim($data['name']),
+                'company_email' => filled($data['company_email'] ?? null) ? mb_strtolower(trim($data['company_email'])) : $email,
+                'company_phone' => isset($data['company_phone']) ? preg_replace('/\D+/', '', $data['company_phone']) : null,
+                'address' => filled($data['address'] ?? null) ? trim($data['address']) : null,
+                'country_id' => $data['country_id'] ?? null,
+                'zipcode' => filled($data['zipcode'] ?? null) ? trim($data['zipcode']) : null,
+                'ntn_no' => filled($data['ntn_no'] ?? null) ? trim($data['ntn_no']) : null,
+                'strn_no' => filled($data['strn_no'] ?? null) ? trim($data['strn_no']) : null,
+                'first_name' => trim($data['first_name']),
+                'last_name' => trim((string) ($data['last_name'] ?? '')),
+                'username' => $username,
                 'email' => $email,
                 'phone' => isset($data['phone']) ? preg_replace('/\D+/', '', $data['phone']) : null,
                 'password' => $data['password'],

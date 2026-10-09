@@ -44,7 +44,7 @@ class SelfSignup
     }
 
     /**
-     * @param  array{company_name: string, name: string, email: string, phone?: string|null, password: string}  $data
+     * @param  array{company_name: string, company_email?: string|null, company_phone?: string|null, address?: string|null, country_id?: int|string|null, zipcode?: string|null, ntn_no?: string|null, strn_no?: string|null, first_name: string, last_name?: string|null, username: string, email: string, phone?: string|null, password: string}  $data
      * @param  string|null  $planCode  code of a plan from {@see self::trialPlans()}; null takes the first one, if there is any
      */
     public function register(array $data, ?string $planCode = null): User
@@ -54,9 +54,15 @@ class SelfSignup
 
             $request = new Request([
                 'name' => $data['company_name'],
-                'email' => $data['email'],
-                'phone' => $data['phone'] ?? null,
-                'admin_name' => $data['name'],
+                'email' => $data['company_email'] ?? $data['email'],
+                'phone' => $data['company_phone'] ?? null,
+                'address' => $data['address'] ?? null,
+                'country_id' => $data['country_id'] ?? null,
+                'zipcode' => $data['zipcode'] ?? null,
+                'ntn_no' => $data['ntn_no'] ?? null,
+                'strn_no' => $data['strn_no'] ?? null,
+                'admin_name' => trim($data['first_name'].' '.($data['last_name'] ?? '')),
+                'admin_username' => $data['username'],
                 'admin_email' => $data['email'],
                 'admin_phone' => $data['phone'] ?? null,
                 'password' => $data['password'],
@@ -67,6 +73,8 @@ class SelfSignup
             $branch = Branch::createCompanyBranch($company->id);
             $role = self::companyAdminRole($company->id);
             $user = User::createCompanyAdmin($request, $role->id, $company->id, $branch->id);
+            // The name was typed in two boxes: keep it that way instead of splitting it again at the first space.
+            $user->forceFill(['first_name' => $data['first_name'], 'last_name' => $data['last_name'] ?? ''])->save();
 
             if ($plan !== null) {
                 $company->changePlan($plan);
