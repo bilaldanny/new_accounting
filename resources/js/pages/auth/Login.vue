@@ -16,6 +16,7 @@ defineOptions({
 defineProps<{
     status?: string;
     canResetPassword: boolean;
+    canRegister?: boolean;
 }>();
 
 const showPassword = ref(false);
@@ -128,5 +129,11 @@ onBeforeUnmount(() => {
             <span>{{ processing ? 'Signing in…' : 'Sign in' }}</span>
             <ArrowRight v-if="!processing" size="sm" aria-hidden="true" />
         </button>
+
+        <!-- Sign-up is a public page with its own bundle, so this is a plain link (a full page load). -->
+        <p v-if="canRegister" class="auth-signup">
+            New here?
+            <a href="/register" class="auth-row__link">Create an account</a>
+        </p>
     </Form>
 </template>

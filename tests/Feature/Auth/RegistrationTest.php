@@ -41,3 +41,12 @@ test('the home page is the public landing page and offers register', function ()
 
     expect(file_get_contents(resource_path('js/pages/landing/Index.vue')))->toContain('/register');
 });
+
+test('the login page offers sign-up while public registration is open and not when it is closed', function () {
+    $this->get('/login')->assertInertia(fn ($page) => $page->component('auth/Login')->where('canRegister', true));
+
+    config(['landing.registration_enabled' => false]);
+
+    $this->get('/login')->assertInertia(fn ($page) => $page->where('canRegister', false));
+    expect(file_get_contents(resource_path('js/pages/auth/Login.vue')))->toContain('href="/register"');
+});

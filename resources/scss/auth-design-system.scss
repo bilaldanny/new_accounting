@@ -432,3 +432,10 @@
 .auth-alert--success svg {
     color: #16a34a;
 }
+
+.auth-signup {
+    margin: 1rem 0 0;
+    text-align: center;
+    color: var(--auth-muted, #64748b);
+    font-size: 0.95rem;
+}
