@@ -56,11 +56,20 @@ const fields = reactive({
     </Head>
 
     <div class="lp lp-form-page">
-        <main class="lp-form-card">
-            <BrandMark :branding="branding" />
-            <h1 style="font-size: 1.6rem; margin-top: 18px">Create your account</h1>
-            <p class="lp-note" style="margin-top: 0">You become the administrator of a new company. Starter staff roles are set up for you.</p>
+        <main class="lp-form-card lp-register">
+            <aside class="lp-register-side">
+                <BrandMark :branding="branding" />
+                <h1>Create your account</h1>
+                <p>Start a free trial. You become the administrator of a new company and can invite your team afterwards.</p>
+                <ul class="lp-register-points">
+                    <li>Your own company, first branch and chart of accounts</li>
+                    <li>Starter roles ready: Accountant, Cashier, Manager, Sales Representative, Warehouse Keeper</li>
+                    <li>Pick a plan now, change it later</li>
+                </ul>
+                <p class="lp-register-login">Already have an account? <a href="/login">Login</a></p>
+            </aside>
 
+            <div class="lp-register-body">
             <form method="post" action="/register" novalidate @submit="submitting = true">
                 <input type="hidden" name="_token" :value="csrfToken" />
 
@@ -167,6 +176,7 @@ const fields = reactive({
                     <p v-if="errors.plan" class="lp-error" role="alert">{{ errors.plan }}</p>
                 </div>
 
+                <div class="lp-two">
                 <div class="lp-field">
                     <label for="password">Password</label>
                     <input id="password" v-model="fields.password" name="password" type="password" autocomplete="new-password" required :aria-invalid="!!errors.password" aria-describedby="password-hint" />
@@ -177,6 +187,7 @@ const fields = reactive({
                 <div class="lp-field">
                     <label for="password_confirmation">Confirm password</label>
                     <input id="password_confirmation" v-model="fields.password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required />
+                </div>
                 </div>
 
                 <!-- Honeypot: invisible to people, tempting to bots. -->
@@ -191,8 +202,9 @@ const fields = reactive({
             </form>
 
             <p class="lp-note">
-                Already have an account? <a href="/login">Login</a>. Need help? <a :href="contact.email ? `mailto:${contact.email}` : '/#contact'">Contact us</a>.
+                Need help? <a :href="contact.email ? `mailto:${contact.email}` : '/#contact'">Contact us</a>.
             </p>
+            </div>
         </main>
     </div>
 </template>
