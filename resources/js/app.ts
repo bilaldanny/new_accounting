@@ -337,7 +337,6 @@ createInertiaApp({
     },
     layout: (name) => {
         switch (true) {
-            case name === 'Welcome':
             case name === 'sell/addpos':
             case name === 'sell/posdisplay':
             case name === 'sell/receipt':

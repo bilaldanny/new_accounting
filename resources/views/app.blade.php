@@ -1,3 +1,6 @@
+@php
+    $isLanding = str_starts_with($page['component'] ?? '', 'landing/');
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"  @class(['dark' => ($appearance ?? 'system') == 'dark'])>
     <head>
@@ -38,14 +41,19 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
         <!--plugins-->
-        @if (! str_starts_with($page['component'] ?? '', 'auth/'))
+        @if (! $isLanding && ! str_starts_with($page['component'] ?? '', 'auth/'))
             <link href="{{ asset('assets/plugins/highcharts/css/highcharts.css') }}" rel="stylesheet">
             <link href="{{ asset('assets/plugins/vectormap/jquery-jvectormap-2.0.2.css') }}" rel="stylesheet">
         @endif
 
-        @fonts
+        @if ($isLanding)
+            {{-- The public pages have their own small entry: no app bundle, no remote fonts. --}}
+            @vite(['resources/js/landing.ts', "resources/js/pages/{$page['component']}.vue"])
+        @else
+            @fonts
 
-        @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
+            @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
+        @endif
 
         <script>
             window.Laravel = {
@@ -60,7 +68,7 @@
     <body class="font-sans antialiased">
         <x-inertia::app />
 
-        @if (! str_starts_with($page['component'] ?? '', 'auth/'))
+        @if (! $isLanding && ! str_starts_with($page['component'] ?? '', 'auth/'))
             <!-- Bootstrap JS -->
             <!-- <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script> -->
             <!--plugins-->
@@ -80,6 +88,7 @@
             <script src="{{ asset('assets/js/app.js') }}"></script>
         @endif
 
+        @unless ($isLanding)
         <audio id="success-audio">
             <source src="{{ asset('assets/sounds/success.ogg') }}" type="audio/ogg">
             <source src="{{ asset('assets/sounds/success.mp3') }}" type="audio/mpeg">
@@ -92,6 +101,6 @@
             <source src="{{ asset('assets/sounds/warning.ogg') }}" type="audio/ogg">
             <source src="{{ asset('assets/sounds/warning.mp3') }}" type="audio/mpeg">
         </audio>
-        
+        @endunless
     </body>
 </html>
