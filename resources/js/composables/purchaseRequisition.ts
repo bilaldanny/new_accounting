@@ -2,26 +2,17 @@ import { reactive, ref } from "vue";
 import { API_ENDPOINTS } from './apiEndpoints'
 import useCommons from "./common";
 
-export type PriceListLineRow = {
-    id?: number | string;
-    product_id: number | string;
-    variation_id: number | string;
-    product_name: string;
-    sku?: string;
+export type RequisitionLineRow = {
+    product_id: number | string | '';
+    variation_id: number | string | '';
     unit_id: number | string | '';
+    product_name?: string;
     unit_name?: string;
-    purchase_price: number | string;
-    sell_price: number | string;
-    profit_margin: number | string;
-    discount: number | string;
-    /** Quantity breaks: from `min_qty` units the line sells at `sell_price`. */
-    tiers?: Array<{ min_qty: number | string; sell_price: number | string }>;
-    /** The tiers as typed: "10:95, 50:90" (quantity:price, comma separated). */
-    tiers_text?: string;
-    units: Array<{ id: number | string; text?: string; short_name?: string }>;
+    requested_quantity: number | string;
+    note?: string;
 };
 
-export default function usePriceLists(){
+export default function usePurchaseRequisitions(){
 
     interface QueryParams {
         sort_by: string;
@@ -42,17 +33,28 @@ export default function usePriceLists(){
     const emptyForm = () => ({
       company_id: '',
       branch_id: '',
-      brand_id: '',
-      date: today(),
-      discount: 0,
+      contact_id: '',
+      requisition_no: '',
+      requisition_date: today(),
+      note: '',
       status: 'pending',
-      pricelistdetails: [] as PriceListLineRow[],
+      status_label: '',
+      is_editable: true,
+      can_approve: false,
+      contact_name: '',
+      requested_by_name: '',
+      purchase_order_id: null as number | null,
+      approved_by_name: '',
+      approved_at: '',
+      rejected_by_name: '',
+      rejected_at: '',
+      lines: [] as RequisitionLineRow[],
     });
 
     const formData = ref(emptyForm());
     const defaultFormData = ref(emptyForm());
 
-    const {Notify, select_data, fetchWithRetry, changeOrderFn, deleteFn, checkAllFn, getData, restoreFn} = useCommons()
+    const {Notify, select_data, fetchWithRetry, changeOrderFn, deleteFn, checkAllFn, getData} = useCommons()
 
     const state = reactive({
       records: {
@@ -72,7 +74,6 @@ export default function usePriceLists(){
         status: 'all',
         company_id: '',
         branch_id: '',
-        brand_id: '',
       },
       loading: false,
       modalLoading: true,
@@ -87,23 +88,15 @@ export default function usePriceLists(){
     };
 
     const deleteRecord = async (ids: Array<number>) => {
-        return deleteFn(API_ENDPOINTS.priceLists+'/bulk_delete', ids, state);
-    }
-
-    const perDeleteBulkRecord = async (ids: Array<number>) => {
-        return deleteFn(API_ENDPOINTS.priceLists+'/bulk_delete_per', ids, state);
+        return deleteFn(API_ENDPOINTS.purchaseRequisitions+'/bulk_delete', ids, state);
     }
 
     const checkAll = async (id: number) => {
         return checkAllFn(id, state);
     };
 
-    const getPriceLists = async (data: QueryParams) => {
-        return getData(API_ENDPOINTS.priceLists, data, state)
-    };
-
-    const getTrashPriceLists = async (data: QueryParams) => {
-        return getData(API_ENDPOINTS.priceLists+'/trash', data, state);
+    const getRequisitions = async (data: QueryParams) => {
+        return getData(API_ENDPOINTS.purchaseRequisitions, data, state)
     };
 
     const getEditData = async (id: number): Promise<boolean> => {
@@ -112,15 +105,17 @@ export default function usePriceLists(){
         }
 
         try {
-            const response = await fetchWithRetry(window.axios.get, `${API_ENDPOINTS.priceLists}/${id}`);
-            const priceList = response.data ?? {};
-            const lines = Array.isArray(priceList.pricelistdetails) ? priceList.pricelistdetails : [];
+            const response = await fetchWithRetry(window.axios.get, `${API_ENDPOINTS.purchaseRequisitions}/${id}`);
+            const requisition = response.data ?? {};
 
             formData.value = {
                 ...emptyForm(),
-                ...priceList,
-                date: priceList.date || today(),
-                pricelistdetails: lines,
+                ...requisition,
+                requisition_date: requisition.requisition_date || today(),
+                lines: Array.isArray(requisition.lines) ? requisition.lines.map((line: Record<string, unknown>) => ({
+                    ...line,
+                    requested_quantity: line.requested_quantity,
+                })) : [],
             };
 
             return true;
@@ -137,22 +132,15 @@ export default function usePriceLists(){
         }
     }
 
-    const restoreBulkRecord = async (ids: Array<number>) => {
-        return restoreFn(API_ENDPOINTS.priceLists+'/restore_records', ids, state)
-    }
-
     return{
         state,
         Notify,
-        getPriceLists,
-        getTrashPriceLists,
+        getRequisitions,
         getEditData,
         formData,
         defaultFormData,
         emptyForm,
         deleteRecord,
-        perDeleteBulkRecord,
-        restoreBulkRecord,
         changeOrder,
         checkAll,
         select_data

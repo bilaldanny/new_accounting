@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Brand;
+use App\Models\Contact;
 use App\Models\PriceList;
 use App\Models\PriceListDetail;
 use App\Models\Product;
@@ -241,6 +242,66 @@ test('price lists api permanently deletes a price list from trash', function () 
     $this->postJson('/api/pricelists/bulk_delete_per', [$priceList->id])->assertSuccessful();
 
     expect(PriceList::onlyTrashed()->find($priceList->id))->toBeNull();
+});
+
+test('price lists api creates a contact-specific price list without a brand', function () {
+    $scope = seedPriceListScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $contact = Contact::query()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'VIP Customer',
+        'first_name' => 'VIP',
+        'mobile' => '03001234567',
+        'address' => 'VIP address',
+        'code' => 'CU-VIP01',
+        'user_type' => 'customer',
+        'type' => 'local',
+        'ntn_number' => '1234567',
+        'active' => true,
+    ]);
+
+    $this->postJson('/api/pricelists', validPriceListPayload($scope, [
+        'brand_id' => null,
+        'contact_id' => $contact->id,
+    ]))->assertSuccessful();
+
+    $priceList = PriceList::query()->where('company_id', $scope['company_id'])->first();
+
+    expect($priceList)->not->toBeNull()
+        ->and($priceList->brand_id)->toBe('')
+        ->and($priceList->contact_id)->toBe($contact->id);
+});
+
+test('price lists index can filter by contact', function () {
+    $scope = seedPriceListScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $contact = Contact::query()->create([
+        'company_id' => $scope['company_id'],
+        'branch_id' => $scope['branch_id'],
+        'business_name' => 'VIP Customer',
+        'first_name' => 'VIP',
+        'mobile' => '03001234567',
+        'address' => 'VIP address',
+        'code' => 'CU-VIP01',
+        'user_type' => 'customer',
+        'type' => 'local',
+        'ntn_number' => '1234567',
+        'active' => true,
+    ]);
+
+    $this->postJson('/api/pricelists', validPriceListPayload($scope))->assertSuccessful();
+    $this->postJson('/api/pricelists', validPriceListPayload($scope, [
+        'brand_id' => null,
+        'contact_id' => $contact->id,
+    ]))->assertSuccessful();
+
+    $response = $this->getJson('/api/pricelists?contact_id='.$contact->id)->assertSuccessful();
+
+    expect($response->json('data.data'))->toHaveCount(1)
+        ->and($response->json('data.data.0.contact_name'))->toBe('VIP Customer');
 });
 
 test('price lists store is forbidden without menu permission', function () {

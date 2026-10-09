@@ -6,17 +6,17 @@
     import TopButtons from '@/components/topButtons.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
-    import usePriceLists from '@/composables/pricelist';
+    import usePurchaseRequisitionApprovals from '@/composables/purchaseRequisitionApproval';
     import { createTableExportAllRows } from '@/composables/tableExportList';
     import debounce from '@/utils/debounce';
 
     defineOptions({
         layout: {
-            title: 'Price List',
-            subtitle: 'Manage brand-wide purchase and sell prices',
+            title: 'Purchase Requisition Approval',
+            subtitle: 'Review pending requisitions, then view, approve, or reject them',
             breadcrumbs: [
                 {
-                    title: 'Price List',
+                    title: 'Purchase Requisition Approval',
                     href: 'NULL',
                 },
             ],
@@ -27,13 +27,14 @@
 
     const {
         state,
-        getPriceLists,
-        deleteRecord,
+        getApprovals,
         changeOrder,
         checkAll,
-    } = usePriceLists();
+        approveRequisition,
+        rejectRequisition,
+    } = usePurchaseRequisitionApprovals();
 
-    const { select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, fetchBrand, companiesdata, branchesdata, brandsdata } = useCommons();
+    const {select_data, getSavedValue, formatedText, fetchCompany, fetchBranch, companiesdata, branchesdata} = useCommons();
 
     const authUser = computed(() => props.auth?.user as {
         rolename?: string;
@@ -49,26 +50,25 @@
     const isCompanyadmin = computed(() => roleName.value === 'companyadmin');
     const showCompanyFilter = computed(() => isSuperadmin.value);
     const showBranchFilter = computed(() => isSuperadmin.value || isCompanyadmin.value);
+    const showFilter = computed(() => true);
     const branchFilterDisabled = computed(() => showCompanyFilter.value && !state.search.company_id);
 
     const columns = computed(() => [
-        ...(isSuperadmin.value ? [
-            { key: 'company_name', label: 'Company', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'requisition_date', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'requisition_no', label: 'Requisition No', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'] },
+        ...(isSuperadmin.value || isCompanyadmin.value ? [
+            { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         ] : []),
-        { key: 'branch_name', label: 'Branch', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'brand_name', label: 'Brand', type: 'primary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'contact_name', label: 'Customer / Supplier', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'date_label', label: 'Date', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'line_count', label: 'Products', type: 'secondary', responsive: ['sm', 'md', 'lg'], emptyDisplay: '-' },
+        { key: 'requested_by_name', label: 'Requested By', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
         { key: 'status_label', label: 'Status', type: 'secondary', responsive: ['xs', 'sm', 'md', 'lg'], emptyDisplay: '-' },
-        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['edit', 'delete']},
+        { key: 'action', label: 'Action', type: 'action', responsive: ['xs', 'sm', 'md', 'lg'], sorting:'disabled', actions: ['view', 'approve', 'reject']},
     ]);
 
     const currentUrl = ref('');
     const oldcurrentUrl = ref((getSavedValue('currentUrl') || ''));
     const currentPage = ref(getSavedValue('currentPage', (v) => parseInt(v, 10)) || 1);
     const currentSearch = ref(getSavedValue('currentSearch') || '');
-    const currentStatus = ref(getSavedValue('currentStatus') || 'all');
+    const currentStatus = ref(getSavedValue('currentStatus') || 'pending');
     const currentRecord = ref(getSavedValue('currentRecord', (v) => parseInt(v, 10)) || 10);
 
     if(getSavedValue('currentUrl') === props.routeName){
@@ -99,8 +99,8 @@
         })
     })
 
-    const debouncedGetPriceLists = debounce((params) => {
-        getPriceLists(params);
+    const debouncedGetApprovals = debounce((params) => {
+        getApprovals(params);
     }, 300);
 
     const getData = async () => {
@@ -111,25 +111,37 @@
                 state.search.page = 1;
             }
 
-            await debouncedGetPriceLists({ ...state.search });
+            await debouncedGetApprovals({ ...state.search });
             currentPage.value = state.search.page;
             currentSearch.value = state.search.search;
             currentStatus.value = state.search.status;
             currentRecord.value = state.search.show_record;
         } catch (error) {
-            console.error('Error fetching price lists:', error);
+            console.error('Error fetching purchase requisition approvals:', error);
         }
     };
 
     async function handleCompanyFilterChange(companyId: string | number | null | undefined) {
         state.search.branch_id = '';
         await fetchBranch(companyId);
-        await fetchBrand(companyId);
+    }
+
+    async function handleApprove(id: number) {
+        if (await approveRequisition(id)) {
+            getData();
+        }
+    }
+
+    async function handleReject(id: number) {
+        if (await rejectRequisition(id)) {
+            getData();
+        }
     }
 
     onMounted(async () => {
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
+        state.search.status = 'pending';
 
         if (showCompanyFilter.value) {
             await fetchCompany();
@@ -137,10 +149,6 @@
 
         if (isCompanyadmin.value && authUser.value?.company_id) {
             await fetchBranch(authUser.value.company_id);
-        }
-
-        if (authUser.value?.company_id) {
-            await fetchBrand(authUser.value.company_id);
         }
 
         if(oldcurrentUrl.value === props.routeName){
@@ -163,25 +171,24 @@
         currentStatus.value = state.search.status;
         currentRecord.value = state.search.show_record;
 
-        debouncedGetPriceLists({ ...state.search });
+        debouncedGetApprovals({ ...state.search });
     });
 
     function onStateUpdate(newState) {
         Object.assign(state, newState)
     }
 
-    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.priceLists, () => state);
+    const fetchAllRowsForExport = createTableExportAllRows(API_ENDPOINTS.purchaseRequisitionApprovals, () => state);
 
     const filterOpen = ref(false);
 
     function clearSearch() {
-        state.search.status = 'all';
+        state.search.status = 'pending';
         state.search.search = '';
         state.search.show_record = 10;
         state.search.page = 1;
         state.search.company_id = authUser.value?.company_id ?? '';
         state.search.branch_id = authUser.value?.branch_id ?? '';
-        state.search.brand_id = '';
         getData();
     }
 </script>
@@ -196,21 +203,20 @@
                     :state="state"
                     :filter-open="filterOpen"
                     :getData="getData"
-                    :deleteRecord="deleteRecord"
-                    :url="`${props.routeName?.split('.')[0]}`"
-                    add-href="/pricelist/add"
-                    :show-filter="true"
+                    url="purchaserequisition"
+                    :show-filter="showFilter"
                     :show-import="false"
+                    :show-add="false"
                     :show-status="false"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
 
-            <TheFilter v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
+            <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="pricelist-filter-company">Company</label>
+                    <label class="form-label" for="purchaserequisition-approval-filter-company">Company</label>
                     <select
-                        id="pricelist-filter-company"
+                        id="purchaserequisition-approval-filter-company"
                         class="form-select form-select-sm"
                         v-model="state.search.company_id"
                         @change="handleCompanyFilterChange(state.search.company_id)"
@@ -222,9 +228,9 @@
                     </select>
                 </div>
                 <div v-if="showBranchFilter" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="pricelist-filter-branch">Branch</label>
+                    <label class="form-label" for="purchaserequisition-approval-filter-branch">Branch</label>
                     <select
-                        id="pricelist-filter-branch"
+                        id="purchaserequisition-approval-filter-branch"
                         class="form-select form-select-sm"
                         v-model="state.search.branch_id"
                         :disabled="branchFilterDisabled"
@@ -236,24 +242,12 @@
                     </select>
                 </div>
                 <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="pricelist-filter-brand">Brand</label>
-                    <select
-                        id="pricelist-filter-brand"
-                        class="form-select form-select-sm"
-                        v-model="state.search.brand_id"
-                    >
-                        <option value="">All</option>
-                        <option v-for="brand in brandsdata" :key="brand.id" :value="brand.id">
-                            {{ brand.text ?? brand.name }}
-                        </option>
-                    </select>
-                </div>
-                <div class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="pricelist-filter-status">Status</label>
-                    <select id="pricelist-filter-status" class="form-select form-select-sm" v-model="state.search.status">
+                    <label class="form-label" for="purchaserequisition-approval-filter-status">Status</label>
+                    <select id="purchaserequisition-approval-filter-status" class="form-select form-select-sm" v-model="state.search.status">
                         <option value="all">All</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
                     </select>
                 </div>
             </TheFilter>
@@ -267,11 +261,13 @@
                         :checkAll="checkAll"
                         :getData="getData"
                         :changeOrder="changeOrder"
-                        :delete="deleteRecord"
+                        :approve="handleApprove"
+                        :reject="handleReject"
+                        :view-route="(id) => `/purchaserequisition/approval/${id}/view`"
                         actionType="link"
-                        :apiUrl="props.routeName?.split('.')[0]"
+                        apiUrl="purchaserequisition"
                         show-export
-                        :export-file-name="String(props.routeName ?? 'export').replace(/\./g, '-')"
+                        :export-file-name="'purchaserequisition-approval'"
                         :export-title="formatedText(props.routeName)"
                         :export-all-rows="fetchAllRowsForExport"
                         @update:state="onStateUpdate"

@@ -48,6 +48,17 @@
 
     const hasLines = computed(() => props.lines.length > 0);
 
+    /** "10:95, 50:90" -> [{ min_qty: 10, sell_price: 95 }, { min_qty: 50, sell_price: 90 }]; what cannot be read is dropped. */
+    function onTiers(index: number, text: string) {
+        const tiers = text
+            .split(',')
+            .map((part) => part.split(':').map((piece) => piece.trim()))
+            .filter(([quantity, price]) => quantity !== '' && price !== undefined && price !== '' && Number(quantity) > 0 && Number(price) >= 0)
+            .map(([quantity, price]) => ({ min_qty: Number(quantity), sell_price: Number(price) }));
+
+        emit('update', index, { tiers_text: text, tiers });
+    }
+
     function onSearch(event: Event) {
         query.value = (event.target as HTMLInputElement).value;
         open.value = true;
@@ -127,6 +138,7 @@
                         <th class="is-price">Sell Price</th>
                         <th class="is-price">Profit %</th>
                         <th class="is-price">Discount</th>
+                        <th class="is-price">Quantity Breaks</th>
                         <th class="is-action"></th>
                     </tr>
                 </thead>
@@ -183,6 +195,17 @@
                                 :value="line.discount"
                                 :disabled="disabled"
                                 @input="emit('update', index, { discount: ($event.target as HTMLInputElement).value })"
+                            >
+                        </td>
+                        <td class="is-price">
+                            <input
+                                type="text"
+                                class="pricing-table__input"
+                                placeholder="10:95, 50:90"
+                                title="Quantity breaks: from this quantity the price is the one given (quantity:price, comma separated)"
+                                :value="line.tiers_text ?? ''"
+                                :disabled="disabled"
+                                @input="onTiers(index, ($event.target as HTMLInputElement).value)"
                             >
                         </td>
                         <td class="is-action">

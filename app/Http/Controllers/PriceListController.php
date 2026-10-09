@@ -25,7 +25,8 @@ class PriceListController extends Controller
         return [
             'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
             'branch_id' => 'bail|required',
-            'brand_id' => 'bail|required|integer|exists:brands,id',
+            'brand_id' => 'bail|nullable|integer|exists:brands,id|required_without:contact_id',
+            'contact_id' => 'bail|nullable|integer|exists:contacts,id|required_without:brand_id',
             'date' => 'nullable|date',
             'discount' => 'nullable|numeric|min:0',
             'status' => ['nullable', Rule::in(PriceList::STATUSES)],
@@ -36,6 +37,9 @@ class PriceListController extends Controller
             'pricelistdetails.*.sell_price' => 'nullable|numeric|min:0',
             'pricelistdetails.*.profit_margin' => 'nullable|numeric',
             'pricelistdetails.*.discount' => 'nullable|numeric|min:0',
+            'pricelistdetails.*.tiers' => 'nullable|array|max:20',
+            'pricelistdetails.*.tiers.*.min_qty' => 'required|numeric|gt:0',
+            'pricelistdetails.*.tiers.*.sell_price' => 'required|numeric|min:0',
         ];
     }
 
@@ -47,7 +51,7 @@ class PriceListController extends Controller
 
         $query = PriceList::query()
             ->visibleToCurrentUser()
-            ->with(['company:id,name', 'branch:id,name', 'brand:id,name'])
+            ->with(['company:id,name', 'branch:id,name', 'brand:id,name', 'contact:id,first_name,last_name,business_name'])
             ->when($status !== 'all', function ($q) use ($status) {
                 $q->where('status', $status);
             })
@@ -64,6 +68,9 @@ class PriceListController extends Controller
             })
             ->when($request->filled('brand_id'), function ($q) use ($request) {
                 $q->where('brand_id', $request->brand_id);
+            })
+            ->when($request->filled('contact_id'), function ($q) use ($request) {
+                $q->where('contact_id', $request->contact_id);
             });
 
         $priceLists = $this->paginateSorted($query, $request);
@@ -128,9 +135,11 @@ class PriceListController extends Controller
                 'company:id,name',
                 'branch:id,name',
                 'brand:id,name',
+                'contact:id,first_name,last_name,business_name',
                 'pricelistdetails.product:id,name,sku',
                 'pricelistdetails.productdetail:id,product_id,name,sku',
                 'pricelistdetails.unit:id,name,short_name',
+                'pricelistdetails.tiers',
             ])
             ->find($id);
 
@@ -154,6 +163,8 @@ class PriceListController extends Controller
                 'sell_price' => (float) $line->sell_price,
                 'profit_margin' => (float) $line->profit_margin,
                 'discount' => (float) $line->discount,
+                'tiers' => $line->tiers->map(fn ($tier): array => ['min_qty' => $tier->min_qty, 'sell_price' => $tier->sell_price])->all(),
+                'tiers_text' => $line->tiers->map(fn ($tier): string => rtrim(rtrim(number_format($tier->min_qty, 2, '.', ''), '0'), '.').':'.rtrim(rtrim(number_format($tier->sell_price, 2, '.', ''), '0'), '.'))->implode(', '),
                 'units' => [],
             ];
         })->values()->all();

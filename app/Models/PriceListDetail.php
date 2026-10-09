@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PriceListDetail extends Model
 {
@@ -26,6 +27,14 @@ class PriceListDetail extends Model
             'profit_margin' => 'decimal:2',
             'discount' => 'decimal:2',
         ];
+    }
+
+    /**
+     * @return HasMany<PriceListTier, $this>
+     */
+    public function tiers(): HasMany
+    {
+        return $this->hasMany(PriceListTier::class, 'price_list_detail_id')->orderBy('min_qty');
     }
 
     /**

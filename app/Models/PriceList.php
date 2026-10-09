@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -9,9 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class PriceList extends Model
 {
+    use Auditable;
     use SoftDeletes;
 
     public const STATUSES = ['pending', 'approved'];
@@ -20,6 +23,7 @@ class PriceList extends Model
         'company_id',
         'branch_id',
         'brand_id',
+        'contact_id',
         'date',
         'discount',
         'status',
@@ -84,6 +88,17 @@ class PriceList extends Model
     }
 
     /**
+     * The customer or supplier this price list is specific to, if any (Contacts module: Customer/
+     * Supplier-Specific Price Lists). A price list may target a brand, a contact, or both.
+     *
+     * @return BelongsTo<Contact, $this>
+     */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
+    /**
      * @return HasMany<PriceListDetail, $this>
      */
     public function pricelistdetails(): HasMany
@@ -136,6 +151,7 @@ class PriceList extends Model
         $priceList->company_id = $companyId;
         $priceList->branch_id = self::resolveScopedId($request->branch_id);
         $priceList->brand_id = self::resolveScopedId($request->brand_id);
+        $priceList->contact_id = self::resolveScopedId($request->contact_id);
         $priceList->date = $request->date ?: now()->toDateString();
         $priceList->discount = (float) ($request->discount ?? 0);
         $priceList->status = in_array($request->status, self::STATUSES, true) ? $request->status : 'pending';
@@ -159,6 +175,7 @@ class PriceList extends Model
         $priceList->company_id = $companyId ?? $priceList->company_id;
         $priceList->branch_id = self::resolveScopedId($request->branch_id);
         $priceList->brand_id = self::resolveScopedId($request->brand_id);
+        $priceList->contact_id = self::resolveScopedId($request->contact_id);
         $priceList->discount = (float) ($request->discount ?? 0);
 
         $newStatus = in_array($request->status, self::STATUSES, true) ? $request->status : $priceList->status;
@@ -183,6 +200,36 @@ class PriceList extends Model
     }
 
     /**
+     * Approval Center (Phase 1, easy half): a dedicated approve action under its own permission
+     * (`/pricelist/approval`), distinct from the general `/pricelist/:id/edit` permission that
+     * `updatePriceList()` already allows to set status=approved. Approve-only, no reject, same
+     * convention as the existing Purchase/Sell approval controllers.
+     *
+     * @throws ValidationException
+     */
+    public static function approve(int $id): self
+    {
+        $priceList = self::query()->visibleToCurrentUser()->find($id);
+
+        if ($priceList === null) {
+            abort(404);
+        }
+
+        if ($priceList->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending price lists can be approved.',
+            ]);
+        }
+
+        $priceList->approved_by = Auth::id();
+        $priceList->approved_at = now();
+        $priceList->status = 'approved';
+        $priceList->save();
+
+        return $priceList;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $lines
      */
     private function syncDetails(array $lines): void
@@ -196,7 +243,7 @@ class PriceList extends Model
                 continue;
             }
 
-            $this->pricelistdetails()->create([
+            $detail = $this->pricelistdetails()->create([
                 'product_id' => $productId,
                 'variation_id' => self::resolveScopedId($line['variation_id'] ?? null),
                 'unit_id' => self::resolveScopedId($line['unit_id'] ?? null),
@@ -205,7 +252,35 @@ class PriceList extends Model
                 'profit_margin' => (float) ($line['profit_margin'] ?? 0),
                 'discount' => (float) ($line['discount'] ?? 0),
             ]);
+
+            foreach (self::cleanTiers($line['tiers'] ?? []) as $tier) {
+                $detail->tiers()->create($tier);
+            }
         }
+    }
+
+    /**
+     * The quantity breaks of a line: rows with a quantity above zero and a price, one per quantity (the last one
+     * given wins), lowest quantity first.
+     *
+     * @return list<array{min_qty: float, sell_price: float}>
+     */
+    public static function cleanTiers(mixed $tiers): array
+    {
+        $byQuantity = [];
+
+        foreach (is_array($tiers) ? $tiers : [] as $tier) {
+            $quantity = is_array($tier) ? (float) ($tier['min_qty'] ?? 0) : 0.0;
+            $price = is_array($tier) && isset($tier['sell_price']) && $tier['sell_price'] !== '' ? (float) $tier['sell_price'] : null;
+
+            if ($quantity > 0 && $price !== null && $price >= 0) {
+                $byQuantity[(string) $quantity] = ['min_qty' => $quantity, 'sell_price' => $price];
+            }
+        }
+
+        ksort($byQuantity, SORT_NUMERIC);
+
+        return array_values($byQuantity);
     }
 
     /**
@@ -221,6 +296,8 @@ class PriceList extends Model
             'branch_name' => $this->branch?->name,
             'brand_id' => $this->brand_id,
             'brand_name' => $this->brand?->name,
+            'contact_id' => $this->contact_id,
+            'contact_name' => $this->contact?->business_name ?: trim((string) $this->contact?->first_name.' '.(string) $this->contact?->last_name),
             'date' => $this->date?->format('Y-m-d'),
             'date_label' => $this->date?->format('Y-m-d'),
             'discount' => (float) $this->discount,

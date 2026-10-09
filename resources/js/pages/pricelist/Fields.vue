@@ -4,7 +4,9 @@
     import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
+    import useCustomers from '@/composables/customer';
     import type { PriceListLineRow } from '@/composables/pricelist';
+    import useSuppliers from '@/composables/supplier';
     import PriceListLinesEditor from './PriceListLinesEditor.vue';
 
     const params = defineProps({
@@ -65,6 +67,13 @@
     const branchDisabled = computed(() => isSuperadmin.value && ! selectedCompanyId.value);
 
     const { fetchCompany, fetchBranch, fetchBrand, companiesdata, branchesdata, brandsdata } = useCommons();
+    const { fetchCustomersDropdown, customersdata } = useCustomers();
+    const { fetchSuppliersDropdown, suppliersdata } = useSuppliers();
+
+    const contactsdata = computed(() => ([
+        ...customersdata.value.map((c) => ({ id: c.id, text: c.text || c.business_name })),
+        ...suppliersdata.value.map((s) => ({ id: s.id, text: s.text || s.business_name })),
+    ]));
 
     const productSuggestions = ref<any[]>([]);
     const searchingProducts = ref(false);
@@ -77,7 +86,10 @@
     const selectedCompanyId = computed(() => params.formData?.company_id ?? '');
     const selectedBranchId = computed(() => params.formData?.branch_id ?? '');
     const selectedBrandId = computed(() => params.formData?.brand_id ?? '');
+    const selectedContactId = computed(() => params.formData?.contact_id ?? '');
     const scopeReady = computed(() => Boolean(normalizeId(selectedBrandId.value)));
+    const brandRules = computed(() => (normalizeId(selectedContactId.value) ? '' : 'required'));
+    const contactRules = computed(() => (normalizeId(selectedBrandId.value) ? '' : 'required'));
     const priceLines = computed<PriceListLineRow[]>(() => (
         Array.isArray(params.formData?.pricelistdetails) ? params.formData.pricelistdetails : []
     ));
@@ -257,6 +269,13 @@
         if (companyId) {
             await loadBranchOptions(companyId);
             await fetchBrand(companyId);
+
+            const branchId = selectedBranchId.value;
+
+            if (branchId) {
+                await fetchCustomersDropdown(companyId, branchId);
+                await fetchSuppliersDropdown(companyId, branchId);
+            }
         }
     });
 
@@ -269,6 +288,16 @@
 
             await handleCompanyChange(companyId || undefined);
             await fetchBrand(companyId || undefined);
+        },
+    );
+
+    watch(
+        () => [normalizeId(params.formData?.company_id), normalizeId(params.formData?.branch_id)],
+        async ([companyId, branchId]) => {
+            if (companyId && branchId) {
+                await fetchCustomersDropdown(companyId, branchId);
+                await fetchSuppliersDropdown(companyId, branchId);
+            }
         },
     );
 
@@ -348,9 +377,27 @@
             value-prop="id"
             :search="true"
             :floating="false"
-            :can-clear="false"
-            rules="required"
-            info="Products are priced per brand."
+            :can-clear="true"
+            :rules="brandRules"
+            info="Products are priced per brand. Leave empty for a contact-specific price list."
+        />
+
+        <SelectElement
+            name="contact_id"
+            :native="false"
+            :items="contactsdata"
+            id="ContactId"
+            field-name="ContactId"
+            placeholder="Select customer or supplier"
+            label="Customer / Supplier"
+            :columns="colThird"
+            label-prop="text"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            :rules="contactRules"
+            info="Optional: make this price list specific to one customer or supplier."
         />
 
         <DateElement

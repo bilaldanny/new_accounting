@@ -29,6 +29,12 @@ use Illuminate\Support\Facades\Schema;
  * `settings.stock_sales_cutover_at` count, so existing history is not deducted retroactively; a NULL
  * cutover means no cutoff. A return of a sale that predates the cutover is ignored with that sale.
  *
+ * Warehouse layer: a document may name the warehouse it moved stock in or out of (`transactions.warehouse_id`, and
+ * `towarehouse_id` for where a transfer arrives). It is only a label on each movement row and an optional filter:
+ * the rows and every total over them are the same whether or not any document is tagged, and a document with no
+ * warehouse is simply unassigned (`warehouse_id` null). Nothing here (or in any guard that reads stock) treats a
+ * warehouse as a stock boundary.
+ *
  * `purchase_lines.qunatity_sold` (sic) is still part of the purchase term but is never written by
  * the app. It must stay unused while sales are deducted from sell lines, or they would count twice.
  */
@@ -36,28 +42,41 @@ class StockMovements
 {
     private static ?bool $salesTracked = null;
 
+    private static ?bool $warehousesTracked = null;
+
     /**
-     * One row per movement line: product_id, variation_id, branch_id, qty (base units, signed).
+     * One row per movement line: product_id, variation_id, branch_id, warehouse_id (null when unassigned), qty (base units, signed).
      * `as_of` (a `Y-m-d` day) keeps only movements whose document is dated on or before that day.
      * `with_kinds` adds a `kind` column and splits each line into its parts (purchase, purchase_return,
      * sale, sale_return, transfer_in, transfer_out, adjustment); the parts always add up to the same
      * `qty` the plain rows give, so a report can show the breakdown without a second definition.
      *
-     * @param  array{product_id?: int|null, variation_id?: int|null, branch_id?: int|null, exclude_sale_id?: int|null, as_of?: string|null, with_kinds?: bool}  $filters
+     * A `warehouse_id` filter keeps one warehouse's movements; 0 keeps the unassigned ones. `with_documents` adds the
+     * document of each line (`transaction_id`, `document_no`, `document_date`, `document_type`) for a movement history; without
+     * it the rows have exactly the columns above.
+     *
+     * @param  array{product_id?: int|null, variation_id?: int|null, branch_id?: int|null, warehouse_id?: int|null, exclude_sale_id?: int|null, as_of?: string|null, with_kinds?: bool, with_documents?: bool}  $filters
      */
     public static function query(array $filters = []): Builder
     {
         $productId = $filters['product_id'] ?? null;
         $variationId = $filters['variation_id'] ?? null;
         $branchId = $filters['branch_id'] ?? null;
+        $warehouseId = self::warehousesAreTracked() ? ($filters['warehouse_id'] ?? null) : null;
         $excludeSaleId = $filters['exclude_sale_id'] ?? null;
         $asOf = $filters['as_of'] ?? null;
         $withKinds = (bool) ($filters['with_kinds'] ?? false);
+        $withDocuments = (bool) ($filters['with_documents'] ?? false);
 
         $scope = fn (Builder $query, string $line, string $branchColumn): Builder => $query
             ->when($productId !== null, fn (Builder $q) => $q->where("{$line}.product_id", $productId))
             ->when($variationId !== null, fn (Builder $q) => $q->where("{$line}.variation_id", $variationId))
             ->when($branchId !== null, fn (Builder $q) => $q->where($branchColumn, $branchId))
+            ->when($warehouseId !== null, function (Builder $q) use ($branchColumn, $warehouseId): Builder {
+                $column = $branchColumn === 't.tobranch_id' ? 't.towarehouse_id' : 't.warehouse_id';
+
+                return $warehouseId === 0 ? $q->whereNull($column) : $q->where($column, $warehouseId);
+            })
             ->when($asOf !== null, fn (Builder $q) => $q->whereDate('t.transaction_date', '<=', $asOf));
 
         $lines = fn (string $type, bool $completedOnly): Builder => DB::table('purchase_lines as pl')
@@ -69,11 +88,18 @@ class StockMovements
         $packing = fn (string $alias): string => "(case when {$alias}.packing_qty is null or {$alias}.packing_qty < 1 then 1 else {$alias}.packing_qty end)";
 
         /** One movement select: the columns every part shares, the quantity expression and, if asked, its kind. */
-        $movement = function (Builder $query, string $branchColumn, string $expression, string $kind, string $alias = 'pl') use ($withKinds): Builder {
-            $columns = ["{$alias}.product_id", "{$alias}.variation_id", "{$branchColumn} as branch_id", DB::raw("{$expression} as qty")];
+        $movement = function (Builder $query, string $branchColumn, string $expression, string $kind, string $alias = 'pl') use ($withKinds, $withDocuments): Builder {
+            $warehouse = ! self::warehousesAreTracked()
+                ? DB::raw('null as warehouse_id')
+                : ($branchColumn === 't.tobranch_id' ? 't.towarehouse_id as warehouse_id' : 't.warehouse_id as warehouse_id');
+            $columns = ["{$alias}.product_id", "{$alias}.variation_id", "{$branchColumn} as branch_id", $warehouse, DB::raw("{$expression} as qty")];
 
             if ($withKinds) {
                 $columns[] = DB::raw("'{$kind}' as kind");
+            }
+
+            if ($withDocuments) {
+                array_push($columns, 't.id as transaction_id', 't.invoice_no as document_no', 't.transaction_date as document_date', 't.type as document_type');
             }
 
             return $query->select($columns);
@@ -215,6 +241,16 @@ class StockMovements
     public static function forgetSchemaMemo(): void
     {
         self::$salesTracked = null;
+        self::$warehousesTracked = null;
+    }
+
+    /**
+     * False until the warehouse columns exist, so a deploy that has not run its migration yet keeps the
+     * previous behaviour (every movement unassigned) instead of failing every stock query.
+     */
+    private static function warehousesAreTracked(): bool
+    {
+        return self::$warehousesTracked ??= Schema::hasColumn('transactions', 'warehouse_id');
     }
 
     /**
