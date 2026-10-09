@@ -70,8 +70,36 @@
         input-type="number"
         label="Tax Rate %"
         placeholder="Enter tax rate"
+        :attrs="{ step: 'any', min: 0, max: 100 }"
         :columns="{ container: 6, label: 12, wrapper: 12 }"
-        rules="required|numeric|min:0"
+        rules="required|numeric|min:0|max:100"
+    />
+
+    <SelectElement
+        name="kind"
+        :native="false"
+        :items="[{ value: 'sales', label: 'Sales / purchase tax' }, { value: 'withholding', label: 'Withholding tax' }]"
+        label="Kind"
+        :can-clear="false"
+        default="sales"
+        :columns="{ container: 6, label: 12, wrapper: 12 }"
+        label-prop="label"
+        value-prop="value"
+        :floating="false"
+    />
+
+    <SelectElement
+        v-if="params.formData?.kind === 'withholding'"
+        name="applies_on"
+        :native="false"
+        :items="[{ value: 'net', label: 'Value before sales tax' }, { value: 'gross', label: 'Invoice total incl. sales tax' }]"
+        label="Withheld on"
+        :can-clear="false"
+        default="net"
+        :columns="{ container: 6, label: 12, wrapper: 12 }"
+        label-prop="label"
+        value-prop="value"
+        :floating="false"
     />
 
     <ToggleElement

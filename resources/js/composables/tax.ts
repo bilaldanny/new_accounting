@@ -22,6 +22,8 @@ export default function useTaxes() {
         percentage: '',
         sub_tax: [] as number[],
         type: 0,
+        kind: 'sales',
+        applies_on: 'net',
         status: true,
     });
 
@@ -32,6 +34,8 @@ export default function useTaxes() {
         percentage: '',
         sub_tax: [] as number[],
         type: 0,
+        kind: 'sales',
+        applies_on: 'net',
         status: true,
     });
 
@@ -40,6 +44,7 @@ export default function useTaxes() {
         company_id: '',
         name: '',
         sub_tax: [] as number[],
+        compound: false,
         type: 1,
         status: true,
     });
@@ -49,6 +54,7 @@ export default function useTaxes() {
         company_id: '',
         name: '',
         sub_tax: [] as number[],
+        compound: false,
         type: 1,
         status: true,
     });
@@ -118,6 +124,7 @@ export default function useTaxes() {
                     company_id: record.company_id ?? '',
                     name: record.name ?? '',
                     sub_tax: Array.isArray(record.sub_tax) ? record.sub_tax.map(Number) : [],
+                    compound: Boolean(record.compound),
                     type: 1,
                     status: Boolean(record.status),
                 };
@@ -132,6 +139,8 @@ export default function useTaxes() {
                 percentage: record.percentage ?? '',
                 sub_tax: [],
                 type: 0,
+                kind: record.kind ?? 'sales',
+                applies_on: record.applies_on ?? 'net',
                 status: Boolean(record.status),
             };
 

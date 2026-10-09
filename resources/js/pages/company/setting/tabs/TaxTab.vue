@@ -9,6 +9,7 @@
     import AddModal from '../tax/add.vue';
     import AddGroupModal from '../tax/addGroup.vue';
     import EditModal from '../tax/edit.vue';
+    import TaxRegistrationCard from './TaxRegistrationCard.vue';
 
     const props = defineProps({
         companyId: { type: [String, Number], default: '' },
@@ -174,18 +175,20 @@
                             <th>S.No</th>
                             <th>Name</th>
                             <th>Rate %</th>
+                            <th>Kind</th>
                             <th>Status</th>
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="state.records.data.length === 0">
-                            <td colspan="5" class="text-center text-muted">No record found</td>
+                            <td colspan="6" class="text-center text-muted">No record found</td>
                         </tr>
                         <tr v-for="(item, index) in state.records.data" :key="String(item.id)">
                             <td>{{ state.records.from + index }}</td>
                             <td>{{ item.name || '-' }}</td>
                             <td>{{ item.percentage ?? '-' }}</td>
+                            <td>{{ item.kind === 'withholding' ? 'Withholding' : (Number(item.type) === 1 ? (item.compound ? 'Group (compound)' : 'Group (added)') : 'Tax') }}</td>
                             <td>
                                 <span
                                     class="badge cursor-pointer"
@@ -218,6 +221,8 @@
                 </table>
             </div>
         </template>
+
+        <TaxRegistrationCard :company-id="companyId" />
 
         <AddModal
             :show-loader="state.modalLoading"

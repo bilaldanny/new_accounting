@@ -122,6 +122,16 @@
     />
 
     <ToggleElement
+        :labels="{ 1: 'Compound', 0: 'Added' }"
+        :columns="{ container: 6, label: 12, wrapper: 12 }"
+        name="compound"
+        label="Compound: each tax is charged on the amount plus the taxes before it, in the order selected"
+        :true-value="true"
+        :false-value="false"
+        :default="false"
+    />
+
+    <ToggleElement
         :labels="{ 1: 'On', 0: 'Off' }"
         :columns="{ container: 6, label: 12, wrapper: 12 }"
         name="status"
