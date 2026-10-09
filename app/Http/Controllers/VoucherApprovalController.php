@@ -9,9 +9,9 @@ use Illuminate\Http\Request;
 
 /**
  * Approval list, approve and reject for the manual vouchers kept in t_accounts: journal entries,
- * payments, expenses, deposits and fund transfers. The routes (routes/api.php) pass the voucher
- * family as a route default (after {id}, so it is the last argument); each family has its own approve
- * and reject menu permission.
+ * payments, expenses, deposits, fund transfers and credit/debit notes. The routes (routes/api.php)
+ * pass the voucher family as a route default (after {id}, so it is the last argument); each family
+ * has its own approve and reject menu permission.
  */
 class VoucherApprovalController extends Controller
 {
@@ -28,6 +28,7 @@ class VoucherApprovalController extends Controller
         'expense' => ['approve' => '/expense/:id/approve', 'reject' => '/expense/:id/reject'],
         'deposit' => ['approve' => '/deposit/:id/approve', 'reject' => '/deposit/:id/reject'],
         'fundtransfer' => ['approve' => '/fundtransfer/:id/approve', 'reject' => '/fundtransfer/:id/reject'],
+        'creditdebitnote' => ['approve' => '/creditdebitnote/:id/approve', 'reject' => '/creditdebitnote/:id/reject'],
     ];
 
     public function index(Request $request, string $family): JsonResponse

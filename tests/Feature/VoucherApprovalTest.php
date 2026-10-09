@@ -343,7 +343,8 @@ test('the controller checks exactly the approve and reject rows the menu migrati
     $migration = file_get_contents(database_path('migrations/2026_09_20_110000_add_voucher_approval_menus.php'));
 
     foreach (VoucherApprovalController::PERMISSIONS as $family => $keys) {
-        if ($family === 'journal') {
+        // journal's menu rows predate this migration; credit/debit note's come from its own later one
+        if (in_array($family, ['journal', 'creditdebitnote'], true)) {
             continue;
         }
 
@@ -352,6 +353,15 @@ test('the controller checks exactly the approve and reject rows the menu migrati
         expect($keys)->toBe(['approve' => "{$menu}/:id/approve", 'reject' => "{$menu}/:id/reject"])
             ->and($migration)->toContain("'{$menu}' =>");
     }
+
+    $creditDebitNoteMigration = file_get_contents(database_path('migrations/2026_09_27_110000_add_credit_debit_note_menu.php'));
+
+    expect(VoucherApprovalController::PERMISSIONS['creditdebitnote'])->toBe([
+        'approve' => '/creditdebitnote/:id/approve',
+        'reject' => '/creditdebitnote/:id/reject',
+    ])
+        ->and($creditDebitNoteMigration)->toContain('/creditdebitnote/:id/approve')
+        ->and($creditDebitNoteMigration)->toContain('/creditdebitnote/:id/reject');
 
     expect(array_keys(VoucherApprovalController::PERMISSIONS))->toBe(array_keys(voucherFamilies()));
 });

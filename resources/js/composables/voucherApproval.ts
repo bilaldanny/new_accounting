@@ -7,7 +7,7 @@ import useCommons from "./common";
  * (VoucherApprovalController) and one set of screens; only the endpoint, the wording and the two
  * menu permission keys differ.
  */
-export type VoucherFamily = 'journal' | 'payment' | 'expense' | 'deposit' | 'fundtransfer';
+export type VoucherFamily = 'journal' | 'payment' | 'expense' | 'deposit' | 'fundtransfer' | 'creditdebitnote';
 
 type VoucherApprovalConfig = {
     endpoint: string;
@@ -47,6 +47,12 @@ export const VOUCHER_APPROVAL: Record<VoucherFamily, VoucherApprovalConfig> = {
         label: 'fund transfer',
         approvePath: '/fundtransfer/:id/approve',
         rejectPath: '/fundtransfer/:id/reject',
+    },
+    creditdebitnote: {
+        endpoint: API_ENDPOINTS.creditDebitNoteApprovals,
+        label: 'credit/debit note',
+        approvePath: '/creditdebitnote/:id/approve',
+        rejectPath: '/creditdebitnote/:id/reject',
     },
 };
 
