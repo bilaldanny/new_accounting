@@ -43,6 +43,7 @@ class SubscriptionPlanController extends Controller
             'max_storage_mb' => 'nullable|integer|min:1',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'is_featured' => 'nullable|boolean',
         ];
     }
 

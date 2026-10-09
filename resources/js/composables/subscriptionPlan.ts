@@ -26,6 +26,7 @@ export default function useSubscriptionPlans(){
       max_storage_mb: 500,
       sort_order: 0,
       is_active: true,
+      is_featured: false,
     });
 
     const formData = ref(emptyForm());

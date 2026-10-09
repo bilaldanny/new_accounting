@@ -43,6 +43,51 @@ test('the landing page loads for a guest with its pricing, from its own light bu
     });
 });
 
+test('the screenshot gallery switches between four screens by click and by keyboard, and every picture loads', function () {
+    $this->world();
+
+    $this->browse(function (Browser $browser) {
+        $visiblePanels = fn (): array => $browser->driver->executeScript('return [...document.querySelectorAll("[role=tabpanel]")].filter((p) => p.offsetParent !== null).map((p) => p.id);');
+
+        $browser->resize(1440, 900)->logout()->visit('/')->waitFor('#screens', 30)->pause(1500);
+        $browser->script('document.querySelector("#screens").scrollIntoView();');
+        $browser->pause(800)->assertPresent('#tab-dashboard[aria-selected=true]');
+        expect($visiblePanels())->toBe(['panel-dashboard']);
+
+        $browser->script('document.querySelector("#tab-sales").scrollIntoView({block: "center"});');
+        $browser->pause(500)->click('#tab-sales')->pause(1200);
+        expect($visiblePanels())->toBe(['panel-sales']);
+
+        $browser->keys('#tab-sales', '{arrow_right}')->pause(600)->assertPresent('#tab-products[aria-selected=true]');
+        expect($visiblePanels())->toBe(['panel-products']);
+        $browser->keys('#tab-products', '{arrow_right}')->pause(400)->assertPresent('#tab-reports[aria-selected=true]');
+
+        $loaded = $browser->driver->executeScript('return [...document.querySelectorAll("#screens img, .lp-hero img")].map((img) => img.complete && img.naturalWidth > 0);');
+        expect($loaded)->toHaveCount(5)->and(in_array(false, $loaded, true))->toBeFalse();
+
+        $this->assertNoBrowserErrors($browser);
+    });
+});
+
+test('the pricing section highlights only a plan the superadmin marked as recommended', function () {
+    $this->world();
+    duskLandingPlans();
+    SubscriptionPlan::query()->where('code', 'dusk-starter')->update(['is_featured' => true]);
+
+    $this->browse(function (Browser $browser) {
+        $browser->logout()->visit('/')->waitFor('#pricing', 30);
+        expect($browser->driver->executeScript('return document.querySelectorAll(".lp-plan-featured").length;'))->toBe(1)
+            ->and($browser->driver->executeScript('return document.querySelectorAll(".lp-badge").length;'))->toBe(1);
+    });
+
+    SubscriptionPlan::query()->update(['is_featured' => false]);
+
+    $this->browse(function (Browser $browser) {
+        $browser->visit('/')->waitFor('#pricing', 30);
+        expect($browser->driver->executeScript('return document.querySelectorAll(".lp-badge, .lp-plan-featured").length;'))->toBe(0);
+    });
+});
+
 test('the landing page fits a phone screen without sideways scrolling', function () {
     $this->world();
     duskLandingPlans();

@@ -35,6 +35,7 @@ class SubscriptionPlan extends Model
         'max_storage_mb',
         'sort_order',
         'is_active',
+        'is_featured',
     ];
 
     protected function casts(): array
@@ -42,6 +43,7 @@ class SubscriptionPlan extends Model
         return [
             'price' => 'decimal:2',
             'is_active' => 'boolean',
+            'is_featured' => 'boolean',
         ];
     }
 
@@ -103,5 +105,6 @@ class SubscriptionPlan extends Model
         $plan->max_storage_mb = (int) ($request->max_storage_mb ?? 500);
         $plan->sort_order = (int) ($request->sort_order ?? 0);
         $plan->is_active = $request->has('is_active') ? (bool) $request->boolean('is_active') : true;
+        $plan->is_featured = $request->has('is_featured') ? (bool) $request->boolean('is_featured') : false;
     }
 }

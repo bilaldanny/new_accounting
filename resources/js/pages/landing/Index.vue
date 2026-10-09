@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Branding } from '@/components/landing/BrandMark.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import BrandMark from '@/components/landing/BrandMark.vue';
+import type { Branding } from '@/components/landing/BrandMark.vue';
 import PostCard from '@/components/landing/PostCard.vue';
 import type { PostCardData } from '@/components/landing/PostCard.vue';
 
@@ -12,6 +12,7 @@ interface Plan {
     billing_cycle: 'monthly' | 'quarterly' | 'annual' | string;
     price: number;
     trial_days: number;
+    featured: boolean;
     limits: {
         users: number;
         branches: number;
@@ -31,17 +32,44 @@ const props = defineProps<{
     posts: PostCardData[];
 }>();
 
+const brand = computed(() => props.branding.name);
+
 const description =
     'Sales, purchases, inventory, accounting, tax, CRM and reports for a growing business, with approvals and role-based access. Start a free trial.';
 
-const brand = computed(() => props.branding.name);
-
 const menuOpen = ref(false);
+
+/* Screenshots of the product, taken on a sample company with fictional data. */
+const screens = [
+    { key: 'dashboard', label: 'Dashboard', src: '/assets/landing/dashboard.jpg', alt: 'The dashboard with sales, purchases, receivables and pending approvals', caption: 'Sales, purchases, receivables and pending approvals at a glance.' },
+    { key: 'sales', label: 'Sales', src: '/assets/landing/sales.jpg', alt: 'The sales list with invoice number, customer, status, payment and total', caption: 'Every invoice with its customer, status and payment, searchable and exportable.' },
+    { key: 'products', label: 'Products', src: '/assets/landing/products.jpg', alt: 'The product list with SKU, category, item type and status', caption: 'Your catalogue with SKUs, categories and item types, ready to import.' },
+    { key: 'reports', label: 'Reports', src: '/assets/landing/sellreport.jpg', alt: 'The sell report with document count, total and amount due', caption: 'Reports with totals on top and the documents behind them, one click from Excel, CSV or PDF.' },
+];
+const activeScreen = ref(0);
+
+function onTabKey(event: KeyboardEvent): void {
+    const last = screens.length - 1;
+
+    if (event.key === 'ArrowRight') {
+        activeScreen.value = activeScreen.value === last ? 0 : activeScreen.value + 1;
+    } else if (event.key === 'ArrowLeft') {
+        activeScreen.value = activeScreen.value === 0 ? last : activeScreen.value - 1;
+    } else {
+        return;
+    }
+
+    event.preventDefault();
+    (document.getElementById(`tab-${screens[activeScreen.value].key}`) as HTMLElement | null)?.focus();
+}
+
+const strip = ['Sales & POS', 'Purchases', 'Inventory', 'Accounting', 'Tax', 'CRM', 'Reports', 'Approvals'];
 
 /* Every line below is something the product does today (checked against the feature audit). */
 const pillars = [
     {
         title: 'Double-entry accounting',
+        icon: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h4',
         items: [
             'Chart of accounts, journal entries and vouchers that must balance',
             'Approval before a voucher counts, with cost centers and attachments',
@@ -51,6 +79,7 @@ const pillars = [
     },
     {
         title: 'Purchasing and stock',
+        icon: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8',
         items: [
             'Purchase orders with an approval step and purchase returns',
             'Goods received notes (GRN) and landed cost',
@@ -60,6 +89,7 @@ const pillars = [
     },
     {
         title: 'Branches, roles and access',
+        icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
         items: [
             'Company data kept separate, branch-level users scoped to their branch',
             'Permissions per menu and per button, starter roles included',
@@ -69,6 +99,7 @@ const pillars = [
     },
     {
         title: 'Visibility and control',
+        icon: 'M5 19V9M12 19V5M19 19v-7',
         items: [
             'Dashboard figures for sales, purchases, profit, cash and bank',
             'Receivable and payable aging, consolidated branch report',
@@ -76,6 +107,12 @@ const pillars = [
             'Budgets and budget vs actual',
         ],
     },
+];
+
+const steps = [
+    { title: 'Register', text: 'Create your account. You get a company, a first branch and ready-made staff roles, and the free trial of your plan starts.' },
+    { title: 'Set up', text: 'Add your chart of accounts, tax rates, products and customers. Invite your team and give each person a starter role.' },
+    { title: 'Run the business', text: 'Sell, buy, track stock, post vouchers and approve them. Reports follow from the same ledger.' },
 ];
 
 const featureGroups = [
@@ -91,7 +128,7 @@ const featureGroups = [
     },
     {
         title: 'Fixed assets',
-        icon: 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h4',
+        icon: 'M4 6h16v12H4zM4 10h16M9 14h2',
         items: ['Asset register with straight-line and declining balance depreciation', 'Revaluation, impairment and disposal with approval'],
     },
     {
@@ -101,7 +138,7 @@ const featureGroups = [
     },
     {
         title: 'Reports',
-        icon: 'M5 19V9M12 19V5M19 19v-7',
+        icon: 'M4 19h16M7 15l3-4 3 2 4-6',
         items: ['Profit & loss and balance sheet', 'Ledgers and trial balance', 'Customer and supplier aging', 'Stock reports'],
     },
     {
@@ -222,6 +259,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </button>
                 <nav id="lp-links" class="lp-links" :class="{ 'is-open': menuOpen }" aria-label="Main">
                     <a href="#features" @click="menuOpen = false">Features</a>
+                    <a href="#screens" @click="menuOpen = false">Screenshots</a>
                     <a href="#pricing" @click="menuOpen = false">Pricing</a>
                     <a v-if="posts.length > 0" href="#blog" @click="menuOpen = false">Blog</a>
                     <a href="#faq" @click="menuOpen = false">FAQ</a>
@@ -234,32 +272,36 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
 
         <main id="main">
             <section class="lp-hero" aria-labelledby="hero-title">
-                <div class="lp-wrap lp-hero-grid">
-                    <div>
-                        <p class="lp-eyebrow">Sales, stock, accounts and tax</p>
-                        <h1 id="hero-title">
-                            Run your whole business
-                            <span class="lp-grad">from one ledger.</span>
-                        </h1>
-                        <p class="lp-lead">
-                            {{ brand }} brings your point of sale, purchases, inventory, accounting and reports together, with approvals and
-                            role-based access for your team.
-                        </p>
-                        <div class="lp-cta">
-                            <Link v-if="registrationEnabled" class="lp-btn" href="/register">Register</Link>
-                            <a v-else class="lp-btn" :href="contactHref">Contact us</a>
-                            <a class="lp-btn lp-btn-ghost" href="/login">Login</a>
-                        </div>
-                        <p class="lp-note">Payment is arranged manually by bank transfer; no online payment gateway.</p>
-                        <ul class="lp-chips">
-                            <li>Approvals on vouchers</li>
-                            <li>Roles and permissions</li>
-                            <li>Two-factor sign-in</li>
-                            <li>Audit log</li>
-                        </ul>
+                <div class="lp-hero-glow" aria-hidden="true" />
+                <div class="lp-wrap lp-hero-center">
+                    <p class="lp-pill">Sales &middot; Stock &middot; Accounts &middot; Tax</p>
+                    <h1 id="hero-title">
+                        Run your whole business
+                        <span class="lp-grad">from one ledger.</span>
+                    </h1>
+                    <p class="lp-lead lp-lead-center">
+                        {{ brand }} brings your point of sale, purchases, inventory, accounting and reports together, with approvals and
+                        role-based access for your team.
+                    </p>
+                    <div class="lp-cta lp-cta-center">
+                        <Link v-if="registrationEnabled" class="lp-btn lp-btn-lg" href="/register">Start free trial</Link>
+                        <a v-else class="lp-btn lp-btn-lg" :href="contactHref">Contact us</a>
+                        <a class="lp-btn lp-btn-lg lp-btn-ghost" href="#screens">See it in action</a>
                     </div>
+                    <ul class="lp-chips lp-chips-center">
+                        <li>Approvals on vouchers</li>
+                        <li>Roles and permissions</li>
+                        <li>Two-factor sign-in</li>
+                        <li>Audit log</li>
+                    </ul>
+                </div>
 
-                    <div class="lp-voucher" role="img" aria-label="Sample journal voucher with balanced debit and credit lines">
+                <div class="lp-wrap lp-hero-visual">
+                    <div class="lp-frame lp-frame-hero">
+                        <div class="lp-frame-bar"><i /><i /><i /><span>Sample data</span></div>
+                        <img src="/assets/landing/dashboard.jpg" width="1280" height="673" alt="The dashboard of the application, showing sales, purchases, receivables and pending approvals" fetchpriority="high" />
+                    </div>
+                    <div class="lp-voucher lp-float" role="img" aria-label="Sample journal voucher with balanced debit and credit lines">
                         <div class="lp-voucher-bar"><i /><i /><i /><span>Sample data</span></div>
                         <div class="lp-voucher-body">
                             <div class="lp-voucher-head">
@@ -284,15 +326,69 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
+            <section class="lp-strip" aria-label="Areas covered">
+                <div class="lp-wrap">
+                    <ul>
+                        <li v-for="item in strip" :key="item">{{ item }}</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="screens" class="lp-section" aria-labelledby="screens-title">
+                <div class="lp-wrap">
+                    <div class="lp-head lp-head-center">
+                        <p class="lp-eyebrow">The product</p>
+                        <h2 id="screens-title">See what you will be working in</h2>
+                        <p>Screenshots of the application, taken on a sample company with fictional data.</p>
+                    </div>
+
+                    <div class="lp-tabs" role="tablist" aria-label="Screenshots" @keydown="onTabKey">
+                        <button
+                            v-for="(screen, index) in screens"
+                            :id="`tab-${screen.key}`"
+                            :key="screen.key"
+                            type="button"
+                            role="tab"
+                            :aria-selected="activeScreen === index"
+                            :aria-controls="`panel-${screen.key}`"
+                            :tabindex="activeScreen === index ? 0 : -1"
+                            @click="activeScreen = index"
+                        >
+                            {{ screen.label }}
+                        </button>
+                    </div>
+
+                    <div class="lp-showcase">
+                        <div
+                            v-for="(screen, index) in screens"
+                            v-show="activeScreen === index"
+                            :id="`panel-${screen.key}`"
+                            :key="screen.key"
+                            role="tabpanel"
+                            :aria-labelledby="`tab-${screen.key}`"
+                        >
+                            <div class="lp-frame">
+                                <div class="lp-frame-bar"><i /><i /><i /><span>Sample data</span></div>
+                                <img :src="screen.src" width="1280" height="673" :alt="screen.alt" loading="lazy" />
+                            </div>
+                            <p class="lp-caption">{{ screen.caption }}</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="lp-section lp-section-alt" aria-labelledby="pillars-title">
                 <div class="lp-wrap">
-                    <div class="lp-head">
+                    <div class="lp-head lp-head-center">
                         <p class="lp-eyebrow">What it covers</p>
                         <h2 id="pillars-title">Four areas of financial control</h2>
                         <p>Each point below works in the product today.</p>
                     </div>
                     <div class="lp-pillars">
-                        <article v-for="(pillar, index) in pillars" :key="pillar.title" class="lp-card">
+                        <article v-for="(pillar, index) in pillars" :key="pillar.title" class="lp-card lp-lift">
+                            <div class="lp-icon" aria-hidden="true">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="pillar.icon" /></svg>
+                            </div>
                             <h3><span class="lp-num">0{{ index + 1 }}</span>{{ pillar.title }}</h3>
                             <ul class="lp-checks">
                                 <li v-for="item in pillar.items" :key="item">{{ item }}</li>
@@ -302,14 +398,30 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
-            <section id="features" class="lp-section" aria-labelledby="features-title">
+            <section class="lp-section" aria-labelledby="steps-title">
                 <div class="lp-wrap">
-                    <div class="lp-head">
+                    <div class="lp-head lp-head-center">
+                        <p class="lp-eyebrow">How it works</p>
+                        <h2 id="steps-title">From sign-up to your first invoice</h2>
+                    </div>
+                    <ol class="lp-steps">
+                        <li v-for="(step, index) in steps" :key="step.title" class="lp-card">
+                            <span class="lp-step-no" aria-hidden="true">{{ index + 1 }}</span>
+                            <h3>{{ step.title }}</h3>
+                            <p>{{ step.text }}</p>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="features" class="lp-section lp-section-alt" aria-labelledby="features-title">
+                <div class="lp-wrap">
+                    <div class="lp-head lp-head-center">
                         <p class="lp-eyebrow">And more</p>
                         <h2 id="features-title">Everything else in the box</h2>
                     </div>
                     <div class="lp-groups">
-                        <article v-for="group in featureGroups" :key="group.title" class="lp-card">
+                        <article v-for="group in featureGroups" :key="group.title" class="lp-card lp-lift">
                             <div class="lp-icon" aria-hidden="true">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="group.icon" /></svg>
                             </div>
@@ -322,7 +434,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
-            <section class="lp-section lp-section-alt" aria-labelledby="demo-title">
+            <section class="lp-section" aria-labelledby="demo-title">
                 <div class="lp-wrap lp-demo">
                     <div>
                         <p class="lp-eyebrow">Demo</p>
@@ -330,6 +442,14 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                         <p class="lp-note" style="margin-top: 0">
                             Change an amount to see the rule every journal voucher follows. This is a local demo: nothing is saved or sent.
                         </p>
+                        <div class="lp-head" style="margin-top: 28px; margin-bottom: 0">
+                            <p class="lp-eyebrow">Roadmap</p>
+                            <h3 id="roadmap-title" style="font-size: 1.25rem">Coming soon</h3>
+                            <p style="margin-bottom: 12px">Not available yet. Listed so you know what we are working towards.</p>
+                        </div>
+                        <div class="lp-roadmap">
+                            <span v-for="item in roadmap" :key="item.name">{{ item.name }} <small>({{ item.note }})</small></span>
+                        </div>
                     </div>
                     <div class="lp-card">
                         <div class="lp-field">
@@ -348,35 +468,30 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
-            <section class="lp-section" aria-labelledby="roadmap-title">
-                <div class="lp-wrap">
-                    <div class="lp-head">
-                        <p class="lp-eyebrow">Roadmap</p>
-                        <h2 id="roadmap-title">Coming soon</h2>
-                        <p>Not available yet. Listed so you know what we are working towards.</p>
-                    </div>
-                    <div class="lp-roadmap">
-                        <span v-for="item in roadmap" :key="item.name">{{ item.name }} <small>({{ item.note }})</small></span>
-                    </div>
-                </div>
-            </section>
-
             <section id="pricing" class="lp-section lp-section-alt" aria-labelledby="pricing-title">
                 <div class="lp-wrap">
-                    <div class="lp-head">
+                    <div class="lp-head lp-head-center">
                         <p class="lp-eyebrow">Pricing</p>
                         <h2 id="pricing-title">Pick the plan whose limits fit your business</h2>
+                        <p>Start with a free trial. Change plan any time as you grow.</p>
                     </div>
 
                     <template v-if="plans.length > 0">
-                        <div v-if="cycles.length > 1" class="lp-cycles" role="group" aria-label="Billing period">
+                        <div v-if="cycles.length > 1" class="lp-cycles lp-cycles-center" role="group" aria-label="Billing period">
                             <button v-for="cycle in cycles" :key="cycle" type="button" :aria-pressed="activeCycle === cycle" @click="activeCycle = cycle">
                                 {{ cycleLabels[cycle] ?? cycle }}
                             </button>
                         </div>
 
                         <div class="lp-plans">
-                            <article v-for="plan in visiblePlans" :key="plan.code" class="lp-card lp-plan" :data-test="`plan-${plan.code}`">
+                            <article
+                                v-for="plan in visiblePlans"
+                                :key="plan.code"
+                                class="lp-card lp-plan lp-lift"
+                                :class="{ 'lp-plan-featured': plan.featured }"
+                                :data-test="`plan-${plan.code}`"
+                            >
+                                <p v-if="plan.featured" class="lp-badge">Recommended</p>
                                 <h3>{{ plan.name }}</h3>
                                 <div class="lp-price">
                                     {{ priceText(plan) }}
@@ -384,17 +499,18 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                                 </div>
                                 <p v-if="plan.trial_days > 0" class="lp-trial">{{ plan.trial_days }}-day free trial</p>
                                 <p v-else class="lp-note" style="margin: 0">No trial on this plan</p>
-                                <ul class="lp-limits">
+                                <ul class="lp-limits lp-checks">
                                     <li v-for="[label, value] in limitRows(plan)" :key="label">
                                         <span>{{ label }}</span><span>{{ value }}</span>
                                     </li>
                                 </ul>
-                                <Link v-if="plan.trial_days > 0 && registrationEnabled" class="lp-btn lp-btn-block" :href="`/register?plan=${plan.code}`">
+                                <Link v-if="plan.trial_days > 0 && registrationEnabled" class="lp-btn lp-btn-block" :class="{ 'lp-btn-ghost': !plan.featured }" :href="`/register?plan=${plan.code}`">
                                     Start free trial
                                 </Link>
                                 <a v-else class="lp-btn lp-btn-ghost lp-btn-block" :href="contactHref">Contact us</a>
                             </article>
                         </div>
+                        <p class="lp-note lp-center-note">Need more than the largest plan, or something custom? <a :href="contactHref">Contact us</a>.</p>
                     </template>
                     <div v-else class="lp-card">
                         <h3>Talk to us about pricing</h3>
@@ -410,20 +526,20 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
 
             <section v-if="posts.length > 0" id="blog" class="lp-section" aria-labelledby="blog-title">
                 <div class="lp-wrap">
-                    <div class="lp-head">
+                    <div class="lp-head lp-head-center">
                         <p class="lp-eyebrow">Blog</p>
                         <h2 id="blog-title">Latest from the blog</h2>
                     </div>
                     <div class="lp-posts">
                         <PostCard v-for="post in posts" :key="post.slug" :post="post" />
                     </div>
-                    <p style="margin-top: 22px"><a href="/blog">All posts &rarr;</a></p>
+                    <p style="margin-top: 22px; text-align: center"><a href="/blog">All posts &rarr;</a></p>
                 </div>
             </section>
 
             <section id="faq" class="lp-section" :class="{ 'lp-section-alt': posts.length > 0 }" aria-labelledby="faq-title">
                 <div class="lp-wrap">
-                    <div class="lp-head">
+                    <div class="lp-head lp-head-center">
                         <p class="lp-eyebrow">FAQ</p>
                         <h2 id="faq-title">Frequently asked questions</h2>
                     </div>
@@ -436,14 +552,14 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 </div>
             </section>
 
-            <section class="lp-section lp-final" aria-labelledby="final-title">
-                <div class="lp-wrap">
+            <section class="lp-wrap lp-band-wrap" aria-labelledby="final-title">
+                <div class="lp-band">
                     <h2 id="final-title">Ready to try it with your own numbers?</h2>
-                    <p class="lp-lead" style="margin-inline: auto">Create an account, or log in if you already have one.</p>
-                    <div class="lp-cta">
-                        <Link v-if="registrationEnabled" class="lp-btn" href="/register">Register</Link>
-                        <a v-else class="lp-btn" :href="contactHref">Contact us</a>
-                        <a class="lp-btn lp-btn-ghost" href="/login">Login</a>
+                    <p>Create an account and start your free trial, or log in if you already have one.</p>
+                    <div class="lp-cta lp-cta-center">
+                        <Link v-if="registrationEnabled" class="lp-btn lp-btn-lg" href="/register">Start free trial</Link>
+                        <a v-else class="lp-btn lp-btn-lg" :href="contactHref">Contact us</a>
+                        <a class="lp-btn lp-btn-lg lp-btn-ghost" href="/login">Login</a>
                     </div>
                 </div>
             </section>
@@ -459,6 +575,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                     <h3>Product</h3>
                     <ul>
                         <li><a href="#features">Features</a></li>
+                        <li><a href="#screens">Screenshots</a></li>
                         <li><a href="#pricing">Pricing</a></li>
                         <li v-if="posts.length > 0"><a href="/blog">Blog</a></li>
                         <li><a href="#faq">FAQ</a></li>

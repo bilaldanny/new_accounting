@@ -82,6 +82,18 @@
             :default="true"
             info="Inactive plans cannot be assigned to a new tenant."
         />
+        <ToggleElement
+            :labels="{ 1: 'Yes', 0: 'No' }"
+            :columns="colThird"
+            id="IsFeatured"
+            field-name="IsFeatured"
+            name="is_featured"
+            label="Recommended on website"
+            :true-value="true"
+            :false-value="false"
+            :default="false"
+            info="Highlights this plan in the public pricing section. Leave off for all to highlight none."
+        />
     </GroupElement>
 
     <GroupElement name="group_limits" :columns="colFull" :add-classes="cardClasses">

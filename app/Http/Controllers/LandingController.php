@@ -23,6 +23,7 @@ class LandingController extends Controller
                 'billing_cycle' => $plan->billing_cycle,
                 'price' => (float) $plan->price,
                 'trial_days' => (int) $plan->trial_days,
+                'featured' => (bool) $plan->is_featured,
                 'limits' => [
                     'users' => (int) $plan->max_users,
                     'branches' => (int) $plan->max_branches,

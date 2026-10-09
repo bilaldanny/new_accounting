@@ -44,3 +44,20 @@ and a dark navy / teal theme in `resources/css/landing.css`.
   published. There are no seeded or sample posts.
 - Each post carries its own title, description and Open Graph tags (and its cover as `og:image`).
 - After deploying, run `php artisan migrate` once: it creates `blog_posts` and the Website > Blog Posts menu.
+
+## Screenshots on the landing page
+
+- The pictures in the screenshot gallery and the hero are in `public/assets/landing/` (`dashboard.jpg`, `sales.jpg`, `products.jpg`,
+  `sellreport.jpg`). They were taken on a sample company with fictional customers and products, and the page says so.
+- To retake them after the interface changes, run `tests/Browser/LandingScreenshotsTest.php` on purpose with `CAPTURE_LANDING_SCREENSHOTS=1`
+  (inline sqlite Dusk environment, like every Dusk run), then convert the `tests/Browser/screenshots/landing-*.png` files to 1280 px wide JPEGs
+  in `public/assets/landing/`. It never runs in the normal suite.
+
+## Default subscription packages
+
+- `php artisan plans:seed-defaults` creates Starter, Growth and Business, each monthly and annual (the annual price is ten months), with a 14-day
+  trial and growing limits. Growth is flagged as recommended. A plan whose code already exists is left exactly as it is, so editing a price and
+  running the command again is safe; `--dry-run` only lists what it would create.
+- The prices are starting points, not a decision: change them, the limits or the trial under `/subscriptionplans`. **Recommended on website**
+  there is what puts the badge on a plan; with no plan flagged nothing is highlighted.
+- Set `LANDING_CURRENCY_LABEL` (for example `PKR`) in `.env` so the prices carry a currency.
