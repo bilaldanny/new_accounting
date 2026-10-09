@@ -2,6 +2,7 @@
     import { Package, Trash } from '@boxicons/vue';
     import { usePage } from '@inertiajs/vue3';
     import { computed, ref, watch } from 'vue';
+    import TrackingInput from '@/components/TrackingInput.vue';
     import type { SellLineRow } from '@/composables/sell';
 
     type CatalogOption = {
@@ -73,6 +74,14 @@
         status: {
             type: String,
             default: 'final',
+        },
+        companyId: {
+            type: [String, Number],
+            default: '',
+        },
+        branchId: {
+            type: [String, Number],
+            default: '',
         },
     });
 
@@ -418,7 +427,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(line, index) in lines" :key="line.id ?? `${line.variation_id}-${index}`">
+                    <template v-for="(line, index) in lines" :key="line.id ?? `${line.variation_id}-${index}`">
+                    <tr>
                         <td class="is-count">{{ index + 1 }}</td>
                         <td class="is-name">
                             <div class="purchase-lines__product">
@@ -519,6 +529,20 @@
                             </button>
                         </td>
                     </tr>
+                    <tr v-if="line.tracking_type === 'serial' || line.tracking_type === 'batch'" class="tracking-row">
+                        <td />
+                        <td colspan="8">
+                            <TrackingInput
+                                :line="line"
+                                direction="out"
+                                :company-id="companyId"
+                                :branch-id="branchId"
+                                :disabled="disabled || status === 'draft' || status === 'quotation'"
+                                @update="(patch) => emit('update', index, patch)"
+                            />
+                        </td>
+                    </tr>
+                    </template>
                 </tbody>
             </table>
         </div>

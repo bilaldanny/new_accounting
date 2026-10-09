@@ -20,7 +20,10 @@ class RestrictPortalUsers
      *
      * @var list<string>
      */
-    private const ALLOWED = ['portal', 'api/portal', 'api/user', 'logout', 'idle-timeout-alert/*', 'up'];
+    private const ALLOWED = [
+        'portal', 'api/portal', 'api/portal/change-password', 'api/user', 'logout', 'idle-timeout-alert/*', 'up',
+        'api/portal/subscriptions', 'api/portal/subscriptions/*', 'api/portal/subscription-invoices', 'api/portal/subscription-plans',
+    ];
 
     public function handle(Request $request, Closure $next): Response
     {

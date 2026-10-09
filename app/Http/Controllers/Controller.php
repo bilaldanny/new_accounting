@@ -45,4 +45,15 @@ abstract class Controller
     {
         abortUnlessCompanySettingMenuPermission();
     }
+
+    /**
+     * For the settings that also have a menu of their own (Tax, Financial Year): whoever may manage company settings, or was
+     * given that menu, may use them.
+     */
+    protected function authorizeCompanySettingOrMenuPermission(string $menuPath): void
+    {
+        if (! hasCompanySettingMenuPermission()) {
+            abortUnlessMenuPermission($menuPath);
+        }
+    }
 }

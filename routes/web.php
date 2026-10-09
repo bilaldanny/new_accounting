@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentSettingController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PublicLeadCaptureController;
+use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
 use App\Http\Controllers\Reports\PartyReportController;
@@ -9,6 +12,7 @@ use App\Http\Controllers\Reports\ProductReportController;
 use App\Http\Controllers\Reports\StockReportController;
 use App\Http\Controllers\Reports\TransactionReportController;
 use App\Http\Controllers\SettingController;
+use App\Http\Middleware\EnforcePageMenuPermission;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use UniSharp\LaravelFilemanager\Lfm;
@@ -67,7 +71,11 @@ Route::post('checkSMTP', [HomeController::class, 'check_smtp'])->middleware('aut
 
 Route::inertia('/', 'Welcome')->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+/* Public Lead Capture Form (no auth — embeddable on an external site) */
+Route::get('capture/{code}', [PublicLeadCaptureController::class, 'show'])->name('leadcapture.show');
+/* Public Lead Capture Form */
+
+Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
     /* Menu */
@@ -295,6 +303,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('purchase/trash');
     })->name('purchase.trash');
     /* Purchase */
+
+    /* Purchase Requisition */
+    Route::get('purchaserequisition', function () {
+        return Inertia::render('purchaserequisition/index');
+    })->name('purchaserequisition');
+
+    Route::get('purchaserequisition/add', function () {
+        return Inertia::render('purchaserequisition/add');
+    })->name('purchaserequisition.add');
+
+    Route::get('purchaserequisition/{id}/edit', function ($id) {
+        return Inertia::render('purchaserequisition/edit', ['id' => $id]);
+    })->name('purchaserequisition.edit');
+
+    Route::get('purchaserequisition/{id}/view', function ($id) {
+        return Inertia::render('purchaserequisition/view', [
+            'id' => $id,
+            'returnTo' => '/purchaserequisition',
+            'listTitle' => 'Purchase Requisition',
+        ]);
+    })->name('purchaserequisition.view');
+
+    Route::get('purchaserequisition/approval', function () {
+        return Inertia::render('approval/purchaserequisition/index');
+    })->name('purchaserequisition.approval');
+
+    Route::get('purchaserequisition/approval/{id}/view', function ($id) {
+        return Inertia::render('purchaserequisition/view', [
+            'id' => $id,
+            'returnTo' => '/purchaserequisition/approval',
+            'listTitle' => 'Purchase Requisition Approval',
+        ]);
+    })->name('purchaserequisition.approval.view');
+    /* Purchase Requisition */
 
     /* Stock Transfer */
     Route::get('stocktransfer', function () {
@@ -626,6 +668,302 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('commissionagent.trash');
     /* Commission Agent */
 
+    /* Leads (CRM) */
+    Route::get('leads', function () {
+        abortUnlessMenuPermission('/leads');
+
+        return Inertia::render('lead/index');
+    })->name('leads');
+
+    Route::get('leads/add', function () {
+        abortUnlessMenuPermission('/leads/add');
+
+        return Inertia::render('lead/add');
+    })->name('leads.add');
+
+    Route::get('leads/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/leads/:id/edit');
+
+        return Inertia::render('lead/edit', ['id' => $id]);
+    })->name('leads.edit');
+
+    Route::get('leads/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/leads/:id/view');
+
+        return Inertia::render('lead/view', ['id' => $id]);
+    })->name('leads.view');
+
+    Route::get('leads/trash', function () {
+        abortUnlessMenuPermission('/leads/restore');
+
+        return Inertia::render('lead/trash');
+    })->name('leads.trash');
+    /* Leads (CRM) */
+
+    /* Lead Sources (CRM) */
+    Route::get('leadsources', function () {
+        abortUnlessMenuPermission('/leadsources');
+
+        return Inertia::render('leadsource/index');
+    })->name('leadsources');
+
+    Route::get('leadsources/add', function () {
+        abortUnlessMenuPermission('/leadsources/add');
+
+        return Inertia::render('leadsource/add');
+    })->name('leadsources.add');
+
+    Route::get('leadsources/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/leadsources/:id/edit');
+
+        return Inertia::render('leadsource/edit', ['id' => $id]);
+    })->name('leadsources.edit');
+
+    Route::get('leadsources/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/leadsources/:id/view');
+
+        return Inertia::render('leadsource/view', ['id' => $id]);
+    })->name('leadsources.view');
+
+    Route::get('leadsources/trash', function () {
+        abortUnlessMenuPermission('/leadsources/restore');
+
+        return Inertia::render('leadsource/trash');
+    })->name('leadsources.trash');
+    /* Lead Sources (CRM) */
+
+    /* Pipeline Stages (CRM) */
+    Route::get('pipelinestages', function () {
+        abortUnlessMenuPermission('/pipelinestages');
+
+        return Inertia::render('pipelinestage/index');
+    })->name('pipelinestages');
+
+    Route::get('pipelinestages/add', function () {
+        abortUnlessMenuPermission('/pipelinestages/add');
+
+        return Inertia::render('pipelinestage/add');
+    })->name('pipelinestages.add');
+
+    Route::get('pipelinestages/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/pipelinestages/:id/edit');
+
+        return Inertia::render('pipelinestage/edit', ['id' => $id]);
+    })->name('pipelinestages.edit');
+
+    Route::get('pipelinestages/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/pipelinestages/:id/view');
+
+        return Inertia::render('pipelinestage/view', ['id' => $id]);
+    })->name('pipelinestages.view');
+
+    Route::get('pipelinestages/trash', function () {
+        abortUnlessMenuPermission('/pipelinestages/restore');
+
+        return Inertia::render('pipelinestage/trash');
+    })->name('pipelinestages.trash');
+    /* Pipeline Stages (CRM) */
+
+    /* Opportunities (CRM) */
+    Route::get('opportunities', function () {
+        abortUnlessMenuPermission('/opportunities');
+
+        return Inertia::render('opportunity/index');
+    })->name('opportunities');
+
+    Route::get('opportunities/add', function () {
+        abortUnlessMenuPermission('/opportunities/add');
+
+        return Inertia::render('opportunity/add', ['leadId' => request()->query('lead_id')]);
+    })->name('opportunities.add');
+
+    Route::get('opportunities/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/opportunities/:id/edit');
+
+        return Inertia::render('opportunity/edit', ['id' => $id]);
+    })->name('opportunities.edit');
+
+    Route::get('opportunities/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/opportunities/:id/view');
+
+        return Inertia::render('opportunity/view', ['id' => $id]);
+    })->name('opportunities.view');
+
+    Route::get('opportunities/trash', function () {
+        abortUnlessMenuPermission('/opportunities/restore');
+
+        return Inertia::render('opportunity/trash');
+    })->name('opportunities.trash');
+    /* Opportunities (CRM) */
+
+    /* Pipeline Board (CRM) */
+    Route::get('pipeline', function () {
+        abortUnlessMenuPermission('/pipeline');
+
+        return Inertia::render('opportunity/pipeline');
+    })->name('pipeline');
+    /* Pipeline Board (CRM) */
+
+    /* Activities (CRM) */
+    Route::get('activities', function () {
+        abortUnlessMenuPermission('/activities');
+
+        return Inertia::render('activity/index');
+    })->name('activities');
+
+    Route::get('activities/add', function () {
+        abortUnlessMenuPermission('/activities/add');
+
+        return Inertia::render('activity/add', [
+            'leadId' => request()->query('lead_id'),
+            'opportunityId' => request()->query('opportunity_id'),
+            'contactId' => request()->query('contact_id'),
+        ]);
+    })->name('activities.add');
+
+    Route::get('activities/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/activities/:id/edit');
+
+        return Inertia::render('activity/edit', ['id' => $id]);
+    })->name('activities.edit');
+
+    Route::get('activities/{id}/view', function ($id) {
+        abortUnlessMenuPermission('/activities/:id/view');
+
+        return Inertia::render('activity/view', ['id' => $id]);
+    })->name('activities.view');
+
+    Route::get('activities/trash', function () {
+        abortUnlessMenuPermission('/activities/restore');
+
+        return Inertia::render('activity/trash');
+    })->name('activities.trash');
+    /* Activities (CRM) */
+
+    /* CRM Analytics */
+    Route::get('crmanalytics', function () {
+        abortUnlessMenuPermission('/crmanalytics');
+
+        return Inertia::render('crmanalytics/index');
+    })->name('crmanalytics');
+    /* CRM Analytics */
+
+    /* Subscription Plans (SaaS Tenant Billing) */
+    Route::get('subscriptionplans', function () {
+        abortUnlessMenuPermission('/subscriptionplans');
+
+        return Inertia::render('subscriptionplan/index');
+    })->name('subscriptionplans');
+
+    Route::get('subscriptionplans/add', function () {
+        abortUnlessMenuPermission('/subscriptionplans/add');
+
+        return Inertia::render('subscriptionplan/add');
+    })->name('subscriptionplans.add');
+
+    Route::get('subscriptionplans/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/subscriptionplans/:id/edit');
+
+        return Inertia::render('subscriptionplan/edit', ['id' => $id]);
+    })->name('subscriptionplans.edit');
+    /* Subscription Plans (SaaS Tenant Billing) */
+
+    /* Coupons (SaaS Tenant Billing) */
+    Route::get('coupons', function () {
+        abortUnlessMenuPermission('/coupons');
+
+        return Inertia::render('coupon/index');
+    })->name('coupons');
+
+    Route::get('coupons/add', function () {
+        abortUnlessMenuPermission('/coupons/add');
+
+        return Inertia::render('coupon/add');
+    })->name('coupons.add');
+
+    Route::get('coupons/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/coupons/:id/edit');
+
+        return Inertia::render('coupon/edit', ['id' => $id]);
+    })->name('coupons.edit');
+    /* Coupons (SaaS Tenant Billing) */
+
+    /* Tenant Directory (SaaS Tenant Billing) */
+    Route::get('tenants', function () {
+        abortUnlessMenuPermission('/tenants');
+
+        return Inertia::render('tenant/index');
+    })->name('tenants');
+    /* Tenant Directory (SaaS Tenant Billing) */
+
+    /* Subscription Invoices (SaaS Tenant Billing) */
+    Route::get('subscriptioninvoices', function () {
+        abortUnlessMenuPermission('/subscriptioninvoices');
+
+        return Inertia::render('subscriptioninvoice/index');
+    })->name('subscriptioninvoices');
+    /* Subscription Invoices (SaaS Tenant Billing) */
+
+    /* Webhooks (Integrations & Open API) */
+    Route::get('webhooks', function () {
+        abortUnlessMenuPermission('/webhooks');
+
+        return Inertia::render('webhook/index');
+    })->name('webhooks');
+    /* Webhooks (Integrations & Open API) */
+
+    /* API Logs (Integrations & Open API) */
+    Route::get('apilogs', function () {
+        abortUnlessMenuPermission('/apilogs');
+
+        return Inertia::render('apilog/index');
+    })->name('apilogs');
+    /* API Logs (Integrations & Open API) */
+
+    /* Customer Subscription Plans (Customer Subscription Module) */
+    Route::get('customersubscriptionplans', function () {
+        abortUnlessMenuPermission('/customersubscriptionplans');
+
+        return Inertia::render('customersubscriptionplan/index');
+    })->name('customersubscriptionplans');
+
+    Route::get('customersubscriptionplans/add', function () {
+        abortUnlessMenuPermission('/customersubscriptionplans/add');
+
+        return Inertia::render('customersubscriptionplan/add');
+    })->name('customersubscriptionplans.add');
+
+    Route::get('customersubscriptionplans/{id}/edit', function ($id) {
+        abortUnlessMenuPermission('/customersubscriptionplans/:id/edit');
+
+        return Inertia::render('customersubscriptionplan/edit', ['id' => $id]);
+    })->name('customersubscriptionplans.edit');
+    /* Customer Subscription Plans (Customer Subscription Module) */
+
+    /* Customer Subscriptions (Customer Subscription Module) */
+    Route::get('customersubscriptions', function () {
+        abortUnlessMenuPermission('/customersubscriptions');
+
+        return Inertia::render('customersubscription/index');
+    })->name('customersubscriptions');
+    /* Customer Subscriptions (Customer Subscription Module) */
+
+    /* Customer Subscription Invoices (Customer Subscription Module) */
+    Route::get('customersubscriptioninvoices', function () {
+        abortUnlessMenuPermission('/customersubscriptioninvoices');
+
+        return Inertia::render('customersubscriptioninvoice/index');
+    })->name('customersubscriptioninvoices');
+    /* Customer Subscription Invoices (Customer Subscription Module) */
+
+    /* Customer Subscription Analytics (Customer Subscription Module) */
+    Route::get('customersubscriptionanalytics', function () {
+        abortUnlessMenuPermission('/customersubscriptionanalytics');
+
+        return Inertia::render('customersubscriptionanalytics/index');
+    })->name('customersubscriptionanalytics');
+    /* Customer Subscription Analytics (Customer Subscription Module) */
+
     /* Price List */
     Route::get('pricelist', function () {
         return Inertia::render('pricelist/index');
@@ -696,6 +1034,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     }
 
     foreach (LedgerReportController::PERMISSIONS as $report => $path) {
+        Route::get(ltrim($path, '/'), function () use ($report, $path) {
+            abortUnlessMenuPermission($path);
+
+            return Inertia::render('report/index', ['report' => $report]);
+        })->name('report.'.$report);
+    }
+
+    foreach (AnalyticsReportController::PERMISSIONS as $report => $path) {
         Route::get(ltrim($path, '/'), function () use ($report, $path) {
             abortUnlessMenuPermission($path);
 
@@ -984,12 +1330,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('fundtransfer.view');
     /* Fund Transfer */
 
-    /* Payment, Expense, Deposit and Fund Transfer Approval */
+    /* Credit/Debit Note */
+    Route::get('creditdebitnote', function () {
+        return Inertia::render('creditdebitnote/index');
+    })->name('creditdebitnote');
+
+    Route::get('creditdebitnote/add', function () {
+        return Inertia::render('creditdebitnote/add');
+    })->name('creditdebitnote.add');
+
+    Route::get('creditdebitnote/{id}/edit', function ($id) {
+        return Inertia::render('creditdebitnote/edit', ['id' => $id]);
+    })->name('creditdebitnote.edit');
+
+    Route::get('creditdebitnote/{id}/view', function ($id) {
+        return Inertia::render('creditdebitnote/view', ['id' => $id]);
+    })->name('creditdebitnote.view');
+    /* Credit/Debit Note */
+
+    /* Payment, Expense, Deposit, Fund Transfer and Credit/Debit Note Approval */
     foreach ([
         'acpayment' => ['payment', 'Payment Approval'],
         'expense' => ['expense', 'Expense Approval'],
         'deposit' => ['deposit', 'Deposit Approval'],
         'fundtransfer' => ['fundtransfer', 'Fund Transfer Approval'],
+        'creditdebitnote' => ['creditdebitnote', 'Credit/Debit Note Approval'],
     ] as $path => [$page, $listTitle]) {
         Route::get($path.'/approval', function () use ($page) {
             return Inertia::render('approval/'.$page.'/index');
@@ -1038,6 +1403,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('contact/customer/view', ['id' => $id]);
     })->name('customer.view');
     /* Customer */
+
+    /* Approval Center (Phase 1, easy half) */
+    Route::get('purchasereturn/approval', fn () => Inertia::render('approval/purchasereturn/index'))->name('purchasereturn.approval');
+    Route::get('stockadjustment/approval', fn () => Inertia::render('approval/stockadjustment/index'))->name('stockadjustment.approval');
+    Route::get('stocktransfer/approval', fn () => Inertia::render('approval/stocktransfer/index'))->name('stocktransfer.approval');
+    Route::get('cashcollection/approval', fn () => Inertia::render('approval/cashcollection/index'))->name('cashcollection.approval');
+    Route::get('pricelist/approval', fn () => Inertia::render('approval/pricelist/index'))->name('pricelist.approval');
+    Route::get('creditlimit/approval', fn () => Inertia::render('approval/creditlimit/index'))->name('creditlimit.approval');
+    /* Approval Center (Phase 1, easy half) */
+
+    Route::get('auditlogs', fn () => Inertia::render('auditlog/index'))->name('auditlogs');
+    Route::get('bulkpriceupdate', fn () => Inertia::render('bulkpriceupdate/index'))->name('bulkpriceupdate');
+    Route::get('landedcost', fn () => Inertia::render('landedcost/index'))->name('landedcost');
+    Route::get('bankreconciliation', fn () => Inertia::render('bankreconciliation/index'))->name('bankreconciliation');
+    Route::get('bankreconciliation/{id}', fn ($id) => Inertia::render('bankreconciliation/view', ['id' => $id]))->name('bankreconciliation.view');
+    Route::get('posshift', fn () => Inertia::render('posshift/index'))->name('posshift');
+    Route::get('assetcategory', fn () => Inertia::render('assetcategory/index'))->name('assetcategory');
+    Route::get('fixedasset', fn () => Inertia::render('fixedasset/index'))->name('fixedasset');
+    Route::get('depreciation', fn () => Inertia::render('depreciation/index'))->name('depreciation');
+    Route::get('costcenter', fn () => Inertia::render('costcenter/index'))->name('costcenter');
+    Route::get('stocktracking', fn () => Inertia::render('stocktracking/index'))->name('stocktracking');
+    Route::get('taxexemption', fn () => Inertia::render('taxexemption/index'))->name('taxexemption');
+    Route::get('warehouselocation', fn () => Inertia::render('warehouselocation/index'))->name('warehouselocation');
+    Route::get('budget', fn () => Inertia::render('budget/index'))->name('budget');
+    Route::get('assetapproval', fn () => Inertia::render('approval/fixedasset/index'))->name('assetapprovals');
+
+    /* Contacts: Duplicate Detection & Merge */
+    Route::get('contacts/duplicates', function () {
+        return Inertia::render('contact/duplicates/index');
+    })->name('contacts.duplicates');
+    /* Contacts: Duplicate Detection & Merge */
 
     /* Currency */
     Route::get('currency', function () {
@@ -1109,9 +1505,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth'])->prefix('api')->group(function () {
-    Route::get('notifications/counts-by-type', fn () => response()->json([
-        'counts_by_type' => [],
-    ]));
+    Route::get('notifications/counts-by-type', [DashboardController::class, 'notifications']);
 });
 
 Route::get('/403', function () {

@@ -19,9 +19,20 @@ export type SellLineRow = {
     packing_qty: number | string;
     row_subtotal: number | string;
     subtotal?: number | string;
+    /** The tax of the line and what it came to (worked out by the server). */
+    tax_id?: number | string | null;
+    tax_amount?: number | string | null;
+    /** Serial / batch tracking of the product: the serial numbers or the batches this line sells. */
+    tracking_type?: 'none' | 'serial' | 'batch';
+    serials?: string[];
+    batches?: Array<{ batch_id?: number | string; batch_no?: string; expiry_date?: string; qty: number | string }>;
     units: Array<{ id: number | string; text?: string; short_name?: string; unit_qty?: number; packing_qty?: number }>;
     current_stock?: number | string;
     unit_name?: string;
+    /** Where the unit price came from: 'default', 'brand_price_list' or 'contact_price_list' (see PriceResolver). */
+    price_source?: string;
+    /** The user typed the price, so it is not re-priced when the quantity changes. */
+    price_manual?: boolean;
 };
 
 export default function useSells(){
@@ -45,6 +56,7 @@ export default function useSells(){
     const emptyForm = () => ({
       company_id: '',
       branch_id: '',
+      warehouse_id: '',
       contact_id: '',
       invoice_no: '',
       transaction_date: today(),
@@ -65,6 +77,10 @@ export default function useSells(){
       billty_image_url: '',
       additional_note: '',
       final_amount: 0,
+      tax_id: '' as number | string,
+      tax_inclusive: false,
+      tax_amount: 0,
+      withholding_tax_id: '' as number | string,
       total_item: 0,
       total_pack_qty: 0,
       net_sub_total: 0,

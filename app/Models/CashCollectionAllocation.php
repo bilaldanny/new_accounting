@@ -22,12 +22,14 @@ class CashCollectionAllocation extends Model
         'payment_id',
         'kind',
         'amount',
+        'reversed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'amount' => 'float',
+            'reversed_at' => 'datetime',
         ];
     }
 

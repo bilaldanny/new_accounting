@@ -1,11 +1,13 @@
 <script setup lang="ts">
     import { computed } from 'vue';
-    import { accountOptionsForKey, type AccountSetupItem } from './constants';
+    import { accountOptionsForKey  } from './constants';
+import type {AccountSetupItem} from './constants';
 
     const props = defineProps({
         formData: { type: Object, required: true },
         branchesdata: { type: Array, default: () => [] },
         parentaccountdata: { type: Array, default: () => [] },
+        childaccountdata: { type: Array, default: () => [] },
         parentsaleaccountdata: { type: Array, default: () => [] },
         parentpurchaseaccountdata: { type: Array, default: () => [] },
         showBranchFilter: { type: Boolean, default: false },
@@ -32,6 +34,7 @@
             props.parentaccountdata as Array<{ id: string | number; text: string }>,
             props.parentsaleaccountdata as Array<{ id: string | number; text: string }>,
             props.parentpurchaseaccountdata as Array<{ id: string | number; text: string }>,
+            props.childaccountdata as Array<{ id: string | number; text: string }>,
         );
     }
 </script>

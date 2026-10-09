@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Services\StockTracking;
 use App\Support\Base64Upload;
 use App\Support\VariantCombiner;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,6 +21,9 @@ use Illuminate\Validation\ValidationException;
 
 class Product extends Model
 {
+    public const TRACKING_TYPES = ['none', 'serial', 'batch'];
+
+    use Auditable;
     use SoftDeletes;
 
     protected $fillable = [
@@ -31,6 +36,7 @@ class Product extends Model
         'warranty_id',
         'name',
         'alert_qty',
+        'tracking_type',
         'sku',
         'weight',
         'product_desc',
@@ -416,6 +422,10 @@ class Product extends Model
             in_array($request->type, ['single', 'variable'], true) ? $request->type : 'single',
         );
 
+        if ($companyId !== null) {
+            Company::find($companyId)?->assertCanAddProduct();
+        }
+
         $product = new self;
         $product->fillFromRequest($request, $companyId);
         $product->sku = self::generateSku($companyId, $request->sku ?? null);
@@ -526,6 +536,29 @@ class Product extends Model
         return array_values(array_unique($blocked));
     }
 
+    /**
+     * How the product is tracked (none, serial or batch). A client that does not send it leaves the product as it is. A product
+     * whose serials or batches are already recorded cannot change between serial and batch tracking.
+     *
+     * @throws ValidationException
+     */
+    private function applyTrackingType(object $request): void
+    {
+        $type = $request->tracking_type ?? null;
+
+        if (! in_array($type, self::TRACKING_TYPES, true)) {
+            $this->tracking_type = $this->tracking_type ?? 'none';
+
+            return;
+        }
+
+        if ($this->exists && $this->tracking_type !== $type && $this->tracking_type !== 'none' && $type !== 'none' && StockTracking::hasEntries((int) $this->id)) {
+            throw ValidationException::withMessages(['tracking_type' => ['This product already has '.$this->tracking_type.' records, so it cannot be switched to '.$type.' tracking.']]);
+        }
+
+        $this->tracking_type = $type;
+    }
+
     protected function fillFromRequest(object $request, ?int $companyId): void
     {
         $this->company_id = $companyId;
@@ -538,6 +571,7 @@ class Product extends Model
         $this->itemtype_id = self::resolveScopedId($request->itemtype_id);
         $this->warranty_id = self::resolveScopedId($request->warranty_id);
         $this->alert_qty = $request->alert_qty !== null && $request->alert_qty !== '' ? (int) $request->alert_qty : null;
+        $this->applyTrackingType($request);
         $this->weight = $request->weight !== null && $request->weight !== '' ? (int) $request->weight : null;
         $this->product_desc = $request->product_desc ?: null;
         $this->active = $request->active ?? true;

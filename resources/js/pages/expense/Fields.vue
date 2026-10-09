@@ -71,6 +71,7 @@
     const { fiscalYear, fetchActiveFinancialYear, clampToFiscalYear } = useActiveFinancialYear();
 
     const accountsdata = ref<Array<{ id: number | string; text?: string; name?: string; code?: string; acc_nature?: string }>>([]);
+    const costCentersdata = ref<Array<Record<string, any>>>([]);
     const lastFetchedCompanyId = ref('');
     const lastAccountScope = ref('');
     const fetchingVoucher = ref(false);
@@ -187,6 +188,12 @@
             accountsdata.value = response.data ?? [];
         } catch {
             accountsdata.value = [];
+        }
+
+        try {
+            costCentersdata.value = (await window.axios.get('/api/fetchcostcenters', { params: { company_id: companyId } })).data ?? [];
+        } catch {
+            costCentersdata.value = [];
         }
     }
 
@@ -518,6 +525,7 @@
             <ExpenseLinesEditor
                 :lines="expenseLines"
                 :accounts="accountsdata"
+                :cost-centers="costCentersdata"
                 :disabled="!scopeReady"
                 :currency-symbol="authUser?.currency_symbol || ''"
                 @add="addLine"

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\UploadedFile;
 
 class ProductDetail extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'product_id',
         'name',
@@ -19,6 +22,8 @@ class ProductDetail extends Model
         'smallquantity',
         'profit_percent',
         'default_sell_price',
+        'min_sell_price',
+        'max_sell_price',
         'variation_image',
     ];
 
@@ -28,6 +33,16 @@ class ProductDetail extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * The company the audit log files this variation's changes under (it has no company of its own).
+     */
+    public function auditCompanyId(): ?int
+    {
+        $companyId = $this->product()->value('company_id');
+
+        return $companyId === null ? null : (int) $companyId;
     }
 
     public static function resolveNumeric(mixed $value, float $default = 0): float
@@ -73,6 +88,13 @@ class ProductDetail extends Model
         $detail->smallquantity = (int) self::resolveNumeric($row['smallquantity'] ?? 0);
         $detail->profit_percent = $profitPercent;
         $detail->default_sell_price = $sellPrice;
+
+        foreach (['min_sell_price', 'max_sell_price'] as $limit) {
+            if (array_key_exists($limit, $row)) {
+                $detail->{$limit} = $row[$limit] === null || $row[$limit] === '' ? null : (float) $row[$limit];
+            }
+        }
+
         $detail->variation_image = self::storeImage($row, $detail->variation_image);
         $detail->save();
 

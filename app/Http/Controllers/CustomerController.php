@@ -36,6 +36,7 @@ class CustomerController extends Controller
             'building_number' => 'nullable|string|max:50',
             'secondary_number' => 'nullable|string|max:50',
             'ntn_number' => 'bail|required|string|max:255',
+            'strn_number' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:255',
             'opening_balance' => 'nullable|numeric',
             'date_of_birth' => 'nullable|date',
@@ -46,6 +47,10 @@ class CustomerController extends Controller
             'type' => 'nullable|in:local,export',
             'pay_type' => 'nullable|in:month,day,year',
             'customer_group_id' => 'nullable|integer|exists:customer_groups,id',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:100',
+            'is_blacklisted' => 'nullable|boolean',
+            'is_on_hold' => 'nullable|boolean',
         ];
     }
 

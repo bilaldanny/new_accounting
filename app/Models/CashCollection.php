@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Cash a collector took from a customer. It is `pending` until someone completes it against the
@@ -19,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class CashCollection extends Model
 {
+    use Auditable;
     use SoftDeletes;
 
     public const STATUS_PENDING = 'pending';
@@ -52,6 +55,8 @@ class CashCollection extends Model
         'cancelled_at',
         'reversed_at',
         'reversed_by',
+        'approved_by',
+        'approved_at',
     ];
 
     protected function casts(): array
@@ -63,6 +68,7 @@ class CashCollection extends Model
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'reversed_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -112,11 +118,48 @@ class CashCollection extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * Approval Center (Phase 1, easy half): a reviewer's stamp on a pending collection. This is purely
+     * additive — it does not change `status` and does not gate `complete()`, so the existing
+     * create/complete/reverse flow is unaffected; it just records who reviewed the claim before it was
+     * posted.
+     *
+     * @throws ValidationException
+     */
+    public static function approve(int $id): self
+    {
+        $collection = self::query()->visibleToCurrentUser()->find($id);
+
+        if ($collection === null) {
+            abort(404);
+        }
+
+        if (! $collection->isPending()) {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending cash collections can be approved.',
+            ]);
+        }
+
+        $collection->approved_by = Auth::id();
+        $collection->approved_at = now();
+        $collection->save();
+
+        return $collection;
+    }
+
+    /**
      * What is left of the advance this collection kept: the advance less the parts already used on invoices.
      */
     public function advanceRemaining(): float
     {
-        $used = (float) $this->allocations()->where('kind', CashCollectionAllocation::KIND_ADVANCE)->sum('amount');
+        $used = (float) $this->allocations()->where('kind', CashCollectionAllocation::KIND_ADVANCE)->whereNull('reversed_at')->sum('amount');
 
         return round(max((float) $this->advance_amount - $used, 0), 2);
     }

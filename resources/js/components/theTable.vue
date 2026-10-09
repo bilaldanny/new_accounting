@@ -1664,6 +1664,21 @@ return
                                         <span
                                             :class="[
                                                 'modern-badge text-capitalize',
+                                                row[col.key] === 'converted' ? 'modern-badge--success'
+                                                    : row[col.key] === 'qualified' ? 'modern-badge--info'
+                                                    : row[col.key] === 'contacted' ? 'modern-badge--warning'
+                                                    : row[col.key] === 'unqualified' ? 'modern-badge--danger'
+                                                    : 'modern-badge--secondary'
+                                            ]"
+                                            v-else-if="col.type === 'badge' && col.show === 'lead_status'"
+                                        >
+                                            <span class="modern-badge__dot" aria-hidden="true"></span>
+                                            <span class="modern-badge__text">{{ row[col.key] }}</span>
+                                        </span>
+
+                                        <span
+                                            :class="[
+                                                'modern-badge text-capitalize',
                                                 String(row[col.key]).toLowerCase() === 'pending'
                                                     ? 'modern-badge--danger'
                                                     : String(row[col.key]).toLowerCase() === 'processing'

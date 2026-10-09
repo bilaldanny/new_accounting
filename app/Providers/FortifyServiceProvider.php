@@ -100,5 +100,19 @@ class FortifyServiceProvider extends ServiceProvider
                 ($request->input('credential.id') ?: $request->session()->getId()).'|'.$request->ip(),
             );
         });
+
+        // Not Fortify/auth — this is the only place in the app that defines named rate limiters, so the
+        // public Lead Capture Form's submit endpoint (PublicLeadCaptureController) follows suit here
+        // rather than starting a second place to look for throttle config.
+        RateLimiter::for('lead-capture', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        // The public REST API (api/v1/*, Integrations & Open API) — keyed by the authenticated token
+        // (every request here already passed auth:sanctum), not by IP, since a key's owner may call
+        // from a shared office/server IP shared with other tenants' keys.
+        RateLimiter::for('public-api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

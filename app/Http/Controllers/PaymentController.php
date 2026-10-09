@@ -30,6 +30,7 @@ class PaymentController extends Controller
             'voucher_date' => 'bail|required|date',
             'comments' => 'nullable|string',
             'cheque_no' => 'nullable|string|max:100',
+            'cheque_post_date' => 'nullable|date',
             'taccountdetails' => 'bail|required|array|min:1',
             'taccountdetails.*.account_id' => 'bail|required|integer|exists:chart_of_accounts,id',
             'taccountdetails.*.description' => 'nullable|string',

@@ -35,6 +35,7 @@ class SupplierController extends Controller
             'street_name' => 'nullable|string|max:255',
             'building_number' => 'nullable|string|max:50',
             'ntn_number' => 'bail|required|string|max:255',
+            'strn_number' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:255',
             'opening_balance' => 'nullable|numeric',
             'date_of_birth' => 'nullable|date',
@@ -44,6 +45,10 @@ class SupplierController extends Controller
             'user_type' => 'nullable|in:supplier,both',
             'type' => 'nullable|in:local,export',
             'pay_type' => 'nullable|in:month,day,year',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:100',
+            'is_blacklisted' => 'nullable|boolean',
+            'is_on_hold' => 'nullable|boolean',
         ];
     }
 

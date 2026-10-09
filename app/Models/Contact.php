@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Services\ContactChartOfAccountLinker;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -10,10 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class Contact extends Model
 {
+    use Auditable;
     use SoftDeletes;
 
     protected $fillable = [
@@ -54,6 +58,10 @@ class Contact extends Model
         'user_type',
         'type',
         'ntn_number',
+        'strn_number',
+        'tags',
+        'is_blacklisted',
+        'is_on_hold',
     ];
 
     protected function casts(): array
@@ -62,6 +70,9 @@ class Contact extends Model
             'active' => 'boolean',
             'link_account' => 'boolean',
             'credit_limit' => 'integer',
+            'tags' => 'array',
+            'is_blacklisted' => 'boolean',
+            'is_on_hold' => 'boolean',
         ];
     }
 
@@ -208,6 +219,32 @@ class Contact extends Model
         return $query;
     }
 
+    /**
+     * Blocks a new sale (customer) or purchase (supplier) against a contact that has been blacklisted
+     * or put on hold. Mirrors Company's assertCanAddX() limit-assertion pattern.
+     *
+     * @throws ValidationException
+     */
+    public function assertAvailableForTransaction(): void
+    {
+        if ($this->is_blacklisted) {
+            throw ValidationException::withMessages([
+                'contact_id' => ["{$this->displayName()} is blacklisted and cannot be used in new transactions."],
+            ]);
+        }
+
+        if ($this->is_on_hold) {
+            throw ValidationException::withMessages([
+                'contact_id' => ["{$this->displayName()} is on hold and cannot be used in new transactions."],
+            ]);
+        }
+    }
+
+    public function displayName(): string
+    {
+        return (string) ($this->business_name ?: trim((string) $this->first_name.' '.(string) $this->last_name));
+    }
+
     public static function findVisibleSupplier(int $id): ?self
     {
         return self::query()
@@ -229,6 +266,84 @@ class Contact extends Model
         return self::query()
             ->visibleToCurrentUser()
             ->find($id);
+    }
+
+    /**
+     * Groups visible contacts that share an email, mobile, or business name, scoped to the current
+     * company/branch via `visibleToCurrentUser()`. Used by the Duplicate Contacts page so staff can
+     * review candidates and merge them, rather than the app merging automatically.
+     *
+     * @return list<array{match_field: string, match_value: string, contacts: list<array<string, mixed>>}>
+     */
+    public static function findDuplicateGroups(): array
+    {
+        $contacts = self::query()
+            ->visibleToCurrentUser()
+            ->get(['id', 'company_id', 'branch_id', 'business_name', 'email', 'mobile', 'user_type', 'active']);
+
+        $groups = [];
+
+        foreach (['email', 'mobile', 'business_name'] as $field) {
+            $contacts
+                ->filter(fn (self $contact): bool => filled($contact->{$field}))
+                ->groupBy(fn (self $contact) => strtolower(trim((string) $contact->{$field})))
+                ->filter(fn (Collection $group): bool => $group->count() > 1)
+                ->each(function (Collection $group, string $key) use (&$groups, $field): void {
+                    $groups[] = [
+                        'match_field' => $field,
+                        'match_value' => $key,
+                        'contacts' => $group->map(fn (self $contact): array => [
+                            'id' => $contact->id,
+                            'business_name' => $contact->business_name,
+                            'email' => $contact->email,
+                            'mobile' => $contact->mobile,
+                            'user_type' => $contact->user_type,
+                            'active' => (bool) $contact->active,
+                        ])->values()->all(),
+                    ];
+                });
+        }
+
+        return $groups;
+    }
+
+    /**
+     * Reassigns every `contact_id` foreign key from `$duplicateId` to `$keepId` across all tables that
+     * have one (discovered at call time via Schema, so a new table with a `contact_id` column never
+     * needs this method updated), then soft-deletes the duplicate. All-or-nothing in one transaction.
+     *
+     * @throws ValidationException
+     */
+    public static function mergeInto(int $keepId, int $duplicateId): self
+    {
+        if ($keepId === $duplicateId) {
+            throw ValidationException::withMessages([
+                'duplicate_id' => ['A contact cannot be merged into itself.'],
+            ]);
+        }
+
+        $keep = self::query()->visibleToCurrentUser()->find($keepId);
+        $duplicate = self::query()->visibleToCurrentUser()->find($duplicateId);
+
+        if ($keep === null || $duplicate === null) {
+            throw ValidationException::withMessages([
+                'duplicate_id' => ['Both contacts must exist and be visible to you.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($keep, $duplicate): void {
+            foreach (Schema::getTableListing(null, false) as $table) {
+                if ($table === 'contacts' || ! Schema::hasColumn($table, 'contact_id')) {
+                    continue;
+                }
+
+                DB::table($table)->where('contact_id', $duplicate->id)->update(['contact_id' => $keep->id]);
+            }
+
+            $duplicate->delete();
+        });
+
+        return $keep->fresh();
     }
 
     public static function resolveScopedId(mixed $value): ?int
@@ -447,6 +562,10 @@ class Contact extends Model
         $contact->zipcode = $request->zipcode ?? null;
         $contact->type = $request->type ?? 'local';
         $contact->ntn_number = $request->ntn_number ?? '';
+        $contact->strn_number = $request->strn_number ?? $contact->strn_number;
+        $contact->tags = $request->tags ?? [];
+        $contact->is_blacklisted = (bool) ($request->is_blacklisted ?? false);
+        $contact->is_on_hold = (bool) ($request->is_on_hold ?? false);
 
         foreach ($attributes as $key => $value) {
             $contact->{$key} = $value;

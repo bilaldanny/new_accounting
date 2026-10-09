@@ -396,6 +396,17 @@
             :columns="colThird"
             autocomplete="off"
         />
+
+        <TextElement
+            id="Capacity"
+            field-name="Capacity"
+            name="capacity"
+            label="Capacity (units of stock)"
+            placeholder="Optional, in base units of the products"
+            input-type="number"
+            :columns="colThird"
+            autocomplete="off"
+        />
     </GroupElement>
 
     <GroupElement name="group_location" :columns="colFull" :add-classes="cardClasses">

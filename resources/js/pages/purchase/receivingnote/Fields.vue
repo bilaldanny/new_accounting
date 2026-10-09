@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import TrackingInput from '@/components/TrackingInput.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import type { ReceivingNoteLine } from '@/composables/receivingNote';
@@ -717,7 +718,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(line, index) in purchaseLines" :key="line.id ?? index">
+                            <template v-for="(line, index) in purchaseLines" :key="line.id ?? index">
+                            <tr>
                                 <td class="is-count">{{ index + 1 }}</td>
                                 <td>
                                     <strong>{{ line.product_name || '—' }}</strong>
@@ -769,6 +771,18 @@
                                     </span>
                                 </td>
                             </tr>
+                            <tr v-if="(line.tracking_type === 'serial' || line.tracking_type === 'batch') && toNumber(line.quantity_received) > 0" class="tracking-row">
+                                <td />
+                                <td colspan="5">
+                                    <TrackingInput
+                                        :line="line"
+                                        direction="in"
+                                        :units="toNumber(line.quantity_received) * Math.max(toNumber(line.packing_qty, 1), 1)"
+                                        @update="(patch) => persistLines(purchaseLines.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)))"
+                                    />
+                                </td>
+                            </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>

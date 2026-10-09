@@ -1,11 +1,11 @@
 <script setup lang="ts">
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import { usePage } from '@inertiajs/vue3';
+    import { Banknote, BookOpen, FileText, Globe, Landmark, Paperclip, RefreshCw, UploadCloud, Wallet } from '@lucide/vue';
+    import { computed, onMounted, ref, watch } from 'vue';
     import useActiveFinancialYear from '@/composables/activeFinancialYear';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import type { JournalAttachment, JournalLineRow } from '@/composables/journalentry';
-    import { Banknote, BookOpen, FileText, Globe, Landmark, Paperclip, RefreshCw, UploadCloud, Wallet } from '@lucide/vue';
-    import { usePage } from '@inertiajs/vue3';
-    import { computed, onMounted, ref, watch } from 'vue';
     import FieldHint from '@/pages/journalentry/FieldHint.vue';
     import JournalLinesEditor from '@/pages/journalentry/JournalLinesEditor.vue';
 
@@ -563,6 +563,23 @@
                 </FieldHint>
             </template>
         </TextElement>
+
+        <DateElement
+            v-if="selectedKind === 'BP'"
+            id="ChequePostDate"
+            field-name="ChequePostDate"
+            name="cheque_post_date"
+            placeholder="Select cheque date (optional)"
+            :columns="colThird"
+            :floating="false"
+            value-format="YYYY-MM-DD"
+        >
+            <template #label>
+                <FieldHint label="Cheque date">
+                    When a post-dated cheque is meant to clear.
+                </FieldHint>
+            </template>
+        </DateElement>
     </GroupElement>
 
     <GroupElement name="group_lines" :columns="colFull" :add-classes="ledgerCardClasses">

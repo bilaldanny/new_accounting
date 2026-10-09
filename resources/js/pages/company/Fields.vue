@@ -268,6 +268,16 @@
         autocomplete="off"
     />
 
+    <TextElement
+        id="StrnNo"
+        field-name="StrnNo"
+        name="strn_no"
+        label="Sales tax registration (STRN)"
+        placeholder="Enter STRN"
+        :columns="colThird"
+        autocomplete="off"
+    />
+
     <StaticElement name="section_admin" :columns="colFull">
         <div class="company-section-header company-section-header-indigo company-section-header-spaced">
             <span class="company-section-icon company-section-icon-indigo">

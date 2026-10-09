@@ -45,6 +45,8 @@ class DocumentSetting extends Model
                 'terms_and_conditions' => ['label' => 'Terms and conditions', 'type' => 'textarea', 'default' => '', 'rules' => 'nullable|string|max:2000', 'help' => 'Printed under the items of the sales invoice; left empty, the section is not printed.'],
                 'show_footer_note' => ['label' => 'Print footer note', 'type' => 'switch', 'default' => true, 'rules' => 'required|boolean'],
                 'footer_note' => ['label' => 'Footer note', 'type' => 'text', 'default' => '', 'rules' => 'nullable|string|max:500', 'help' => 'Printed at the bottom of the sales invoice; left empty, it is not printed.'],
+                'show_tax_numbers' => ['label' => 'Print NTN / STRN', 'type' => 'switch', 'default' => true, 'rules' => 'required|boolean', 'help' => 'The NTN and STRN of the company and of the customer (the ones that are filled in) under their details on the sales invoice.'],
+                'show_tax_breakdown' => ['label' => 'Print the tax on the invoice', 'type' => 'switch', 'default' => true, 'rules' => 'required|boolean', 'help' => 'The tax of every line and the tax total, when the sale has tax.'],
             ],
         ],
         'receipt' => [
@@ -209,6 +211,31 @@ class DocumentSetting extends Model
         return [
             'terms_and_conditions' => $block('show_terms_and_conditions', 'terms_and_conditions'),
             'footer_note' => $block('show_footer_note', 'footer_note'),
+        ];
+    }
+
+    /**
+     * What the invoice prints about tax: the NTN / STRN of both sides (null when switched off), whether to print the tax per line,
+     * and the FBR invoice number - only a number FBR really issued (status `submitted`); a stub number is never printed.
+     *
+     * @return array{tax_numbers: array<string, string|null>|null, tax_breakdown: bool, fbr_invoice_number: string|null}
+     */
+    public static function taxPrintBlocks(Transaction $sell, int $companyId): array
+    {
+        $values = self::valuesFor($companyId, 'invoice');
+        $company = Company::query()->find($companyId, ['id', 'ntn_no', 'strn_no']);
+        $contact = $sell->contact()->first(['id', 'ntn_number', 'strn_number']);
+        $clean = fn (?string $value): ?string => filled($value) ? trim((string) $value) : null;
+
+        return [
+            'tax_numbers' => $values['show_tax_numbers'] ? [
+                'company_ntn' => $clean($company?->ntn_no),
+                'company_strn' => $clean($company?->strn_no),
+                'customer_ntn' => $clean($contact?->ntn_number),
+                'customer_strn' => $clean($contact?->strn_number),
+            ] : null,
+            'tax_breakdown' => (bool) $values['show_tax_breakdown'],
+            'fbr_invoice_number' => FbrSubmission::query()->where('transaction_id', $sell->id)->where('status', FbrSubmission::STATUS_SUBMITTED)->value('fbr_invoice_number'),
         ];
     }
 

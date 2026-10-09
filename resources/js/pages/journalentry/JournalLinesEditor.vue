@@ -28,6 +28,10 @@
             type: String,
             default: '',
         },
+        costCenters: {
+            type: Array as () => Array<{ id: number | string; text?: string; name?: string; code?: string }>,
+            default: () => [],
+        },
     });
 
     const emit = defineEmits<{
@@ -44,6 +48,7 @@
         code: '',
         account_name: '',
         account_nature: '',
+        cost_center_id: '',
     });
     const editingIndex = ref<number | null>(null);
     const lineInputError = ref('');
@@ -93,6 +98,12 @@
         };
     }
 
+    function costCenterLabel(id: number | string | '' | undefined): string {
+        const found = props.costCenters.find((center) => String(center.id) === String(id));
+
+        return found ? (found.text || `${found.code ?? ''} ${found.name ?? ''}`.trim()) : '—';
+    }
+
     function resetDraft() {
         draft.value = {
             account_id: '',
@@ -102,6 +113,7 @@
             code: '',
             account_name: '',
             account_nature: '',
+            cost_center_id: '',
         };
         editingIndex.value = null;
         lineInputError.value = '';
@@ -185,6 +197,7 @@
             code: line.code,
             account_name: line.account_name,
             account_nature: line.account_nature,
+            cost_center_id: line.cost_center_id ?? '',
         });
     }
 
@@ -203,6 +216,7 @@
                         <th class="is-index">#</th>
                         <th>Account</th>
                         <th>Description</th>
+                        <th v-if="costCenters.length">Cost center</th>
                         <th class="is-amount is-debit-head">Debit{{ moneySuffix }}</th>
                         <th class="is-amount is-credit-head">Credit{{ moneySuffix }}</th>
                         <th class="is-action">Action</th>
@@ -210,7 +224,7 @@
                 </thead>
                 <tbody>
                     <tr v-if="lines.length === 0 && editingIndex === null">
-                        <td colspan="6" class="journal-lines__empty">
+                        <td :colspan="costCenters.length ? 7 : 6" class="journal-lines__empty">
                             <BookOpen class="journal-lines__empty-icon" />
                             <p>No account lines recorded</p>
                             <small>Select an account below, enter a debit or credit amount, then add the line to balance your ledger.</small>
@@ -232,6 +246,7 @@
                             </div>
                         </td>
                         <td class="journal-lines__desc">{{ line.description || '—' }}</td>
+                        <td v-if="costCenters.length">{{ costCenterLabel(line.cost_center_id) }}</td>
                         <td class="is-amount is-debit">{{ Number(line.debit || 0) > 0 ? money(Number(line.debit)) : '—' }}</td>
                         <td class="is-amount is-credit">{{ Number(line.credit || 0) > 0 ? money(Number(line.credit)) : '—' }}</td>
                         <td class="is-action">
@@ -274,6 +289,12 @@
                                 @keydown.enter.prevent="commitDraft"
                             >
                         </td>
+                        <td v-if="costCenters.length">
+                            <select class="form-select" :disabled="disabled" v-model="draft.cost_center_id">
+                                <option value="">No cost center</option>
+                                <option v-for="center in costCenters" :key="center.id" :value="center.id">{{ center.text || `${center.code ?? ''} ${center.name ?? ''}` }}</option>
+                            </select>
+                        </td>
                         <td class="is-amount">
                             <input
                                 type="number"
@@ -308,7 +329,7 @@
                         </td>
                     </tr>
                     <tr v-if="lineInputError" class="journal-lines__error">
-                        <td colspan="6">
+                        <td :colspan="costCenters.length ? 7 : 6">
                             <div class="journal-lines__error-inner">
                                 <AlertCircle class="h-3.5 w-3.5" />
                                 <span>{{ lineInputError }}</span>
@@ -316,7 +337,7 @@
                         </td>
                     </tr>
                     <tr class="journal-lines__totals">
-                        <td colspan="3" class="journal-lines__total-label">Totals:</td>
+                        <td :colspan="costCenters.length ? 4 : 3" class="journal-lines__total-label">Totals:</td>
                         <td class="is-amount is-debit">{{ currencySymbol ? `${currencySymbol} ${money(totalDebit)}` : money(totalDebit) }}</td>
                         <td class="is-amount is-credit">{{ currencySymbol ? `${currencySymbol} ${money(totalCredit)}` : money(totalCredit) }}</td>
                         <td class="is-action">

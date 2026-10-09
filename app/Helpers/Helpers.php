@@ -6,6 +6,7 @@ use App\Models\ChartOfAccountMapping;
 use App\Models\Menu;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\WithholdingAccountSetup;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -320,6 +321,8 @@ function accountMapping(int $companyId, int $branchId): void
         ['name' => 'Local Sales', 'key' => 'localsales', 'value' => null],
         ['name' => 'Export Sales', 'key' => 'exportsale', 'value' => null],
         ['name' => 'Output Tax', 'key' => 'outputtax', 'value' => null],
+        ['name' => 'Withholding Tax Receivable', 'key' => 'withholdingreceivable', 'value' => null],
+        ['name' => 'Withholding Tax Payable', 'key' => 'withholdingpayable', 'value' => null],
         ['name' => 'Profit And Loss', 'key' => 'pnl', 'value' => null],
     ];
 
@@ -336,6 +339,8 @@ function accountMapping(int $companyId, int $branchId): void
             'updated_at' => $now,
         ]);
     }
+
+    app(WithholdingAccountSetup::class)->ensureForBranch($companyId, $branchId);
 }
 
 function generateChartOfAccountCode(string $type, ChartOfAccountMapping $mapping, object $request): string

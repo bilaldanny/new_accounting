@@ -25,6 +25,7 @@ class Warehouse extends Model
         'zipcode',
         'phone',
         'fax',
+        'capacity',
         'is_active',
     ];
 
@@ -163,6 +164,10 @@ class Warehouse extends Model
             $companyId = (int) Auth::user()->company_id;
         }
 
+        if ($companyId !== null) {
+            Company::find($companyId)?->assertCanAddWarehouse();
+        }
+
         $warehouse = new self;
         $warehouse->company_id = $companyId;
         $warehouse->branch_id = self::resolveScopedId($request->branch_id);
@@ -175,6 +180,7 @@ class Warehouse extends Model
         $warehouse->zipcode = $request->zipcode;
         $warehouse->phone = $request->phone;
         $warehouse->fax = $request->fax;
+        $warehouse->capacity = $request->filled('capacity') ? $request->capacity : null;
         $warehouse->is_active = $request->has('is_active') ? $request->boolean('is_active') : true;
         $warehouse->save();
 
@@ -201,6 +207,7 @@ class Warehouse extends Model
         $warehouse->zipcode = $request->zipcode;
         $warehouse->phone = $request->phone;
         $warehouse->fax = $request->fax;
+        $warehouse->capacity = $request->has('capacity') ? ($request->filled('capacity') ? $request->capacity : null) : $warehouse->capacity;
         $warehouse->is_active = $request->has('is_active') ? $request->boolean('is_active') : $warehouse->is_active;
         $warehouse->save();
 

@@ -44,6 +44,7 @@ class SellPaymentController extends Controller
             'card_year' => 'required_if:method,card|nullable|string|max:20',
             'card_security' => 'required_if:method,card|nullable|string|max:20',
             'cheque_number' => 'required_if:method,cheque|nullable|string|max:255',
+            'cheque_date' => 'nullable|date',
             'bank_account_number' => 'required_if:method,bank_transfer|nullable|string|max:255',
         ];
     }

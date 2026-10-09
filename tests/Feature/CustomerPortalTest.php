@@ -207,6 +207,61 @@ test('a portal user may use the portal and see who they are, and writes are refu
     $this->postJson('/api/portal-users', ['contact_id' => 1, 'email' => 'x@example.com'])->assertForbidden();
 });
 
+test('a portal user changes their own password and can sign in with it, without an admin', function () {
+    $scope = trpScope('A');
+    $portal = prtPortalUser($scope, prpContact($scope, 'customer', 'Password Buyer'), 'pw-buyer@example.com', 'Old-password-1');
+    Sanctum::actingAs($portal);
+
+    $this->postJson('/api/portal/change-password', [
+        'current_password' => 'Old-password-1',
+        'password' => 'New-password-2',
+        'password_confirmation' => 'New-password-2',
+    ])->assertSuccessful();
+
+    expect(Hash::check('New-password-2', $portal->refresh()->password))->toBeTrue()
+        ->and(Hash::check('Old-password-1', $portal->password))->toBeFalse();
+
+    app('auth')->forgetGuards();
+    $this->post(route('login.store'), ['email' => 'pw-buyer@example.com', 'password' => 'New-password-2']);
+    $this->assertAuthenticatedAs($portal);
+});
+
+test('changing the portal password needs the correct current password and a confirmed new one', function () {
+    $scope = trpScope('A');
+    $portal = prtPortalUser($scope, prpContact($scope, 'customer', 'Guard Buyer'), 'guard-buyer@example.com', 'Old-password-1');
+    Sanctum::actingAs($portal);
+
+    $this->postJson('/api/portal/change-password', [
+        'current_password' => 'wrong-password',
+        'password' => 'New-password-2',
+        'password_confirmation' => 'New-password-2',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['current_password']);
+
+    $this->postJson('/api/portal/change-password', [
+        'current_password' => 'Old-password-1',
+        'password' => 'New-password-2',
+        'password_confirmation' => 'Something-else-3',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['password']);
+
+    expect(Hash::check('Old-password-1', $portal->refresh()->password))->toBeTrue();
+});
+
+test('an ordinary user cannot reach the portal password-change endpoint via a portal token trick, but the portal user always can', function () {
+    $scope = trpScope('A');
+    Sanctum::actingAs(User::query()->findOrFail(1));
+    $this->postJson('/api/portal/change-password', [])->assertUnprocessable();
+
+    $portal = prtPortalUser($scope, prpContact($scope, 'customer', 'Token Buyer'), 'token-buyer@example.com', 'Old-password-1');
+    $token = $portal->createToken('portal key')->plainTextToken;
+    app('auth')->forgetGuards();
+    $this->withToken($token)->postJson('/api/customers', [])->assertForbidden();
+    $this->withToken($token)->postJson('/api/portal/change-password', [
+        'current_password' => 'Old-password-1',
+        'password' => 'New-password-2',
+        'password_confirmation' => 'New-password-2',
+    ])->assertSuccessful();
+});
+
 test('a portal user\'s API key is confined too', function () {
     $scope = trpScope('A');
     $portal = prtPortalUser($scope, prpContact($scope, 'customer', 'Key Buyer'));

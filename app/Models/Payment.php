@@ -36,6 +36,7 @@ class Payment extends Model
         'card_year',
         'card_security',
         'cheque_number',
+        'cheque_date',
         'bank_account_number',
         'paid_on',
         'note',
@@ -55,7 +56,9 @@ class Payment extends Model
     {
         return [
             'is_return' => 'boolean',
+            'is_withholding' => 'boolean',
             'amount' => 'decimal:2',
+            'cheque_date' => 'date:Y-m-d',
         ];
     }
 
@@ -300,21 +303,35 @@ class Payment extends Model
         return asset('images/payment_images/'.$path);
     }
 
-    public static function storeDocument(object $request, ?string $existing = null): ?string
+    public static function storeDocument(object $request, ?string $existing = null, ?int $companyId = null): ?string
     {
         if (is_object($request) && method_exists($request, 'hasFile')) {
             if ($request->hasFile('attachment') && $request->file('attachment') instanceof UploadedFile) {
-                return self::saveDocumentFile($request->file('attachment'));
+                $file = $request->file('attachment');
+                if ($companyId !== null) {
+                    Company::find($companyId)?->assertCanAddStorageBytes((int) $file->getSize());
+                }
+
+                return self::saveDocumentFile($file);
             }
 
             if ($request->hasFile('document') && $request->file('document') instanceof UploadedFile) {
-                return self::saveDocumentFile($request->file('document'));
+                $file = $request->file('document');
+                if ($companyId !== null) {
+                    Company::find($companyId)?->assertCanAddStorageBytes((int) $file->getSize());
+                }
+
+                return self::saveDocumentFile($file);
             }
         }
 
         $document = $request->attachment ?? $request->document ?? null;
 
         if (is_string($document) && str_starts_with($document, 'data:')) {
+            if ($companyId !== null) {
+                Company::find($companyId)?->assertCanAddStorageBytes((int) strlen($document));
+            }
+
             return self::saveDocumentFromBase64($document);
         }
 
@@ -381,6 +398,7 @@ class Payment extends Model
             'card_year' => null,
             'card_security' => null,
             'cheque_number' => null,
+            'cheque_date' => null,
             'bank_account_number' => null,
         ];
 
@@ -396,6 +414,7 @@ class Payment extends Model
 
         if ($method === 'cheque') {
             $payload['cheque_number'] = $request->cheque_number;
+            $payload['cheque_date'] = filled($request->cheque_date) ? $request->cheque_date : null;
         }
 
         if ($method === 'bank_transfer') {
@@ -430,7 +449,7 @@ class Payment extends Model
         $payment->method = $request->method;
         $payment->paid_on = self::parsePaidOn($request->paid_on);
         $payment->note = $request->note;
-        $payment->document = self::storeDocument($request);
+        $payment->document = self::storeDocument($request, companyId: $companyId);
         $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'purchase');
         self::postLedgerEntry($purchase, $payment);
         $payment->save();
@@ -465,7 +484,7 @@ class Payment extends Model
         $payment->method = $request->method;
         $payment->paid_on = self::parsePaidOn($request->paid_on);
         $payment->note = $request->note;
-        $payment->document = self::storeDocument($request);
+        $payment->document = self::storeDocument($request, companyId: $companyId);
         $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'sell');
         self::postLedgerEntry($sell, $payment);
         $payment->save();
@@ -608,7 +627,7 @@ class Payment extends Model
         $payment->method = $request->method;
         $payment->paid_on = self::parsePaidOn($request->paid_on);
         $payment->note = $request->note;
-        $payment->document = self::storeDocument($request, $payment->document);
+        $payment->document = self::storeDocument($request, $payment->document, (int) $purchase->company_id);
         self::postLedgerEntry($purchase, $payment);
         $payment->save();
 
@@ -649,7 +668,7 @@ class Payment extends Model
         $payment->method = $request->method;
         $payment->paid_on = self::parsePaidOn($request->paid_on);
         $payment->note = $request->note;
-        $payment->document = self::storeDocument($request, $payment->document);
+        $payment->document = self::storeDocument($request, $payment->document, (int) $sell->company_id);
         self::postLedgerEntry($sell, $payment);
         $payment->save();
 

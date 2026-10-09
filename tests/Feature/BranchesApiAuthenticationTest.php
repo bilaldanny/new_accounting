@@ -47,8 +47,10 @@ test('branch store creates chart of accounts and mappings', function () {
     $branchCode = DB::table('branches')->where('id', $branchId)->value('code');
 
     expect($branchCode)->toBe('BR-00001')
-        ->and(DB::table('chart_of_accounts')->where('branch_id', $branchId)->count())->toBe(6)
-        ->and(DB::table('chart_of_account_mappings')->where('branch_id', $branchId)->count())->toBe(19);
+        // The six root accounts plus the two withholding tax accounts a new branch is given and mapped.
+        ->and(DB::table('chart_of_accounts')->where('branch_id', $branchId)->count())->toBe(8)
+        ->and(DB::table('chart_of_account_mappings')->where('branch_id', $branchId)->count())->toBe(21)
+        ->and(DB::table('chart_of_account_mappings')->where('branch_id', $branchId)->whereIn('key', ['withholdingreceivable', 'withholdingpayable'])->whereNotNull('value')->count())->toBe(2);
 });
 
 test('branches generate-code api returns the next sequential code', function () {

@@ -31,6 +31,7 @@ class ProductController extends Controller
             'subcategory_id' => 'nullable',
             'warranty_id' => 'nullable',
             'alert_qty' => 'nullable|numeric|min:0',
+            'tracking_type' => 'nullable|in:none,serial,batch',
             'weight' => 'nullable|numeric|min:0',
             'sku' => 'nullable|string|max:100',
             'product_desc' => 'nullable|string',

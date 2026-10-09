@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Base64Upload;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -19,6 +20,11 @@ class Company extends Model
 {
     use SoftDeletes;
 
+    /**
+     * @var list<string>
+     */
+    public const TENANT_STATUSES = ['trial', 'active', 'suspended', 'cancelled'];
+
     protected $fillable = [
         'code',
         'name',
@@ -29,6 +35,7 @@ class Company extends Model
         'fb_link',
         'email',
         'ntn_no',
+        'strn_no',
         'address',
         'country_id',
         'state_id',
@@ -37,6 +44,15 @@ class Company extends Model
         'is_active',
         'max_users',
         'max_branches',
+        'subscription_plan_id',
+        'tenant_status',
+        'trial_ends_at',
+        'current_period_starts_at',
+        'current_period_ends_at',
+        'max_warehouses',
+        'max_products',
+        'max_invoices_per_month',
+        'max_storage_mb',
     ];
 
     protected function isActive(): Attribute
@@ -47,12 +63,37 @@ class Company extends Model
         );
     }
 
+    protected function casts(): array
+    {
+        return [
+            'trial_ends_at' => 'datetime',
+            'current_period_starts_at' => 'datetime',
+            'current_period_ends_at' => 'datetime',
+        ];
+    }
+
     /**
      * @return HasMany<Branch, $this>
      */
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);
+    }
+
+    /**
+     * @return BelongsTo<SubscriptionPlan, $this>
+     */
+    public function subscriptionPlan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class);
+    }
+
+    /**
+     * @return HasMany<SubscriptionInvoice, $this>
+     */
+    public function subscriptionInvoices(): HasMany
+    {
+        return $this->hasMany(SubscriptionInvoice::class);
     }
 
     /**
@@ -127,6 +168,7 @@ class Company extends Model
         $company->phone = $request->phone;
         $company->email = $request->email;
         $company->ntn_no = $request->ntn_no;
+        $company->strn_no = $request->strn_no ?? $company->strn_no;
         $company->address = $request->address;
         $company->country_id = $request->country_id ?: null;
         $company->state_id = $request->state_id ?: null;
@@ -149,6 +191,7 @@ class Company extends Model
         $company->phone = $request->phone;
         $company->email = $request->email;
         $company->ntn_no = $request->ntn_no;
+        $company->strn_no = $request->strn_no ?? $company->strn_no;
         $company->address = $request->address;
         $company->country_id = $request->country_id ?: null;
         $company->state_id = $request->state_id ?: null;
@@ -433,5 +476,215 @@ class Company extends Model
     protected static function normalizeImportBool(mixed $value): int
     {
         return $value === true || $value === 1 || $value === '1' ? 1 : 0;
+    }
+
+    /**
+     * Assigns a company to a plan — its first subscription, or an Upgrade/Downgrade/Plan Change of an
+     * existing one. Always snapshots the plan's limits onto the company's own limit columns (so a later
+     * plan edit or deletion never silently changes what an already-subscribed tenant is allowed). Only a
+     * company with NO plan yet (its very first subscription) gets a fresh trial window and billing
+     * period opened; switching plans while already subscribed changes what the tenant is allowed without
+     * resetting its trial or where it is in its current cycle.
+     */
+    public function changePlan(SubscriptionPlan $plan): void
+    {
+        $isFirstSubscription = $this->subscription_plan_id === null;
+
+        $this->subscription_plan_id = $plan->id;
+        $this->max_users = $plan->max_users;
+        $this->max_branches = $plan->max_branches;
+        $this->max_warehouses = $plan->max_warehouses;
+        $this->max_products = $plan->max_products;
+        $this->max_invoices_per_month = $plan->max_invoices_per_month;
+        $this->max_storage_mb = $plan->max_storage_mb;
+
+        if ($isFirstSubscription) {
+            $now = now();
+            $this->tenant_status = $plan->trial_days > 0 ? 'trial' : 'active';
+            $this->trial_ends_at = $plan->trial_days > 0 ? $now->copy()->addDays($plan->trial_days) : null;
+            $this->current_period_starts_at = $now;
+            $this->current_period_ends_at = $now->copy()->addDays($plan->cycleDays());
+        }
+
+        $this->save();
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public static function assertValidTenantStatus(string $status): void
+    {
+        if (! in_array($status, self::TENANT_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Tenant status must be one of: '.implode(', ', self::TENANT_STATUSES).'.'],
+            ]);
+        }
+    }
+
+    /**
+     * Generic limit check shared by every per-feature limit below: how many of $used may exist against
+     * $max before blocking a new one.
+     */
+    private static function withinLimit(int $used, int $max): bool
+    {
+        return $used < $max;
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private static function assertWithinLimit(int $used, int $max, string $field, string $label): void
+    {
+        if (self::withinLimit($used, $max)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $field => ["Maximum {$label} limit reached for this company."],
+        ]);
+    }
+
+    public function canAddUser(): bool
+    {
+        return self::withinLimit(User::query()->where('company_id', $this->id)->count(), (int) $this->max_users);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertCanAddUser(): void
+    {
+        self::assertWithinLimit(
+            User::query()->where('company_id', $this->id)->count(),
+            (int) $this->max_users,
+            'company_id',
+            'user',
+        );
+    }
+
+    public function canAddWarehouse(): bool
+    {
+        return self::withinLimit(Warehouse::query()->where('company_id', $this->id)->count(), (int) $this->max_warehouses);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertCanAddWarehouse(): void
+    {
+        self::assertWithinLimit(
+            Warehouse::query()->where('company_id', $this->id)->count(),
+            (int) $this->max_warehouses,
+            'company_id',
+            'warehouse',
+        );
+    }
+
+    public function canAddProduct(): bool
+    {
+        return self::withinLimit(Product::query()->where('company_id', $this->id)->count(), (int) $this->max_products);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertCanAddProduct(): void
+    {
+        self::assertWithinLimit(
+            Product::query()->where('company_id', $this->id)->count(),
+            (int) $this->max_products,
+            'company_id',
+            'product',
+        );
+    }
+
+    /**
+     * Sell invoices (type = sell, excluding drafts/quotations) created in the current calendar month.
+     */
+    public function invoicesThisMonth(): int
+    {
+        return Transaction::query()
+            ->where('company_id', $this->id)
+            ->where('type', Transaction::TYPE_SELL)
+            ->whereNotIn('status', ['draft', 'quotation'])
+            ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->count();
+    }
+
+    public function canAddInvoice(): bool
+    {
+        return self::withinLimit($this->invoicesThisMonth(), (int) $this->max_invoices_per_month);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertCanAddInvoice(): void
+    {
+        if (self::withinLimit($this->invoicesThisMonth(), (int) $this->max_invoices_per_month)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'company_id' => ['Maximum monthly invoice limit reached for this company.'],
+        ]);
+    }
+
+    /**
+     * Bytes used by this company's stored attachments: its own logo, its products'/variations' images,
+     * and the documents attached to its sell/purchase payments. Computed on demand from the files that
+     * actually exist rather than a running counter, so it can never drift out of sync with reality.
+     */
+    public function storageUsedBytes(): int
+    {
+        $bytes = 0;
+
+        if ($this->logo) {
+            $bytes += self::fileSize(public_path('images/company_images/'.$this->logo));
+        }
+
+        Product::query()
+            ->where('company_id', $this->id)
+            ->whereNotNull('product_image')
+            ->pluck('product_image')
+            ->each(function (string $file) use (&$bytes): void {
+                $bytes += self::fileSize(Product::imageDirectory().'/'.$file);
+            });
+
+        Payment::query()
+            ->where('company_id', $this->id)
+            ->whereNotNull('document')
+            ->pluck('document')
+            ->each(function (string $file) use (&$bytes): void {
+                $bytes += self::fileSize(Payment::imageDirectory().'/'.$file);
+            });
+
+        return $bytes;
+    }
+
+    public function canAddStorageBytes(int $incomingBytes): bool
+    {
+        $maxBytes = (int) $this->max_storage_mb * 1024 * 1024;
+
+        return ($this->storageUsedBytes() + $incomingBytes) <= $maxBytes;
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertCanAddStorageBytes(int $incomingBytes): void
+    {
+        if ($this->canAddStorageBytes($incomingBytes)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'document' => ['This company has reached its storage limit. Delete old attachments or upgrade the plan.'],
+        ]);
+    }
+
+    private static function fileSize(string $path): int
+    {
+        return is_file($path) ? (int) filesize($path) : 0;
     }
 }

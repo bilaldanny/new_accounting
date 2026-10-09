@@ -25,6 +25,7 @@ class WarehouseController extends Controller
             'zipcode' => 'nullable|string|max:20',
             'phone' => 'nullable|string|max:50',
             'fax' => 'nullable|string|max:50',
+            'capacity' => 'nullable|numeric|min:0|max:999999999999',
         ];
     }
 

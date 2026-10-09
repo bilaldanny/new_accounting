@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { usePage } from '@inertiajs/vue3';
     import { ArrowLeftRight, Boxes, CalendarDays } from '@lucide/vue';
+    import WarehousePicker from '@/components/WarehousePicker.vue';
     import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
@@ -340,6 +341,7 @@
         name: string;
         sku?: string;
         unit_id: number | string;
+        tracking_type?: 'none' | 'serial' | 'batch';
         units: StockTransferLineRow['units'];
     }) {
         const alreadyAdded = transferLines.value.some((line) => (
@@ -359,6 +361,7 @@
             product_name: product.name,
             sku: product.sku,
             unit_id: product.unit_id,
+            tracking_type: product.tracking_type ?? 'none',
             quantity: 1,
             packing_qty: unit?.packing_qty ?? 1,
             units: product.units ?? [],
@@ -429,6 +432,8 @@
     <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
     <TextElement v-if="showHiddenCompanyField" name="company_id" hidden="true" />
     <TextElement v-if="showHiddenBranchField" name="branch_id" hidden="true" />
+    <TextElement name="warehouse_id" hidden="true" />
+    <TextElement name="towarehouse_id" hidden="true" />
     <TextElement name="type" hidden="true" default="transfer" />
     <TextElement name="total_item" hidden="true" />
 
@@ -483,6 +488,15 @@
             info="Stock is deducted from this branch."
         />
 
+        <StaticElement name="warehouse_id_picker" :columns="colThird">
+            <WarehousePicker
+                :branch-id="selectedBranchId"
+                :model-value="params.formData?.warehouse_id ?? ''"
+                label="From warehouse (optional)"
+                @update:model-value="(value) => persist({ warehouse_id: value })"
+            />
+        </StaticElement>
+
         <SelectElement
             name="tobranch_id"
             :native="false"
@@ -501,6 +515,15 @@
             rules="required"
             info="Stock is added to this branch."
         />
+
+        <StaticElement name="towarehouse_id_picker" :columns="colThird">
+            <WarehousePicker
+                :branch-id="params.formData?.tobranch_id"
+                :model-value="params.formData?.towarehouse_id ?? ''"
+                label="To warehouse (optional)"
+                @update:model-value="(value) => persist({ towarehouse_id: value })"
+            />
+        </StaticElement>
 
         <TextElement
             id="TransferRefNo"
@@ -571,6 +594,8 @@
                 :allow-packing-edit="allowPackingEdit"
                 :search-type="searchType"
                 :scope-key="`${normalizeId(selectedCompanyId)}:${normalizeId(selectedBranchId)}`"
+                :company-id="selectedCompanyId"
+                :branch-id="selectedBranchId"
                 :categories="categoriesdata"
                 :subcategories="subcategoriesdata"
                 :item-types="itemtypesdata"

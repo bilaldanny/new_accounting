@@ -1,6 +1,6 @@
 import { reactive, ref } from "vue";
-import useCommons from "./common";
 import { API_ENDPOINTS } from './apiEndpoints'
+import useCommons from "./common";
 
 export type PurchaseLineRow = {
     id?: number | string;
@@ -21,6 +21,9 @@ export type PurchaseLineRow = {
     pp_without_discount: number | string;
     purchase_price: number | string;
     row_subtotal: number | string;
+    /** The tax of the line and what it came to (worked out by the server). */
+    tax_id?: number | string | null;
+    tax_amount?: number | string | null;
     units: Array<{ id: number | string; text?: string; short_name?: string; unit_qty?: number; packing_qty?: number }>;
     current_stock?: number | string;
     unit_name?: string;
@@ -47,6 +50,7 @@ export default function usePurchases(){
     const emptyForm = () => ({
       company_id: '',
       branch_id: '',
+      warehouse_id: '',
       contact_id: '',
       invoice_no: '',
       sup_ref_no: '',
@@ -62,6 +66,10 @@ export default function usePurchases(){
       shipping_note: '',
       additional_note: '',
       final_amount: 0,
+      tax_id: '' as number | string,
+      tax_inclusive: false,
+      tax_amount: 0,
+      withholding_tax_id: '' as number | string,
       total_item: 0,
       total_pack_qty: 0,
       net_sub_total: 0,
@@ -71,6 +79,7 @@ export default function usePurchases(){
       status: 'pending',
       is_direct: false,
       direct_contact_id: '',
+      purchase_requisition_id: null as number | string | null,
       purchaselines: [] as PurchaseLineRow[],
     });
 

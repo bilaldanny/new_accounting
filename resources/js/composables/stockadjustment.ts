@@ -42,6 +42,7 @@ export default function useStockAdjustments(){
     const emptyForm = () => ({
       company_id: '',
       branch_id: '',
+      warehouse_id: '',
       invoice_no: '',
       transaction_date: today(),
       adjustment_type: 'normal',

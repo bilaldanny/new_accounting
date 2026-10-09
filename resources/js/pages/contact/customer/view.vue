@@ -1,12 +1,4 @@
 <script setup lang="ts">
-    import FiscalYearDateRange from '@/components/FiscalYearDateRange.vue';
-    import Loader from '@/components/Loader.vue';
-    import useActiveFinancialYear from '@/composables/activeFinancialYear';
-    import useCommons from '@/composables/common';
-    import useCustomers from '@/composables/customer';
-    import useLedgerWatch from '@/composables/ledgerWatch';
-    import { formatNumber } from '@/utils/numberFormat';
-    import { Head, Link, usePage } from '@inertiajs/vue3';
     import {
         Archive,
         ArrowLeft,
@@ -28,8 +20,17 @@
         User,
         Wallet,
     } from '@boxicons/vue';
+    import { Head, Link, usePage } from '@inertiajs/vue3';
     import type { Component } from 'vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
+    import ActivityTimeline from '@/components/ActivityTimeline.vue';
+    import FiscalYearDateRange from '@/components/FiscalYearDateRange.vue';
+    import Loader from '@/components/Loader.vue';
+    import useActiveFinancialYear from '@/composables/activeFinancialYear';
+    import useCommons from '@/composables/common';
+    import useCustomers from '@/composables/customer';
+    import useLedgerWatch from '@/composables/ledgerWatch';
+    import { formatNumber } from '@/utils/numberFormat';
 
     defineOptions({
         layout: {
@@ -56,6 +57,9 @@
     });
 
     const page = usePage();
+
+    const permissionPaths = computed(() => (page.props.auth?.user as { permission_paths?: string[] } | null)?.permission_paths ?? []);
+    const canAddActivity = computed(() => permissionPaths.value.includes('/activities/add'));
 
     const {
         fetchCompany,
@@ -1035,6 +1039,10 @@
                                     </table>
                                 </div>
                             </template>
+                        </div>
+
+                        <div v-else-if="activeTab === 'activities'" class="customer-view-ledger">
+                            <ActivityTimeline :contact-id="contact.id" :can-add="canAddActivity" />
                         </div>
 
                         <div v-else class="customer-view-empty">

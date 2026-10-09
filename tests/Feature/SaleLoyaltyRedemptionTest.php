@@ -394,3 +394,63 @@ test('redeeming at checkout needs the permission to redeem loyalty points', func
 
     expect(LoyaltyPointEntry::query()->where('type', 'redeem')->sum('points'))->toBe(-20);
 });
+
+// --- earn-side rounding: no drift from repeated partial returns -----------------------------------
+
+/**
+ * The points an "earn"/"adjust" ledger sums to for the given sale, and what pointsFor() says the sale's
+ * current net (final_amount minus its return, if any) is worth. These must always agree: syncForSale()
+ * recomputes the whole expected total from the sale's current state on every call rather than applying
+ * floor() to each partial-return event, so nothing should ever drift no matter how many times the same
+ * return is edited.
+ *
+ * @return array{held: int, expected: int}
+ */
+function lrdEarnInvariant(array $scope, Transaction $sale): array
+{
+    $held = (int) LoyaltyPointEntry::query()
+        ->where('transaction_id', $sale->id)
+        ->whereIn('type', ['earn', 'adjust'])
+        ->sum('points');
+
+    $sale->refresh();
+    $returned = (float) Transaction::query()->where('type', Transaction::TYPE_SELL_RETURN)->where('parent_id', $sale->id)->sum('final_amount');
+    $net = round(max((float) $sale->final_amount - $returned, 0), 2);
+    $expected = LoyaltySetting::forCompany((int) $scope['company_id'])->pointsFor($net);
+
+    return compact('held', 'expected');
+}
+
+test('a sale\'s earned points never drift as the same return is edited to take back more each time', function () {
+    $scope = lrdScope(0);
+    // 2 x 120 goods + 40 shipping = 280, an amount that is not a clean multiple of 100
+    $this->postJson('/api/sells', validSellPayload($scope))->assertSuccessful();
+    $sale = lrdSale();
+
+    ['held' => $held, 'expected' => $expected] = lrdEarnInvariant($scope, $sale);
+    expect($held)->toBe($expected)->toBe(2); // floor(280 / 100)
+
+    // return 1 of the 2 units: net drops, the earn entry is corrected down
+    $returnId = lrdReturn($scope, $sale, 1);
+    ['held' => $held, 'expected' => $expected] = lrdEarnInvariant($scope, $sale);
+    expect($held)->toBe($expected);
+
+    // edit the same return to take back the second unit too: net drops further
+    $this->putJson('/api/sell-returns/'.$returnId, validSellReturnPayload($scope, $sale, [
+        'selllines' => [['id' => $sale->selllines()->first()->id, 'quantity_returned' => 2]],
+    ]))->assertSuccessful();
+    ['held' => $held, 'expected' => $expected] = lrdEarnInvariant($scope, $sale);
+    expect($held)->toBe($expected);
+
+    // running the sync again and again (as an idempotency check) must not move it any further
+    foreach (range(1, 3) as $ignored) {
+        app(LoyaltyPoints::class)->syncForSale($sale->fresh());
+    }
+    ['held' => $held, 'expected' => $expected] = lrdEarnInvariant($scope, $sale);
+    expect($held)->toBe($expected);
+
+    // undoing the return (back to nothing returned) restores the full earn, still without drift
+    $this->deleteJson('/api/sell-returns/'.$returnId)->assertSuccessful();
+    ['held' => $held, 'expected' => $expected] = lrdEarnInvariant($scope, $sale);
+    expect($held)->toBe($expected)->toBe(2);
+});

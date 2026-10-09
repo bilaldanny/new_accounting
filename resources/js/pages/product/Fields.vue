@@ -800,6 +800,23 @@
             rules="nullable|numeric|min:0"
         />
 
+        <SelectElement
+            name="tracking_type"
+            :native="false"
+            :items="[{ value: 'none', label: 'Not tracked' }, { value: 'serial', label: 'Serial / IMEI (each unit has its own number)' }, { value: 'batch', label: 'Batch / lot (with expiry date)' }]"
+            id="TrackingType"
+            field-name="TrackingType"
+            label="Tracking"
+            :can-clear="false"
+            default="none"
+            :columns="colQuarter"
+            label-prop="label"
+            value-prop="value"
+            :search="false"
+            :floating="false"
+            info="Serial: every unit is received, moved and sold by its serial number. Batch: stock is kept per batch with an expiry date."
+        />
+
         <TextareaElement
             name="product_desc"
             id="ProductDesc"

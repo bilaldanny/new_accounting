@@ -24,6 +24,7 @@ class TAccountDetail extends Model
         'debit',
         'highlight',
         'amount',
+        'cost_center_id',
     ];
 
     /**

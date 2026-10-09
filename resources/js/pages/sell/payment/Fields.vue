@@ -1,8 +1,8 @@
 <script setup lang="ts">
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
-    import useCommons from '@/composables/common';
     import { usePage } from '@inertiajs/vue3';
     import { computed, onMounted, ref, watch } from 'vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useCommons from '@/composables/common';
 
     const params = defineProps({
         type: String,
@@ -773,6 +773,17 @@
         :columns="colQuarter"
         autocomplete="off"
         rules="required"
+    />
+
+    <DateElement
+        v-if="selectedMethod === 'cheque'"
+        id="ChequeDate"
+        field-name="ChequeDate"
+        name="cheque_date"
+        label="Cheque date"
+        placeholder="Select cheque date (optional)"
+        :columns="colQuarter"
+        :floating="false"
     />
 
     <TextElement

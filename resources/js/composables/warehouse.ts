@@ -24,6 +24,7 @@ export default function useWarehouses(){
       zipcode: '',
       phone: '',
       fax: '',
+      capacity: '',
       is_active: true,
     });
 

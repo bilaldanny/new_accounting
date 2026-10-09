@@ -226,7 +226,7 @@ class CashCollections
                 Payment::removeCollectedPayment($advance);
             }
 
-            $locked->allocations()->delete();
+            $locked->allocations()->update(['reversed_at' => now()]);
 
             $trimmed = $note === null ? '' : trim($note);
             $locked->update([

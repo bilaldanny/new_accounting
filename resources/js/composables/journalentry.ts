@@ -11,6 +11,7 @@ export type JournalLineRow = {
     description: string;
     debit: number | string;
     credit: number | string;
+    cost_center_id?: number | string | '';
 };
 
 export type JournalAttachment = {

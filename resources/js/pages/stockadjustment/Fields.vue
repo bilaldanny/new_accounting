@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { usePage } from '@inertiajs/vue3';
     import { Boxes, CalendarDays, SlidersHorizontal } from '@lucide/vue';
+    import WarehousePicker from '@/components/WarehousePicker.vue';
     import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
@@ -427,6 +428,7 @@
     <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
     <TextElement v-if="showHiddenCompanyField" name="company_id" hidden="true" />
     <TextElement v-if="showHiddenBranchField" name="branch_id" hidden="true" />
+    <TextElement name="warehouse_id" hidden="true" />
     <TextElement name="type" hidden="true" default="adjustment" />
     <TextElement name="total_item" hidden="true" />
 
@@ -479,6 +481,15 @@
             :disabled="branchDisabled"
             rules="required"
         />
+
+        <StaticElement name="warehouse_id_picker" :columns="colThird">
+            <WarehousePicker
+                :branch-id="selectedBranchId"
+                :model-value="params.formData?.warehouse_id ?? ''"
+                label="Warehouse (optional)"
+                @update:model-value="(value) => persist({ warehouse_id: value })"
+            />
+        </StaticElement>
 
         <TextElement
             id="AdjustmentRefNo"

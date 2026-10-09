@@ -171,7 +171,8 @@ class SellController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeMenuPermission('/sell/add');
+        // The POS has its own menu: a cashier who may use it rings up sales without being given the Add Sell page.
+        $this->authorizeMenuPermission($request->boolean('is_pos') && hasMenuPermission('/sell/pos') ? '/sell/pos' : '/sell/add');
 
         $request->validate($this->sellFormRules());
 
@@ -287,7 +288,9 @@ class SellController extends Controller
             return ['terms_and_conditions' => null, 'footer_note' => null, 'receipt' => null];
         }
 
-        return DocumentSetting::invoicePrintBlocks($companyId) + ['receipt' => DocumentSetting::valuesFor($companyId, 'receipt')];
+        return DocumentSetting::invoicePrintBlocks($companyId)
+            + DocumentSetting::taxPrintBlocks($sell, $companyId)
+            + ['receipt' => DocumentSetting::valuesFor($companyId, 'receipt')];
     }
 
     public function update(Request $request, $id)

@@ -24,7 +24,7 @@ import useCommons from '@/composables/common';
  * open the page of; the permission check here just decides which cards are drawn while they load.
  */
 
-type WidgetName = 'sales' | 'receivables' | 'inventory' | 'approvals' | 'financial' | 'stats' | 'recent' | 'forecast';
+type WidgetName = 'sales' | 'receivables' | 'inventory' | 'approvals' | 'financial' | 'cheques' | 'stats' | 'recent' | 'forecast' | 'trends' | 'aging' | 'movement';
 
 interface WidgetState {
     status: 'loading' | 'ready' | 'error';
@@ -34,7 +34,7 @@ interface WidgetState {
 }
 
 const page = usePage();
-const { fetchCompany, companiesdata } = useCommons();
+const { fetchCompany, fetchBranch, companiesdata, branchesdata } = useCommons();
 
 const authUser = computed(() => page.props.auth?.user as {
     rolename?: string;
@@ -47,6 +47,11 @@ const can = (path: string): boolean => isSuperadmin.value || (authUser.value?.pe
 
 const COMPANY_KEY = 'dashboardCompanyId';
 const companyId = ref<string>('');
+/** The date the dashboard reads "today" as (empty = today) and the branch it is limited to (empty = all the user may see). */
+const asOf = ref<string>('');
+const branchId = ref<string>('');
+const isCompanyAdmin = computed(() => String(authUser.value?.rolename ?? '').toLowerCase().replace(/\s+/g, '') === 'companyadmin');
+const canPickBranch = computed(() => (isSuperadmin.value && companyId.value !== '') || isCompanyAdmin.value);
 
 const widgets = reactive<Record<WidgetName, WidgetState>>({
     sales: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
@@ -54,9 +59,13 @@ const widgets = reactive<Record<WidgetName, WidgetState>>({
     inventory: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     approvals: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     financial: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
+    cheques: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     stats: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     recent: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
     forecast: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
+    trends: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
+    aging: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
+    movement: { status: 'loading', data: {}, needsCompany: [], cachedAt: null },
 });
 
 const money = (value: unknown): string => Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -75,6 +84,14 @@ async function loadWidget(name: WidgetName, refresh = false): Promise<void> {
             params.company_id = companyId.value;
         }
 
+        if (asOf.value !== '') {
+            params.as_of = asOf.value;
+        }
+
+        if (branchId.value !== '' && canPickBranch.value) {
+            params.branch_id = branchId.value;
+        }
+
         if (refresh) {
             params.refresh = 1;
         }
@@ -91,7 +108,7 @@ async function loadWidget(name: WidgetName, refresh = false): Promise<void> {
 
 /** The quick, set-based cards first, then the ones that read every ledger or every stock movement. */
 const LIGHT: WidgetName[] = ['sales', 'approvals', 'stats', 'recent'];
-const HEAVY: WidgetName[] = ['inventory', 'financial', 'receivables', 'forecast'];
+const HEAVY: WidgetName[] = ['inventory', 'financial', 'receivables', 'forecast', 'cheques', 'trends', 'aging', 'movement'];
 
 function loadAll(refresh = false): void {
     [...LIGHT, ...HEAVY].forEach((name) => {
@@ -119,6 +136,23 @@ onMounted(async () => {
         return;
     }
 
+    void loadBranches();
+    loadAll();
+});
+
+async function loadBranches(): Promise<void> {
+    branchId.value = '';
+
+    const company = isSuperadmin.value ? companyId.value : String(authUser.value?.company_id ?? '');
+
+    if (canPickBranch.value && company !== '') {
+        await fetchBranch(company);
+    } else {
+        branchesdata.value = [];
+    }
+}
+
+watch([asOf, branchId], () => {
     loadAll();
 });
 
@@ -129,6 +163,7 @@ watch(companyId, (value) => {
         // a private window: the choice just is not remembered
     }
 
+    void loadBranches();
     loadAll();
 });
 
@@ -154,8 +189,24 @@ const lowStock = computed(() => widgets.inventory.data.low_stock as { count: num
 const stockValue = computed(() => widgets.inventory.data.stock_value as Record<string, any> | undefined);
 const netProfit = computed(() => widgets.financial.data.net_profit as Record<string, any> | undefined);
 const cashBank = computed(() => widgets.financial.data.cash_bank as { total: number; accounts: Array<Record<string, any>> } | undefined);
+const chequesGiven = computed(() => widgets.cheques.data.given as { count: number; items: Array<Record<string, any>> } | undefined);
+const chequesReceived = computed(() => widgets.cheques.data.received as { count: number; items: Array<Record<string, any>> } | undefined);
 const recentSales = computed(() => (widgets.recent.data.recent_sales ?? []) as Array<Record<string, any>>);
 const forecast = computed(() => widgets.forecast.data.sales_forecast as Record<string, any> | undefined);
+const recentPayments = computed(() => (widgets.recent.data.recent_payments ?? []) as Array<Record<string, any>>);
+const trends = computed(() => (widgets.trends.data.trends ?? []) as Array<{ month: string; sales: number; purchases: number }>);
+const profitTrend = computed(() => (widgets.trends.data.profit_trend ?? []) as Array<{ month: string; net_profit: number }>);
+const trendMax = computed(() => Math.max(...trends.value.flatMap((row) => [Number(row.sales), Number(row.purchases)]), 1));
+const profitMax = computed(() => Math.max(...profitTrend.value.map((row) => Math.abs(Number(row.net_profit))), 1));
+type Aging = { buckets: Array<{ label: string; amount: number; count: number }>; total: number };
+const receivableAging = computed(() => widgets.aging.data.receivable_aging as Aging | undefined);
+const payableAging = computed(() => widgets.aging.data.payable_aging as Aging | undefined);
+const agingBlocks = computed(() => [
+    { key: 'receivable', title: 'Receivable from customers', aging: receivableAging.value, color: '#6366f1' },
+    { key: 'payable', title: 'Payable to suppliers', aging: payableAging.value, color: '#f59e0b' },
+]);
+const agingMax = (aging: Aging | undefined): number => Math.max(...(aging?.buckets ?? []).map((bucket) => Number(bucket.amount)), 1);
+const movement = computed(() => widgets.movement.data.inventory_movement as { top_selling: Array<Record<string, any>>; dead_stock: Array<Record<string, any>>; expiring?: Array<Record<string, any>>; expiry_counts?: { expired: number; expiring: number } } | undefined);
 
 /** The months the outlook card draws as bars: the history, then the estimate for next month. */
 const outlookBars = computed(() => {
@@ -185,6 +236,12 @@ const approvalRows = [
     { key: 'expense', label: 'Expense vouchers', href: '/expense/approval', permission: '/expense/approval' },
     { key: 'deposit', label: 'Deposit vouchers', href: '/deposit/approval', permission: '/deposit/approval' },
     { key: 'fundtransfer', label: 'Fund transfers', href: '/fundtransfer/approval', permission: '/fundtransfer/approval' },
+    { key: 'purchasereturn', label: 'Purchase returns', href: '/purchasereturn/approval', permission: '/purchasereturn/approval' },
+    { key: 'stockadjustment', label: 'Stock adjustments', href: '/stockadjustment/approval', permission: '/stockadjustment/approval' },
+    { key: 'stocktransfer', label: 'Stock transfers', href: '/stocktransfer/approval', permission: '/stocktransfer/approval' },
+    { key: 'cashcollection', label: 'Cash collections', href: '/cashcollection/approval', permission: '/cashcollection/approval' },
+    { key: 'pricelist', label: 'Price lists', href: '/pricelist/approval', permission: '/pricelist/approval' },
+    { key: 'creditlimit', label: 'Credit limit requests', href: '/creditlimit/approval', permission: '/creditlimit/approval' },
 ];
 
 const visibleApprovals = computed(() => approvalRows.filter((row) => can(row.permission)));
@@ -198,14 +255,22 @@ const showPayables = computed(() => can('/report/supplier-outstanding'));
 const showFinancial = computed(() => can('/report/profit-loss') || can('/chart-of-account'));
 const showApprovals = computed(() => visibleApprovals.value.length > 0);
 const showInventory = computed(() => can('/lowstock') || can('/report/stock'));
+const showChequesGiven = computed(() => can('/purchase/payment'));
+const showChequesReceived = computed(() => can('/sell/payment'));
+const showCheques = computed(() => showChequesGiven.value || showChequesReceived.value);
 const showCredit = computed(() => can('/customer'));
 const showStats = computed(() => can('/customer') || can('/supplier') || can('/product'));
 const showRecent = computed(() => can('/sell'));
 const showForecast = computed(() => can('/report/purchase-sale'));
+const showTrends = computed(() => can('/report/purchase-sale') || can('/report/profit-loss'));
+const showAging = computed(() => can('/report/customer-outstanding') || can('/report/supplier-outstanding'));
+const showMovement = computed(() => can('/report/stock'));
+const showRecentPayments = computed(() => can('/sell/payment'));
 
 const showAnything = computed(() => [
     showSales.value, showPurchases.value, showReceivables.value, showPayables.value, showFinancial.value,
     showApprovals.value, showInventory.value, showCredit.value, showStats.value, showRecent.value, showForecast.value,
+    showTrends.value, showAging.value, showMovement.value,
 ].some(Boolean));
 
 const statCards = computed(() => [
@@ -241,6 +306,11 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                             {{ company.text ?? company.name }}
                         </option>
                     </select>
+                    <select v-if="canPickBranch" v-model="branchId" class="form-select form-select-sm dash-company-select" aria-label="Branch">
+                        <option value="">All branches</option>
+                        <option v-for="branch in branchesdata" :key="branch.id" :value="String(branch.id)">{{ branch.text ?? branch.name }}</option>
+                    </select>
+                    <input v-model="asOf" type="date" class="form-control form-control-sm dash-date-input" aria-label="Show the dashboard as of" title="Show the dashboard as of this date (empty = today)">
                     <button type="button" class="dash-period-pill" :disabled="refreshing" title="Recalculate the figures kept for five minutes" @click="loadAll(true)">
                         <RefreshCw class="dash-refresh" :class="{ 'is-spinning': refreshing }" aria-hidden="true" />
                         Refresh
@@ -331,8 +401,18 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                             <span v-if="isLoading('financial')" class="dash-skel" />
                             <strong v-else :class="Number(netProfit?.net_profit) < 0 ? 'text-danger' : 'text-success'">{{ money(netProfit?.net_profit) }}</strong>
                         </div>
+                        <div v-if="can('/report/profit-loss')" class="dash-fin-row">
+                            <span>Expenses this month</span>
+                            <span v-if="isLoading('financial')" class="dash-skel" />
+                            <strong v-else data-test="expenses-kpi">{{ money(netProfit?.expenses) }}</strong>
+                        </div>
+                        <div v-if="can('/report/profit-loss')" class="dash-fin-row">
+                            <span>Gross margin</span>
+                            <span v-if="isLoading('financial')" class="dash-skel" />
+                            <strong v-else data-test="gross-margin-kpi">{{ netProfit?.gross_margin ?? 0 }}%</strong>
+                        </div>
                         <div v-if="netProfit && can('/report/profit-loss')" class="dash-fin-sub">
-                            Revenue {{ money(netProfit.revenue) }} · Expenses {{ money(netProfit.expenses) }} · Margin {{ netProfit.net_margin }}%
+                            Revenue {{ money(netProfit.revenue) }} · Gross profit {{ money(netProfit.gross_profit) }} ({{ netProfit.gross_margin }}% gross margin) · Expenses {{ money(netProfit.expenses) }} · Net margin {{ netProfit.net_margin }}%
                             <span v-if="netProfit.uncosted_stock > 0" class="text-warning"> · {{ netProfit.uncosted_stock }} stocked items have no purchase cost</span>
                         </div>
 
@@ -450,6 +530,55 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                 </div>
             </div>
 
+            <!-- Post-dated cheques: cheque-method payments with a cheque date not yet in the past -->
+            <div v-if="showCheques" class="dash-grid-2">
+                <div v-if="showChequesGiven" class="dash-card" data-card="cheques-given">
+                    <div class="dash-card__header">
+                        <div class="dash-card__title-group">
+                            <h3 class="dash-card__title">Upcoming cheques given</h3>
+                            <span v-if="chequesGiven" class="dash-card__badge" :class="{ 'dash-card__badge--success': chequesGiven.count === 0 }">
+                                {{ chequesGiven.count === 0 ? 'None due' : `${whole(chequesGiven.count)} due` }}
+                            </span>
+                        </div>
+                        <span class="dash-stat-card__icon dash-stat-card__icon--danger"><Landmark aria-hidden="true" /></span>
+                    </div>
+
+                    <p v-if="failed('cheques')" class="text-danger mb-0">The figures could not be loaded. <a href="#" @click.prevent="loadWidget('cheques')">Try again</a></p>
+                    <div v-else-if="isLoading('cheques')"><span class="dash-skel dash-skel--wide" /></div>
+                    <p v-else-if="! chequesGiven?.items?.length" class="text-secondary mb-0">No post-dated cheque is due to a supplier.</p>
+                    <ul v-else class="dash-plain-list">
+                        <li v-for="item in chequesGiven.items" :key="item.payment_id">
+                            <span>{{ item.cheque_number || '—' }} <small class="text-secondary">{{ item.contact_name }}</small></span>
+                            <span>{{ item.cheque_date }} · {{ money(item.amount) }}</span>
+                        </li>
+                    </ul>
+                    <Link v-if="chequesGiven && chequesGiven.count > chequesGiven.items.length" href="/purchase/payment" class="dash-more">See all purchase payments</Link>
+                </div>
+
+                <div v-if="showChequesReceived" class="dash-card" data-card="cheques-received">
+                    <div class="dash-card__header">
+                        <div class="dash-card__title-group">
+                            <h3 class="dash-card__title">Upcoming cheques received</h3>
+                            <span v-if="chequesReceived" class="dash-card__badge" :class="{ 'dash-card__badge--success': chequesReceived.count === 0 }">
+                                {{ chequesReceived.count === 0 ? 'None due' : `${whole(chequesReceived.count)} due` }}
+                            </span>
+                        </div>
+                        <span class="dash-stat-card__icon dash-stat-card__icon--success"><Landmark aria-hidden="true" /></span>
+                    </div>
+
+                    <p v-if="failed('cheques')" class="text-danger mb-0">The figures could not be loaded. <a href="#" @click.prevent="loadWidget('cheques')">Try again</a></p>
+                    <div v-else-if="isLoading('cheques')"><span class="dash-skel dash-skel--wide" /></div>
+                    <p v-else-if="! chequesReceived?.items?.length" class="text-secondary mb-0">No post-dated cheque is due from a customer.</p>
+                    <ul v-else class="dash-plain-list">
+                        <li v-for="item in chequesReceived.items" :key="item.payment_id">
+                            <span>{{ item.cheque_number || '—' }} <small class="text-secondary">{{ item.contact_name }}</small></span>
+                            <span>{{ item.cheque_date }} · {{ money(item.amount) }}</span>
+                        </li>
+                    </ul>
+                    <Link v-if="chequesReceived && chequesReceived.count > chequesReceived.items.length" href="/sell/payment" class="dash-more">See all sell payments</Link>
+                </div>
+            </div>
+
             <!-- Sales outlook: a simple estimate of next month from the recent ones -->
             <div v-if="showForecast" class="dash-card" data-card="forecast">
                 <div class="dash-card__header">
@@ -496,6 +625,120 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                 </template>
             </div>
 
+            <!-- Sales / purchase / profit trends: the last six months -->
+            <div v-if="showTrends" class="dash-card" data-card="trends">
+                <div class="dash-card__header">
+                    <div class="dash-card__title-group">
+                        <h3 class="dash-card__title">Sales, purchase and profit trends</h3>
+                        <span class="dash-card__badge">last 6 months</span>
+                    </div>
+                    <span class="dash-stat-card__icon dash-stat-card__icon--primary"><TrendingUp aria-hidden="true" /></span>
+                </div>
+
+                <p v-if="failed('trends')" class="text-danger mb-0">The trends could not be loaded. <a href="#" @click.prevent="loadWidget('trends')">Try again</a></p>
+                <div v-else-if="isLoading('trends')"><span class="dash-skel dash-skel--wide" /></div>
+                <template v-else>
+                    <div v-if="trends.length" class="dash-country-list">
+                        <div v-for="row in trends" :key="row.month" class="dash-country-row">
+                            <div class="dash-country-row__top">
+                                <div class="dash-country-row__id"><span class="dash-country-row__name">{{ row.month }}</span></div>
+                                <div class="dash-country-row__value">
+                                    <span class="dash-country-row__num">Sales {{ money(row.sales) }} · Purchases {{ money(row.purchases) }}</span>
+                                </div>
+                            </div>
+                            <div class="dash-country-row__bar-track">
+                                <div class="dash-country-row__bar-fill" :style="{ width: Math.max((row.sales / trendMax) * 100, 1) + '%', background: '#6366f1' }"></div>
+                            </div>
+                            <div class="dash-country-row__bar-track mt-1">
+                                <div class="dash-country-row__bar-fill" :style="{ width: Math.max((row.purchases / trendMax) * 100, 1) + '%', background: '#f59e0b' }"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-if="asksForCompany('trends', 'profit_trend')" class="text-secondary mt-3 mb-0">Choose a company above to see the profit trend.</p>
+                    <div v-else-if="profitTrend.length" class="dash-country-list mt-3">
+                        <div v-for="row in profitTrend" :key="row.month" class="dash-country-row">
+                            <div class="dash-country-row__top">
+                                <div class="dash-country-row__id"><span class="dash-country-row__name">{{ row.month }} net profit</span></div>
+                                <div class="dash-country-row__value"><span class="dash-country-row__num" :class="row.net_profit < 0 ? 'text-danger' : 'text-success'">{{ money(row.net_profit) }}</span></div>
+                            </div>
+                            <div class="dash-country-row__bar-track">
+                                <div class="dash-country-row__bar-fill" :style="{ width: Math.max((Math.abs(row.net_profit) / profitMax) * 100, 1) + '%', background: row.net_profit < 0 ? '#ef4444' : '#10b981' }"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Receivable and payable aging, and what sells against what does not -->
+            <div v-if="showAging || showMovement" class="dash-grid-2">
+                <div v-if="showAging" class="dash-card" data-card="aging">
+                    <div class="dash-card__header">
+                        <div class="dash-card__title-group">
+                            <h3 class="dash-card__title">Outstanding by age</h3>
+                            <span class="dash-card__badge">by invoice date</span>
+                        </div>
+                        <span class="dash-stat-card__icon dash-stat-card__icon--danger"><TriangleAlert aria-hidden="true" /></span>
+                    </div>
+
+                    <p v-if="failed('aging')" class="text-danger mb-0">The figures could not be loaded. <a href="#" @click.prevent="loadWidget('aging')">Try again</a></p>
+                    <div v-else-if="isLoading('aging')"><span class="dash-skel dash-skel--wide" /></div>
+                    <template v-else>
+                        <template v-for="block in agingBlocks" :key="block.key">
+                            <div v-if="block.aging" class="mb-3">
+                                <div class="dash-fin-row"><span>{{ block.title }}</span><strong>{{ money(block.aging.total) }}</strong></div>
+                                <div v-for="bucket in block.aging.buckets" :key="bucket.label" class="dash-country-row">
+                                    <div class="dash-country-row__top">
+                                        <div class="dash-country-row__id"><span class="dash-country-row__name">{{ bucket.label }}</span></div>
+                                        <div class="dash-country-row__value"><span class="dash-country-row__num">{{ money(bucket.amount) }} <small class="text-secondary">({{ whole(bucket.count) }})</small></span></div>
+                                    </div>
+                                    <div class="dash-country-row__bar-track">
+                                        <div class="dash-country-row__bar-fill" :style="{ width: Math.max((bucket.amount / agingMax(block.aging)) * 100, 1) + '%', background: block.color }"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+
+                <div v-if="showMovement" class="dash-card" data-card="movement">
+                    <div class="dash-card__header">
+                        <div class="dash-card__title-group">
+                            <h3 class="dash-card__title">Top selling, dead stock and expiry</h3>
+                        </div>
+                        <span class="dash-stat-card__icon dash-stat-card__icon--success"><Boxes aria-hidden="true" /></span>
+                    </div>
+
+                    <p v-if="failed('movement')" class="text-danger mb-0">The figures could not be loaded. <a href="#" @click.prevent="loadWidget('movement')">Try again</a></p>
+                    <div v-else-if="isLoading('movement')"><span class="dash-skel dash-skel--wide" /></div>
+                    <template v-else>
+                        <div class="dash-fin-row"><span>Best sellers, last 30 days</span></div>
+                        <p v-if="! movement?.top_selling?.length" class="text-secondary">No sales in the last 30 days.</p>
+                        <ul v-else class="dash-plain-list">
+                            <li v-for="item in movement.top_selling" :key="item.product_id"><span>{{ item.name }}</span><span>{{ money(item.quantity) }} sold</span></li>
+                        </ul>
+
+                        <div class="dash-fin-row mt-3"><span>Dead stock: on hand, nothing sold in 90 days</span></div>
+                        <p v-if="! movement?.dead_stock?.length" class="text-secondary mb-0">No dead stock.</p>
+                        <ul v-else class="dash-plain-list">
+                            <li v-for="item in movement.dead_stock" :key="item.product_id"><span>{{ item.name }}</span><span class="text-warning">{{ money(item.stock) }} in stock</span></li>
+                        </ul>
+
+                        <div class="dash-fin-row mt-3" data-test="dash-expiry">
+                            <span>Batches expired or expiring within 30 days</span>
+                            <strong v-if="movement?.expiry_counts" :class="movement.expiry_counts.expired > 0 ? 'text-danger' : ''">{{ whole(movement.expiry_counts.expired) }} expired, {{ whole(movement.expiry_counts.expiring) }} soon</strong>
+                        </div>
+                        <p v-if="! movement?.expiring?.length" class="text-secondary mb-0">No batch is expired or about to expire.</p>
+                        <ul v-else class="dash-plain-list">
+                            <li v-for="item in movement.expiring" :key="`${item.batch_id}-${item.branch_id}`">
+                                <span>{{ item.name }} · {{ item.batch_no }}</span>
+                                <span :class="item.days_left < 0 ? 'text-danger' : 'text-warning'">{{ money(item.qty) }} · {{ item.days_left < 0 ? `expired ${-item.days_left} d ago` : `${item.days_left} d left` }}</span>
+                            </li>
+                        </ul>
+                        <div class="dash-fin-sub">Expiry dates come from batch-tracked products (Products &gt; Tracking).</div>
+                    </template>
+                </div>
+            </div>
+
             <!-- Row 3: quick stats and recent sales -->
             <div v-if="showStats || showRecent" class="dash-grid-3">
                 <div v-if="showStats" class="dash-stats-column">
@@ -538,11 +781,45 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                     </div>
                 </div>
             </div>
+
+            <!-- Recent payments -->
+            <div v-if="showRecentPayments" class="dash-card" data-card="recent-payments">
+                <div class="dash-card__header">
+                    <div class="dash-card__title-group"><h3 class="dash-card__title">Recent payments</h3></div>
+                    <Link href="/sell/payment" class="dash-more dash-more--inline">All payments</Link>
+                </div>
+
+                <p v-if="failed('recent')" class="text-danger mb-0">The payments could not be loaded. <a href="#" @click.prevent="loadWidget('recent')">Try again</a></p>
+                <div v-else-if="isLoading('recent')"><span class="dash-skel dash-skel--wide" /></div>
+                <p v-else-if="! recentPayments.length" class="text-secondary mb-0">No payments yet.</p>
+                <div v-else class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr><th>Invoice</th><th>Contact</th><th>Date</th><th>Method</th><th class="text-end">Amount</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="payment in recentPayments" :key="payment.id">
+                                <td>{{ payment.invoice_no ?? '-' }}</td>
+                                <td>{{ payment.contact }}</td>
+                                <td>{{ payment.date ?? '-' }}</td>
+                                <td>{{ payment.method }}</td>
+                                <td class="text-end" :class="payment.direction === 'received' ? 'text-success' : 'text-danger'">
+                                    {{ payment.direction === 'received' ? '+' : '-' }}{{ money(payment.amount) }}<span v-if="payment.is_return"> (return)</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <style scoped>
+.dash-date-input {
+    width: auto;
+}
+
 .dash-kpi-grid--fit {
     grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Services\LedgerJournal;
 use App\Support\Base64Upload;
 use Database\Factories\TAccountFactory;
@@ -18,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class TAccount extends Model
 {
+    use Auditable;
+
     /** @use HasFactory<TAccountFactory> */
     use HasFactory;
 
@@ -36,6 +39,9 @@ class TAccount extends Model
     public const DEPOSIT_VOUCHER_TYPES = ['BD', 'CD', 'OD'];
 
     public const FUND_TRANSFER_VOUCHER_TYPES = ['FT'];
+
+    /** Credit Note (customer's balance goes down) and Debit Note (supplier's balance goes down). */
+    public const CREDIT_DEBIT_NOTE_VOUCHER_TYPES = ['CN', 'DN'];
 
     /**
      * Voucher prefixes for system-generated purchase/sell payment postings.
@@ -253,9 +259,20 @@ class TAccount extends Model
             ->where('voucher_no', 'like', 'FT-%');
     }
 
+    public function scopeManualCreditDebitNotes(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('transaction_id')
+            ->where(function (Builder $voucherQuery) {
+                $voucherQuery
+                    ->where('voucher_no', 'like', 'CN-%')
+                    ->orWhere('voucher_no', 'like', 'DN-%');
+            });
+    }
+
     /**
-     * Manual vouchers of one approval family: 'journal', 'payment', 'expense', 'deposit' or
-     * 'fundtransfer'. Anything else is treated as a journal.
+     * Manual vouchers of one approval family: 'journal', 'payment', 'expense', 'deposit',
+     * 'fundtransfer' or 'creditdebitnote'. Anything else is treated as a journal.
      */
     public function scopeManualFamily(Builder $query, string $family): Builder
     {
@@ -264,6 +281,7 @@ class TAccount extends Model
             'expense' => $query->manualExpenses(),
             'deposit' => $query->manualDeposits(),
             'fundtransfer' => $query->manualFundTransfers(),
+            'creditdebitnote' => $query->manualCreditDebitNotes(),
             default => $query->manualJournals(),
         };
     }
@@ -280,6 +298,7 @@ class TAccount extends Model
             in_array($voucherType, self::EXPENSE_VOUCHER_TYPES, true) => 'expense',
             in_array($voucherType, self::DEPOSIT_VOUCHER_TYPES, true) => 'deposit',
             in_array($voucherType, self::FUND_TRANSFER_VOUCHER_TYPES, true) => 'fundtransfer',
+            in_array($voucherType, self::CREDIT_DEBIT_NOTE_VOUCHER_TYPES, true) => 'creditdebitnote',
             default => null,
         };
     }
@@ -291,6 +310,7 @@ class TAccount extends Model
             'expense' => 'expenses',
             'deposit' => 'deposits',
             'fundtransfer' => 'fund transfers',
+            'creditdebitnote' => 'credit/debit notes',
             default => 'journal entries',
         };
     }
@@ -329,6 +349,11 @@ class TAccount extends Model
         return self::findVisibleManualVoucher($id, 'fundtransfer');
     }
 
+    public static function findVisibleManualCreditDebitNote(int $id): ?self
+    {
+        return self::findVisibleManualVoucher($id, 'creditdebitnote');
+    }
+
     public static function findVisibleManualVoucher(int $id, string $family = 'journal'): ?self
     {
         return self::query()->visibleToCurrentUser()->manualFamily($family)->find($id);
@@ -340,6 +365,9 @@ class TAccount extends Model
     public function presentForIndex(): array
     {
         $voucherDate = $this->voucher_date?->format('Y-m-d');
+        $contact = $this->relationLoaded('details')
+            ? $this->details->first(fn (TAccountDetail $line): bool => $line->contact_id !== null)?->contact
+            : null;
 
         return [
             'id' => $this->id,
@@ -354,9 +382,11 @@ class TAccount extends Model
             'voucher_date_label' => $voucherDate,
             'total_amount' => $this->total_amount,
             'formatted_amount' => number_format((float) $this->total_amount, 2),
+            'contact_name' => $contact === null ? null : (trim((string) $contact->business_name) ?: trim($contact->first_name.' '.$contact->last_name)),
             'status' => $this->status,
             'status_label' => Str::headline((string) $this->status),
             'comments' => $this->comments,
+            'ref_no' => $this->ref_no,
         ];
     }
 
@@ -447,12 +477,15 @@ class TAccount extends Model
     {
         $this->loadMissing([
             'details.account:id,code,name,acc_nature',
+            'details.contact:id,business_name,first_name,last_name',
             'attachments',
             'company:id,name',
             'branch:id,name',
             'approvedBy:id,first_name,last_name',
             'rejectedBy:id,first_name,last_name',
         ]);
+
+        $contact = $this->details->first(fn (TAccountDetail $line): bool => $line->contact_id !== null)?->contact;
 
         return [
             'id' => $this->id,
@@ -463,8 +496,12 @@ class TAccount extends Model
             'voucher_type' => self::voucherTypeFromNumber((string) $this->voucher_no),
             'voucher_no' => $this->voucher_no,
             'voucher_date' => $this->voucher_date?->format('Y-m-d'),
+            'ref_no' => $this->ref_no,
             'comments' => $this->comments,
             'cheque_no' => $this->cheque_no,
+            'cheque_post_date' => $this->cheque_post_date?->format('Y-m-d'),
+            'contact_id' => $contact?->id,
+            'contact_name' => $contact === null ? null : (trim((string) $contact->business_name) ?: trim($contact->first_name.' '.$contact->last_name)),
             'status' => $this->status,
             'status_label' => Str::headline((string) $this->status),
             'approved_by' => $this->approved_by,
@@ -486,6 +523,7 @@ class TAccount extends Model
                     'account_name' => $line->account?->name,
                     'account_nature' => $line->acc_nature,
                     'description' => $line->description,
+                    'cost_center_id' => $line->cost_center_id,
                     'debit' => (float) $line->debit,
                     'credit' => (float) $line->credit,
                 ];
@@ -521,6 +559,7 @@ class TAccount extends Model
         $this->cheque_no = in_array($voucherType, ['OP', 'OD'], true)
             ? 'ONLINE'
             : (string) $request->input('cheque_no', '');
+        $this->cheque_post_date = filled($request->input('cheque_post_date')) ? $request->input('cheque_post_date') : null;
         $this->account_code = $this->headerAccountCode($request);
         $this->coa_id = $this->headerAccountId($request);
 
@@ -573,9 +612,19 @@ class TAccount extends Model
                 ]);
             }
 
+            $costCenterId = isset($line['cost_center_id']) && $line['cost_center_id'] !== '' ? (int) $line['cost_center_id'] : null;
+
+            if ($costCenterId !== null && ! CostCenter::query()->where('company_id', $this->company_id)->whereKey($costCenterId)->exists()) {
+                throw ValidationException::withMessages([
+                    'taccountdetails' => ['A cost center on a line does not belong to this company.'],
+                ]);
+            }
+
             $this->details()->create([
                 'branch_id' => $this->branch_id,
                 'coa_id' => $account->id,
+                'cost_center_id' => $costCenterId,
+                'contact_id' => isset($line['contact_id']) ? (int) $line['contact_id'] : null,
                 'account_code' => (string) $account->code,
                 'description' => (string) ($line['description'] ?? ''),
                 'acc_nature' => $account->acc_nature ?: ($debit > 0 ? 'dr' : 'cr'),
@@ -805,6 +854,7 @@ class TAccount extends Model
             self::DEPOSIT_VOUCHER_TYPES,
             self::FUND_TRANSFER_VOUCHER_TYPES,
             self::TRANSACTION_PAYMENT_VOUCHER_TYPES,
+            self::CREDIT_DEBIT_NOTE_VOUCHER_TYPES,
         );
     }
 
@@ -830,6 +880,8 @@ class TAccount extends Model
             'CD' => 'Cash Deposit',
             'OD' => 'Online Deposit',
             'FT' => 'Fund Transfer',
+            'CN' => 'Credit Note',
+            'DN' => 'Debit Note',
             default => 'Voucher',
         };
     }

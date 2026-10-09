@@ -1,9 +1,11 @@
 ﻿<script setup lang="ts">
     import { usePage } from '@inertiajs/vue3';
     import { Boxes, CalendarDays, ImagePlus, Truck } from '@lucide/vue';
+    import WarehousePicker from '@/components/WarehousePicker.vue';
     import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
+    import useDocumentTax from '@/composables/documentTax';
     import type { SellLineRow } from '@/composables/sell';
     import FieldHint from '@/pages/journalentry/FieldHint.vue';
     import { openLfmImagePickerCallback } from '@/utils/openLfmImagePicker';
@@ -172,6 +174,60 @@
         params.formRef?.update?.(patch);
     }
 
+    const { taxOptions, withholdingOptions, loadTaxOptions, preview: previewTax } = useDocumentTax();
+
+    const withholdingEstimate = computed(() => {
+        const option = withholdingOptions.value.find((item) => item.id === Number(params.formData?.withholding_tax_id));
+
+        if (! option) {
+            return 0;
+        }
+
+        const final = toNumber(params.formData?.final_amount);
+        const base = option.applies_on === 'gross' ? final : final - toNumber(params.formData?.tax_amount);
+
+        return Math.max(Number((base * option.percentage / 100).toFixed(2)), 0);
+    });
+
+
+    /**
+     * Works the document's tax out on the server (the same calculator that saves it) and puts it on every line and on the
+     * document, adding it to the payable total unless the prices already include it.
+     */
+    async function applyTax(lines: SellLineRow[], discountVal: number, baseFinal: number) {
+        const taxId = Number(params.formData?.tax_id) || null;
+
+        if (taxId === null || lines.length === 0) {
+            if (lines.some((line) => line.tax_id || line.tax_amount)) {
+                persist({ selllines: lines.map((line) => ({ ...line, tax_id: null, tax_amount: null })) });
+            }
+
+            persist({ tax_amount: 0 });
+
+            return;
+        }
+
+        const result = await previewTax({
+            company_id: params.formData?.company_id,
+            contact_id: params.formData?.contact_id,
+            date: params.formData?.transaction_date,
+            inclusive: Boolean(params.formData?.tax_inclusive),
+            discount: discountVal,
+            field: 'selllines',
+            lines: lines.map((line) => ({ tax_id: taxId, product_id: Number(line.product_id) || null, amount: toNumber(line.row_subtotal) })),
+        });
+
+        if (result === null) {
+            return;
+        }
+
+        persist({
+            selllines: lines.map((line, index) => ({ ...line, tax_id: taxId, tax_amount: result.lines[index]?.tax_amount ?? 0 })),
+            tax_amount: result.tax_total,
+            final_amount: Number(Math.max(baseFinal + result.exclusive_tax, 0).toFixed(2)),
+        });
+    }
+
     function persistLines(lines: SellLineRow[]) {
         const next = lines.map((line) => ({ ...line }));
         persist({
@@ -214,13 +270,17 @@
             discountVal = discountAmount;
         }
 
+        const baseFinal = Number(Math.max(netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal - toNumber(params.formData?.coupon_discount_amount) - toNumber(params.formData?.loyalty_discount_amount), 0).toFixed(2));
+
         persist({
             net_sub_total: Number(netSubTotal.toFixed(2)),
             discount_val: Number(discountVal.toFixed(2)),
-            final_amount: Number(Math.max(netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal - toNumber(params.formData?.coupon_discount_amount) - toNumber(params.formData?.loyalty_discount_amount), 0).toFixed(2)),
+            final_amount: baseFinal,
             total_item: lines.length,
             total_pack_qty: lines.reduce((sum, line) => sum + toNumber(line.packing_qty), 0),
         });
+
+        void applyTax(lines, Number(discountVal.toFixed(2)), baseFinal);
     }
 
     function applyScopedDefaults() {
@@ -261,6 +321,11 @@
             const response = await window.axios.get(`${API_ENDPOINTS.companySettings}/${normalizedCompanyId}`);
             const setting = response.data?.companySetting ?? response.data;
             allowPackingEdit.value = Boolean(setting?.update_packing_qty);
+
+            if (! isEdit.value && ! params.formData?.tax_id) {
+                persist({ tax_inclusive: Boolean(setting?.tax_inclusive_pricing) });
+            }
+
             searchType.value = resolveSearchType(setting?.search_type ?? authUser.value?.search_type);
             defaultCustomerId.value = normalizeId(setting?.default_customer);
 
@@ -520,6 +585,7 @@
         sku?: string;
         unit_id: number | string;
         default_sell_price: number | string;
+        tracking_type?: 'none' | 'serial' | 'batch';
         units: SellLineRow['units'];
     }) {
         const alreadyAdded = sellLines.value.some((line) => (
@@ -539,6 +605,7 @@
             product_name: product.name,
             sku: product.sku,
             unit_id: product.unit_id,
+            tracking_type: product.tracking_type ?? 'none',
             quantity: 1,
             quantity_issue: 0,
             quantity_returned: 0,
@@ -553,12 +620,60 @@
         });
 
         persistLines([nextLine, ...sellLines.value]);
+        void applyPriceList(product.product_id, product.id, 1);
+    }
+
+    /**
+     * Asks the server for the price of a line for this customer and quantity (a customer price list, a brand price
+     * list with quantity breaks, else the default) and sets it on the line unless the user typed the price.
+     */
+    async function applyPriceList(productId: number | string, variationId: number | string, quantity: number) {
+        try {
+            const response = await window.axios.get('/api/pricing/resolve', {
+                params: {
+                    product_id: productId,
+                    variation_id: variationId,
+                    quantity,
+                    contact_id: params.formData?.contact_id || params.formData?.direct_contact_id || undefined,
+                    branch_id: params.formData?.branch_id || undefined,
+                },
+            });
+            const resolved = response.data?.data;
+            const index = sellLines.value.findIndex((line) => String(line.product_id) === String(productId) && String(line.variation_id) === String(variationId));
+
+            if (! resolved || index < 0 || sellLines.value[index].price_manual) {
+                return;
+            }
+
+            const fromList = resolved.source !== 'default';
+            const patch: Partial<SellLineRow> = {
+                unit_price: fromList ? resolved.price : sellLines.value[index].unit_price,
+                price_source: resolved.source,
+            };
+
+            if (fromList) {
+                patch.discount_percent = Number((resolved.price * toNumber(resolved.discount_percent) / 100).toFixed(2));
+            }
+
+            if (fromList || sellLines.value[index].price_source) {
+                persistLines(sellLines.value.map((line, lineIndex) => (lineIndex === index ? pricedLine({ ...line, ...patch }) : line)));
+            }
+        } catch {
+            // the price list lookup is a help: the default price stays when it cannot be reached
+        }
     }
 
     function updateLine(index: number, patch: Partial<SellLineRow>) {
+        const previous = sellLines.value[index];
+        const typedPrice = 'unit_price' in patch && ! ('price_source' in patch);
+
         persistLines(sellLines.value.map((line, lineIndex) => (
-            lineIndex === index ? pricedLine({ ...line, ...patch }) : line
+            lineIndex === index ? pricedLine({ ...line, ...patch, ...(typedPrice ? { price_manual: true } : {}) }) : line
         )));
+
+        if (previous && 'quantity' in patch && ! typedPrice && ! previous.price_manual) {
+            void applyPriceList(previous.product_id, previous.variation_id, Math.max(toNumber(patch.quantity, 1), 1));
+        }
     }
 
     function removeLine(index: number) {
@@ -681,6 +796,17 @@
     );
 
     watch(
+        () => normalizeId(params.formData?.company_id) || normalizeId(authUser.value?.company_id),
+        (companyId) => loadTaxOptions(companyId),
+        { immediate: true },
+    );
+
+    watch(
+        () => [params.formData?.tax_id, params.formData?.tax_inclusive, params.formData?.contact_id, params.formData?.transaction_date],
+        () => recalculateTotals(),
+    );
+
+    watch(
         () => [params.formData?.discount_type, params.formData?.discount_amount, params.formData?.shipping_charges, params.formData?.coupon_discount_amount, params.formData?.loyalty_discount_amount],
         () => recalculateTotals(),
     );
@@ -697,6 +823,7 @@
     <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
     <TextElement v-if="showHiddenCompanyField" name="company_id" hidden="true" />
     <TextElement v-if="showHiddenBranchField" name="branch_id" hidden="true" />
+    <TextElement name="warehouse_id" hidden="true" />
     <TextElement name="type" hidden="true" default="sell" />
     <TextElement name="payment_status" hidden="true" default="due" />
     <TextElement name="total_item" hidden="true" />
@@ -704,6 +831,7 @@
     <TextElement name="net_sub_total" hidden="true" />
     <TextElement name="discount_val" hidden="true" />
     <TextElement name="final_amount" hidden="true" />
+    <TextElement name="tax_amount" hidden="true" />
     <TextElement name="credit_limit" hidden="true" />
     <TextElement name="discount_code" hidden="true" />
     <TextElement name="coupon_discount_amount" hidden="true" />
@@ -780,6 +908,15 @@
         :disabled="branchDisabled"
         rules="required"
     />
+
+    <StaticElement name="warehouse_id_picker" :columns="colThird">
+        <WarehousePicker
+            :branch-id="selectedBranchId"
+            :model-value="params.formData?.warehouse_id ?? ''"
+            label="Warehouse (optional)"
+            @update:model-value="(value) => persist({ warehouse_id: value })"
+        />
+    </StaticElement>
 
     <SelectElement
         name="contact_id"
@@ -933,6 +1070,8 @@
             :search-type="searchType"
             :status="String(params.formData?.status || 'final')"
             :scope-key="`${normalizeId(selectedCompanyId)}:${normalizeId(selectedBranchId)}`"
+            :company-id="selectedCompanyId"
+            :branch-id="selectedBranchId"
             :categories="categoriesdata"
             :subcategories="subcategoriesdata"
             :item-types="itemtypesdata"
@@ -984,6 +1123,54 @@
             :columns="colHalf"
             :disabled="discountAmountDisabled"
             rules="nullable|numeric|min:0"
+        />
+
+        <SelectElement
+            name="tax_id"
+            :native="false"
+            :items="taxOptions"
+            id="SellTaxId"
+            field-name="SellTaxId"
+            placeholder="No tax"
+            label="Tax"
+            :columns="colHalf"
+            label-prop="label"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            info="Worked out on every line of this sale. Customers or items with an exemption rule are charged no tax."
+        />
+
+        <ToggleElement
+            :labels="{ 1: 'Yes', 0: 'No' }"
+            :columns="colHalf"
+            id="SellTaxInclusive"
+            field-name="SellTaxInclusive"
+            name="tax_inclusive"
+            label="Prices include tax"
+            :true-value="true"
+            :false-value="false"
+            :default="false"
+            :disabled="!params.formData?.tax_id"
+            info="On: the line prices already hold the tax, so it is carved out of them. Off: the tax is added on top."
+        />
+
+        <SelectElement
+            name="withholding_tax_id"
+            :native="false"
+            :items="withholdingOptions"
+            id="SellWithholdingTaxId"
+            field-name="SellWithholdingTaxId"
+            placeholder="No withholding tax"
+            label="Withholding tax"
+            :columns="colHalf"
+            label-prop="label"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            info="The customer withholds this from what they pay. It is booked as part of what settles this sale, not as cash."
         />
 
         <TextElement
@@ -1177,6 +1364,14 @@
                         <div v-if="Number(params.formData?.loyalty_discount_amount) > 0" class="flex items-center justify-between">
                             <span>Loyalty points ({{ params.formData?.loyalty_points }})</span>
                             <span class="font-mono text-slate-700">− {{ money(params.formData?.loyalty_discount_amount) }}</span>
+                        </div>
+                        <div v-if="Number(params.formData?.tax_amount) > 0" class="flex items-center justify-between">
+                            <span>Tax{{ params.formData?.tax_inclusive ? ' (included)' : '' }}</span>
+                            <span class="font-mono text-slate-700">{{ params.formData?.tax_inclusive ? '' : '+ ' }}{{ money(params.formData?.tax_amount) }}</span>
+                        </div>
+                        <div v-if="withholdingEstimate > 0" class="flex items-center justify-between">
+                            <span>Withholding tax (estimate)</span>
+                            <span class="font-mono text-slate-700">− {{ money(withholdingEstimate) }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span>Shipping</span>

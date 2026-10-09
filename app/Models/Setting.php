@@ -38,7 +38,7 @@ class Setting extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'system_logo' => 'assets/images/logo-light.png',
+        'system_logo' => 'assets/images/logo-img.png',
     ];
 
     /**

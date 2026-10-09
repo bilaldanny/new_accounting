@@ -39,6 +39,7 @@
         invoice_no?: string | null;
         payment_ref_no?: string | null;
         amount: number;
+        reversed_at?: string | null;
     };
 
     type Detail = {
@@ -328,7 +329,7 @@
                         </div>
                     </div>
 
-                    <div v-if="collection.status === 'completed'" class="col-12">
+                    <div v-if="collection.status === 'completed' || collectedAllocations.length || advanceAllocations.length" class="col-12">
                         <h6 class="mb-3">Invoices paid</h6>
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
@@ -337,18 +338,25 @@
                                         <th>Invoice</th>
                                         <th>Payment</th>
                                         <th class="text-end">Amount</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="allocation in collectedAllocations" :key="allocation.id">
+                                    <tr v-for="allocation in collectedAllocations" :key="allocation.id" :class="{ 'text-muted': allocation.reversed_at }">
                                         <td>{{ allocation.invoice_no || '—' }}</td>
                                         <td>{{ allocation.payment_ref_no || '—' }}</td>
                                         <td class="text-end">{{ allocation.amount }}</td>
+                                        <td>
+                                            <span v-if="allocation.reversed_at" class="badge bg-secondary-subtle text-secondary">Reversed</span>
+                                        </td>
                                     </tr>
-                                    <tr v-for="allocation in advanceAllocations" :key="`advance-${allocation.id}`">
+                                    <tr v-for="allocation in advanceAllocations" :key="`advance-${allocation.id}`" :class="{ 'text-muted': allocation.reversed_at }">
                                         <td>{{ allocation.invoice_no || '—' }} <span class="badge bg-info-subtle text-info">from advance</span></td>
                                         <td>{{ allocation.payment_ref_no || '—' }}</td>
                                         <td class="text-end">{{ allocation.amount }}</td>
+                                        <td>
+                                            <span v-if="allocation.reversed_at" class="badge bg-secondary-subtle text-secondary">Reversed</span>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>

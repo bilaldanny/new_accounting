@@ -1,7 +1,7 @@
-import { ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import useCommons from './common';
+import { ref } from 'vue';
 import { API_ENDPOINTS } from './apiEndpoints';
+import useCommons from './common';
 
 export const defaultPurchaseColumns = () => [
     { name: 'Packing Quantity', show: true },
@@ -42,6 +42,7 @@ export default function useCompanySettings() {
     const timezonesdata = ref([]);
     const customersdata = ref([]);
     const parentaccountdata = ref([]);
+    const childaccountdata = ref([]);
     const parentsaleaccountdata = ref([]);
     const parentpurchaseaccountdata = ref([]);
 
@@ -139,6 +140,7 @@ export default function useCompanySettings() {
     const loadBranchOptions = async (companyId: string | number) => {
         if (!companyId) {
             branchesdata.value = [];
+
             return;
         }
 
@@ -148,6 +150,7 @@ export default function useCompanySettings() {
     const fetchCustomers = async (companyId: string | number, branchId: string | number) => {
         if (!companyId || !branchId) {
             customersdata.value = [];
+
             return;
         }
 
@@ -164,13 +167,18 @@ export default function useCompanySettings() {
     const fetchParentAccounts = async (companyId: string | number, branchId: string | number) => {
         if (!companyId || !branchId) {
             parentaccountdata.value = [];
+            childaccountdata.value = [];
+
             return;
         }
 
-        const response = await fetchWithRetry(window.axios.get, API_ENDPOINTS.fetchParentAccounts, {
-            params: { company_id: companyId, branch_id: branchId },
-        });
-        parentaccountdata.value = response.data;
+        const params = { company_id: companyId, branch_id: branchId };
+        const [parents, children] = await Promise.all([
+            fetchWithRetry(window.axios.get, API_ENDPOINTS.fetchParentAccounts, { params }),
+            fetchWithRetry(window.axios.get, API_ENDPOINTS.fetchChildAccounts, { params }),
+        ]);
+        parentaccountdata.value = parents.data;
+        childaccountdata.value = children.data;
     };
 
     const fetchParentSaleAccounts = async (
@@ -291,6 +299,7 @@ export default function useCompanySettings() {
         branchesdata,
         customersdata,
         parentaccountdata,
+        childaccountdata,
         parentsaleaccountdata,
         parentpurchaseaccountdata,
         fetchCurrencies,

@@ -142,6 +142,34 @@ test('payments api marks online payments with an online cheque number', function
         ->and($payment->cheque_no)->toBe('ONLINE');
 });
 
+test('a post-dated cheque voucher keeps its cheque_post_date, distinct from the plain cheque_no field', function () {
+    $scope = seedPaymentScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/payments', validPaymentPayload($scope, [
+        'voucher_type' => 'BP', 'cheque_no' => 'CHQ-900', 'cheque_post_date' => '2026-10-25',
+    ]))->assertSuccessful();
+
+    $payment = TAccount::query()->manualPayments()->first();
+
+    expect($payment->cheque_no)->toBe('CHQ-900')
+        ->and($payment->cheque_post_date->toDateString())->toBe('2026-10-25');
+
+    $show = $this->getJson('/api/payments/'.$payment->id)->assertSuccessful();
+    expect($show->json('cheque_post_date'))->toBe('2026-10-25');
+});
+
+test('an invalid cheque_post_date on a payment voucher is rejected, and no date is fine', function () {
+    $scope = seedPaymentScope();
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/payments', validPaymentPayload($scope, ['cheque_post_date' => 'not-a-date']))
+        ->assertUnprocessable()->assertJsonValidationErrors(['cheque_post_date']);
+
+    $this->postJson('/api/payments', validPaymentPayload($scope))->assertSuccessful();
+    expect(TAccount::query()->manualPayments()->first()->cheque_post_date)->toBeNull();
+});
+
 test('payments api rejects journal voucher types', function () {
     $scope = seedPaymentScope();
     Sanctum::actingAs(User::query()->findOrFail(1));

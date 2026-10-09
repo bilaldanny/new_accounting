@@ -128,6 +128,7 @@ class CashCollectionController extends Controller
                 'payment_id' => $allocation->payment_id,
                 'payment_ref_no' => $allocation->payment?->payment_ref_no,
                 'amount' => $allocation->amount,
+                'reversed_at' => $allocation->reversed_at?->toIso8601String(),
             ])
             ->all();
 
@@ -215,7 +216,7 @@ class CashCollectionController extends Controller
 
         return response()->json([
             'message' => 'Successfully Saved',
-            'payments' => $completed->allocations()->pluck('payment_id')->all(),
+            'payments' => $completed->allocations()->whereNull('reversed_at')->pluck('payment_id')->all(),
             'advance_amount' => $completed->advance_amount,
         ]);
     }

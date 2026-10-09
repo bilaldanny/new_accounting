@@ -39,6 +39,12 @@
     const termsAndConditions = computed<string | null>(() => invoice.value.print_settings?.terms_and_conditions ?? null);
     const footerNote = computed<string | null>(() => invoice.value.print_settings?.footer_note ?? null);
 
+    // NTN / STRN of the seller and the buyer, tax per line and the FBR invoice number: each is null (not printed) when the
+    // company's Invoice Settings switch it off or the value does not exist. Only a number FBR really issued is ever printed.
+    const taxNumbers = computed<Record<string, string | null> | null>(() => invoice.value.print_settings?.tax_numbers ?? null);
+    const showTaxBreakdown = computed<boolean>(() => Boolean(invoice.value.print_settings?.tax_breakdown) && Number(invoice.value.tax_amount || 0) > 0);
+    const fbrInvoiceNumber = computed<string | null>(() => invoice.value.print_settings?.fbr_invoice_number ?? null);
+
     // The total in the customer's currency, when the company has entered a rate for it (display only; the
     // invoice itself is in the company's base currency)
     const displayCurrency = computed<Record<string, any> | null>(() => invoice.value.display_currency ?? null);
@@ -100,7 +106,12 @@
                             <p class="mb-1">{{ invoice.company_setting_address || invoice.company_address || '—' }}</p>
                             <p class="mb-1"><strong>Tel no : </strong>{{ invoice.company_phone || '—' }}, <strong>Cell No : </strong>{{ invoice.company_cell || '—' }}</p>
                             <p class="mb-1">{{ invoice.company_fb_link || '—' }}</p>
-                            <p class="mb-0"><strong>Email Us At : </strong>{{ invoice.company_email || '—' }}</p>
+                            <p class="mb-1"><strong>Email Us At : </strong>{{ invoice.company_email || '—' }}</p>
+                            <p v-if="taxNumbers?.company_ntn || taxNumbers?.company_strn" class="mb-0" data-test="invoice-company-tax-numbers">
+                                <span v-if="taxNumbers?.company_ntn"><strong>NTN : </strong>{{ taxNumbers.company_ntn }}</span>
+                                <span v-if="taxNumbers?.company_ntn && taxNumbers?.company_strn">, </span>
+                                <span v-if="taxNumbers?.company_strn"><strong>STRN : </strong>{{ taxNumbers.company_strn }}</span>
+                            </p>
                         </td>
                         <td class="text-center" style="vertical-align: top;">
                             <h2 class="mb-0" style="color: navy; border: 1px solid navy; display: inline-block; padding: 0.4rem 1rem;">SALES INVOICE</h2>
@@ -119,6 +130,8 @@
                                 <tr><th>Customer Name</th><td>{{ invoice.customer_full_name || invoice.customer_name || '—' }}</td></tr>
                                 <tr><th>Phone No</th><td>{{ invoice.mobile || '—' }}</td></tr>
                                 <tr><th>Address</th><td>{{ invoice.address || '—' }}</td></tr>
+                                <tr v-if="taxNumbers?.customer_ntn" data-test="invoice-customer-ntn"><th>NTN</th><td>{{ taxNumbers.customer_ntn }}</td></tr>
+                                <tr v-if="taxNumbers?.customer_strn" data-test="invoice-customer-strn"><th>STRN</th><td>{{ taxNumbers.customer_strn }}</td></tr>
                             </table>
                         </td>
                         <td style="width: 8%;"></td>
@@ -144,6 +157,7 @@
                                 <th class="text-end">Total Wt</th>
                                 <th class="text-end">Rate</th>
                                 <th class="text-end">Amount</th>
+                                <th v-if="showTaxBreakdown" class="text-end">Tax</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -155,9 +169,10 @@
                                 <td class="text-end">{{ money(lineWeight(line)) }}</td>
                                 <td class="text-end">{{ money(line.unit_price_after_discount) }}</td>
                                 <td class="text-end">{{ money(line.row_subtotal ?? line.subtotal) }}</td>
+                                <td v-if="showTaxBreakdown" class="text-end">{{ money(line.tax_amount) }}</td>
                             </tr>
                             <tr v-if="! invoice.selllines?.length">
-                                <td colspan="7" class="text-center">No items</td>
+                                <td :colspan="showTaxBreakdown ? 8 : 7" class="text-center">No items</td>
                             </tr>
                         </tbody>
                     </table>
@@ -178,6 +193,8 @@
                             <table class="table table-bordered mb-0">
                                 <tr><th>Bill</th><td class="text-end">{{ money(invoice.bill_total) }}</td></tr>
                                 <tr><th>Shipping Charges</th><td class="text-end">{{ money(invoice.shipping_charges) }}</td></tr>
+                                <tr v-if="showTaxBreakdown" data-test="invoice-tax"><th>Tax{{ invoice.tax_inclusive ? ' (included in the prices)' : '' }}</th><td class="text-end">{{ money(invoice.tax_amount) }}</td></tr>
+                                <tr v-if="Number(invoice.withholding_amount) > 0" data-test="invoice-withholding"><th>Withholding tax</th><td class="text-end">{{ money(invoice.withholding_amount) }}</td></tr>
                                 <tr><th>Paid</th><td class="text-end">{{ money(invoice.paid) }}</td></tr>
                                 <tr><th>Balance</th><td class="text-end">{{ money(invoice.balance) }}</td></tr>
                                 <tr v-if="displayCurrency" data-test="invoice-converted">
@@ -191,6 +208,8 @@
                         </td>
                     </tr>
                 </table>
+
+                <p v-if="fbrInvoiceNumber" class="mt-3 mb-0" data-test="invoice-fbr-number"><strong>FBR Invoice Number : </strong>{{ fbrInvoiceNumber }}</p>
 
                 <div v-if="termsAndConditions" class="invoice-terms mt-4" data-test="invoice-terms">
                     <strong>Terms and Conditions</strong>

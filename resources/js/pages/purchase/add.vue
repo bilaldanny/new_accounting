@@ -1,11 +1,11 @@
 <script setup lang="ts">
+    import { Head, router, usePage } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import TheForm from '@/components/theForm.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import usePurchases from '@/composables/purchase';
-    import { Head, router, usePage } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
     import Fields from './Fields.vue';
     import PurchaseFormChrome from './PurchaseFormChrome.vue';
 
@@ -78,6 +78,7 @@
             shipping_charges: formData.value?.shipping_charges ?? 0,
             final_amount: formData.value?.final_amount ?? 0,
             total_item: formData.value?.total_item ?? 0,
+            purchase_requisition_id: formData.value?.purchase_requisition_id ?? null,
         });
 
         if (response.data?.errormessage) {

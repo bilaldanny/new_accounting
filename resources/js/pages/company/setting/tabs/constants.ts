@@ -151,7 +151,13 @@ export function accountOptionsForKey(
     parentaccountdata: Array<{ id: string | number; text: string }>,
     parentsaleaccountdata: Array<{ id: string | number; text: string }>,
     parentpurchaseaccountdata: Array<{ id: string | number; text: string }>,
+    childaccountdata: Array<{ id: string | number; text: string }> = [],
 ) {
+    // Withholding tax is booked straight to these accounts, so they are chosen from the posting (child) accounts.
+    if (key === 'withholdingreceivable' || key === 'withholdingpayable') {
+        return childaccountdata;
+    }
+
     if (key === 'localsales' || key === 'exportsale') {
         return parentsaleaccountdata;
     }

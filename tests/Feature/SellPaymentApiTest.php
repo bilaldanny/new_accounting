@@ -200,6 +200,36 @@ test('sell payments cheque method requires a cheque number', function () {
         ->assertJsonValidationErrors(['cheque_number']);
 });
 
+test('a post-dated cheque received from a customer records its own cheque_date', function () {
+    $scope = seedSellPaymentAccount(seedSellScope());
+    $sell = createSellRecord($scope, ['final_amount' => 100]);
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/sell-payments', validSellPaymentPayload($scope, $sell, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-500', 'cheque_date' => '2026-10-20',
+    ]))->assertSuccessful();
+
+    $payment = Payment::query()->where('transaction_id', $sell->id)->latest('id')->firstOrFail();
+    expect($payment->cheque_number)->toBe('CHQ-500')
+        ->and($payment->cheque_date->toDateString())->toBe('2026-10-20');
+});
+
+test('an invalid cheque date is rejected, and no date is fine', function () {
+    $scope = seedSellPaymentAccount(seedSellScope());
+    $sell = createSellRecord($scope, ['final_amount' => 100]);
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/sell-payments', validSellPaymentPayload($scope, $sell, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-501', 'cheque_date' => 'nonsense',
+    ]))->assertUnprocessable()->assertJsonValidationErrors(['cheque_date']);
+
+    $this->postJson('/api/sell-payments', validSellPaymentPayload($scope, $sell, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-502',
+    ]))->assertSuccessful();
+
+    expect(Payment::query()->where('transaction_id', $sell->id)->latest('id')->firstOrFail()->cheque_date)->toBeNull();
+});
+
 test('sell payments api does not list purchase payments', function () {
     $scope = seedSellPaymentAccount(seedSellScope());
     $purchase = createPurchaseRecord($scope, ['final_amount' => 100, 'invoice_no' => 'PO-HIDDEN']);

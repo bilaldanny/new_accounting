@@ -30,6 +30,9 @@ class PurchaseLine extends Model
         'quantity_adjustment',
         'pp_without_discount',
         'packing_qty',
+        'tax_id',
+        'tax_amount',
+        'tax_exemption_id',
     ];
 
     /**
@@ -114,6 +117,25 @@ class PurchaseLine extends Model
         $this->margin = self::resolveNumeric($row['profit_percent'] ?? $row['margin'] ?? 0);
         $this->default_sell_price = self::resolveNumeric($row['default_sell_price'] ?? 0);
         $this->packing_qty = (int) self::resolveNumeric($row['packing_qty'] ?? 1, 1);
+        $this->tax_id = Transaction::resolveScopedId($row['tax_id'] ?? null);
+        $this->tax_amount = $this->tax_id !== null && is_numeric($row['tax_amount'] ?? null) ? round((float) $row['tax_amount'], 2) : null;
+        $this->tax_exemption_id = $this->tax_id !== null ? Transaction::resolveScopedId($row['tax_exemption_id'] ?? null) : null;
+    }
+
+    /**
+     * What a line comes to: the amount the form worked out, else the rate times the quantity and the packing.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    public static function rowAmount(array $row): float
+    {
+        if (is_numeric($row['row_subtotal'] ?? null)) {
+            return (float) $row['row_subtotal'];
+        }
+
+        $rate = self::resolveNumeric($row['purchase_price'] ?? $row['purchase_rate'] ?? 0);
+
+        return round($rate * self::resolveNumeric($row['quantity'] ?? 1, 1) * max((int) self::resolveNumeric($row['packing_qty'] ?? 1, 1), 1), 2);
     }
 
     /**

@@ -3,12 +3,19 @@
 namespace App\Models;
 
 use App\Exceptions\InsufficientStockException;
+use App\Models\Concerns\Auditable;
 use App\Services\CustomerCreditLimit;
+use App\Services\Fbr\FbrSubmitter;
+use App\Services\LandedCost;
+use App\Services\PriceRules;
 use App\Services\PurchaseJournal;
 use App\Services\SaleIncentives;
 use App\Services\SaleStockCheck;
 use App\Services\SellJournal;
 use App\Services\StockMovements;
+use App\Services\StockTracking;
+use App\Services\TaxCalculator;
+use App\Services\WithholdingSettlement;
 use App\Support\Base64Upload;
 use App\Support\ListSort;
 use Database\Factories\TransactionFactory;
@@ -30,6 +37,8 @@ use Illuminate\Validation\ValidationException;
 
 class Transaction extends Model
 {
+    use Auditable;
+
     /** @use HasFactory<TransactionFactory> */
     use HasFactory, SoftDeletes;
 
@@ -72,6 +81,9 @@ class Transaction extends Model
         'opening_stock_product_id',
         'parent_id',
         'tax_id',
+        'tax_inclusive',
+        'withholding_tax_id',
+        'withholding_amount',
         'transporter_id',
         'commission_agent_id',
         'created_by',
@@ -141,6 +153,8 @@ class Transaction extends Model
             'shipping_charges' => 'decimal:2',
             'final_amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
+            'tax_inclusive' => 'boolean',
+            'withholding_amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
         ];
     }
@@ -550,15 +564,41 @@ class Transaction extends Model
 
         self::assertValidLines($request->purchaselines ?? null);
 
+        $supplierId = self::resolveScopedId($request->contact_id ?? null);
+
+        if ($supplierId !== null) {
+            Contact::findVisibleContact($supplierId)?->assertAvailableForTransaction();
+        }
+
         $transaction = new self;
         $transaction->fillFromPurchaseRequest($request, $companyId, $branchId);
+        $lines = $transaction->applyDocumentTax($request, (array) ($request->purchaselines ?? []), 'purchaselines');
+        $transaction->applyWithholding($request);
         $transaction->invoice_no = self::generateInvoiceNo($companyId, $request->invoice_no ?? null);
         $transaction->attachment = self::storeImage($request);
         $transaction->created_by = Auth::id();
         $transaction->save();
 
-        self::syncLines($transaction, $request->purchaselines ?? []);
+        self::syncLines($transaction, $lines);
         app(PurchaseJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
+        app(WithholdingSettlement::class)->sync($transaction);
+
+        $requisitionId = self::resolveScopedId($request->purchase_requisition_id ?? null);
+
+        if ($requisitionId !== null) {
+            $requisition = PurchaseRequisition::query()
+                ->visibleToCurrentUser()
+                ->where('company_id', $transaction->company_id)
+                ->find($requisitionId);
+
+            if ($requisition === null) {
+                throw ValidationException::withMessages([
+                    'purchase_requisition_id' => ['The selected requisition was not found.'],
+                ]);
+            }
+
+            $requisition->markConverted((int) $transaction->id);
+        }
 
         return $transaction;
     }
@@ -578,6 +618,8 @@ class Transaction extends Model
         self::assertValidLines($request->purchaselines ?? null);
 
         $transaction->fillFromPurchaseRequest($request, $companyId, $branchId);
+        $lines = $transaction->applyDocumentTax($request, (array) ($request->purchaselines ?? []), 'purchaselines');
+        $transaction->applyWithholding($request);
         $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
             ? trim((string) $request->invoice_no)
             : $transaction->invoice_no;
@@ -585,10 +627,23 @@ class Transaction extends Model
         $transaction->updated_by = Auth::id();
         $transaction->save();
 
-        self::syncLines($transaction, $request->purchaselines ?? []);
+        self::syncLines($transaction, $lines);
         app(PurchaseJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
+        app(WithholdingSettlement::class)->sync($transaction);
+
+        if ($transaction->landedCosts()->exists()) {
+            app(LandedCost::class)->allocate($transaction);
+        }
 
         return $transaction;
+    }
+
+    /**
+     * @return HasMany<PurchaseLandedCost, $this>
+     */
+    public function landedCosts(): HasMany
+    {
+        return $this->hasMany(PurchaseLandedCost::class);
     }
 
     public static function deletePurchase(int $id): void
@@ -694,8 +749,26 @@ class Transaction extends Model
 
         self::assertValidSellLines($request->selllines ?? null);
 
+        $sellStatus = $request->status ?: 'final';
+
+        if (! in_array($sellStatus, ['draft', 'quotation'], true)) {
+            app(PriceRules::class)->assertSellLines((array) ($request->selllines ?? []));
+        }
+
+        if ($companyId !== null && ! in_array($sellStatus, ['draft', 'quotation'], true)) {
+            Company::find($companyId)?->assertCanAddInvoice();
+        }
+
+        $customerId = self::resolveScopedId($request->contact_id ?? null);
+
+        if ($customerId !== null) {
+            Contact::findVisibleContact($customerId)?->assertAvailableForTransaction();
+        }
+
         $transaction = new self;
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
+        $lines = $transaction->applyDocumentTax($request, (array) ($request->selllines ?? []), 'selllines');
+        $transaction->applyWithholding($request);
         $stockShortages = self::guardSaleStock($request, $transaction);
         app(CustomerCreditLimit::class)->assertWithinLimit($transaction);
         $transaction->invoice_no = self::generateSellInvoiceNo($companyId, $request->invoice_no ?? null);
@@ -703,9 +776,12 @@ class Transaction extends Model
         $transaction->created_by = Auth::id();
         $transaction->save();
 
-        self::syncSellLines($transaction, $request->selllines ?? []);
+        $savedLines = self::syncSellLines($transaction, $lines);
+        app(StockTracking::class)->sell($transaction, $savedLines, $lines);
         app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
         app(SaleIncentives::class)->afterSave($transaction, $request);
+        app(WithholdingSettlement::class)->sync($transaction);
+        app(FbrSubmitter::class)->afterSellSaved($transaction);
         $transaction->refresh();
 
         $transaction->stockWarnings = $stockShortages;
@@ -746,8 +822,14 @@ class Transaction extends Model
 
         self::assertValidSellLines($request->selllines ?? null);
 
+        if (! in_array($request->status ?: 'final', ['draft', 'quotation'], true)) {
+            app(PriceRules::class)->assertSellLines((array) ($request->selllines ?? []));
+        }
+
         $previous = ['status' => $transaction->status, 'final_amount' => (float) $transaction->final_amount];
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
+        $lines = $transaction->applyDocumentTax($request, (array) ($request->selllines ?? []), 'selllines');
+        $transaction->applyWithholding($request);
         $stockShortages = self::guardSaleStock($request, $transaction);
         app(CustomerCreditLimit::class)->assertWithinLimit($transaction, $previous);
         $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
@@ -757,9 +839,12 @@ class Transaction extends Model
         $transaction->updated_by = Auth::id();
         $transaction->save();
 
-        self::syncSellLines($transaction, $request->selllines ?? []);
+        $savedLines = self::syncSellLines($transaction, $lines);
+        app(StockTracking::class)->sell($transaction, $savedLines, $lines);
         app(SellJournal::class)->sync($transaction->fresh(['contact']) ?? $transaction);
         app(SaleIncentives::class)->afterSave($transaction, $request);
+        app(WithholdingSettlement::class)->sync($transaction);
+        app(FbrSubmitter::class)->afterSellSaved($transaction);
         $transaction->refresh();
 
         $transaction->stockWarnings = $stockShortages;
@@ -819,9 +904,10 @@ class Transaction extends Model
     /**
      * @param  array<int, mixed>  $lines
      */
-    public static function syncSellLines(self $transaction, array $lines): void
+    public static function syncSellLines(self $transaction, array $lines): array
     {
         $keptIds = [];
+        $saved = [];
 
         foreach ($lines as $row) {
             if (! is_array($row)) {
@@ -838,18 +924,22 @@ class Transaction extends Model
                 $existing->fillFromRow($row, $transaction->id);
                 $existing->save();
                 $keptIds[] = $existing->id;
+                $saved[] = $existing;
 
                 continue;
             }
 
             $created = SellLine::createFromRow($row, $transaction->id);
             $keptIds[] = $created->id;
+            $saved[] = $created;
         }
 
         SellLine::query()
             ->where('transaction_id', $transaction->id)
             ->when($keptIds !== [], fn (Builder $query) => $query->whereNotIn('id', $keptIds), fn (Builder $query) => $query)
             ->delete();
+
+        return $saved;
     }
 
     /**
@@ -891,6 +981,154 @@ class Transaction extends Model
         return ! method_exists($request, 'has') || $request->has($field);
     }
 
+    /**
+     * The optional warehouse a stock document names (inventory warehouse layer). Only a label: leaving it out keeps the
+     * document unassigned, and a client that does not send the field leaves an existing document's tag alone. A warehouse
+     * must be an active one of the document's own branch (`$toBranchId` for where a transfer arrives).
+     *
+     * @throws ValidationException
+     */
+    private function applyWarehouses(object $request, ?int $branchId, ?int $toBranchId = null): void
+    {
+        if (self::requestSends($request, 'warehouse_id')) {
+            $this->warehouse_id = self::warehouseOfBranch($request->warehouse_id ?? null, $branchId, 'warehouse_id');
+        }
+
+        if ($toBranchId === null) {
+            $this->towarehouse_id = null;
+        } elseif (self::requestSends($request, 'towarehouse_id')) {
+            $this->towarehouse_id = self::warehouseOfBranch($request->towarehouse_id ?? null, $toBranchId, 'towarehouse_id');
+        }
+    }
+
+    private static function warehouseOfBranch(mixed $value, ?int $branchId, string $field): ?int
+    {
+        $id = self::resolveScopedId($value);
+
+        if ($id === null) {
+            return null;
+        }
+
+        if ($branchId === null || ! Warehouse::query()->whereKey($id)->where('branch_id', $branchId)->where('is_active', true)->exists()) {
+            throw ValidationException::withMessages([$field => ['Choose an active warehouse of this document\'s branch, or leave it empty.']]);
+        }
+
+        return $id;
+    }
+
+    /**
+     * Works the document's tax out line by line (see TaxCalculator) when its lines name a tax, and returns the lines with the
+     * tax each one came to. The document then carries the sum of its lines' tax, whether the prices include it, the value before
+     * tax, and a payable total that has the tax added on top (unless the prices already hold it). A document whose lines name
+     * no tax is left exactly as the client sent it, so the old single header amount keeps working.
+     *
+     * @param  array<int, mixed>  $lines
+     * @return array<int, mixed>
+     *
+     * @throws ValidationException
+     */
+    private function applyDocumentTax(object $request, array $lines, string $field): array
+    {
+        $input = [];
+
+        foreach ($lines as $index => $row) {
+            if (is_array($row)) {
+                $input[$index] = [
+                    'tax_id' => self::resolveScopedId($row['tax_id'] ?? null),
+                    'product_id' => self::resolveScopedId($row['product_id'] ?? null),
+                    'amount' => $field === 'selllines' ? SellLine::rowAmount($row) : PurchaseLine::rowAmount($row),
+                ];
+            }
+        }
+
+        $this->tax_inclusive = false;
+
+        if (! collect($input)->contains(fn (array $line): bool => $line['tax_id'] !== null)) {
+            return array_map(function (mixed $row): mixed {
+                return is_array($row) ? array_diff_key($row, ['tax_id' => 1, 'tax_amount' => 1, 'tax_exemption_id' => 1]) : $row;
+            }, $lines);
+        }
+
+        $inclusive = filter_var($request->tax_inclusive ?? false, FILTER_VALIDATE_BOOLEAN);
+        $netSum = array_sum(array_column($input, 'amount'));
+        $discount = match ($this->discount_type) {
+            'percentage' => round($netSum * (float) $this->discount_amount / 100, 2),
+            'fixed' => (float) $this->discount_amount,
+            default => 0.0,
+        };
+
+        $calculation = app(TaxCalculator::class)->calculate(
+            array_values($input),
+            $inclusive,
+            self::resolveScopedId($this->company_id),
+            self::resolveScopedId($this->contact_id),
+            $this->transaction_date === null ? null : substr((string) $this->transaction_date, 0, 10),
+            $discount,
+            $field,
+        );
+
+        $positions = array_keys($input);
+        $taxIds = [];
+
+        foreach ($positions as $at => $index) {
+            $result = $calculation['lines'][$at];
+            $lines[$index]['tax_id'] = $result['tax_id'];
+            $lines[$index]['tax_amount'] = $result['tax_amount'];
+            $lines[$index]['tax_exemption_id'] = $result['tax_exemption_id'];
+            $taxIds[] = $result['tax_id'];
+        }
+
+        $uniqueTaxIds = array_values(array_unique($taxIds, SORT_REGULAR));
+        $clientAdded = $inclusive ? 0.0 : SellLine::resolveNumeric($request->tax_amount ?? 0);
+        $sentFinal = (float) $this->final_amount;
+
+        $this->tax_inclusive = $inclusive;
+        $this->tax_id = count($uniqueTaxIds) === 1 ? $uniqueTaxIds[0] : null;
+        $this->tax_amount = $calculation['tax_total'];
+        $this->total_before_tax = round(array_sum(array_column($calculation['lines'], 'net_amount')), 2);
+        $this->final_amount = $sentFinal > 0
+            ? round(max($sentFinal - $clientAdded + $calculation['exclusive_tax'], 0), 2)
+            : round(max($netSum - $discount + (float) $this->shipping_charges + $calculation['exclusive_tax'], 0), 2);
+
+        return $lines;
+    }
+
+    /**
+     * The withholding tax of the document: the tax picked (an active withholding tax of the document's company) and what it
+     * comes to on the finished totals - on the value before sales tax, or on the whole invoice, as the tax says. A client that
+     * does not send the field keeps the tax the document has (its amount is worked out again on the new totals); an empty one
+     * clears it.
+     *
+     * @throws ValidationException
+     */
+    private function applyWithholding(object $request): void
+    {
+        $taxId = self::requestSends($request, 'withholding_tax_id')
+            ? self::resolveScopedId($request->withholding_tax_id ?? null)
+            : self::resolveScopedId($this->withholding_tax_id);
+
+        if ($taxId === null) {
+            $this->withholding_tax_id = null;
+            $this->withholding_amount = 0;
+
+            return;
+        }
+
+        $tax = Tax::query()->where('kind', Tax::KIND_WITHHOLDING)->where('company_id', $this->company_id)->find($taxId);
+
+        if ($tax === null || (! $tax->status && (int) $this->getOriginal('withholding_tax_id') !== $taxId)) {
+            throw ValidationException::withMessages(['withholding_tax_id' => ['Choose an active withholding tax of this company, or leave it empty.']]);
+        }
+
+        $final = (float) $this->final_amount;
+        $this->withholding_tax_id = $taxId;
+        $this->withholding_amount = app(TaxCalculator::class)->withholding($tax, $final - (float) $this->tax_amount, $final);
+
+        if ((float) $this->withholding_amount > 0) {
+            app(WithholdingSettlement::class)->assertAccountMapped($this);
+        }
+    }
+
     public function fillFromSellRequest(object $request, ?int $companyId, ?int $branchId): void
     {
         $isDirect = $request->is_direct === true
@@ -910,6 +1148,7 @@ class Transaction extends Model
 
         $this->company_id = $companyId;
         $this->branch_id = $branchId;
+        $this->applyWarehouses($request, $branchId);
         $this->contact_id = self::resolveScopedId($request->contact_id);
         $this->direct_contact_id = $isDirect ? self::resolveScopedId($request->direct_contact_id) : null;
         $this->commission_agent_id = $this->exists && ! self::requestSends($request, 'commission_agent_id')
@@ -950,8 +1189,11 @@ class Transaction extends Model
      */
     public function formattedSellLines(): array
     {
+        $trackedTypes = StockTracking::trackedTypes($this->selllines->pluck('product_id')->all());
+        $trackedInfo = $trackedTypes === [] ? [] : StockTracking::linesInfo('sell_lines', $this->selllines->pluck('id')->all(), StockTracking::KIND_SALE);
+
         return $this->selllines
-            ->map(function (SellLine $line) {
+            ->map(function (SellLine $line) use ($trackedTypes, $trackedInfo) {
                 $units = self::unitsForProduct(
                     (int) $line->product_id,
                     (int) $line->variation_id,
@@ -990,6 +1232,11 @@ class Transaction extends Model
                     'packing_qty' => $packingQty,
                     'row_subtotal' => $subtotal,
                     'subtotal' => $subtotal,
+                    'tracking_type' => $trackedTypes[(int) $line->product_id] ?? 'none',
+                    'serials' => $trackedInfo[$line->id]['serials'] ?? [],
+                    'batches' => $trackedInfo[$line->id]['batches'] ?? [],
+                    'tax_id' => $line->tax_id,
+                    'tax_amount' => $line->tax_amount,
                     'units' => $units,
                     'current_stock' => PurchaseLine::currentStock(
                         (int) $line->product_id,
@@ -1012,9 +1259,10 @@ class Transaction extends Model
     /**
      * @param  array<int, mixed>  $lines
      */
-    public static function syncLines(self $transaction, array $lines): void
+    public static function syncLines(self $transaction, array $lines): array
     {
         $keptIds = [];
+        $saved = [];
 
         foreach ($lines as $row) {
             if (! is_array($row)) {
@@ -1031,18 +1279,22 @@ class Transaction extends Model
                 $existing->fillFromRow($row, $transaction->id);
                 $existing->save();
                 $keptIds[] = $existing->id;
+                $saved[] = $existing;
 
                 continue;
             }
 
             $created = PurchaseLine::createFromRow($row, $transaction->id);
             $keptIds[] = $created->id;
+            $saved[] = $created;
         }
 
         PurchaseLine::query()
             ->where('transaction_id', $transaction->id)
             ->when($keptIds !== [], fn (Builder $query) => $query->whereNotIn('id', $keptIds), fn (Builder $query) => $query)
             ->delete();
+
+        return $saved;
     }
 
     public function fillFromPurchaseRequest(object $request, ?int $companyId, ?int $branchId): void
@@ -1060,6 +1312,7 @@ class Transaction extends Model
 
         $this->company_id = $companyId;
         $this->branch_id = $branchId;
+        $this->applyWarehouses($request, $branchId);
         $this->contact_id = self::resolveScopedId($request->contact_id);
         $this->direct_contact_id = $isDirect ? self::resolveScopedId($request->direct_contact_id) : null;
         $this->parent_id = self::resolveScopedId($request->transaction_id ?? $request->parent_id ?? null);
@@ -1133,6 +1386,8 @@ class Transaction extends Model
                     'pp_without_discount' => $line->pp_without_discount,
                     'purchase_price' => $purchasePrice,
                     'row_subtotal' => round($purchasePrice * $quantity * max($packingQty, 1), 2),
+                    'tax_id' => $line->tax_id,
+                    'tax_amount' => $line->tax_amount,
                     'units' => $units,
                     'current_stock' => PurchaseLine::currentStock(
                         (int) $line->product_id,
@@ -1278,6 +1533,7 @@ class Transaction extends Model
                 'profit_percent' => $detail->profit_percent,
                 'smallquantity' => $detail->smallquantity,
                 'largequantity' => $detail->largequantity,
+                'tracking_type' => $product?->tracking_type ?? 'none',
                 'current_stock' => $units[0]['unit_qty'] ?? 0,
                 'units' => $units,
             ];
@@ -1427,6 +1683,7 @@ class Transaction extends Model
         $purchase->approved_by = Auth::id();
         $purchase->approved_date = now();
         $purchase->save();
+        app(WithholdingSettlement::class)->sync($purchase);
 
         return $purchase;
     }
@@ -1782,8 +2039,11 @@ class Transaction extends Model
             'purchaselines.unit:id,name,short_name',
         ]);
 
+        $trackedTypes = StockTracking::trackedTypes($purchase->purchaselines->pluck('product_id')->all());
+        $trackedInfo = $trackedTypes === [] ? [] : StockTracking::linesInfo('purchase_lines', $purchase->purchaselines->pluck('id')->all(), StockTracking::KIND_RECEIVE);
+
         return $purchase->purchaselines
-            ->map(function (PurchaseLine $line): array {
+            ->map(function (PurchaseLine $line) use ($trackedTypes, $trackedInfo): array {
                 $quantity = PurchaseLine::resolveNumeric($line->quantity, 1);
                 $received = PurchaseLine::resolveNumeric($line->quantity_received);
 
@@ -1799,6 +2059,10 @@ class Transaction extends Model
                     'quantity' => $quantity,
                     'quantity_received' => $received,
                     'remaining_qty' => max($quantity - $received, 0),
+                    'packing_qty' => max((int) PurchaseLine::resolveNumeric($line->packing_qty, 1), 1),
+                    'tracking_type' => $trackedTypes[(int) $line->product_id] ?? 'none',
+                    'serials' => $trackedInfo[$line->id]['serials'] ?? [],
+                    'batches' => $trackedInfo[$line->id]['batches'] ?? [],
                 ];
             })
             ->values()
@@ -1915,6 +2179,7 @@ class Transaction extends Model
         }
 
         self::applyReceivedQuantities($purchase, $request->purchaselines ?? []);
+        app(StockTracking::class)->receive($purchase, (array) ($request->purchaselines ?? []));
 
         $note = $purchase->replicate();
         $note->parent_id = $purchase->id;
@@ -1948,6 +2213,7 @@ class Transaction extends Model
         }
 
         self::applyReceivedQuantities($purchase, $request->purchaselines ?? []);
+        app(StockTracking::class)->receive($purchase, (array) ($request->purchaselines ?? []));
 
         $note->updated_by = Auth::id();
         $note->save();
@@ -2435,6 +2701,35 @@ class Transaction extends Model
         return self::query()->transfers()->visibleToCurrentUser()->find($id);
     }
 
+    /**
+     * Approval Center (Phase 1, easy half): dispatch a pending transfer. Mirrors `approvePurchase()` —
+     * approve-only, no reject (same convention as the existing Purchase/Sell approval controllers). The
+     * existing `in_transit -> completed` step (stockadjustment/stocktransfer `updatestatus`) is unchanged.
+     *
+     * @throws ValidationException
+     */
+    public static function approveTransfer(int $id): self
+    {
+        $transfer = self::findVisibleTransfer($id);
+
+        if ($transfer === null) {
+            abort(404);
+        }
+
+        if ($transfer->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending transfers can be approved.',
+            ]);
+        }
+
+        $transfer->status = 'in_transit';
+        $transfer->approved_by = Auth::id();
+        $transfer->approved_date = now();
+        $transfer->save();
+
+        return $transfer;
+    }
+
     public static function generateTransferNo(?int $companyId, ?string $requested = null): string
     {
         $requestedInvoice = trim((string) $requested);
@@ -2540,6 +2835,7 @@ class Transaction extends Model
         $this->company_id = $companyId;
         $this->branch_id = $branchId;
         $this->tobranch_id = self::resolveScopedId($request->tobranch_id);
+        $this->applyWarehouses($request, $branchId, $this->tobranch_id);
         $this->contact_id = null;
         $this->transaction_date = self::parseTransactionDate($request->transaction_date);
         $this->additional_note = $request->additional_note;
@@ -2565,7 +2861,8 @@ class Transaction extends Model
         $transaction->created_by = Auth::id();
         $transaction->save();
 
-        self::syncLines($transaction, $request->purchaselines ?? []);
+        $savedLines = self::syncLines($transaction, $request->purchaselines ?? []);
+        app(StockTracking::class)->transfer($transaction, $savedLines, (array) ($request->purchaselines ?? []));
 
         return $transaction;
     }
@@ -2594,7 +2891,8 @@ class Transaction extends Model
         $transaction->updated_by = Auth::id();
         $transaction->save();
 
-        self::syncLines($transaction, $request->purchaselines ?? []);
+        $savedLines = self::syncLines($transaction, $request->purchaselines ?? []);
+        app(StockTracking::class)->transfer($transaction, $savedLines, (array) ($request->purchaselines ?? []));
 
         return $transaction;
     }
@@ -2615,8 +2913,11 @@ class Transaction extends Model
      */
     public function formattedTransferLines(): array
     {
+        $trackedTypes = StockTracking::trackedTypes($this->purchaselines->pluck('product_id')->all());
+        $trackedInfo = $trackedTypes === [] ? [] : StockTracking::linesInfo('purchase_lines', $this->purchaselines->pluck('id')->all(), StockTracking::KIND_TRANSFER_OUT);
+
         return $this->purchaselines
-            ->map(function (PurchaseLine $line) {
+            ->map(function (PurchaseLine $line) use ($trackedTypes, $trackedInfo) {
                 $units = self::unitsForProduct(
                     (int) $line->product_id,
                     (int) $line->variation_id,
@@ -2639,6 +2940,9 @@ class Transaction extends Model
                     'unit_id' => $line->unit_id,
                     'quantity' => $quantity,
                     'packing_qty' => $packingQty,
+                    'tracking_type' => $trackedTypes[(int) $line->product_id] ?? 'none',
+                    'serials' => $trackedInfo[$line->id]['serials'] ?? [],
+                    'batches' => $trackedInfo[$line->id]['batches'] ?? [],
                     'units' => $units,
                     'current_stock' => PurchaseLine::currentStock(
                         (int) $line->product_id,
@@ -2659,6 +2963,36 @@ class Transaction extends Model
     public static function findVisibleAdjustment(int $id): ?self
     {
         return self::query()->adjustments()->visibleToCurrentUser()->find($id);
+    }
+
+    /**
+     * Approval Center (Phase 1, easy half): approving an adjustment completes it directly (an adjustment
+     * only has pending/completed states, and completed is what StockMovements counts — see
+     * `Services/StockMovements.php`'s `completedOnly` scope). Approve-only, no reject, same convention
+     * as the existing Purchase/Sell approval controllers.
+     *
+     * @throws ValidationException
+     */
+    public static function approveAdjustment(int $id): self
+    {
+        $adjustment = self::findVisibleAdjustment($id);
+
+        if ($adjustment === null) {
+            abort(404);
+        }
+
+        if ($adjustment->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending adjustments can be approved.',
+            ]);
+        }
+
+        $adjustment->status = 'completed';
+        $adjustment->approved_by = Auth::id();
+        $adjustment->approved_date = now();
+        $adjustment->save();
+
+        return $adjustment;
     }
 
     public static function generateAdjustmentNo(?int $companyId, ?string $requested = null): string
@@ -2779,6 +3113,7 @@ class Transaction extends Model
         $this->company_id = $companyId;
         $this->branch_id = $branchId;
         $this->tobranch_id = null;
+        $this->applyWarehouses($request, $branchId);
         $this->contact_id = null;
         $this->transaction_date = self::parseTransactionDate($request->transaction_date);
         $this->additional_note = $request->additional_note;
@@ -2897,6 +3232,34 @@ class Transaction extends Model
     public static function findVisiblePurchaseReturn(int $id): ?self
     {
         return self::query()->purchaseReturns()->visibleToCurrentUser()->find($id);
+    }
+
+    /**
+     * Approval Center (Phase 1, easy half): mirrors `approvePurchase()` exactly. Approve-only, no
+     * reject, same convention as the existing Purchase/Sell approval controllers.
+     *
+     * @throws ValidationException
+     */
+    public static function approvePurchaseReturn(int $id): self
+    {
+        $return = self::findVisiblePurchaseReturn($id);
+
+        if ($return === null) {
+            abort(404);
+        }
+
+        if ($return->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending purchase returns can be approved.',
+            ]);
+        }
+
+        $return->status = 'approved';
+        $return->approved_by = Auth::id();
+        $return->approved_date = now();
+        $return->save();
+
+        return $return;
     }
 
     public static function generatePurchaseReturnNo(?int $companyId, ?string $requested = null): string

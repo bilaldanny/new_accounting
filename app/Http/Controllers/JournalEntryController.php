@@ -34,6 +34,7 @@ class JournalEntryController extends Controller
             'taccountdetails.*.description' => 'nullable|string',
             'taccountdetails.*.debit' => 'nullable|numeric|min:0',
             'taccountdetails.*.credit' => 'nullable|numeric|min:0',
+            'taccountdetails.*.cost_center_id' => 'nullable|integer',
             'attachments' => 'nullable|array',
             'attachments.*.file_name' => 'nullable|string|max:255',
             'attachments.*.data_url' => 'nullable|string',

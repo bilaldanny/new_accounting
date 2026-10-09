@@ -62,6 +62,7 @@ export default function useSuppliers() {
         address_line_2: '',
         zipcode: '',
         ntn_number: '',
+        strn_number: '',
         active: true,
         link_account: 0,
     });
@@ -97,6 +98,7 @@ export default function useSuppliers() {
         address_line_2: '',
         zipcode: '',
         ntn_number: '',
+        strn_number: '',
         active: true,
         link_account: 0,
     });

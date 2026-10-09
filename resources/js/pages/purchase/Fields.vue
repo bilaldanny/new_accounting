@@ -1,9 +1,11 @@
 <script setup lang="ts">
     import { usePage } from '@inertiajs/vue3';
     import { Boxes, CalendarDays, ImagePlus, Truck } from '@lucide/vue';
+    import WarehousePicker from '@/components/WarehousePicker.vue';
     import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
+    import useDocumentTax from '@/composables/documentTax';
     import type { PurchaseLineRow } from '@/composables/purchase';
     import { openLfmImagePicker } from '@/utils/openLfmImagePicker';
     import LineItemsEditor from './LineItemsEditor.vue';
@@ -154,6 +156,60 @@
         params.formRef?.update?.(patch);
     }
 
+    const { taxOptions, withholdingOptions, loadTaxOptions, preview: previewTax } = useDocumentTax();
+
+    const withholdingEstimate = computed(() => {
+        const option = withholdingOptions.value.find((item) => item.id === Number(params.formData?.withholding_tax_id));
+
+        if (! option) {
+            return 0;
+        }
+
+        const final = toNumber(params.formData?.final_amount);
+        const base = option.applies_on === 'gross' ? final : final - toNumber(params.formData?.tax_amount);
+
+        return Math.max(Number((base * option.percentage / 100).toFixed(2)), 0);
+    });
+
+
+    /**
+     * Works the document's tax out on the server (the same calculator that saves it) and puts it on every line and on the
+     * document, adding it to the payable total unless the prices already include it.
+     */
+    async function applyTax(lines: PurchaseLineRow[], discountVal: number, baseFinal: number) {
+        const taxId = Number(params.formData?.tax_id) || null;
+
+        if (taxId === null || lines.length === 0) {
+            if (lines.some((line) => line.tax_id || line.tax_amount)) {
+                persist({ purchaselines: lines.map((line) => ({ ...line, tax_id: null, tax_amount: null })) });
+            }
+
+            persist({ tax_amount: 0 });
+
+            return;
+        }
+
+        const result = await previewTax({
+            company_id: params.formData?.company_id,
+            contact_id: params.formData?.contact_id,
+            date: params.formData?.transaction_date,
+            inclusive: Boolean(params.formData?.tax_inclusive),
+            discount: discountVal,
+            field: 'purchaselines',
+            lines: lines.map((line) => ({ tax_id: taxId, product_id: Number(line.product_id) || null, amount: toNumber(line.row_subtotal) })),
+        });
+
+        if (result === null) {
+            return;
+        }
+
+        persist({
+            purchaselines: lines.map((line, index) => ({ ...line, tax_id: taxId, tax_amount: result.lines[index]?.tax_amount ?? 0 })),
+            tax_amount: result.tax_total,
+            final_amount: Number(Math.max(baseFinal + result.exclusive_tax, 0).toFixed(2)),
+        });
+    }
+
     function persistLines(lines: PurchaseLineRow[]) {
         const next = lines.map((line) => ({ ...line }));
         persist({
@@ -196,13 +252,17 @@
             discountVal = discountAmount;
         }
 
+        const baseFinal = Number((netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal).toFixed(2));
+
         persist({
             net_sub_total: Number(netSubTotal.toFixed(2)),
             discount_val: Number(discountVal.toFixed(2)),
-            final_amount: Number((netSubTotal + toNumber(params.formData?.shipping_charges) - discountVal).toFixed(2)),
+            final_amount: baseFinal,
             total_item: lines.length,
             total_pack_qty: lines.reduce((sum, line) => sum + toNumber(line.packing_qty), 0),
         });
+
+        void applyTax(lines, Number(discountVal.toFixed(2)), baseFinal);
     }
 
     function applyScopedDefaults() {
@@ -244,6 +304,11 @@
             const setting = response.data?.companySetting ?? response.data;
             defaultMargin.value = setting?.profit_percent ?? 0;
             allowPackingEdit.value = Boolean(setting?.update_packing_qty);
+
+            if (! isEdit.value && ! params.formData?.tax_id) {
+                persist({ tax_inclusive: Boolean(setting?.tax_inclusive_pricing) });
+            }
+
             searchType.value = resolveSearchType(setting?.search_type ?? authUser.value?.search_type);
         } catch {
             defaultMargin.value = 0;
@@ -518,6 +583,90 @@
         persistLines([nextLine, ...purchaseLines.value]);
     }
 
+    // --- create from an approved Purchase Requisition (add mode only) -----------------------------
+    const eligibleRequisitions = ref<Array<{ id: number | string; text?: string; requisition_no?: string }>>([]);
+    const selectedRequisitionId = ref<number | string>('');
+    const loadingRequisitionLines = ref(false);
+
+    async function loadEligibleRequisitions() {
+        if (! scopeReady.value) {
+            eligibleRequisitions.value = [];
+
+            return;
+        }
+
+        try {
+            const response = await window.axios.get(API_ENDPOINTS.purchaseRequisitionEligible, {
+                params: { company_id: selectedCompanyId.value, branch_id: selectedBranchId.value },
+            });
+            eligibleRequisitions.value = response.data ?? [];
+        } catch {
+            eligibleRequisitions.value = [];
+        }
+    }
+
+    async function loadFromRequisition() {
+        if (! selectedRequisitionId.value) {
+            return;
+        }
+
+        loadingRequisitionLines.value = true;
+
+        try {
+            const response = await window.axios.get(API_ENDPOINTS.purchaseRequisitionLines(selectedRequisitionId.value));
+            const lines = Array.isArray(response.data?.lines) ? response.data.lines : [];
+
+            for (const requisitionLine of lines) {
+                const productResponse = await window.axios.get(API_ENDPOINTS.purchaseSearchProducts, {
+                    params: {
+                        company_id: selectedCompanyId.value,
+                        branch_id: selectedBranchId.value,
+                        product_id: requisitionLine.product_id,
+                    },
+                });
+                const options: Array<Record<string, any>> = productResponse.data ?? [];
+                const match = options.find((option) => String(option.id) === String(requisitionLine.variation_id)) ?? options[0];
+
+                if (! match) {
+                    continue;
+                }
+
+                const unit = (match.units ?? []).find((candidate: { id: unknown }) => String(candidate.id) === String(requisitionLine.unit_id)) ?? match.units?.[0];
+
+                // the requisition never carries a price: purchase_rate and every cost figure start at 0
+                // and are filled in here, at the point a supplier and price are actually chosen
+                const nextLine = pricedLine({
+                    product_id: match.product_id,
+                    variation_id: match.id,
+                    itemtype_id: match.itemtype_id,
+                    product_name: match.name,
+                    sku: match.sku,
+                    unit_id: unit?.id ?? match.unit_id,
+                    quantity: requisitionLine.quantity ?? 1,
+                    qunatity_sold: 0,
+                    quantity_returned: 0,
+                    purchase_rate: 0,
+                    default_sell_price: match.default_sell_price,
+                    discount_percent: 0,
+                    packing_qty: unit?.packing_qty ?? 1,
+                    profit_percent: match.profit_percent ?? defaultMargin.value,
+                    pp_without_discount: 0,
+                    purchase_price: 0,
+                    row_subtotal: 0,
+                    units: match.units ?? [],
+                    current_stock: unit?.unit_qty ?? 0,
+                    unit_name: unit?.short_name ?? unit?.text,
+                });
+
+                persistLines([nextLine, ...purchaseLines.value]);
+            }
+
+            persist({ purchase_requisition_id: selectedRequisitionId.value });
+        } finally {
+            loadingRequisitionLines.value = false;
+        }
+    }
+
     function updateLine(index: number, patch: Partial<PurchaseLineRow>) {
         persistLines(purchaseLines.value.map((line, lineIndex) => (
             lineIndex === index ? pricedLine({ ...line, ...patch }) : line
@@ -628,6 +777,17 @@
     );
 
     watch(
+        () => normalizeId(params.formData?.company_id) || normalizeId(authUser.value?.company_id),
+        (companyId) => loadTaxOptions(companyId),
+        { immediate: true },
+    );
+
+    watch(
+        () => [params.formData?.tax_id, params.formData?.tax_inclusive, params.formData?.contact_id, params.formData?.transaction_date],
+        () => recalculateTotals(),
+    );
+
+    watch(
         () => [params.formData?.discount_type, params.formData?.discount_amount, params.formData?.shipping_charges],
         () => recalculateTotals(),
     );
@@ -638,12 +798,23 @@
             await onDirectToggle(isDirect);
         },
     );
+
+    watch(
+        () => `${normalizeId(params.formData?.company_id)}:${normalizeId(params.formData?.branch_id)}`,
+        async () => {
+            if (! isEdit.value) {
+                await loadEligibleRequisitions();
+            }
+        },
+        { immediate: true },
+    );
 </script>
 
 <template>
     <TextElement name="_method" default="PUT" v-if="params.type === 'edit'" hidden="true" />
     <TextElement v-if="showHiddenCompanyField" name="company_id" hidden="true" />
     <TextElement v-if="showHiddenBranchField" name="branch_id" hidden="true" />
+    <TextElement name="warehouse_id" hidden="true" />
     <TextElement name="type" hidden="true" default="purchaseorder" />
     <TextElement name="status" hidden="true" default="pending" />
     <TextElement name="payment_status" hidden="true" default="due" />
@@ -652,6 +823,7 @@
     <TextElement name="net_sub_total" hidden="true" />
     <TextElement name="discount_val" hidden="true" />
     <TextElement name="final_amount" hidden="true" />
+    <TextElement name="tax_amount" hidden="true" />
 
     <GroupElement name="group_details" :columns="colFull" :add-classes="cardClasses">
         <StaticElement name="section_supplier" :columns="colFull">
@@ -702,6 +874,15 @@
         :disabled="branchDisabled"
         rules="required"
     />
+
+    <StaticElement name="warehouse_id_picker" :columns="colThird">
+        <WarehousePicker
+            :branch-id="selectedBranchId"
+            :model-value="params.formData?.warehouse_id ?? ''"
+            label="Warehouse (optional)"
+            @update:model-value="(value) => persist({ warehouse_id: value })"
+        />
+    </StaticElement>
 
     <SelectElement
         name="contact_id"
@@ -862,6 +1043,38 @@
     />
     </GroupElement>
 
+    <GroupElement v-if="!isEdit && eligibleRequisitions.length" name="group_requisition" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_requisition" :columns="colFull">
+            <div class="product-form-section-head journal-card-head">
+                <div class="journal-card-head__lead">
+                    <span class="product-form-section-icon">
+                        <Boxes class="h-4 w-4" />
+                    </span>
+                    <div>
+                        <h2 class="product-form-section-title">Create from a Purchase Requisition</h2>
+                        <p class="product-form-section-copy">Optional. Pick an approved requisition to prefill the products and quantities below; the rate stays blank for you to fill in.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <select v-model="selectedRequisitionId" class="form-select form-select-sm" style="max-width: 20rem">
+                    <option value="">Select a requisition…</option>
+                    <option v-for="requisition in eligibleRequisitions" :key="requisition.id" :value="requisition.id">
+                        {{ requisition.text ?? requisition.requisition_no }}
+                    </option>
+                </select>
+                <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    :disabled="!selectedRequisitionId || loadingRequisitionLines"
+                    @click="loadFromRequisition"
+                >
+                    {{ loadingRequisitionLines ? 'Loading…' : 'Load lines' }}
+                </button>
+            </div>
+        </StaticElement>
+    </GroupElement>
+
     <GroupElement name="group_items" :columns="colFull" :add-classes="linesCardClasses">
         <StaticElement name="section_items" :columns="colFull">
             <div class="product-form-section-head journal-card-head">
@@ -944,6 +1157,54 @@
             rules="nullable|numeric|min:0"
         />
 
+        <SelectElement
+            name="tax_id"
+            :native="false"
+            :items="taxOptions"
+            id="PurchaseTaxId"
+            field-name="PurchaseTaxId"
+            placeholder="No tax"
+            label="Tax"
+            :columns="colHalf"
+            label-prop="label"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            info="Worked out on every line of this purchase. Customers or items with an exemption rule are charged no tax."
+        />
+
+        <ToggleElement
+            :labels="{ 1: 'Yes', 0: 'No' }"
+            :columns="colHalf"
+            id="PurchaseTaxInclusive"
+            field-name="PurchaseTaxInclusive"
+            name="tax_inclusive"
+            label="Prices include tax"
+            :true-value="true"
+            :false-value="false"
+            :default="false"
+            :disabled="!params.formData?.tax_id"
+            info="On: the line prices already hold the tax, so it is carved out of them. Off: the tax is added on top."
+        />
+
+        <SelectElement
+            name="withholding_tax_id"
+            :native="false"
+            :items="withholdingOptions"
+            id="PurchaseWithholdingTaxId"
+            field-name="PurchaseWithholdingTaxId"
+            placeholder="No withholding tax"
+            label="Withholding tax"
+            :columns="colHalf"
+            label-prop="label"
+            value-prop="id"
+            :search="true"
+            :floating="false"
+            :can-clear="true"
+            info="You withhold this from what you pay the supplier. It is booked as part of what settles this purchase, not as cash."
+        />
+
         <TextElement
             id="PurchaseShippingDetails"
             field-name="PurchaseShippingDetails"
@@ -1001,6 +1262,14 @@
                         <div class="flex items-center justify-between">
                             <span>Discount</span>
                             <span class="font-mono text-slate-700">− {{ money(params.formData?.discount_val) }}</span>
+                        </div>
+                        <div v-if="Number(params.formData?.tax_amount) > 0" class="flex items-center justify-between">
+                            <span>Tax{{ params.formData?.tax_inclusive ? ' (included)' : '' }}</span>
+                            <span class="font-mono text-slate-700">{{ params.formData?.tax_inclusive ? '' : '+ ' }}{{ money(params.formData?.tax_amount) }}</span>
+                        </div>
+                        <div v-if="withholdingEstimate > 0" class="flex items-center justify-between">
+                            <span>Withholding tax (estimate)</span>
+                            <span class="font-mono text-slate-700">− {{ money(withholdingEstimate) }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span>Shipping</span>

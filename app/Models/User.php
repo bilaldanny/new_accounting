@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\HasProfilePhoto;
+use App\Models\Concerns\Auditable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -26,6 +27,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements PasskeyUser
 {
+    use Auditable;
     use HasApiTokens, SoftDeletes;
 
     /** @use HasFactory<UserFactory> */
@@ -462,6 +464,10 @@ class User extends Authenticatable implements PasskeyUser
     public static function CreateUser($request): self
     {
         [$companyId, $branchId] = self::resolveAssignmentScope($request);
+
+        if ($companyId !== null) {
+            Company::find($companyId)?->assertCanAddUser();
+        }
 
         $user = new self;
         $user->company_id = $companyId;

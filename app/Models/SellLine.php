@@ -26,6 +26,9 @@ class SellLine extends Model
         'unit_price_after_discount',
         'subtotal',
         'packing_qty',
+        'tax_id',
+        'tax_amount',
+        'tax_exemption_id',
     ];
 
     /**
@@ -78,6 +81,19 @@ class SellLine extends Model
     }
 
     /**
+     * What a line comes to: the amount the form worked out, else the price after discount times the quantity and the packing.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    public static function rowAmount(array $row): float
+    {
+        $probe = new self;
+        $probe->fillFromRow($row, 0);
+
+        return (float) $probe->subtotal;
+    }
+
+    /**
      * @param  array<string, mixed>  $row
      */
     public static function createFromRow(array $row, int $transactionId): self
@@ -118,5 +134,8 @@ class SellLine extends Model
         $this->unit_price_after_discount = $priceAfterDiscount;
         $this->subtotal = $subtotal;
         $this->packing_qty = max($packingQty, 1);
+        $this->tax_id = Transaction::resolveScopedId($row['tax_id'] ?? null);
+        $this->tax_amount = $this->tax_id !== null && is_numeric($row['tax_amount'] ?? null) ? round((float) $row['tax_amount'], 2) : null;
+        $this->tax_exemption_id = $this->tax_id !== null ? Transaction::resolveScopedId($row['tax_exemption_id'] ?? null) : null;
     }
 }

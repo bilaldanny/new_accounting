@@ -18,6 +18,10 @@ export type StockTransferLineRow = {
     brand_name?: string;
     itemtype_name?: string;
     variation_name?: string;
+    /** Serial / batch tracking of the product: the serial numbers or the batches this line moves. */
+    tracking_type?: 'none' | 'serial' | 'batch';
+    serials?: string[];
+    batches?: Array<{ batch_id?: number | string; batch_no?: string; expiry_date?: string; qty: number | string }>;
 };
 
 export default function useStockTransfers(){
@@ -42,6 +46,8 @@ export default function useStockTransfers(){
       company_id: '',
       branch_id: '',
       tobranch_id: '',
+      warehouse_id: '',
+      towarehouse_id: '',
       invoice_no: '',
       transaction_date: today(),
       additional_note: '',

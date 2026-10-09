@@ -42,6 +42,7 @@ class PurchaseController extends Controller
             'is_direct' => 'nullable|boolean',
             'direct_contact_id' => 'required_if:is_direct,1,true|nullable',
             'attachment' => 'nullable',
+            'purchase_requisition_id' => 'nullable|integer|exists:purchase_requisitions,id',
             'status' => 'nullable|in:received,pending,ordered,draft,final,approved',
             'payment_status' => 'nullable|in:paid,due,partial',
             'purchaselines' => 'bail|required|array|min:1',

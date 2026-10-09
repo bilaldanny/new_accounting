@@ -1,12 +1,24 @@
 <?php
 
 use App\Http\Controllers\AccountBalanceController;
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\Api\PublicApiCustomerController;
+use App\Http\Controllers\Api\PublicApiInvoiceController;
+use App\Http\Controllers\Api\PublicApiProductController;
 use App\Http\Controllers\ApiKeyController;
+use App\Http\Controllers\ApiLogController;
+use App\Http\Controllers\AssetApprovalController;
+use App\Http\Controllers\AssetCategoryController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BankIssuerController;
+use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\BudgetController;
+use App\Http\Controllers\BulkPriceUpdateController;
+use App\Http\Controllers\CashCollectionApprovalController;
 use App\Http\Controllers\CashCollectionController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChartOfAccountController;
@@ -16,38 +28,69 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\ConsumerController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContactDuplicateController;
+use App\Http\Controllers\CostCenterController;
 use App\Http\Controllers\CountryController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\CreditDebitNoteController;
+use App\Http\Controllers\CreditLimitApprovalController;
+use App\Http\Controllers\CreditLimitRequestController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CurrencyRateController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
+use App\Http\Controllers\CustomerSubscriptionController;
+use App\Http\Controllers\CustomerSubscriptionInvoiceController;
+use App\Http\Controllers\CustomerSubscriptionPlanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\DocumentSettingController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FbrController;
 use App\Http\Controllers\FinancialYearController;
+use App\Http\Controllers\FixedAssetAcquisitionController;
+use App\Http\Controllers\FixedAssetController;
+use App\Http\Controllers\FixedAssetDepreciationController;
+use App\Http\Controllers\FixedAssetLifecycleController;
+use App\Http\Controllers\FixedAssetTransferController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\LandedCostController;
+use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PipelineStageController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalSubscriptionController;
 use App\Http\Controllers\PortalUserController;
+use App\Http\Controllers\PosShiftController;
+use App\Http\Controllers\PriceListApprovalController;
 use App\Http\Controllers\PriceListController;
+use App\Http\Controllers\PricingController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PublicLeadCaptureController;
 use App\Http\Controllers\PurchaseApprovalController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchasePaymentController;
+use App\Http\Controllers\PurchaseRequisitionApprovalController;
+use App\Http\Controllers\PurchaseRequisitionController;
+use App\Http\Controllers\PurchaseReturnApprovalController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\ReceivingNoteController;
+use App\Http\Controllers\Reports\AnalyticsReportController;
+use App\Http\Controllers\Reports\CrmReportController;
+use App\Http\Controllers\Reports\CustomerSubscriptionReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
 use App\Http\Controllers\Reports\PartyLedgerReportController;
@@ -62,11 +105,19 @@ use App\Http\Controllers\SellPaymentController;
 use App\Http\Controllers\SellReturnController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
+use App\Http\Controllers\StockAdjustmentApprovalController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockTakeController;
+use App\Http\Controllers\StockTrackingController;
+use App\Http\Controllers\StockTransferApprovalController;
 use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\SubscriptionInvoiceController;
+use App\Http\Controllers\SubscriptionPlanController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaxController;
+use App\Http\Controllers\TaxExemptionController;
+use App\Http\Controllers\TaxPreviewController;
+use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UnitController;
@@ -74,7 +125,10 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WarehouseLocationController;
 use App\Http\Controllers\WarrantyController;
+use App\Http\Controllers\WebhookController;
+use App\Http\Middleware\LogPublicApiRequest;
 use App\Http\Middleware\ValidateBulkActionBody;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -90,13 +144,28 @@ Route::post('fetchcities', [CityController::class, 'fetch']);
 Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
 Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
 
+/* Public Lead Capture Form (no auth — embeddable on an external site) */
+Route::post('leadcapture', [PublicLeadCaptureController::class, 'store'])->middleware('throttle:lead-capture')->name('leadcapture.store');
+/* Public Lead Capture Form */
+
 Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(function () {
     /* Customer / supplier portal and the accounts for it */
     Route::get('portal', [PortalController::class, 'show']);
+    Route::post('portal/change-password', [PortalController::class, 'changePassword']);
     Route::get('portal-users', [PortalUserController::class, 'index']);
     Route::post('portal-users', [PortalUserController::class, 'store']);
     Route::post('portal-users/{id}/reset-password', [PortalUserController::class, 'resetPassword']);
     Route::delete('portal-users/{id}', [PortalUserController::class, 'destroy']);
+
+    /* Customer Self-Service Portal (Customer Subscription Module) */
+    Route::get('portal/subscriptions', [PortalSubscriptionController::class, 'index']);
+    Route::get('portal/subscription-plans', [PortalSubscriptionController::class, 'availablePlans']);
+    Route::get('portal/subscription-invoices', [PortalSubscriptionController::class, 'invoices']);
+    Route::post('portal/subscriptions/{id}/change-plan', [PortalSubscriptionController::class, 'changePlan']);
+    Route::post('portal/subscriptions/{id}/pause', [PortalSubscriptionController::class, 'pause']);
+    Route::post('portal/subscriptions/{id}/resume', [PortalSubscriptionController::class, 'resume']);
+    Route::post('portal/subscriptions/{id}/cancel', [PortalSubscriptionController::class, 'cancel']);
+    /* Customer Self-Service Portal */
 
     /* Exchange rates (display only) */
     Route::get('currency-rates', [CurrencyRateController::class, 'index']);
@@ -187,6 +256,19 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('taxes/statusupdate', [TaxController::class, 'updateStatus']);
     Route::post('taxes/bulk_delete', [TaxController::class, 'bulk_delete']);
     Route::get('fetchtaxes', [TaxController::class, 'fetch']);
+    Route::post('taxes/preview', TaxPreviewController::class);
+    Route::get('stock-tracking/serials', [StockTrackingController::class, 'serials']);
+    Route::get('stock-tracking/batches', [StockTrackingController::class, 'batches']);
+    Route::get('stock-tracking/available-serials', [StockTrackingController::class, 'availableSerials']);
+    Route::get('stock-tracking/available-batches', [StockTrackingController::class, 'availableBatches']);
+    Route::post('stock-tracking/serials', [StockTrackingController::class, 'registerSerials']);
+    Route::post('stock-tracking/serials/{id}/write-off', [StockTrackingController::class, 'writeOffSerial']);
+    Route::post('stock-tracking/batches', [StockTrackingController::class, 'registerBatch']);
+    Route::post('stock-tracking/batches/{id}/write-off', [StockTrackingController::class, 'writeOffBatch']);
+    Route::get('fbr-settings', [FbrController::class, 'show']);
+    Route::put('fbr-settings', [FbrController::class, 'update']);
+    Route::get('fbr-submissions', [FbrController::class, 'submissions']);
+    Route::post('fbr-submissions/{transactionId}', [FbrController::class, 'submit']);
     Route::resource('taxes', TaxController::class);
     Route::get('fetchobaccounts', [ChartOfAccountController::class, 'fetchObAccounts']);
     Route::get('account-balances/fetch-balance', [AccountBalanceController::class, 'fetchBalance']);
@@ -255,6 +337,98 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('cities/bulk_delete_per', [CityController::class, 'bulk_delete_per']);
     Route::post('cities/restore_records', [CityController::class, 'restore_records']);
     /* City */
+
+    /* Pricing */
+    Route::get('pricing/resolve', [PricingController::class, 'resolve']);
+    Route::post('bulk-price-update/preview', [BulkPriceUpdateController::class, 'preview']);
+    Route::post('bulk-price-update/apply', [BulkPriceUpdateController::class, 'apply']);
+    /* Pricing */
+
+    /* Landed Cost */
+    Route::get('landed-costs', [LandedCostController::class, 'index']);
+    Route::get('landed-costs/{id}', [LandedCostController::class, 'show']);
+    Route::put('landed-costs/{id}', [LandedCostController::class, 'update']);
+    /* Landed Cost */
+
+    /* Bank Reconciliation */
+    Route::get('bank-reconciliations', [BankReconciliationController::class, 'index']);
+    Route::get('bank-reconciliations/accounts', [BankReconciliationController::class, 'accounts']);
+    Route::post('bank-reconciliations', [BankReconciliationController::class, 'store']);
+    Route::get('bank-reconciliations/{id}', [BankReconciliationController::class, 'show']);
+    Route::delete('bank-reconciliations/{id}', [BankReconciliationController::class, 'destroy']);
+    Route::post('bank-reconciliations/{id}/auto-match', [BankReconciliationController::class, 'autoMatch']);
+    Route::post('bank-reconciliations/{id}/lines/{lineId}/match', [BankReconciliationController::class, 'match']);
+    Route::post('bank-reconciliations/{id}/lines/{lineId}/unmatch', [BankReconciliationController::class, 'unmatch']);
+    Route::post('bank-reconciliations/{id}/reconcile', [BankReconciliationController::class, 'reconcile']);
+    /* Bank Reconciliation */
+
+    /* Budgets */
+    Route::get('budgets', [BudgetController::class, 'index']);
+    Route::post('budgets', [BudgetController::class, 'store']);
+    Route::get('budgets/{id}', [BudgetController::class, 'show']);
+    Route::put('budgets/{id}', [BudgetController::class, 'update']);
+    Route::delete('budgets/{id}', [BudgetController::class, 'destroy']);
+    Route::post('budgets/{id}/restore', [BudgetController::class, 'restore']);
+    /* Budgets */
+
+    /* Cost Centers */
+    Route::get('fetchcostcenters', [CostCenterController::class, 'fetch']);
+    Route::get('tax-exemptions', [TaxExemptionController::class, 'index']);
+    Route::post('tax-exemptions', [TaxExemptionController::class, 'store']);
+    Route::get('tax-exemptions/{id}', [TaxExemptionController::class, 'show']);
+    Route::put('tax-exemptions/{id}', [TaxExemptionController::class, 'update']);
+    Route::delete('tax-exemptions/{id}', [TaxExemptionController::class, 'destroy']);
+    Route::get('cost-centers', [CostCenterController::class, 'index']);
+    Route::post('cost-centers', [CostCenterController::class, 'store']);
+    Route::get('cost-centers/{id}', [CostCenterController::class, 'show']);
+    Route::put('cost-centers/{id}', [CostCenterController::class, 'update']);
+    Route::delete('cost-centers/{id}', [CostCenterController::class, 'destroy']);
+    /* Cost Centers */
+
+    /* Fixed Assets */
+    Route::get('asset-categories', [AssetCategoryController::class, 'index']);
+    Route::post('asset-categories', [AssetCategoryController::class, 'store']);
+    Route::get('asset-categories/{id}', [AssetCategoryController::class, 'show']);
+    Route::put('asset-categories/{id}', [AssetCategoryController::class, 'update']);
+    Route::delete('asset-categories/{id}', [AssetCategoryController::class, 'destroy']);
+    Route::get('depreciation', [FixedAssetDepreciationController::class, 'index']);
+    Route::get('depreciation/preview', [FixedAssetDepreciationController::class, 'preview']);
+    Route::post('depreciation/run', [FixedAssetDepreciationController::class, 'run']);
+    Route::post('fixed-assets/acquire', [FixedAssetAcquisitionController::class, 'acquire']);
+    Route::get('fixed-assets', [FixedAssetController::class, 'index']);
+    Route::post('fixed-assets', [FixedAssetController::class, 'store']);
+    Route::get('fixed-assets/{id}', [FixedAssetController::class, 'show']);
+    Route::put('fixed-assets/{id}', [FixedAssetController::class, 'update']);
+    Route::delete('fixed-assets/{id}', [FixedAssetController::class, 'destroy']);
+    Route::get('fixed-assets/{id}/history', [FixedAssetAcquisitionController::class, 'history']);
+    Route::post('fixed-assets/{id}/revalue', [FixedAssetLifecycleController::class, 'revalue']);
+    Route::post('fixed-assets/{id}/impair', [FixedAssetLifecycleController::class, 'impair']);
+    Route::post('fixed-assets/{id}/dispose', [FixedAssetLifecycleController::class, 'dispose']);
+    Route::get('asset-approvals', [AssetApprovalController::class, 'index']);
+    Route::post('asset-approvals/{id}/approve', [AssetApprovalController::class, 'approve']);
+    Route::post('asset-approvals/{id}/reject', [AssetApprovalController::class, 'reject']);
+    Route::post('fixed-assets/{id}/transfer', [FixedAssetTransferController::class, 'store']);
+    Route::post('fixed-assets/{id}/cwip-cost', [FixedAssetAcquisitionController::class, 'cwipCost']);
+    Route::post('fixed-assets/{id}/capitalise', [FixedAssetAcquisitionController::class, 'capitalise']);
+    /* Fixed Assets */
+
+    /* POS Shifts */
+    Route::get('pos-shifts', [PosShiftController::class, 'index']);
+    Route::get('pos-shifts/current', [PosShiftController::class, 'current']);
+    Route::post('pos-shifts/open', [PosShiftController::class, 'open']);
+    Route::get('pos-shifts/{id}', [PosShiftController::class, 'show']);
+    Route::post('pos-shifts/{id}/movement', [PosShiftController::class, 'movement']);
+    Route::post('pos-shifts/{id}/close', [PosShiftController::class, 'close']);
+    /* POS Shifts */
+
+    /* Audit Trail */
+    Route::get('audit-logs', [AuditLogController::class, 'index']);
+    /* Audit Trail */
+
+    /* Contact Duplicates */
+    Route::get('contacts/duplicates', [ContactDuplicateController::class, 'index']);
+    Route::post('contacts/duplicates/merge', [ContactDuplicateController::class, 'merge']);
+    /* Contact Duplicates */
 
     /* Supplier */
     Route::get('suppliers/trash', [SupplierController::class, 'trash']);
@@ -379,13 +553,14 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('/journal-entries/duplicate', [JournalEntryController::class, 'duplicate']);
     Route::post('/journal-entries/bulk_delete', [JournalEntryController::class, 'bulk_delete']);
 
-    /* Voucher Approval: journal entries, payments, expenses, deposits and fund transfers */
+    /* Voucher Approval: journal entries, payments, expenses, deposits, fund transfers and credit/debit notes */
     foreach ([
         'journal' => 'journal-entry-approvals',
         'payment' => 'payment-approvals',
         'expense' => 'expense-approvals',
         'deposit' => 'deposit-approvals',
         'fundtransfer' => 'fund-transfer-approvals',
+        'creditdebitnote' => 'credit-debit-note-approvals',
     ] as $family => $uri) {
         Route::get($uri, [VoucherApprovalController::class, 'index'])->defaults('family', $family);
         Route::get($uri.'/{id}', [VoucherApprovalController::class, 'show'])->defaults('family', $family);
@@ -423,6 +598,13 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('/fundtransfers/bulk_delete', [FundTransferController::class, 'bulk_delete']);
     /* Fund Transfer */
 
+    /* Credit/Debit Note */
+    Route::get('credit-debit-notes/voucher-no', [CreditDebitNoteController::class, 'voucherNo']);
+    Route::resource('credit-debit-notes', CreditDebitNoteController::class);
+    Route::post('/credit-debit-notes/duplicate', [CreditDebitNoteController::class, 'duplicate']);
+    Route::post('/credit-debit-notes/bulk_delete', [CreditDebitNoteController::class, 'bulk_delete']);
+    /* Credit/Debit Note */
+
     Route::get('purchases/search-products', [PurchaseController::class, 'searchProducts']);
     Route::get('purchases/trash', [PurchaseController::class, 'trash']);
     Route::resource('purchases', PurchaseController::class);
@@ -432,6 +614,18 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('purchases/bulk_delete_per', [PurchaseController::class, 'bulk_delete_per']);
     Route::post('purchases/restore_records', [PurchaseController::class, 'restore_records']);
     /* Purchase */
+
+    /* Purchase Requisition */
+    Route::get('purchase-requisitions/eligible', [PurchaseRequisitionController::class, 'eligible']);
+    Route::get('purchase-requisitions/{id}/lines', [PurchaseRequisitionController::class, 'linesForConversion']);
+    Route::resource('purchase-requisitions', PurchaseRequisitionController::class);
+    Route::post('/purchase-requisitions/bulk_delete', [PurchaseRequisitionController::class, 'bulk_delete']);
+
+    Route::get('purchase-requisition-approvals', [PurchaseRequisitionApprovalController::class, 'index']);
+    Route::get('purchase-requisition-approvals/{id}', [PurchaseRequisitionApprovalController::class, 'show']);
+    Route::post('purchase-requisition-approvals/{id}/approve', [PurchaseRequisitionApprovalController::class, 'approve']);
+    Route::post('purchase-requisition-approvals/{id}/reject', [PurchaseRequisitionApprovalController::class, 'reject']);
+    /* Purchase Requisition */
 
     /* Stock Transfer */
     Route::get('stocktransfers/search-products', [StockTransferController::class, 'searchProducts']);
@@ -456,6 +650,10 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     /* Warehouse */
     Route::get('warehouses/trash', [WarehouseController::class, 'trash']);
     Route::get('fetchwarehouses', [WarehouseController::class, 'fetch']);
+    Route::get('warehouse-locations', [WarehouseLocationController::class, 'index']);
+    Route::post('warehouse-locations', [WarehouseLocationController::class, 'store']);
+    Route::put('warehouse-locations/{id}', [WarehouseLocationController::class, 'update']);
+    Route::delete('warehouse-locations/{id}', [WarehouseLocationController::class, 'destroy']);
     Route::resource('warehouses', WarehouseController::class);
     Route::post('warehouses/statusupdate', [WarehouseController::class, 'updatestatus']);
     Route::post('warehouses/bulk_delete', [WarehouseController::class, 'bulk_delete']);
@@ -574,6 +772,152 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('commission-agents/restore_records', [CommissionAgentController::class, 'restore_records']);
     /* Commission Agent */
 
+    /* Leads (CRM) */
+    Route::get('leads/trash', [LeadController::class, 'trash']);
+    Route::get('fetchleads', [LeadController::class, 'fetch']);
+    // apiResource (not resource): "leads" is also the Inertia page prefix, so the web.php page route
+    // names (leads.edit, leads.view) would collide with a full resource's own leads.edit/leads.show
+    // names. apiResource only registers index/store/show/update/destroy, which is all this JSON
+    // controller has anyway.
+    Route::apiResource('leads', LeadController::class);
+    Route::post('leads/statusupdate', [LeadController::class, 'updatestatus']);
+    Route::post('leads/bulk_delete', [LeadController::class, 'bulk_delete']);
+    Route::post('leads/bulk_delete_per', [LeadController::class, 'bulk_delete_per']);
+    Route::post('leads/restore_records', [LeadController::class, 'restore_records']);
+    Route::post('leads/import', [LeadController::class, 'import']);
+    /* Leads (CRM) */
+
+    /* Lead Sources (CRM) */
+    Route::get('lead-sources/trash', [LeadSourceController::class, 'trash']);
+    Route::get('fetchleadsources', [LeadSourceController::class, 'fetch']);
+    Route::apiResource('lead-sources', LeadSourceController::class);
+    Route::post('lead-sources/statusupdate', [LeadSourceController::class, 'updatestatus']);
+    Route::post('lead-sources/bulk_delete', [LeadSourceController::class, 'bulk_delete']);
+    Route::post('lead-sources/bulk_delete_per', [LeadSourceController::class, 'bulk_delete_per']);
+    Route::post('lead-sources/restore_records', [LeadSourceController::class, 'restore_records']);
+    /* Lead Sources (CRM) */
+
+    /* Pipeline Stages (CRM) */
+    Route::get('pipeline-stages/trash', [PipelineStageController::class, 'trash']);
+    Route::get('fetchpipelinestages', [PipelineStageController::class, 'fetch']);
+    Route::apiResource('pipeline-stages', PipelineStageController::class);
+    Route::post('pipeline-stages/statusupdate', [PipelineStageController::class, 'updatestatus']);
+    Route::post('pipeline-stages/bulk_delete', [PipelineStageController::class, 'bulk_delete']);
+    Route::post('pipeline-stages/bulk_delete_per', [PipelineStageController::class, 'bulk_delete_per']);
+    Route::post('pipeline-stages/restore_records', [PipelineStageController::class, 'restore_records']);
+    /* Pipeline Stages (CRM) */
+
+    /* Opportunities (CRM) */
+    Route::get('opportunities/trash', [OpportunityController::class, 'trash']);
+    Route::get('opportunities/board', [OpportunityController::class, 'board']);
+    Route::get('fetchopportunities', [OpportunityController::class, 'fetch']);
+    Route::post('opportunities/{id}/move-stage', [OpportunityController::class, 'moveStage']);
+    Route::apiResource('opportunities', OpportunityController::class);
+    Route::post('opportunities/bulk_delete', [OpportunityController::class, 'bulk_delete']);
+    Route::post('opportunities/bulk_delete_per', [OpportunityController::class, 'bulk_delete_per']);
+    Route::post('opportunities/restore_records', [OpportunityController::class, 'restore_records']);
+    /* Opportunities (CRM) */
+
+    /* Activities (CRM) */
+    Route::get('activities/trash', [ActivityController::class, 'trash']);
+    Route::get('activities/timeline', [ActivityController::class, 'timeline']);
+    Route::post('activities/{id}/complete', [ActivityController::class, 'complete']);
+    Route::apiResource('activities', ActivityController::class);
+    Route::post('activities/bulk_delete', [ActivityController::class, 'bulk_delete']);
+    Route::post('activities/bulk_delete_per', [ActivityController::class, 'bulk_delete_per']);
+    Route::post('activities/restore_records', [ActivityController::class, 'restore_records']);
+    /* Activities (CRM) */
+
+    /* CRM Analytics */
+    Route::get('crmanalytics/conversion', [CrmReportController::class, 'conversion']);
+    Route::get('crmanalytics/pipeline', [CrmReportController::class, 'pipeline']);
+    Route::get('crmanalytics/sales-activity', [CrmReportController::class, 'salesActivity']);
+    Route::get('crmanalytics/salesperson-performance', [CrmReportController::class, 'salespersonPerformance']);
+    /* CRM Analytics */
+
+    /* Subscription Plans (SaaS Tenant Billing) */
+    Route::get('subscriptionplans/trash', [SubscriptionPlanController::class, 'trash']);
+    Route::get('fetchsubscriptionplans', [SubscriptionPlanController::class, 'fetch']);
+    Route::apiResource('subscriptionplans', SubscriptionPlanController::class);
+    Route::post('subscriptionplans/bulk_delete', [SubscriptionPlanController::class, 'bulk_delete']);
+    Route::post('subscriptionplans/bulk_delete_per', [SubscriptionPlanController::class, 'bulk_delete_per']);
+    Route::post('subscriptionplans/restore_records', [SubscriptionPlanController::class, 'restore_records']);
+    /* Subscription Plans (SaaS Tenant Billing) */
+
+    /* Coupons (SaaS Tenant Billing) */
+    Route::get('coupons/trash', [CouponController::class, 'trash']);
+    Route::get('fetchcoupons', [CouponController::class, 'fetch']);
+    Route::apiResource('coupons', CouponController::class);
+    Route::post('coupons/bulk_delete', [CouponController::class, 'bulk_delete']);
+    Route::post('coupons/bulk_delete_per', [CouponController::class, 'bulk_delete_per']);
+    Route::post('coupons/restore_records', [CouponController::class, 'restore_records']);
+    /* Coupons (SaaS Tenant Billing) */
+
+    /* Tenant Directory (SaaS Tenant Billing) */
+    Route::get('tenants', [TenantController::class, 'index']);
+    Route::get('tenants/{id}', [TenantController::class, 'show']);
+    Route::post('tenants/{id}/status', [TenantController::class, 'updateStatus']);
+    Route::post('tenants/{id}/plan', [TenantController::class, 'changePlan']);
+    /* Tenant Directory (SaaS Tenant Billing) */
+
+    /* Subscription Invoices (SaaS Tenant Billing) */
+    Route::get('subscriptioninvoices', [SubscriptionInvoiceController::class, 'index']);
+    Route::get('subscriptioninvoices/{id}', [SubscriptionInvoiceController::class, 'show']);
+    Route::post('subscriptioninvoices/generate', [SubscriptionInvoiceController::class, 'generate']);
+    Route::post('subscriptioninvoices/{id}/mark-paid', [SubscriptionInvoiceController::class, 'markPaid']);
+    Route::post('subscriptioninvoices/{id}/cancel', [SubscriptionInvoiceController::class, 'cancel']);
+    /* Subscription Invoices (SaaS Tenant Billing) */
+
+    /* Webhooks (Integrations & Open API) */
+    Route::get('webhooks/trash', [WebhookController::class, 'trash']);
+    Route::apiResource('webhooks', WebhookController::class);
+    Route::post('webhooks/bulk_delete', [WebhookController::class, 'bulk_delete']);
+    Route::post('webhooks/bulk_delete_per', [WebhookController::class, 'bulk_delete_per']);
+    Route::post('webhooks/restore_records', [WebhookController::class, 'restore_records']);
+    Route::get('webhooks/{id}/deliveries', [WebhookController::class, 'deliveries']);
+    /* Webhooks (Integrations & Open API) */
+
+    /* API Logs (Integrations & Open API) */
+    Route::get('apilogs', [ApiLogController::class, 'index']);
+    /* API Logs (Integrations & Open API) */
+
+    /* Customer Subscription Plans (Customer Subscription Module) */
+    Route::get('customersubscriptionplans/trash', [CustomerSubscriptionPlanController::class, 'trash']);
+    Route::get('fetchcustomersubscriptionplans', [CustomerSubscriptionPlanController::class, 'fetch']);
+    Route::apiResource('customersubscriptionplans', CustomerSubscriptionPlanController::class);
+    Route::post('customersubscriptionplans/bulk_delete', [CustomerSubscriptionPlanController::class, 'bulk_delete']);
+    Route::post('customersubscriptionplans/bulk_delete_per', [CustomerSubscriptionPlanController::class, 'bulk_delete_per']);
+    Route::post('customersubscriptionplans/restore_records', [CustomerSubscriptionPlanController::class, 'restore_records']);
+    /* Customer Subscription Plans (Customer Subscription Module) */
+
+    /* Customer Subscriptions (Customer Subscription Module) */
+    Route::get('customersubscriptions', [CustomerSubscriptionController::class, 'index']);
+    Route::post('customersubscriptions', [CustomerSubscriptionController::class, 'store']);
+    Route::get('customersubscriptions/{id}', [CustomerSubscriptionController::class, 'show']);
+    Route::post('customersubscriptions/{id}/change-plan', [CustomerSubscriptionController::class, 'changePlan']);
+    Route::post('customersubscriptions/{id}/pause', [CustomerSubscriptionController::class, 'pause']);
+    Route::post('customersubscriptions/{id}/resume', [CustomerSubscriptionController::class, 'resume']);
+    Route::post('customersubscriptions/{id}/cancel', [CustomerSubscriptionController::class, 'cancel']);
+    Route::post('customersubscriptions/{id}/usage', [CustomerSubscriptionController::class, 'recordUsage']);
+    /* Customer Subscriptions (Customer Subscription Module) */
+
+    /* Customer Subscription Invoices (Customer Subscription Module) */
+    Route::get('customersubscriptioninvoices', [CustomerSubscriptionInvoiceController::class, 'index']);
+    Route::get('customersubscriptioninvoices/{id}', [CustomerSubscriptionInvoiceController::class, 'show']);
+    Route::post('customersubscriptioninvoices/generate', [CustomerSubscriptionInvoiceController::class, 'generate']);
+    Route::post('customersubscriptioninvoices/{id}/mark-paid', [CustomerSubscriptionInvoiceController::class, 'markPaid']);
+    Route::post('customersubscriptioninvoices/{id}/cancel', [CustomerSubscriptionInvoiceController::class, 'cancel']);
+    Route::post('customersubscriptioninvoices/{id}/refund', [CustomerSubscriptionInvoiceController::class, 'refund']);
+    /* Customer Subscription Invoices (Customer Subscription Module) */
+
+    /* Customer Subscription Analytics (Customer Subscription Module) */
+    Route::get('customersubscriptionanalytics/summary', [CustomerSubscriptionReportController::class, 'summary']);
+    Route::get('customersubscriptionanalytics/churn', [CustomerSubscriptionReportController::class, 'churn']);
+    Route::get('customersubscriptionanalytics/ltv', [CustomerSubscriptionReportController::class, 'ltv']);
+    Route::get('customersubscriptionanalytics/revenue', [CustomerSubscriptionReportController::class, 'revenue']);
+    Route::get('customersubscriptionanalytics/renewal-due', [CustomerSubscriptionReportController::class, 'renewalDue']);
+    /* Customer Subscription Analytics (Customer Subscription Module) */
+
     /* Price List */
     Route::get('pricelists/search-products', [PriceListController::class, 'searchProducts']);
     Route::get('pricelists/trash', [PriceListController::class, 'trash']);
@@ -620,6 +964,12 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
         Route::get('reports/'.$report, [FinancialReportController::class, 'index'])->defaults('report', $report);
     }
     /* Financial statements */
+
+    /* Analytics reports */
+    foreach (array_keys(AnalyticsReportController::PERMISSIONS) as $report) {
+        Route::get('reports/'.$report, [AnalyticsReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Analytics reports */
 
     /* Party reports */
     foreach (array_keys(PartyReportController::PERMISSIONS) as $report) {
@@ -686,6 +1036,28 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('sell-approvals/{id}', [SellApprovalController::class, 'show']);
     Route::post('sell-approvals/{id}/approve', [SellApprovalController::class, 'approve']);
     /* Sell Approval */
+
+    /* Approval Center (Phase 1, easy half) */
+    Route::get('purchase-return-approvals', [PurchaseReturnApprovalController::class, 'index']);
+    Route::post('purchase-return-approvals/{id}/approve', [PurchaseReturnApprovalController::class, 'approve']);
+
+    Route::get('stock-adjustment-approvals', [StockAdjustmentApprovalController::class, 'index']);
+    Route::post('stock-adjustment-approvals/{id}/approve', [StockAdjustmentApprovalController::class, 'approve']);
+
+    Route::get('stock-transfer-approvals', [StockTransferApprovalController::class, 'index']);
+    Route::post('stock-transfer-approvals/{id}/approve', [StockTransferApprovalController::class, 'approve']);
+
+    Route::get('cash-collection-approvals', [CashCollectionApprovalController::class, 'index']);
+    Route::post('cash-collection-approvals/{id}/approve', [CashCollectionApprovalController::class, 'approve']);
+
+    Route::get('pricelist-approvals', [PriceListApprovalController::class, 'index']);
+    Route::post('pricelist-approvals/{id}/approve', [PriceListApprovalController::class, 'approve']);
+
+    Route::post('credit-limit-requests', [CreditLimitRequestController::class, 'store']);
+    Route::get('credit-limit-approvals', [CreditLimitApprovalController::class, 'index']);
+    Route::post('credit-limit-approvals/{id}/approve', [CreditLimitApprovalController::class, 'approve']);
+    Route::post('credit-limit-approvals/{id}/reject', [CreditLimitApprovalController::class, 'reject']);
+    /* Approval Center (Phase 1, easy half) */
 
     /* Issue Note */
     Route::get('issue-notes/eligible-sells', [IssueNoteController::class, 'eligibleSells']);
@@ -759,4 +1131,20 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('users/restore_records', [UserController::class, 'restore_records']);
     Route::post('users/{id}/send-credentials', [UserController::class, 'sendCredentials']);
     /* User */
+});
+
+/*
+ * Public REST API (Integrations & Open API) — a separate, versioned surface for external consumers,
+ * unlike the SPA-only API above (which has no version prefix because the SPA and its backend always
+ * ship together). Authenticated with the same Sanctum personal-access-token system as "Settings > API
+ * Keys" (ApiKeyController) — a key acts as its owner, so every request here is scoped to that owner's
+ * company exactly like the rest of the app. Read-only for this build: Products, Customers, Invoices.
+ */
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:public-api', LogPublicApiRequest::class])->group(function () {
+    Route::get('products', [PublicApiProductController::class, 'index']);
+    Route::get('products/{id}', [PublicApiProductController::class, 'show']);
+    Route::get('customers', [PublicApiCustomerController::class, 'index']);
+    Route::get('customers/{id}', [PublicApiCustomerController::class, 'show']);
+    Route::get('invoices', [PublicApiInvoiceController::class, 'index']);
+    Route::get('invoices/{id}', [PublicApiInvoiceController::class, 'show']);
 });

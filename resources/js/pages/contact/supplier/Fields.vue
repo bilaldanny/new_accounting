@@ -1,10 +1,10 @@
 <script setup lang="ts">
+    import { Building, Envelope, RefreshCw, SliderAlt, Store, UserCircle } from '@boxicons/vue';
+    import { usePage } from '@inertiajs/vue3';
+    import { computed, onMounted, ref, watch } from 'vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import useSuppliers from '@/composables/supplier';
-    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
-    import { computed, onMounted, ref, watch } from 'vue';
-    import { usePage } from '@inertiajs/vue3';
-    import { Building, Envelope, RefreshCw, SliderAlt, Store, UserCircle } from '@boxicons/vue';
 
     const params = defineProps({
         type: String,
@@ -806,6 +806,18 @@
     />
 
     <TextElement
+        id="StrnNumber"
+        field-name="StrnNumber"
+        name="strn_number"
+        label="Sales tax registration (STRN)"
+        placeholder="Sales tax registration (STRN)"
+        :columns="colThird"
+        autocomplete="off"
+        rules="nullable|max:255"
+        info="Sales tax registration number printed on invoices (optional)."
+    />
+
+    <TextElement
         id="OpeningBalance"
         field-name="OpeningBalance"
         name="opening_balance"
@@ -908,5 +920,42 @@
         :false-value="false"
         :default="true"
         info="Inactive suppliers are hidden from purchase and payment selection."
+    />
+
+    <ToggleElement
+        :labels="{ 1: 'Blacklisted', 0: 'Not blacklisted' }"
+        :columns="colThird"
+        id="IsBlacklisted"
+        field-name="IsBlacklisted"
+        name="is_blacklisted"
+        label="Blacklist"
+        :true-value="true"
+        :false-value="false"
+        :default="false"
+        info="Blacklisted suppliers cannot be used on new purchases."
+    />
+
+    <ToggleElement
+        :labels="{ 1: 'On hold', 0: 'Not on hold' }"
+        :columns="colThird"
+        id="IsOnHold"
+        field-name="IsOnHold"
+        name="is_on_hold"
+        label="Hold"
+        :true-value="true"
+        :false-value="false"
+        :default="false"
+        info="On-hold suppliers cannot be used on new purchases until released."
+    />
+
+    <TagsElement
+        id="Tags"
+        field-name="Tags"
+        name="tags"
+        label="Tags"
+        placeholder="Add a tag and press enter"
+        :columns="colFull"
+        :native="false"
+        info="Free-text tags for custom categorization (e.g. Preferred, Imports)."
     />
 </template>

@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
     import { Bell, Cog, HomeCircle, Menu, Power, Search, User } from '@boxicons/vue';
     import { Link, router, usePage } from '@inertiajs/vue3';
-    import { computed, ref } from 'vue';
+    import { computed, onMounted, ref } from 'vue';
     import useSidebarToggle from '@/composables/useSidebarToggle';
     import { dashboard, logout } from '@/routes';
 
@@ -9,6 +9,44 @@
     const page = usePage();
     const user = computed(() => (page.props as any)?.auth?.user || {});
     const searchQuery = ref('');
+
+    const notificationCounts = ref<Record<string, number>>({});
+    const notificationTotal = ref(0);
+
+    /** Where each kind of waiting item is handled (the dashboard's approval list, plus low stock). */
+    const notificationLinks: Record<string, { label: string; href: string }> = {
+        purchase: { label: 'Purchase orders to approve', href: '/purchase/approval' },
+        sell: { label: 'Sell orders to approve', href: '/sell/approval' },
+        journal: { label: 'Journal entries to approve', href: '/journalentry/approval' },
+        payment: { label: 'Payment vouchers to approve', href: '/acpayment/approval' },
+        expense: { label: 'Expense vouchers to approve', href: '/expense/approval' },
+        deposit: { label: 'Deposit vouchers to approve', href: '/deposit/approval' },
+        fundtransfer: { label: 'Fund transfers to approve', href: '/fundtransfer/approval' },
+        purchasereturn: { label: 'Purchase returns to approve', href: '/purchasereturn/approval' },
+        stockadjustment: { label: 'Stock adjustments to approve', href: '/stockadjustment/approval' },
+        stocktransfer: { label: 'Stock transfers to approve', href: '/stocktransfer/approval' },
+        cashcollection: { label: 'Cash collections to review', href: '/cashcollection/approval' },
+        pricelist: { label: 'Price lists to approve', href: '/pricelist/approval' },
+        creditlimit: { label: 'Credit limit requests', href: '/creditlimit/approval' },
+        low_stock: { label: 'Products at or under their alert quantity', href: '/lowstock' },
+    };
+
+    const notificationRows = computed(() => Object.entries(notificationCounts.value)
+        .filter(([key]) => notificationLinks[key] !== undefined)
+        .map(([key, count]) => ({ key, count, ...notificationLinks[key] })));
+
+    async function loadNotifications() {
+        try {
+            const response = await window.axios.get('/api/notifications/counts-by-type');
+            notificationCounts.value = response.data?.counts_by_type ?? {};
+            notificationTotal.value = Number(response.data?.total ?? 0);
+        } catch {
+            notificationCounts.value = {};
+            notificationTotal.value = 0;
+        }
+    }
+
+    onMounted(loadNotifications);
 
     const handleLogout = () => {
         router.flushAll();
@@ -62,10 +100,31 @@
                         ERP Synced
                     </span>
 
-                    <button type="button" class="topbar-bell" title="Notifications">
-                        <Bell size="sm" class="topbar-icon" aria-hidden="true" />
-                        <span class="topbar-bell__dot"></span>
-                    </button>
+                    <div class="dropdown">
+                        <button
+                            type="button"
+                            class="topbar-bell"
+                            title="Notifications"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            @click="loadNotifications"
+                        >
+                            <Bell size="sm" class="topbar-icon" aria-hidden="true" />
+                            <span v-if="notificationTotal > 0" class="topbar-bell__dot"></span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end topbar-user-menu" style="min-width: 18rem">
+                            <li class="topbar-user-menu__header">
+                                <p class="topbar-user-menu__name mb-0">Notifications</p>
+                                <p class="topbar-user-menu__email mb-0">{{ notificationTotal === 0 ? 'Nothing is waiting for you' : `${notificationTotal} waiting` }}</p>
+                            </li>
+                            <li v-for="row in notificationRows" :key="row.key">
+                                <Link class="dropdown-item d-flex justify-content-between gap-3" :href="row.href">
+                                    <span>{{ row.label }}</span>
+                                    <strong>{{ row.count }}</strong>
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
 
                     <div class="user-box dropdown">
                         <a

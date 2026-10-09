@@ -59,7 +59,7 @@ test('every bulk action rejects a body that is not a list of ids with a 422', fu
         }
     }
 
-    expect($uris)->toHaveCount(128)
+    expect($uris)->toHaveCount(157)
         ->and($wrong)->toBe([]);
 })->with('bav bad id lists');
 
@@ -140,7 +140,7 @@ test('every duplicate action rejects a missing or malformed id with a 422', func
         }
     }
 
-    expect($uris)->toHaveCount(24)
+    expect($uris)->toHaveCount(25)
         ->and($wrong)->toBe([]);
 })->with([
     'no id' => [[]],
@@ -205,7 +205,7 @@ test('every bulk and duplicate route is behind the guard, after the sign-in chec
             ->and(array_search('auth:sanctum', $middleware, true))->toBeLessThan(array_search(ValidateBulkActionBody::class, $middleware, true));
     }
 
-    expect($count)->toBe(152);
+    expect($count)->toBe(182);
 });
 
 test('a guest gets a 401 on a hostile body, not the validation answer', function () {

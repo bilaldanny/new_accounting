@@ -63,6 +63,7 @@
         branchesdata,
         customersdata,
         parentaccountdata,
+        childaccountdata,
         parentsaleaccountdata,
         parentpurchaseaccountdata,
         fetchCurrencies,
@@ -139,6 +140,7 @@
         if (!companyId || !branchId) {
             customersdata.value = [];
             parentaccountdata.value = [];
+            childaccountdata.value = [];
             parentsaleaccountdata.value = [];
             parentpurchaseaccountdata.value = [];
 
@@ -371,6 +373,7 @@
                             :form-data="formData"
                             :branchesdata="branchesdata"
                             :parentaccountdata="parentaccountdata"
+                            :childaccountdata="childaccountdata"
                             :parentsaleaccountdata="parentsaleaccountdata"
                             :parentpurchaseaccountdata="parentpurchaseaccountdata"
                             :show-branch-filter="showBranchFilter"

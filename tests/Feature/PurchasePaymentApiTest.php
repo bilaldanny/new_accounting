@@ -200,6 +200,55 @@ test('purchase payments cheque method requires a cheque number', function () {
         ->assertJsonValidationErrors(['cheque_number']);
 });
 
+test('a post-dated cheque records its own cheque_date, distinct from the plain cheque_number field', function () {
+    $scope = seedPurchasePaymentAccount(seedPurchaseScope());
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-100', 'cheque_date' => '2026-10-15',
+    ]))->assertSuccessful();
+
+    $payment = Payment::query()->where('transaction_id', $purchase->id)->latest('id')->firstOrFail();
+    expect($payment->cheque_number)->toBe('CHQ-100')
+        ->and($payment->cheque_date->toDateString())->toBe('2026-10-15');
+});
+
+test('a cheque date is rejected as an invalid date but is optional', function () {
+    $scope = seedPurchasePaymentAccount(seedPurchaseScope());
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-101', 'cheque_date' => 'not-a-date',
+    ]))->assertUnprocessable()->assertJsonValidationErrors(['cheque_date']);
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-102',
+    ]))->assertSuccessful();
+
+    $payment = Payment::query()->where('transaction_id', $purchase->id)->latest('id')->firstOrFail();
+    expect($payment->cheque_date)->toBeNull();
+});
+
+test('a cheque date is cleared when the payment is edited to a different method', function () {
+    $scope = seedPurchasePaymentAccount(seedPurchaseScope());
+    $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);
+    Sanctum::actingAs(User::query()->findOrFail(1));
+
+    $this->postJson('/api/purchase-payments', validPurchasePaymentPayload($scope, $purchase, [
+        'method' => 'cheque', 'cheque_number' => 'CHQ-200', 'cheque_date' => '2026-11-01',
+    ]))->assertSuccessful();
+    $payment = Payment::query()->where('transaction_id', $purchase->id)->latest('id')->firstOrFail();
+
+    $this->putJson('/api/purchase-payments/'.$payment->id, validPurchasePaymentPayload($scope, $purchase, [
+        'method' => 'cash',
+    ]))->assertSuccessful();
+
+    expect($payment->refresh()->cheque_date)->toBeNull()
+        ->and($payment->cheque_number)->toBeNull();
+});
+
 test('purchase payments api posts a balanced ledger voucher debiting the supplier and crediting cash', function () {
     $scope = seedPurchasePaymentAccount(seedPurchaseScope());
     $purchase = createPurchaseRecord($scope, ['final_amount' => 100]);

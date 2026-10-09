@@ -299,11 +299,36 @@ test('reversing a completed collection removes every payment and voucher it made
         ->and($collection->note)->toContain('Collected at the shop')->toContain('Wrong customer')
         ->and(Payment::query()->count())->toBe(0)
         ->and(TAccount::query()->count())->toBe(0)
-        ->and(CashCollectionAllocation::query()->count())->toBe(0)
         ->and($a->refresh()->payment_status)->toBe('due')
         ->and((float) $a->paid_amount)->toBe(0.0)
         ->and($b->refresh()->payment_status)->toBe('due')
         ->and((float) $b->paid_amount)->toBe(0.0);
+
+    // the allocation rows are kept, not deleted, so the collection's history stays visible
+    expect(CashCollectionAllocation::query()->count())->toBe(2)
+        ->and(CashCollectionAllocation::query()->whereNull('reversed_at')->count())->toBe(0)
+        ->and(CashCollectionAllocation::query()->whereNotNull('reversed_at')->count())->toBe(2);
+});
+
+test('reversing keeps the allocation rows visible on the collection but excludes them from a fresh completion and advance total', function () {
+    $scope = ccaScope();
+    // ccaCompleted() already kept a 50 advance and spent 30 of it on invoice B (20 left)
+    ['a' => $a, 'b' => $b, 'collection' => $collection] = ccaCompleted($scope);
+    expect($collection->refresh()->advanceRemaining())->toBe(20.0);
+
+    $this->postJson('/api/cash-collections/'.$collection->id.'/reverse')->assertSuccessful();
+    expect($collection->refresh()->advanceRemaining())->toBe(0.0);
+
+    // complete it again the same way: 100 on invoice A, 50 kept as advance
+    $response = ccaComplete($scope, $collection, [$a->id => 100], ['keep_advance' => true]);
+    $response->assertSuccessful();
+
+    // only the freshly created allocation's payment is reported, none of the reversed ones
+    expect($response->json('payments'))->toHaveCount(1)
+        ->and(CashCollectionAllocation::query()->count())->toBe(3)
+        ->and(CashCollectionAllocation::query()->whereNull('reversed_at')->count())->toBe(1)
+        // the new advance (50) must not be inflated by the old reversed advance-kind row (30)
+        ->and($collection->refresh()->advanceRemaining())->toBe(50.0);
 });
 
 test('a reversed collection can be corrected and completed again', function () {

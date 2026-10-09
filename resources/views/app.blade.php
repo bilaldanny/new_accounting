@@ -42,7 +42,6 @@
             <link href="{{ asset('assets/plugins/highcharts/css/highcharts.css') }}" rel="stylesheet">
             <link href="{{ asset('assets/plugins/vectormap/jquery-jvectormap-2.0.2.css') }}" rel="stylesheet">
         @endif
-        <link href="../../../css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 
         @fonts
 
@@ -77,7 +76,6 @@
             <!-- <script>
                 new PerfectScrollbar('.dashboard-top-countries');
             </script> -->
-            <script src="{{ asset('assets/js/index.js') }}"></script>
             <!--app JS-->
             <script src="{{ asset('assets/js/app.js') }}"></script>
         @endif
