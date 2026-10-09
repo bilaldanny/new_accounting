@@ -37,3 +37,9 @@ yarn-error.log
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+
+# Local scratch and server logs
+/mysql_boot.log
+/scratch_doc.xml
+/full-reaudit-2026-10.csv
+*.log
