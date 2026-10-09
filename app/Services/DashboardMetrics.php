@@ -2,8 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\CashCollection;
 use App\Models\ChartOfAccount;
 use App\Models\Contact;
+use App\Models\CreditLimitRequest;
+use App\Models\Payment;
+use App\Models\PriceList;
 use App\Models\Product;
 use App\Models\TAccount;
 use App\Models\Transaction;
@@ -14,6 +18,7 @@ use App\Services\Reports\PurchaseSaleSummary;
 use App\Services\Reports\StockValuation;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -48,6 +53,7 @@ class DashboardMetrics
         private readonly ProfitLossReport $profitLoss,
         private readonly AccountFigures $figures,
         private readonly SalesForecast $forecast,
+        private readonly UpcomingChequesReport $cheques,
     ) {}
 
     /**
@@ -147,6 +153,37 @@ class DashboardMetrics
     }
 
     /**
+     * Post-dated cheques (payments of method `cheque` with a `cheque_date`) not yet in the past, soonest first.
+     *
+     * @param  'given'|'received'  $direction
+     * @return array{count: int, items: list<array<string, mixed>>}
+     */
+    public function upcomingCheques(?int $companyId, ?int $branchId, CarbonInterface $today, string $direction): array
+    {
+        $query = $this->cheques->query($companyId, $branchId, $today->toDateString(), $direction);
+
+        return [
+            'count' => DB::query()->fromSub($query, 'chq')->count(),
+            'items' => (clone $query)
+                ->orderBy('p.cheque_date')
+                ->limit(self::LIST_SIZE)
+                ->get()
+                ->map(fn (object $row): array => [
+                    'payment_id' => (int) $row->payment_id,
+                    'cheque_number' => $row->cheque_number,
+                    'cheque_date' => $row->cheque_date,
+                    'amount' => round((float) $row->amount, 2),
+                    'is_return' => (bool) $row->is_return,
+                    'invoice_no' => $row->invoice_no,
+                    'transaction_type' => $row->transaction_type,
+                    'contact_name' => trim((string) $row->business_name) !== '' ? $row->business_name : trim(($row->first_name ?? '').' '.($row->last_name ?? '')),
+                    'branch_name' => $row->branch_name,
+                ])
+                ->all(),
+        ];
+    }
+
+    /**
      * @return array{value: float, uncosted: int, as_of: string}
      */
     public function stockOnHand(int $companyId, ?int $branchId, CarbonInterface $today): array
@@ -169,6 +206,12 @@ class DashboardMetrics
             $counts[$key] = match ($key) {
                 'purchase' => $this->scoped(Transaction::query()->purchases()->where('status', 'pending'), $companyId, $branchId)->count(),
                 'sell' => $this->scoped(Transaction::query()->sells()->where('status', 'final'), $companyId, $branchId)->count(),
+                'purchasereturn' => $this->scoped(Transaction::query()->purchaseReturns()->where('status', 'pending'), $companyId, $branchId)->count(),
+                'stockadjustment' => $this->scoped(Transaction::query()->adjustments()->where('status', 'pending'), $companyId, $branchId)->count(),
+                'stocktransfer' => $this->scoped(Transaction::query()->transfers()->where('status', 'pending'), $companyId, $branchId)->count(),
+                'cashcollection' => $this->scoped(CashCollection::query()->where('status', CashCollection::STATUS_PENDING), $companyId, $branchId)->count(),
+                'pricelist' => $this->scoped(PriceList::query()->where('status', 'pending'), $companyId, $branchId)->count(),
+                'creditlimit' => $this->scoped(CreditLimitRequest::query()->where('status', CreditLimitRequest::STATUS_PENDING), $companyId, $branchId)->count(),
                 default => $this->scoped(TAccount::query()->manualFamily($key)->where('status', TAccount::STATUS_PENDING), $companyId, $branchId)->count(),
             };
         }
@@ -191,6 +234,9 @@ class DashboardMetrics
         return [
             'net_profit' => $summary['net_profit'],
             'revenue' => $summary['revenue'],
+            'cogs' => $summary['cogs'],
+            'gross_profit' => $summary['gross_profit'],
+            'gross_margin' => $summary['revenue'] > 0 ? round($summary['gross_profit'] / $summary['revenue'] * 100, 2) : 0.0,
             'expenses' => $summary['expenses'],
             'net_margin' => $summary['net_margin'],
             'uncosted_stock' => $summary['uncosted_stock'],
@@ -255,6 +301,217 @@ class DashboardMetrics
         }
 
         return $counts;
+    }
+
+    /**
+     * Net sales and net purchases for each of the last `$months` calendar months (oldest first), and, when one
+     * company is covered, each month's net profit (the Profit & Loss report over that month).
+     *
+     * @return list<array{month: string, sales: float, purchases: float}>
+     */
+    public function trends(?int $companyId, ?int $branchId, CarbonInterface $today, int $months = 6): array
+    {
+        $rows = [];
+
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $start = $today->copy()->startOfMonth()->subMonthsNoOverflow($i);
+            $end = $i === 0 ? $today->copy() : $start->copy()->endOfMonth();
+            $figures = $this->summary($companyId, $branchId, $start, $end);
+
+            $rows[] = ['month' => $start->format('Y-m'), 'sales' => $figures['net_sales'], 'purchases' => $figures['net_purchases']];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Net profit for each of the last `$months` calendar months (oldest first). One company only.
+     *
+     * @return list<array{month: string, net_profit: float}>
+     */
+    public function profitTrend(int $companyId, ?int $branchId, CarbonInterface $today, int $months = 6): array
+    {
+        $rows = [];
+
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $start = $today->copy()->startOfMonth()->subMonthsNoOverflow($i);
+            $end = $i === 0 ? $today->copy() : $start->copy()->endOfMonth();
+
+            $summary = $this->profitLoss->build($companyId, $branchId, [
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+            ])['summary'];
+
+            $rows[] = ['month' => $start->format('Y-m'), 'net_profit' => (float) $summary['net_profit']];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * What is still unpaid on invoices, by how old the invoice is: 0-30, 31-60, 61-90 and over 90 days. Sales
+     * (not drafts or quotations) for receivables, approved or received purchases for payables. This is by invoice
+     * date and what its payments cover, so it can differ from the contact ledger total, which also holds
+     * opening balances and advances.
+     *
+     * @param  'sell'|'purchaseorder'  $type
+     * @return array{buckets: list<array{label: string, amount: float, count: int}>, total: float}
+     */
+    public function aging(?int $companyId, ?int $branchId, CarbonInterface $today, string $type): array
+    {
+        $paid = DB::table('payments')
+            ->selectRaw('transaction_id, SUM(CASE WHEN is_return = 1 THEN -amount ELSE amount END) as paid')
+            ->groupBy('transaction_id');
+
+        $invoices = $this->scoped(Transaction::query()->where('type', $type), $companyId, $branchId)
+            ->when($type === Transaction::TYPE_SELL, fn (Builder $query) => $query->whereNotIn('status', Transaction::UNPOSTED_SELL_STATUSES))
+            ->when($type !== Transaction::TYPE_SELL, fn (Builder $query) => $query->whereIn('status', ['approved', 'received']))
+            ->leftJoinSub($paid, 'pd', 'pd.transaction_id', '=', 'transactions.id')
+            ->get(['transactions.id', 'transactions.transaction_date', 'transactions.final_amount', DB::raw('COALESCE(pd.paid, 0) as paid')]);
+
+        $buckets = [
+            ['label' => '0-30 days', 'max' => 30, 'amount' => 0.0, 'count' => 0],
+            ['label' => '31-60 days', 'max' => 60, 'amount' => 0.0, 'count' => 0],
+            ['label' => '61-90 days', 'max' => 90, 'amount' => 0.0, 'count' => 0],
+            ['label' => 'Over 90 days', 'max' => PHP_INT_MAX, 'amount' => 0.0, 'count' => 0],
+        ];
+
+        foreach ($invoices as $invoice) {
+            $due = round((float) $invoice->final_amount - (float) $invoice->paid, 2);
+
+            if ($due <= 0 || $invoice->transaction_date === null) {
+                continue;
+            }
+
+            $age = (int) Carbon::parse($invoice->transaction_date)->startOfDay()->diffInDays($today->copy()->startOfDay(), false);
+
+            foreach ($buckets as $index => $bucket) {
+                if ($age <= $bucket['max']) {
+                    $buckets[$index]['amount'] = round($bucket['amount'] + $due, 2);
+                    $buckets[$index]['count']++;
+
+                    break;
+                }
+            }
+        }
+
+        return [
+            'buckets' => array_map(fn (array $bucket): array => ['label' => $bucket['label'], 'amount' => $bucket['amount'], 'count' => $bucket['count']], $buckets),
+            'total' => round(array_sum(array_column($buckets, 'amount')), 2),
+        ];
+    }
+
+    /**
+     * The best sellers of the last 30 days (by quantity sold) next to the dead stock: products with stock on
+     * hand that have not sold at all in the last 90 days. Expiry warnings come from the batch-tracked products: the
+     * batches that have stock and are expired or expire within 30 days (the earliest first), with how many of each.
+     *
+     * @return array{top_selling: list<array<string, mixed>>, dead_stock: list<array<string, mixed>>, expiring: list<array<string, mixed>>, expiry_counts: array{expired: int, expiring: int}}
+     */
+    public function inventoryMovement(?int $companyId, ?int $branchId, CarbonInterface $today): array
+    {
+        $sold = fn (int $days) => DB::table('sell_lines as sl')
+            ->join('transactions as t', 't.id', '=', 'sl.transaction_id')
+            ->where('t.type', Transaction::TYPE_SELL)
+            ->whereNull('t.deleted_at')
+            ->whereNotIn('t.status', Transaction::UNPOSTED_SELL_STATUSES)
+            ->whereDate('t.transaction_date', '>=', $today->copy()->subDays($days)->toDateString())
+            ->when($companyId !== null, fn ($query) => $query->where('t.company_id', $companyId))
+            ->when($branchId !== null, fn ($query) => $query->where('t.branch_id', $branchId));
+
+        $top = (clone $sold(30))
+            ->join('products as p', 'p.id', '=', 'sl.product_id')
+            ->groupBy('sl.product_id', 'p.name')
+            ->orderByDesc(DB::raw('SUM(sl.quantity)'))
+            ->limit(self::LIST_SIZE)
+            ->get(['sl.product_id', 'p.name', DB::raw('SUM(sl.quantity) as quantity')])
+            ->map(fn (object $row): array => ['product_id' => (int) $row->product_id, 'name' => (string) $row->name, 'quantity' => round((float) $row->quantity, 2)])
+            ->all();
+
+        $recentlySold = (clone $sold(90))->whereNotNull('sl.product_id')->select('sl.product_id');
+
+        $stock = DB::query()
+            ->fromSub(StockMovements::query(), 'm')
+            ->when($branchId !== null, fn ($query) => $query->where('m.branch_id', $branchId))
+            ->groupBy('m.product_id')
+            ->select('m.product_id', DB::raw('SUM(m.qty) as stock'));
+
+        $dead = DB::query()
+            ->fromSub($stock, 's')
+            ->join('products as p', 'p.id', '=', 's.product_id')
+            ->whereNull('p.deleted_at')
+            ->where('p.active', 1)
+            ->where('s.stock', '>', 0)
+            ->when($companyId !== null, fn ($query) => $query->where('p.company_id', $companyId))
+            ->whereNotIn('p.id', $recentlySold)
+            ->orderByDesc('s.stock')
+            ->limit(self::LIST_SIZE)
+            ->get(['p.id as product_id', 'p.name', 's.stock'])
+            ->map(fn (object $row): array => ['product_id' => (int) $row->product_id, 'name' => (string) $row->name, 'stock' => round((float) $row->stock, 2)])
+            ->all();
+
+        return ['top_selling' => $top, 'dead_stock' => $dead] + $this->expiringBatches($companyId, $branchId, $today);
+    }
+
+    /**
+     * @return array{expiring: list<array<string, mixed>>, expiry_counts: array{expired: int, expiring: int}}
+     */
+    private function expiringBatches(?int $companyId, ?int $branchId, CarbonInterface $today): array
+    {
+        if (! StockTracking::enabled()) {
+            return ['expiring' => [], 'expiry_counts' => ['expired' => 0, 'expiring' => 0]];
+        }
+
+        $soon = $today->copy()->addDays(30)->toDateString();
+        $batches = DB::query()
+            ->fromSub(StockTracking::batchStock(), 'x')
+            ->join('products as p', 'p.id', '=', 'x.product_id')
+            ->where('x.qty', '>', 0)
+            ->whereNotNull('x.expiry_date')
+            ->whereDate('x.expiry_date', '<=', $soon)
+            ->when($companyId !== null, fn ($query) => $query->where('x.company_id', $companyId))
+            ->when($branchId !== null, fn ($query) => $query->where('x.branch_id', $branchId))
+            ->orderBy('x.expiry_date')
+            ->get(['x.batch_id', 'x.branch_id', 'x.batch_no', 'x.expiry_date', 'x.qty', 'p.name']);
+
+        $day = $today->copy()->startOfDay();
+        $rows = $batches->map(function (object $row) use ($day): array {
+            $expiry = Carbon::parse(substr((string) $row->expiry_date, 0, 10))->startOfDay();
+
+            return ['batch_id' => (int) $row->batch_id, 'branch_id' => (int) $row->branch_id, 'name' => (string) $row->name, 'batch_no' => (string) $row->batch_no, 'expiry_date' => $expiry->toDateString(), 'days_left' => (int) $day->diffInDays($expiry, false), 'qty' => round((float) $row->qty, 2)];
+        });
+
+        return [
+            'expiring' => $rows->take(self::LIST_SIZE)->values()->all(),
+            'expiry_counts' => ['expired' => $rows->where('days_left', '<', 0)->count(), 'expiring' => $rows->where('days_left', '>=', 0)->count()],
+        ];
+    }
+
+    /**
+     * The latest payments received or made, newest first (a return shows as a return).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function recentPayments(?int $companyId, ?int $branchId): array
+    {
+        return Payment::query()
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->when($branchId !== null, fn (Builder $query) => $query->where('branch_id', $branchId))
+            ->with(['transaction:id,invoice_no,type', 'contact:id,business_name,first_name,last_name'])
+            ->orderByDesc('id')
+            ->limit(self::LIST_SIZE)
+            ->get()
+            ->map(fn (Payment $payment): array => [
+                'id' => $payment->id,
+                'invoice_no' => $payment->transaction?->invoice_no,
+                'direction' => $payment->transaction?->type === Transaction::TYPE_SELL ? 'received' : 'paid',
+                'contact' => $payment->contact === null ? '-' : PartyOutstandingReport::contactName($payment->contact),
+                'method' => $payment->method,
+                'is_return' => (bool) $payment->is_return,
+                'date' => $payment->paid_on,
+                'amount' => round((float) $payment->amount, 2),
+            ])
+            ->all();
     }
 
     /**

@@ -256,13 +256,31 @@
     async function handleCompanyChange() {
         state.search.branch_id = '';
         await fetchBranch(state.search.company_id);
+        await loadWarehouses();
         await loadProductFilters();
         await loadAccounts();
         await loadParties();
         await applyActiveFiscalYear();
     }
 
+    const warehousesdata = ref<Array<Record<string, any>>>([]);
+
+    async function loadWarehouses() {
+        state.search.warehouse_id = '';
+
+        if (! config.filters.warehouseFilter) {
+            return;
+        }
+
+        try {
+            warehousesdata.value = (await window.axios.get('/api/fetchwarehouses', { params: { branch_id: state.search.branch_id || undefined } })).data ?? [];
+        } catch {
+            warehousesdata.value = [];
+        }
+    }
+
     async function handleBranchChange() {
+        await loadWarehouses();
         await loadParties();
     }
 
@@ -291,6 +309,7 @@
         state.search.by_branch = false;
         state.search.from_branch_id = '';
         state.search.to_branch_id = '';
+        state.search.warehouse_id = '';
         state.search.account_group = '';
         state.search.voucher_type = 'all';
         state.search.status = config.filters.defaultStatus ?? '';
@@ -329,6 +348,8 @@
         if (state.search.company_id && showBranchFilter.value) {
             await fetchBranch(state.search.company_id);
         }
+
+        await loadWarehouses();
 
         await applyActiveFiscalYear();
 
@@ -442,6 +463,15 @@
                     </div>
                 </template>
 
+                <div v-if="config.filters.warehouseFilter" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-warehouse">Warehouse</label>
+                    <select id="report-filter-warehouse" v-model="state.search.warehouse_id" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="0">Unassigned</option>
+                        <option v-for="warehouse in warehousesdata" :key="warehouse.id" :value="warehouse.id">{{ warehouse.text ?? warehouse.name }}</option>
+                    </select>
+                </div>
+
                 <template v-if="config.filters.transferBranches">
                     <div class="col-md-4 col-lg-3 admin-filter-field">
                         <label class="form-label" for="report-filter-from-branch">From branch</label>
@@ -545,7 +575,7 @@
                 </div>
 
                 <div v-if="config.filters.statuses" class="col-md-4 col-lg-3 admin-filter-field">
-                    <label class="form-label" for="report-filter-status">Status</label>
+                    <label class="form-label" for="report-filter-status">{{ config.filters.statusLabel ?? 'Status' }}</label>
                     <select id="report-filter-status" v-model="state.search.status" class="form-select form-select-sm">
                         <option v-for="option in config.filters.statuses" :key="option.value" :value="option.value">
                             {{ option.label }}

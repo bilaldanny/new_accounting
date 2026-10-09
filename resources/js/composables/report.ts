@@ -38,7 +38,29 @@ export type ReportKey =
     | 'trial-balance'
     | 'vouchers'
     | 'profit-loss'
-    | 'balance-sheet';
+    | 'balance-sheet'
+    | 'sales-discount'
+    | 'purchase-price-trend'
+    | 'supplier-performance'
+    | 'backorder'
+    | 'fsn'
+    | 'cash-collection'
+    | 'payment-account'
+    | 'payment-age'
+    | 'consolidated-branch'
+    | 'financial-ratios'
+    | 'cash-flow'
+    | 'register'
+    | 'activity-summary'
+    | 'change-history'
+    | 'price-history'
+    | 'cost-center-analysis'
+    | 'budget-vs-actual'
+    | 'warehouse-stock'
+    | 'stock-movement-history'
+    | 'warehouse-usage'
+    | 'serial-traceability'
+    | 'batch-expiry';
 
 export type ReportColumn = {
     key: string;
@@ -63,6 +85,10 @@ export type ReportFilters = {
     /** Which party the contact filter lists, if any. */
     party?: 'customer' | 'supplier' | 'both';
     statuses?: { value: string; label: string }[];
+    /** A warehouse selector (All, Unassigned, then the warehouses of the chosen branch). */
+    warehouseFilter?: boolean;
+    /** The heading of the status selector when it is not a status (for example a grouping). */
+    statusLabel?: string;
     defaultStatus?: string;
     paymentStatus?: boolean;
     methods?: boolean;
@@ -845,6 +871,544 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
         ],
         searchPlaceholder: '',
     },
+
+    'sales-discount': {
+        title: 'Sales Discount Report',
+        subtitle: 'Every posted sale that gave a discount: what its lines gave and what the invoice-level discount gave. Drafts and quotations are left out. Defaults to the last 30 days.',
+        exportName: 'sales-discount-report',
+        filters: {},
+        columns: [
+            text('transaction_date', 'Date'),
+            text('invoice_no', 'Invoice No', ALL, 'primary'),
+            text('contact_name', 'Customer', MID),
+            money('gross', 'List Value', WIDE),
+            money('line_discount', 'Line Discount', MID),
+            money('header_discount', 'Invoice Discount', MID),
+            money('total_discount', 'Total Discount'),
+            money('discount_percent', 'Discount %', MID),
+            money('final_amount', 'Invoice Total', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Discounted sales', kind: 'count' },
+            { key: 'gross', label: 'List value' },
+            { key: 'total_discount', label: 'Discount given', accent: true },
+            { key: 'discount_percent', label: 'Discount % of list' },
+        ],
+        searchPlaceholder: 'Invoice or customer',
+    },
+    'purchase-price-trend': {
+        title: 'Purchase Price Trend',
+        subtitle: 'The weighted average, lowest and highest purchase rate of each product by month, and the change against its previous month. Defaults to the last 12 months.',
+        exportName: 'purchase-price-trend',
+        filters: {},
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('month', 'Month'),
+            qty('quantity', 'Quantity', MID),
+            money('average_rate', 'Average Rate'),
+            money('min_rate', 'Lowest', WIDE),
+            money('max_rate', 'Highest', WIDE),
+            known('change_percent', 'Change %', MID),
+        ],
+        summary: [
+            { key: 'count', label: 'Product-months', kind: 'count' },
+            { key: 'products', label: 'Products', kind: 'count' },
+            { key: 'rising', label: 'Prices rising', kind: 'count' },
+            { key: 'falling', label: 'Prices falling', kind: 'count' },
+        ],
+        searchPlaceholder: 'Product name',
+    },
+    'supplier-performance': {
+        title: 'Supplier Performance & Comparison',
+        subtitle: 'Suppliers ranked by what was bought from them: returns and return rate, what was paid and what is still owed, the average order and the last purchase. Defaults to the last 365 days.',
+        exportName: 'supplier-performance',
+        filters: {},
+        columns: [
+            count('rank', 'Rank', MID),
+            text('supplier_name', 'Supplier', ALL, 'primary'),
+            count('purchase_count', 'Orders', MID),
+            money('purchased', 'Purchased'),
+            money('returned', 'Returned', WIDE),
+            money('return_rate', 'Return %', MID),
+            money('paid', 'Paid', WIDE),
+            money('outstanding', 'Outstanding', MID),
+            money('average_order', 'Average Order', WIDE),
+            text('last_purchase', 'Last Purchase', WIDE),
+        ],
+        summary: [
+            { key: 'suppliers', label: 'Suppliers', kind: 'count' },
+            { key: 'purchased', label: 'Purchased' },
+            { key: 'return_rate', label: 'Return rate %' },
+            { key: 'outstanding', label: 'Outstanding', accent: true },
+        ],
+        searchPlaceholder: 'Supplier name',
+    },
+    backorder: {
+        title: 'Backorder Report',
+        subtitle: 'Purchase order lines still waiting for goods: ordered, received and still pending, and how long the order has been open.',
+        exportName: 'backorder-report',
+        filters: {},
+        columns: [
+            text('transaction_date', 'Ordered'),
+            text('invoice_no', 'Order No', ALL, 'primary'),
+            text('supplier_name', 'Supplier', MID),
+            text('product_name', 'Product'),
+            qty('ordered', 'Ordered', MID),
+            qty('received', 'Received', WIDE),
+            qty('pending', 'Pending'),
+            count('days_open', 'Days Open', MID),
+        ],
+        summary: [
+            { key: 'lines', label: 'Open lines', kind: 'count' },
+            { key: 'orders', label: 'Orders', kind: 'count' },
+            { key: 'pending', label: 'Quantity pending', accent: true },
+            { key: 'oldest_days', label: 'Oldest (days)', kind: 'count' },
+        ],
+        searchPlaceholder: 'Order, product or supplier',
+    },
+    fsn: {
+        title: 'Fast / Slow-Moving & Dead Stock',
+        subtitle: 'Products with stock or sales, by how much sold in the period (default the last 90 days). No sale in the period is Non-moving (dead stock); of the rest, above the median sold quantity is Fast and the others Slow.',
+        exportName: 'fsn-report',
+        filters: {},
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            qty('stock', 'Stock'),
+            qty('sold', 'Sold', MID),
+            text('last_sale', 'Last Sale', WIDE),
+            known('days_since_last_sale', 'Days Since', WIDE),
+            text('class', 'Class', ALL),
+        ],
+        summary: [
+            { key: 'products', label: 'Products', kind: 'count' },
+            { key: 'fast', label: 'Fast', kind: 'count' },
+            { key: 'slow', label: 'Slow', kind: 'count' },
+            { key: 'non_moving', label: 'Non-moving', kind: 'count', accent: true },
+            { key: 'dead_stock_units', label: 'Dead stock units' },
+        ],
+        searchPlaceholder: 'Product name',
+    },
+    'cash-collection': {
+        title: 'Cash Collection Report',
+        subtitle: 'Cash collections by the day collected, with who collected them, their status and what was kept as advance. Defaults to the last 30 days.',
+        exportName: 'cash-collection-report',
+        filters: { statuses: [{ value: 'all', label: 'All' }, { value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }, { value: 'cancelled', label: 'Cancelled' }], defaultStatus: 'all' },
+        columns: [
+            text('collected_on', 'Collected'),
+            text('reference', 'Reference', ALL, 'primary'),
+            text('contact_name', 'Customer', MID),
+            text('collector', 'Collector', WIDE),
+            money('amount', 'Amount'),
+            money('advance_amount', 'Advance', WIDE),
+            text('status', 'Status', MID),
+            text('completed_at', 'Completed', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Collections', kind: 'count' },
+            { key: 'total', label: 'Total' },
+            { key: 'completed', label: 'Completed' },
+            { key: 'pending', label: 'Pending', accent: true },
+        ],
+        searchPlaceholder: 'Reference, customer or collector',
+    },
+    'payment-account': {
+        title: 'Payments by Payment Account',
+        subtitle: 'Money received on sales and paid on purchases through each cash or bank account and method, by the day recorded. Defaults to the last 30 days.',
+        exportName: 'payment-account-report',
+        filters: {},
+        columns: [
+            text('account_code', 'Account', WIDE),
+            text('account_name', 'Account Name', ALL, 'primary'),
+            text('method', 'Method', MID),
+            count('count', 'Payments', MID),
+            money('received', 'Received'),
+            money('paid', 'Paid'),
+            money('net', 'Net', MID),
+        ],
+        summary: [
+            { key: 'count', label: 'Payments', kind: 'count' },
+            { key: 'received', label: 'Received' },
+            { key: 'paid', label: 'Paid' },
+            { key: 'net', label: 'Net', accent: true },
+        ],
+        searchPlaceholder: 'Account name or code',
+    },
+    'payment-age': {
+        title: 'Payments by Age',
+        subtitle: 'How long after the invoice date payments were made: 0-30, 31-60, 61-90 and over 90 days, for money received and money paid. Defaults to the last 30 days of payments.',
+        exportName: 'payment-age-report',
+        filters: {},
+        columns: [
+            text('direction', 'Direction', ALL, 'primary'),
+            text('bucket', 'Age'),
+            count('count', 'Payments', MID),
+            money('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'received', label: 'Received' },
+            { key: 'received_over_60', label: 'Received after 60 days' },
+            { key: 'paid', label: 'Paid' },
+            { key: 'paid_over_60', label: 'Paid after 60 days', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'consolidated-branch': {
+        title: 'Consolidated Multi-Branch Report',
+        subtitle: 'The purchase and sale summary of each branch side by side, with the company total. Defaults to the last 30 days.',
+        exportName: 'consolidated-branch-report',
+        filters: { requiresCompany: true },
+        columns: [
+            text('branch_name', 'Branch', ALL, 'primary'),
+            money('net_sales', 'Net Sales'),
+            money('net_purchases', 'Net Purchases'),
+            money('result', 'Sales less Purchases', MID),
+            money('sales_due', 'Sales Due', WIDE),
+            money('purchase_due', 'Purchase Due', WIDE),
+        ],
+        summary: [
+            { key: 'branches', label: 'Branches', kind: 'count' },
+            { key: 'net_sales', label: 'Net sales' },
+            { key: 'net_purchases', label: 'Net purchases' },
+            { key: 'result', label: 'Sales less purchases', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'financial-ratios': {
+        title: 'Financial Ratios',
+        subtitle: 'Margins, returns and leverage from the Balance Sheet on the end day and the Profit & Loss over the range (the financial year to date by default). No current ratio: the chart of accounts has no current / non-current flag.',
+        exportName: 'financial-ratios',
+        filters: { requiresCompany: true },
+        columns: [
+            text('group', 'Group', MID),
+            text('label', 'Ratio', ALL, 'primary'),
+            known('value', 'Value'),
+            text('unit', 'Unit', MID),
+            text('formula', 'Formula', WIDE),
+        ],
+        summary: [
+            { key: 'gross_margin', label: 'Gross margin %' },
+            { key: 'net_margin', label: 'Net margin %' },
+            { key: 'debt_ratio', label: 'Debt ratio %' },
+            { key: 'debt_to_equity', label: 'Debt to equity', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'cash-flow': {
+        title: 'Cash Flow Statement',
+        subtitle: 'Direct method: the cash and bank accounts\' movement by what the other side of each voucher was, as Operating, Investing and Financing (read from the account class and name). The financial year to date by default.',
+        exportName: 'cash-flow-statement',
+        filters: { requiresCompany: true },
+        columns: [
+            text('section', 'Section', MID),
+            text('account_code', 'Account', WIDE),
+            text('account_name', 'Counter Account', ALL, 'primary'),
+            money('inflow', 'Cash In', MID),
+            money('outflow', 'Cash Out', MID),
+            money('net', 'Net'),
+        ],
+        summary: [
+            { key: 'operating', label: 'Operating' },
+            { key: 'investing', label: 'Investing' },
+            { key: 'financing', label: 'Financing' },
+            { key: 'net_change', label: 'Net change', accent: true },
+            { key: 'opening_cash', label: 'Opening cash' },
+            { key: 'closing_cash', label: 'Closing cash' },
+        ],
+        searchPlaceholder: '',
+    },
+    register: {
+        title: 'Register, Z & Cashier Report',
+        subtitle: 'Every POS shift opened in the range with its cashier, sales, cash expected, cash counted and variance. A closed shift shows its frozen Z report. Defaults to the last 30 days.',
+        exportName: 'register-report',
+        filters: { statuses: [{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'closed', label: 'Closed' }], defaultStatus: 'all' },
+        columns: [
+            text('opened_at', 'Opened'),
+            text('cashier', 'Cashier', ALL, 'primary'),
+            text('branch_name', 'Branch', WIDE),
+            text('status', 'Status', MID),
+            count('sales_count', 'Sales', MID),
+            money('sales_total', 'Sales Total', MID),
+            money('expected_cash', 'Expected Cash'),
+            known('counted_cash', 'Counted', MID),
+            known('variance', 'Variance'),
+        ],
+        summary: [
+            { key: 'shifts', label: 'Shifts', kind: 'count' },
+            { key: 'sales_total', label: 'Sales' },
+            { key: 'variance', label: 'Net variance', accent: true },
+            { key: 'short_shifts', label: 'Shifts short', kind: 'count' },
+        ],
+        searchPlaceholder: 'Cashier or branch',
+    },
+    'activity-summary': {
+        title: 'Activity Log & User Audit Trail',
+        subtitle: 'How many records each user created, updated and deleted, by kind of record. The entries themselves are in the Data Change History. Defaults to the last 30 days.',
+        exportName: 'activity-summary',
+        filters: {},
+        columns: [
+            text('user_name', 'User', ALL, 'primary'),
+            text('model', 'Record', MID),
+            count('created', 'Created', MID),
+            count('updated', 'Updated', MID),
+            count('deleted', 'Deleted', MID),
+            count('total', 'Total'),
+            text('last_activity', 'Last Activity', WIDE),
+        ],
+        summary: [
+            { key: 'users', label: 'Users', kind: 'count' },
+            { key: 'created', label: 'Created', kind: 'count' },
+            { key: 'updated', label: 'Updated', kind: 'count' },
+            { key: 'deleted', label: 'Deleted', kind: 'count' },
+        ],
+        searchPlaceholder: 'User or record kind',
+    },
+    'change-history': {
+        title: 'Data Change History',
+        subtitle: 'The Activity Log, one row per changed field, with the old and the new value. Search by a kind of record, a record number or a field name. Defaults to the last 30 days.',
+        exportName: 'change-history',
+        filters: {},
+        columns: [
+            text('created_at', 'When'),
+            text('user_name', 'User', MID),
+            text('model', 'Record', MID),
+            count('record_id', 'No.', MID),
+            text('event', 'Event', WIDE),
+            text('field', 'Field', ALL, 'primary'),
+            text('old_value', 'Old Value'),
+            text('new_value', 'New Value'),
+        ],
+        summary: [
+            { key: 'changes', label: 'Changes', kind: 'count' },
+            { key: 'records', label: 'Records', kind: 'count' },
+            { key: 'users', label: 'Users', kind: 'count' },
+        ],
+        searchPlaceholder: 'Record kind, number or field',
+    },
+    'price-history': {
+        title: 'Product Cost & Price Change History',
+        subtitle: 'Every change of a variation\'s purchase price, sell price, profit % and minimum or maximum price, with the old and new value, from the Activity Log. Defaults to the last 90 days.',
+        exportName: 'price-change-history',
+        filters: {},
+        columns: [
+            text('created_at', 'When'),
+            text('product_name', 'Product', ALL, 'primary'),
+            text('field_label', 'Field', MID),
+            known('old_value', 'Old'),
+            known('new_value', 'New'),
+            known('change_percent', 'Change %', MID),
+            text('user_name', 'User', WIDE),
+        ],
+        summary: [
+            { key: 'changes', label: 'Changes', kind: 'count' },
+            { key: 'products', label: 'Products', kind: 'count' },
+            { key: 'increases', label: 'Increases', kind: 'count' },
+            { key: 'decreases', label: 'Decreases', kind: 'count' },
+        ],
+        searchPlaceholder: 'Product name',
+    },
+    'cost-center-analysis': {
+        title: 'Cost Center & Department Analysis',
+        subtitle: 'Revenue, cost of goods sold and expenses of the approved vouchers, grouped by cost center, by department or by branch. Defaults to the last 30 days.',
+        exportName: 'cost-center-analysis',
+        filters: {
+            requiresCompany: true,
+            statusLabel: 'Group by',
+            defaultStatus: 'cost_center',
+            statuses: [
+                { value: 'cost_center', label: 'Cost center' },
+                { value: 'department', label: 'Department' },
+                { value: 'branch', label: 'Branch' },
+            ],
+        },
+        columns: [
+            text('name', 'Group', ALL, 'primary'),
+            money('revenue', 'Revenue'),
+            money('cogs', 'Cost of goods sold', MID),
+            money('expenses', 'Expenses'),
+            money('net', 'Net'),
+        ],
+        summary: [
+            { key: 'groups', label: 'Groups', kind: 'count' },
+            { key: 'revenue', label: 'Revenue', kind: 'amount' },
+            { key: 'expenses', label: 'Expenses', kind: 'amount' },
+            { key: 'net', label: 'Net', kind: 'amount', accent: true },
+        ],
+        searchPlaceholder: 'Group name',
+    },
+    'budget-vs-actual': {
+        title: 'Budget vs Actual',
+        subtitle: 'Each budget line against what the approved ledger booked in the same branch, cost center and account. A positive variance is favourable. Defaults to the year so far; every month the range touches counts whole.',
+        exportName: 'budget-vs-actual',
+        filters: { requiresCompany: true },
+        columns: [
+            text('cost_center_name', 'Cost center', ALL, 'primary'),
+            text('account_name', 'Account'),
+            text('branch_name', 'Branch', WIDE),
+            money('budget', 'Budget'),
+            money('actual', 'Actual'),
+            money('variance', 'Variance'),
+            known('variance_percent', 'Variance %', MID),
+            text('status', 'Status', MID),
+        ],
+        summary: [
+            { key: 'lines', label: 'Budget lines', kind: 'count' },
+            { key: 'budget', label: 'Expense budget', kind: 'amount' },
+            { key: 'actual', label: 'Actual expenses', kind: 'amount' },
+            { key: 'variance', label: 'Variance', kind: 'amount', accent: true },
+            { key: 'over_budget', label: 'Lines over budget', kind: 'count' },
+        ],
+        searchPlaceholder: 'Cost center or account',
+    },
+    'warehouse-stock': {
+        title: 'Warehouse Stock',
+        subtitle: 'The stock of each product in each warehouse of each branch, on a day (default today). Stock from documents that name no warehouse is shown as Unassigned, so the warehouses of a branch always add up to its stock. Read-only.',
+        exportName: 'warehouse-stock',
+        filters: {
+            asOf: true,
+            warehouseFilter: true,
+            statusLabel: 'Show',
+            defaultStatus: 'all',
+            statuses: [
+                { value: 'all', label: 'All stock' },
+                { value: 'assigned', label: 'In a warehouse' },
+                { value: 'unassigned', label: 'Unassigned' },
+            ],
+        },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('variation_name', 'Variation', WIDE),
+            text('sku', 'SKU', WIDE),
+            text('branch_name', 'Branch', MID),
+            text('warehouse_name', 'Warehouse'),
+            qty('on_hand', 'In warehouse'),
+            qty('branch_total', 'Branch stock', MID),
+            text('unit_name', 'Unit', WIDE),
+        ],
+        summary: [
+            { key: 'rows', label: 'Rows', kind: 'count' },
+            { key: 'warehouses', label: 'Warehouses', kind: 'count' },
+            { key: 'assigned_qty', label: 'In warehouses', kind: 'count' },
+            { key: 'unassigned_qty', label: 'Unassigned', kind: 'count' },
+        ],
+        searchPlaceholder: 'Product name or SKU',
+    },
+    'stock-movement-history': {
+        title: 'Stock Movement History',
+        subtitle: 'Every stock movement in the range, one per row with its document, branch and warehouse, going in or out in base units. Movements of documents that name no warehouse are Unassigned. Defaults to the last 30 days.',
+        exportName: 'stock-movement-history',
+        filters: { warehouseFilter: true },
+        columns: [
+            text('document_date', 'Date'),
+            text('document_no', 'Document', ALL, 'primary'),
+            text('movement', 'Movement'),
+            text('product_name', 'Product'),
+            text('sku', 'SKU', WIDE),
+            text('branch_name', 'Branch', MID),
+            text('warehouse_name', 'Warehouse', MID),
+            qty('qty_in', 'In'),
+            qty('qty_out', 'Out'),
+            text('unit_name', 'Unit', WIDE),
+        ],
+        summary: [
+            { key: 'movements', label: 'Movements', kind: 'count' },
+            { key: 'qty_in', label: 'In', kind: 'count' },
+            { key: 'qty_out', label: 'Out', kind: 'count' },
+            { key: 'net', label: 'Net', kind: 'count', accent: true },
+        ],
+        searchPlaceholder: 'Product, SKU or document',
+    },
+    'warehouse-usage': {
+        title: 'Warehouse Capacity & Usage',
+        subtitle: 'Each active warehouse with its capacity, the stock it holds on a day (default today) and how full it is, in base units of the products. Set the capacity on the warehouse. Stock of documents that name no warehouse is in none of them.',
+        exportName: 'warehouse-usage',
+        filters: { asOf: true },
+        columns: [
+            text('warehouse_name', 'Warehouse', ALL, 'primary'),
+            text('branch_name', 'Branch', MID),
+            known('capacity', 'Capacity'),
+            qty('used', 'In stock'),
+            known('free', 'Free', MID),
+            known('usage_percent', 'Used %'),
+            text('status', 'Status', MID),
+        ],
+        summary: [
+            { key: 'warehouses', label: 'Warehouses', kind: 'count' },
+            { key: 'capacity', label: 'Capacity', kind: 'count' },
+            { key: 'used', label: 'In stock', kind: 'count' },
+            { key: 'over_capacity', label: 'Over capacity', kind: 'count', accent: true },
+        ],
+        searchPlaceholder: 'Warehouse name',
+    },
+    'serial-traceability': {
+        title: 'Serial / IMEI Traceability Log',
+        subtitle: 'Every movement of every serial number - received, moved between branches, sold, registered by hand or written off - with its document, branch and note. A movement whose document was deleted or is still a draft shows as Reversed: it no longer counts. Search a serial number to follow one unit from the supplier to the customer.',
+        exportName: 'serial-traceability',
+        filters: {
+            statuses: [
+                { value: '', label: 'All movements' },
+                { value: 'receive', label: 'Received' },
+                { value: 'sale', label: 'Sold' },
+                { value: 'transfer_out', label: 'Transfer out' },
+                { value: 'transfer_in', label: 'Transfer in' },
+                { value: 'register', label: 'Registered' },
+                { value: 'write_off', label: 'Written off' },
+            ],
+            statusLabel: 'Movement',
+            defaultStatus: '',
+        },
+        columns: [
+            text('document_date', 'Date'),
+            text('serial_no', 'Serial / IMEI', ALL, 'primary'),
+            text('product_name', 'Product'),
+            text('movement', 'Movement'),
+            text('direction', 'In / Out', WIDE),
+            text('branch_name', 'Branch', MID),
+            text('document_no', 'Document', MID),
+            text('document_type', 'Type', WIDE),
+            text('counts', 'Counts', MID),
+            text('note', 'Note', WIDE),
+        ],
+        summary: [
+            { key: 'movements', label: 'Movements', kind: 'count' },
+            { key: 'serials', label: 'Serials', kind: 'count' },
+            { key: 'reversed', label: 'Reversed', kind: 'count', accent: true },
+        ],
+        searchPlaceholder: 'Serial number, product or document',
+    },
+    'batch-expiry': {
+        title: 'Batch Expiry Report',
+        subtitle: 'Every batch that still has stock, per branch, with its expiry date and the days left, the earliest expiry first. Expiring soon means within 30 days. The end date keeps the batches that expire on or before it.',
+        exportName: 'batch-expiry',
+        filters: {
+            statuses: [
+                { value: '', label: 'All batches' },
+                { value: 'Expired', label: 'Expired' },
+                { value: 'Expiring soon', label: 'Expiring soon' },
+                { value: 'OK', label: 'OK' },
+                { value: 'No expiry date', label: 'No expiry date' },
+            ],
+            statusLabel: 'Expiry',
+            defaultStatus: '',
+            asOf: true,
+        },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('batch_no', 'Batch'),
+            text('branch_name', 'Branch', MID),
+            text('expiry_date', 'Expires'),
+            known('days_left', 'Days left'),
+            qty('qty', 'In stock'),
+            text('status', 'Status'),
+        ],
+        summary: [
+            { key: 'batches', label: 'Batches', kind: 'count' },
+            { key: 'qty', label: 'In stock', kind: 'count' },
+            { key: 'expired_qty', label: 'Expired', kind: 'count', accent: true },
+            { key: 'expiring_qty', label: 'Expiring soon', kind: 'count' },
+        ],
+        searchPlaceholder: 'Product or batch number',
+    },
 };
 
 export const ADJUSTMENT_TYPES = [
@@ -905,6 +1469,7 @@ export default function useReport(report: ReportKey) {
             by_branch: false,
             from_branch_id: '' as string | number,
             to_branch_id: '' as string | number,
+            warehouse_id: '' as string | number,
             account_code: '',
             account_group: '' as string | number,
             voucher_type: 'all',

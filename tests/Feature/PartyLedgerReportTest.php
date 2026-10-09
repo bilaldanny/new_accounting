@@ -110,6 +110,14 @@ test('rolling back removes the report and the group and it can be applied again'
     (require database_path('migrations/2026_09_21_140000_add_stock_report_menus.php'))->down();
     (require database_path('migrations/2026_09_21_150000_add_ledger_report_menus.php'))->down();
     (require database_path('migrations/2026_09_21_160000_add_financial_report_menus.php'))->down();
+    (require database_path('migrations/2026_10_09_100000_add_analytics_report_menus.php'))->down();
+    (require database_path('migrations/2026_10_10_100100_add_pricing_cluster_menus.php'))->down();
+    (require database_path('migrations/2026_10_16_100100_add_cost_center_menus.php'))->down();
+    (require database_path('migrations/2026_10_17_200000_add_budget_vs_actual_menu.php'))->down();
+    (require database_path('migrations/2026_10_18_100100_add_warehouse_stock_menu.php'))->down();
+    (require database_path('migrations/2026_10_19_100000_add_stock_movement_history_menu.php'))->down();
+    (require database_path('migrations/2026_10_20_100100_add_warehouse_location_menus.php'))->down();
+    (require database_path('migrations/2026_10_26_100000_add_stock_tracking_menus.php'))->down();
     reportsMenuMigration()->down();
 
     expect(reportsGroupId())->toBeNull()

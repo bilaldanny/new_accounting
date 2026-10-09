@@ -2,9 +2,9 @@
 
 namespace App\Services\Reports;
 
-use App\Services\ContactLedger;
 use App\Models\Contact;
 use App\Models\FinancialYear;
+use App\Services\ContactLedger;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Reports;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesReportScope;
+use App\Http\Controllers\Controller;
 use App\Services\Reports\ExpenseReport;
 use App\Services\Reports\PaymentListReport;
 use App\Services\Reports\StockAdjustmentReport;

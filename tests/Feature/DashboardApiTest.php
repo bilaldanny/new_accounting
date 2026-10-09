@@ -320,7 +320,7 @@ test('the approvals card counts what is waiting on each approval page', function
 
     $counts = dshData('approvals', ['company_id' => $scope['company_id']]);
 
-    expect($counts)->toBe(['purchase' => 2, 'sell' => 3, 'journal' => 1, 'payment' => 3, 'expense' => 1, 'deposit' => 4, 'fundtransfer' => 3]);
+    expect($counts)->toBe(['purchase' => 2, 'sell' => 3, 'journal' => 1, 'payment' => 3, 'expense' => 1, 'deposit' => 4, 'fundtransfer' => 3, 'purchasereturn' => 0, 'stockadjustment' => 0, 'stocktransfer' => 0, 'cashcollection' => 0, 'pricelist' => 0, 'creditlimit' => 0]);
 });
 
 // --- net profit, cash and bank -------------------------------------------------------------------
@@ -513,7 +513,7 @@ test('the superadmin gets every part', function () {
     foreach (DashboardController::PERMISSIONS as $widget => $parts) {
         $data = dshGet($widget, ['company_id' => $scope['company_id']])->assertSuccessful()->json('data');
 
-        expect(array_keys($data))->toEqualCanonicalizing(array_keys($widget === 'recent' ? ['recent_sales' => 1] : $parts));
+        expect(array_keys($data))->toEqualCanonicalizing(array_keys($parts));
     }
 });
 

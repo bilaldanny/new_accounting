@@ -2,11 +2,11 @@
 
 namespace App\Services\Reports;
 
+use App\Models\Transaction;
 use App\Services\ContactLedger;
 use App\Services\PurchaseJournal;
 use App\Services\SellJournal;
 use App\Services\StockMovements;
-use App\Models\Transaction;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;

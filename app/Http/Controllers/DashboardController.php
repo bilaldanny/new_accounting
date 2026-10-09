@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -43,11 +44,17 @@ class DashboardController extends Controller
         'approvals' => [
             'purchase' => '/purchase/approval', 'sell' => '/sell/approval', 'journal' => '/journalentry/approval',
             'payment' => '/acpayment/approval', 'expense' => '/expense/approval', 'deposit' => '/deposit/approval', 'fundtransfer' => '/fundtransfer/approval',
+            'purchasereturn' => '/purchasereturn/approval', 'stockadjustment' => '/stockadjustment/approval', 'stocktransfer' => '/stocktransfer/approval',
+            'cashcollection' => '/cashcollection/approval', 'pricelist' => '/pricelist/approval', 'creditlimit' => '/creditlimit/approval',
         ],
         'financial' => ['net_profit' => '/report/profit-loss', 'cash_bank' => '/chart-of-account'],
+        'cheques' => ['given' => '/purchase/payment', 'received' => '/sell/payment'],
         'stats' => ['customers' => '/customer', 'suppliers' => '/supplier', 'products' => '/product'],
-        'recent' => ['recent_sales' => '/sell'],
+        'recent' => ['recent_sales' => '/sell', 'recent_payments' => '/sell/payment'],
         'forecast' => ['sales_forecast' => '/report/purchase-sale'],
+        'trends' => ['trends' => '/report/purchase-sale', 'profit_trend' => '/report/profit-loss'],
+        'aging' => ['receivable_aging' => '/report/customer-outstanding', 'payable_aging' => '/report/supplier-outstanding'],
+        'movement' => ['inventory_movement' => '/report/stock'],
     ];
 
     /**
@@ -55,7 +62,9 @@ class DashboardController extends Controller
      *
      * @var list<string>
      */
-    private const NEEDS_COMPANY = ['receivables', 'payables', 'credit_watch', 'stock_value', 'net_profit', 'cash_bank'];
+    private const NEEDS_COMPANY = ['receivables', 'payables', 'credit_watch', 'stock_value', 'net_profit', 'cash_bank', 'profit_trend'];
+
+    private ?CarbonInterface $asOf = null;
 
     public function __construct(private readonly DashboardMetrics $metrics) {}
 
@@ -67,7 +76,10 @@ class DashboardController extends Controller
             'company_id' => 'nullable|integer',
             'branch_id' => 'nullable|integer',
             'refresh' => 'nullable|in:0,1,true,false',
+            'as_of' => 'nullable|date',
         ]);
+
+        $this->asOf = $request->filled('as_of') ? Carbon::parse($request->input('as_of'))->startOfDay() : null;
 
         [$companyId, $branchId] = $this->reportScope($request);
         $refresh = $request->boolean('refresh');
@@ -129,6 +141,24 @@ class DashboardController extends Controller
 
     /**
      * @param  list<string>  $wanted
+     * @param  list<string>  $cachedAt
+     * @return array<string, mixed>
+     */
+    private function cheques(array $wanted, ?int $companyId, ?int $branchId, bool $refresh, array &$cachedAt): array
+    {
+        $data = [];
+
+        foreach (['given', 'received'] as $direction) {
+            if (in_array($direction, $wanted, true)) {
+                $data[$direction] = $this->cached('cheques_'.$direction, $companyId, $branchId, $refresh, $cachedAt, fn (): array => $this->metrics->upcomingCheques($companyId, $branchId, $this->today(), $direction));
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  list<string>  $wanted
      * @return array<string, mixed>
      */
     private function approvals(array $wanted, ?int $companyId, ?int $branchId): array
@@ -181,7 +211,87 @@ class DashboardController extends Controller
      */
     private function recent(array $wanted, ?int $companyId, ?int $branchId): array
     {
-        return ['recent_sales' => $this->metrics->recentSales($companyId, $branchId)];
+        $data = [];
+
+        if (in_array('recent_sales', $wanted, true)) {
+            $data['recent_sales'] = $this->metrics->recentSales($companyId, $branchId);
+        }
+
+        if (in_array('recent_payments', $wanted, true)) {
+            $data['recent_payments'] = $this->metrics->recentPayments($companyId, $branchId);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  list<string>  $wanted
+     * @param  list<string>  $cachedAt
+     * @return array<string, mixed>
+     */
+    private function trends(array $wanted, ?int $companyId, ?int $branchId, bool $refresh, array &$cachedAt): array
+    {
+        $data = [];
+
+        if (in_array('trends', $wanted, true)) {
+            $data['trends'] = $this->cached('trends', $companyId, $branchId, $refresh, $cachedAt, fn (): array => $this->metrics->trends($companyId, $branchId, $this->today()));
+        }
+
+        if (in_array('profit_trend', $wanted, true)) {
+            $data['profit_trend'] = $this->cached('profit_trend', $companyId, $branchId, $refresh, $cachedAt, fn (): array => $this->metrics->profitTrend($companyId, $branchId, $this->today()));
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  list<string>  $wanted
+     * @param  list<string>  $cachedAt
+     * @return array<string, mixed>
+     */
+    private function aging(array $wanted, ?int $companyId, ?int $branchId, bool $refresh, array &$cachedAt): array
+    {
+        $data = [];
+
+        foreach (['receivable_aging' => 'sell', 'payable_aging' => 'purchaseorder'] as $part => $type) {
+            if (in_array($part, $wanted, true)) {
+                $data[$part] = $this->cached($part, $companyId, $branchId, $refresh, $cachedAt, fn (): array => $this->metrics->aging($companyId, $branchId, $this->today(), $type));
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  list<string>  $wanted
+     * @param  list<string>  $cachedAt
+     * @return array<string, mixed>
+     */
+    private function movement(array $wanted, ?int $companyId, ?int $branchId, bool $refresh, array &$cachedAt): array
+    {
+        return ['inventory_movement' => $this->cached('inventory_movement', $companyId, $branchId, $refresh, $cachedAt, fn (): array => $this->metrics->inventoryMovement($companyId, $branchId, $this->today()))];
+    }
+
+    /**
+     * The in-app notification bell: how many things wait for this user, by kind (each approval queue and low
+     * stock), each counted only when the user may open the page it comes from.
+     */
+    public function notifications(Request $request): JsonResponse
+    {
+        [$companyId, $branchId] = $this->reportScope($request);
+
+        $approvalKeys = array_keys(array_filter(self::PERMISSIONS['approvals'], fn (string $path): bool => hasMenuPermission($path)));
+        $counts = array_filter($this->metrics->approvals($companyId, $branchId, $approvalKeys));
+
+        if (hasMenuPermission(self::PERMISSIONS['inventory']['low_stock'])) {
+            $low = $this->metrics->lowStockAlerts($companyId, $branchId)['count'];
+
+            if ($low > 0) {
+                $counts['low_stock'] = $low;
+            }
+        }
+
+        return response()->json(['counts_by_type' => $counts, 'total' => array_sum($counts)]);
     }
 
     /**
@@ -192,7 +302,7 @@ class DashboardController extends Controller
      */
     private function cached(string $part, ?int $companyId, ?int $branchId, bool $refresh, array &$cachedAt, Closure $compute): array
     {
-        $key = "dashboard:{$part}:{$companyId}:{$branchId}";
+        $key = "dashboard:{$part}:{$companyId}:{$branchId}:".$this->today()->toDateString();
 
         if ($refresh) {
             Cache::forget($key);
@@ -206,6 +316,6 @@ class DashboardController extends Controller
 
     private function today(): CarbonInterface
     {
-        return today();
+        return $this->asOf ?? today();
     }
 }

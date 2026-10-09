@@ -2,8 +2,8 @@
 
 namespace App\Services\Reports;
 
-use App\Services\StockMovements;
 use App\Models\Transaction;
+use App\Services\StockMovements;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use stdClass;

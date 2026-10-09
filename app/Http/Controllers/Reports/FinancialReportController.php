@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Reports;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\PaginatesReportRows;
 use App\Http\Controllers\Concerns\ResolvesReportScope;
+use App\Http\Controllers\Controller;
 use App\Services\Reports\BalanceSheetReport;
 use App\Services\Reports\ProfitLossReport;
 use Illuminate\Http\JsonResponse;

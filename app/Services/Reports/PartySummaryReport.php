@@ -2,8 +2,8 @@
 
 namespace App\Services\Reports;
 
-use App\Services\ContactLedger;
 use App\Models\Transaction;
+use App\Services\ContactLedger;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;

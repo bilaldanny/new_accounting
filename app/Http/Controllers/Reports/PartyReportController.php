@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Reports;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\PaginatesReportRows;
 use App\Http\Controllers\Concerns\ResolvesReportScope;
+use App\Http\Controllers\Controller;
 use App\Services\Reports\CustomerGroupReport;
 use App\Services\Reports\PartyAgingReport;
 use App\Services\Reports\PartyOutstandingReport;

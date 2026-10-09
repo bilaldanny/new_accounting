@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\DB;
  * reports that need a cost use this: every purchase line of a non-draft purchase, `purchase_rate x
  * quantity x packing_qty` over `quantity x packing_qty` in base units, with what was returned to the
  * supplier taken off both. Purchases dated after the day asked for are not known yet and are left out.
- * A variation that was never purchased has no cost (null), never a guessed zero.
+ * A variation that was never purchased has no cost (null), never a guessed zero. The landed cost of the line
+ * (freight, duty and so on spread over it, see Services\LandedCost) is added to its cost, in proportion to what
+ * was not returned.
  */
 class AverageCost
 {
@@ -64,6 +66,8 @@ class AverageCost
     {
         $packing = self::PACKING;
 
-        return "sum(apl.purchase_rate * (apl.quantity - apl.quantity_returned) * {$packing}) / nullif(sum((apl.quantity - apl.quantity_returned) * {$packing}), 0)";
+        $landed = 'coalesce(apl.landed_cost * (apl.quantity - apl.quantity_returned) / nullif(apl.quantity, 0), 0)';
+
+        return "sum(apl.purchase_rate * (apl.quantity - apl.quantity_returned) * {$packing} + {$landed}) / nullif(sum((apl.quantity - apl.quantity_returned) * {$packing}), 0)";
     }
 }
