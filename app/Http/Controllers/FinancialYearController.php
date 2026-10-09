@@ -13,7 +13,7 @@ class FinancialYearController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->authorizeCompanySettingMenuPermission();
+        $this->authorizeCompanySettingOrMenuPermission('/financialyear');
 
         $sortBy = $request->input('sort_by', 'created_at');
         $sortType = $request->input('sort_type', 'desc');
@@ -41,7 +41,7 @@ class FinancialYearController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeCompanySettingMenuPermission();
+        $this->authorizeCompanySettingOrMenuPermission('/financialyear/add');
 
         $request->validate([
             'start_date' => 'required|string',
@@ -60,7 +60,7 @@ class FinancialYearController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $this->authorizeCompanySettingMenuPermission();
+        $this->authorizeCompanySettingOrMenuPermission('/financialyear/add');
         $financialYear = FinancialYear::query()->visibleToCurrentUser()->findOrFail($id);
 
         if ($request->input('updatetype') !== 'status') {

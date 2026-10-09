@@ -1,0 +1,132 @@
+<script setup lang="ts">
+    import { Head, router } from '@inertiajs/vue3';
+    import { computed, onMounted, ref } from 'vue';
+    import Loader from '@/components/Loader.vue';
+    import TheForm from '@/components/theForm.vue';
+    import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import useCommons from '@/composables/common';
+    import useCreditDebitNotes from '@/composables/creditdebitnote';
+    import CreditDebitNoteFormChrome from './CreditDebitNoteFormChrome.vue';
+    import Fields from './Fields.vue';
+
+    const pageProps = defineProps({
+        id: {
+            required: true,
+            type: [String, Number],
+        },
+    });
+
+    defineOptions({
+        layout: {
+            title: 'Edit Credit/Debit Note',
+            subtitle: 'Update the note\'s date, reference, amount or account',
+            breadcrumbs: [
+                {
+                    title: 'Credit/Debit Note',
+                    href: '/creditdebitnote',
+                },
+                {
+                    title: 'Edit Credit/Debit Note',
+                    href: 'NULL',
+                },
+            ],
+        },
+    });
+
+    const { Notify, handleError, formatedText } = useCommons();
+    const { formData, getEditData } = useCreditDebitNotes();
+
+    const formRef = ref<any>(null);
+    const isSaving = ref(false);
+    const isLeaving = ref(false);
+    const pageReady = ref(false);
+    const saveAction = ref<'close' | 'add-new'>('close');
+    const isWorking = computed(() => isSaving.value || isLeaving.value);
+    const isBusy = computed(() => ! pageReady.value || isWorking.value);
+    const recordId = computed(() => Number(pageProps.id));
+    const endpoint = computed(() => `${API_ENDPOINTS.creditDebitNotes}/${recordId.value}`);
+
+    const isReady = computed(() => Boolean(formData.value?.contact_id) && Boolean(formData.value?.account_id) && Number(formData.value?.amount) > 0);
+
+    function handleFormError(error: unknown, details?: unknown) {
+        handleError(error, details, formRef);
+    }
+
+    async function submitCreditDebitNote(form$: { data?: Record<string, unknown> }) {
+        const response = await window.axios.post(endpoint.value, {
+            ...form$?.data,
+            attachments: formData.value?.attachments ?? [],
+            voucher_type: formData.value?.voucher_type ?? 'CN',
+            comments: formData.value?.comments ?? '',
+        });
+
+        if (response.data?.errormessage) {
+            handleFormError({ response }, { type: 'submit' });
+
+            return response;
+        }
+
+        Notify(response.data?.message || 'Successfully Saved', 'success');
+        isLeaving.value = true;
+        await router.visit(saveAction.value === 'add-new' ? '/creditdebitnote/add' : '/creditdebitnote');
+
+        return response;
+    }
+
+    function save(action: 'close' | 'add-new') {
+        saveAction.value = action;
+        formRef.value?.submitForm();
+    }
+
+    onMounted(async () => {
+        const loaded = await getEditData(recordId.value);
+
+        if (! loaded) {
+            router.visit('/creditdebitnote');
+
+            return;
+        }
+
+        pageReady.value = true;
+    });
+</script>
+
+<template>
+    <Head :title="`Edit ${formatedText('creditdebitnote')}`" />
+
+    <div class="product-form-page journal-form-page">
+        <CreditDebitNoteFormChrome
+            mode="edit"
+            :is-busy="isBusy"
+            :is-working="isWorking"
+            :save-action="saveAction"
+            :save-disabled="!isReady"
+            :voucher-no="String(formData?.voucher_no ?? '')"
+            @cancel="router.visit('/creditdebitnote')"
+            @save="save"
+        >
+            <div class="product-form product-form--sectioned">
+                <Loader v-if="!pageReady" message="Loading credit/debit note…" />
+
+                <TheForm
+                    v-else
+                    v-model:submitting="isSaving"
+                    :key="endpoint"
+                    :onSubmit="submitCreditDebitNote"
+                    :formData="formData"
+                    :show-required="[]"
+                    :error="handleFormError"
+                    :url="endpoint"
+                    ref="formRef"
+                >
+                    <Fields
+                        type="edit"
+                        :record-id="recordId"
+                        :form-data="formData"
+                        :form-ref="formRef"
+                    />
+                </TheForm>
+            </div>
+        </CreditDebitNoteFormChrome>
+    </div>
+</template>
