@@ -3,11 +3,37 @@
 Steps to set up a new client. Everything here exists in the codebase today; each step names the page or command.
 Page paths are the sidebar paths; run the commands from the project root.
 
+## 0. Two ways to start: self-signup or manual
+
+**Self-signup (the client does it).** The public landing page at `/` has Register and Login buttons and shows the active subscription plans.
+A visitor registers at `/register` with company name, their name, email, phone and password, and in one database transaction
+(`App\Services\SelfSignup`) gets:
+
+- the company, its first branch (`headoffice`), the admin user and the shared `companyadmin` role, exactly as an administrator would create;
+- a SaaS tenant record on a trial for the chosen plan (status `trial`, `trial_ends_at` = the plan's trial days, the plan's limits copied
+  onto the company). Only an active plan with trial days can be chosen; with no such plan the company starts as a trial on the default limits;
+- the starter staff roles of step 2 (`RolePresets::sync`) and the withholding tax accounts of step 3 (created and mapped for the branch);
+- an automatic login and a redirect to the dashboard. If anything fails, nothing is created.
+
+Controls: `PUBLIC_REGISTRATION_ENABLED=false` closes it (the button becomes "Contact us" and `/register` answers 403); 5 attempts per minute per
+IP; a hidden honeypot field; an already-registered email gets the same generic error as any other failure. The landing page's contact
+details come from `LANDING_CONTACT_EMAIL`, `LANDING_CONTACT_PHONE`, `LANDING_CONTACT_ADDRESS`, the product name from `LANDING_BRAND` and a
+currency label for plan prices from `LANDING_CURRENCY_LABEL` (see `config/landing.php`). Payment is manual (bank transfer): there is no
+payment gateway, and an operator marks invoices paid in Billing.
+
+After a self-signup, steps 4 to 8 below are still the client's to do (financial year, tax rates, FBR note, staff roles, smoke test); steps 1 to 3
+are already done, so only check them.
+
+**Manual onboarding (an operator does it)** is still possible and is what steps 1 to 3 describe.
+
 ## 1. Create the company and its first branch
 
 - Page: `/company` (Add New). Needs a superadmin.
 - Saving a company also creates, in one go: its settings row, its first branch (`headoffice`), its hidden company-admin role and the admin user
   (`CompanyController::store`).
+- Caution: the admin made here is given a new company role named `companyadmin` that has **no menus ticked**, while every existing admin (and every
+  self-signup) uses the one shared `companyadmin` role (the row with an empty company, which the menu migrations keep granting menus to). If a
+  manually created admin sees an empty menu, point that user at the shared role. Self-signup does this for you.
 - More branches: `/branch` (Add New). A new branch gets its chart-of-account roots and its account mapping automatically, including the
   **Withholding Tax Receivable** and **Withholding Tax Payable** accounts (created and mapped for you, see step 3).
 - Note the company id and branch id for step 2:
