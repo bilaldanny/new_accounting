@@ -13,8 +13,9 @@ use Illuminate\Validation\ValidationException;
  * - Sell return: Dr Sales (value of the goods), Dr Output Tax (the tax), Cr Customer (the whole return).
  * - Purchase return: Dr Supplier (the whole return), Cr Purchase (value of the goods), Cr Input Tax (the tax).
  *
- * Only a return that carries tax is posted. An untaxed return has never had a voucher and still has none, so nothing about it
- * changes. When the branch has no tax account mapped the tax stays inside the sales or purchase leg, as it did on the original
+ * Every return of a document that is itself in the books is posted, with or without tax (without tax there is no tax leg). Before
+ * this, a return reached the ledger nowhere: sales and the customer's account were not reduced by it. Old returns are not
+ * backfilled. When the branch has no tax account mapped the tax stays inside the sales or purchase leg, as it did on the original
  * document. The voucher is keyed by the return (like a sale's), so saving the return again rewrites it, and deleting the return
  * removes it.
  */
@@ -27,7 +28,10 @@ class ReturnJournal
         $isSell = $return->type === Transaction::TYPE_SELL_RETURN;
         $tax = round((float) $return->tax_amount, 2);
 
-        if ($tax <= 0.0) {
+        // A return is in the books only where the document it returns is: a customer or supplier whose invoices were never
+        // journalled is read from the documents themselves (returns included), and one voucher would switch that account over to the
+        // journal and hide the rest.
+        if ((float) $return->final_amount <= 0.0 || ! TAccount::query()->where('transaction_id', $return->parent_id)->exists()) {
             $this->deleteFor($return);
 
             return null;
@@ -43,7 +47,7 @@ class ReturnJournal
         $gross = round((float) $return->final_amount, 2);
         $goodsAccount = $this->goodsAccount($return, $isSell, (string) $party->type);
         $partyAccount = $this->partyAccount($return, $isSell, $party->customer_gl_id, $party->supplier_gl_id, $party->gl_id);
-        $taxAccount = $this->ledger->accountFromMapping($return, $isSell ? 'outputtax' : 'inputtax');
+        $taxAccount = $tax > 0.0 ? $this->ledger->accountFromMapping($return, $isSell ? 'outputtax' : 'inputtax') : null;
         $useTaxLeg = $taxAccount !== null;
         $goods = $useTaxLeg ? round($gross - $tax, 2) : $gross;
 

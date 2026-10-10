@@ -217,6 +217,7 @@ class Transaction extends Model
             'is_direct' => 'boolean',
             'is_print' => 'boolean',
             'is_edit' => 'boolean',
+            'returned_lines' => 'array',
             'link_account' => 'boolean',
             'total_item' => 'integer',
             'discount_amount' => 'decimal:2',
@@ -3623,6 +3624,8 @@ class Transaction extends Model
         $purchase = self::findVisiblePurchase((int) $note->parent_id);
 
         if ($purchase !== null) {
+            $note->returned_lines = self::returnedQuantities($purchase->purchaselines);
+            $note->save();
             $purchase->purchaselines()->update(['quantity_returned' => 0]);
         }
 
@@ -4039,6 +4042,8 @@ class Transaction extends Model
         $sell = self::findVisibleSell((int) $note->parent_id);
 
         if ($sell !== null) {
+            $note->returned_lines = self::returnedQuantities($sell->selllines);
+            $note->save();
             $sell->selllines()->update(['quantity_returned' => 0]);
         }
 
@@ -4048,6 +4053,88 @@ class Transaction extends Model
         if ($sell !== null) {
             app(SaleIncentives::class)->refreshSale($sell);
         }
+    }
+
+    /**
+     * The returned quantity of each line of a document, by line id, as kept on a return when it is deleted.
+     *
+     * @param  iterable<SellLine|PurchaseLine>  $lines
+     * @return array<int, float>
+     */
+    private static function returnedQuantities(iterable $lines): array
+    {
+        $kept = [];
+
+        foreach ($lines as $line) {
+            if ((float) $line->quantity_returned > 0.0) {
+                $kept[(int) $line->id] = (float) $line->quantity_returned;
+            }
+        }
+
+        return $kept;
+    }
+
+    /**
+     * Restores deleted sell / purchase returns and puts the returned quantities back on their document's lines (deleting a return
+     * took them off). A return whose document is gone or already has another return cannot come back, and a return deleted before
+     * its quantities were kept cannot be rebuilt: both are refused whole, with nothing restored.
+     *
+     * @param  iterable<int|string>  $ids
+     *
+     * @throws ValidationException
+     */
+    public static function restoreReturns(iterable $ids): int
+    {
+        $notes = self::onlyTrashed()
+            ->whereIn('type', [self::TYPE_SELL_RETURN, self::TYPE_PURCHASE_RETURN])
+            ->whereIn('id', collect($ids)->map(fn (int|string $id): int => (int) $id)->all())
+            ->get();
+
+        foreach ($notes as $note) {
+            $isSell = $note->type === self::TYPE_SELL_RETURN;
+            $document = self::query()->find($note->parent_id);
+
+            if ($document === null) {
+                throw ValidationException::withMessages(['transaction_id' => ['The invoice of return '.$note->invoice_no.' has been deleted: restore the invoice first.']]);
+            }
+
+            $exists = $isSell ? $document->sellreturn()->exists() : $document->purchasereturn()->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages(['transaction_id' => ['A return already exists for '.$document->invoice_no.'; delete it before restoring '.$note->invoice_no.'.']]);
+            }
+
+            if (empty($note->returned_lines)) {
+                throw ValidationException::withMessages(['transaction_id' => ['Return '.$note->invoice_no.' was deleted before its quantities were kept, so it cannot be restored: create a new return instead.']]);
+            }
+        }
+
+        foreach ($notes as $note) {
+            $isSell = $note->type === self::TYPE_SELL_RETURN;
+            $document = self::query()->findOrFail($note->parent_id);
+            $lines = $isSell ? $document->selllines : $document->purchaselines;
+            $limit = $isSell ? 'quantity_issue' : 'quantity_received';
+
+            foreach ((array) $note->returned_lines as $lineId => $quantity) {
+                $line = $lines->firstWhere('id', (int) $lineId);
+
+                if ($line === null || (float) $quantity > (float) $line->{$limit}) {
+                    throw ValidationException::withMessages(['transaction_id' => ['The lines of '.$document->invoice_no.' no longer allow return '.$note->invoice_no.' to be restored.']]);
+                }
+
+                $line->quantity_returned = (float) $quantity;
+                $line->save();
+            }
+
+            $note->restore();
+            app(ReturnJournal::class)->sync($note);
+
+            if ($isSell) {
+                app(SaleIncentives::class)->refreshSale($document);
+            }
+        }
+
+        return $notes->count();
     }
 
     /**

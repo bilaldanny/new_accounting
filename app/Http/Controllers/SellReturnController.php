@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
-use App\Services\ReturnJournal;
 use App\Support\ListSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -201,12 +200,13 @@ class SellReturnController extends Controller
                     ->whereIn('id', $request->all())
                     ->pluck('id');
 
-                Transaction::whereIn('id', $ids)->restore();
-
-                Transaction::query()->sellReturns()->whereIn('id', $ids)->get()->each(fn (Transaction $note) => app(ReturnJournal::class)->sync($note));
+                Transaction::restoreReturns($ids);
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
+            } catch (ValidationException $e) {
+                DB::rollBack();
+                throw $e;
             } catch (Throwable $e) {
                 DB::rollBack();
 

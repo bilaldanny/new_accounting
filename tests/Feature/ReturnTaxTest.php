@@ -7,7 +7,9 @@ use App\Models\Tax;
 use App\Models\TaxExemption;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Reports\ProfitLossReport;
 use App\Services\Reports\TaxReport;
+use App\Services\Reports\TrialBalanceReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -100,9 +102,9 @@ function rtLegs(Transaction $return): array
         ->mapWithKeys(fn ($row) => [(string) $row->account_code => ['debit' => (float) $row->debit, 'credit' => (float) $row->credit]])->all();
 }
 
-// ------------------------------------------------------------------ guarantee: what was true before stays true
+// ------------------------------------------------------------------ untaxed and legacy documents
 
-test('an untaxed sell return is the quantity times the rate, with no tax and no journal', function () {
+test('an untaxed sell return is the quantity times the rate, with no tax, and now reaches the ledger', function () {
     $scope = seedSellScope();
     $sell = rtIssuedSell($scope, null);
 
@@ -110,10 +112,13 @@ test('an untaxed sell return is the quantity times the rate, with no tax and no 
 
     expect((float) $return->final_amount)->toBe(120.0)
         ->and((float) $return->tax_amount)->toBe(0.0)
-        ->and(TAccount::query()->where('transaction_id', $return->id)->exists())->toBeFalse();
+        ->and(rtLegs($return))->toBe([
+            $scope['local_sales_code'] => ['debit' => 120.0, 'credit' => 0.0],
+            $scope['customer_code'] => ['debit' => 0.0, 'credit' => 120.0],
+        ]);
 });
 
-test('an untaxed purchase return is the quantity times the rate, with no tax and no journal', function () {
+test('an untaxed purchase return is the quantity times the rate, with no tax, and now reaches the ledger', function () {
     $scope = seedPurchaseScope();
     $purchase = rtReceivedPurchase($scope, null);
 
@@ -121,10 +126,13 @@ test('an untaxed purchase return is the quantity times the rate, with no tax and
 
     expect((float) $return->final_amount)->toBe(100.0)
         ->and((float) $return->tax_amount)->toBe(0.0)
-        ->and(TAccount::query()->where('transaction_id', $return->id)->exists())->toBeFalse();
+        ->and(rtLegs($return))->toBe([
+            $scope['supplier_code'] => ['debit' => 100.0, 'credit' => 0.0],
+            $scope['local_purchase_code'] => ['debit' => 0.0, 'credit' => 100.0],
+        ]);
 });
 
-test('a legacy document, taxed only in its header, is returned exactly as before', function () {
+test('a legacy document, taxed only in its header, is returned for its goods only, as before, with no tax leg', function () {
     $scope = seedSellScope();
     $sell = rtIssuedSell($scope, null, ['final_amount' => 308, 'tax_amount' => 28]);
 
@@ -134,7 +142,98 @@ test('a legacy document, taxed only in its header, is returned exactly as before
 
     expect((float) $return->final_amount)->toBe(120.0)
         ->and((float) $return->tax_amount)->toBe(0.0)
+        ->and(array_keys(rtLegs($return)))->not->toContain($scope['output_tax_code']);
+});
+
+test('a return of a document that was never journalled posts nothing, so its customer is still read from the documents', function () {
+    $scope = seedSellScope();
+    $sell = rtIssuedSell($scope, null);
+    TAccount::query()->where('transaction_id', $sell->id)->delete();
+
+    $return = rtReturnSell($scope, $sell, 1);
+
+    expect((float) $return->final_amount)->toBe(120.0)
         ->and(TAccount::query()->where('transaction_id', $return->id)->exists())->toBeFalse();
+});
+
+test('the trial balance and the profit and loss move by exactly the return, the books staying balanced', function () {
+    $scope = seedSellScope();
+    $sell = rtIssuedSell($scope, null);
+    $filters = ['start_date' => '2026-01-01', 'end_date' => '2026-12-31'];
+    $trial = fn (): array => app(TrialBalanceReport::class)->rows((int) $scope['company_id'], null, $filters)
+        ->mapWithKeys(fn (array $row): array => [(string) $row['code'] => [(float) $row['closing_debit'], (float) $row['closing_credit']]])->all();
+    $profit = fn (): float => (float) app(ProfitLossReport::class)->build((int) $scope['company_id'], null, $filters)['summary']['net_profit'];
+
+    $before = ['trial' => $trial(), 'profit' => $profit()];
+    $return = rtReturnSell($scope, $sell, 1);
+    $after = ['trial' => $trial(), 'profit' => $profit()];
+
+    // The sale posted 280 to the customer (240 goods + 40 shipping) and 280 to sales; a return of one unit takes 120 off both
+    // (this fixture's sales account sits in class 4, so the profit moves by the same 120).
+    expect($before['trial'][$scope['customer_code']])->toBe([280.0, 0.0])
+        ->and($after['trial'][$scope['customer_code']])->toBe([160.0, 0.0])
+        ->and($before['profit'] - $after['profit'])->toBe(120.0)
+        ->and(collect($after['trial'])->sum(0))->toBe(collect($after['trial'])->sum(1));
+
+    // Deleting the return puts both reports back exactly.
+    $this->deleteJson("/api/sell-returns/{$return->id}")->assertSuccessful();
+    expect($trial())->toBe($before['trial'])->and($profit())->toBe($before['profit']);
+});
+
+// ------------------------------------------------------------------ restoring a deleted return
+
+test('a deleted sell return comes back with its quantities and its voucher, and cannot come back twice over', function () {
+    $scope = seedSellScope();
+    $tax = rtTax($scope['company_id'], 'GST 10', 10);
+    $sell = rtIssuedSell($scope, $tax);
+    $return = rtReturnSell($scope, $sell, 2);
+
+    $this->deleteJson("/api/sell-returns/{$return->id}")->assertSuccessful();
+    expect((float) $sell->selllines()->first()->quantity_returned)->toBe(0.0)
+        ->and(TAccount::query()->where('transaction_id', $return->id)->exists())->toBeFalse();
+
+    $this->postJson('/api/sell-returns/restore_records', [$return->id])->assertSuccessful();
+
+    expect((float) $sell->selllines()->first()->quantity_returned)->toBe(2.0)
+        ->and(Transaction::query()->whereKey($return->id)->exists())->toBeTrue()
+        ->and(rtLegs($return)[$scope['output_tax_code']])->toBe(['debit' => 24.0, 'credit' => 0.0]);
+
+    // A second return of the same invoice blocks restoring an older deleted one.
+    $this->deleteJson("/api/sell-returns/{$return->id}")->assertSuccessful();
+    $this->postJson('/api/sell-returns', validSellReturnPayload($scope, $sell->fresh(), [
+        'selllines' => [['id' => $sell->selllines->first()->id, 'quantity_returned' => 1]],
+    ]))->assertSuccessful();
+    $this->postJson('/api/sell-returns/restore_records', [$return->id])->assertStatus(422);
+    expect(Transaction::onlyTrashed()->whereKey($return->id)->exists())->toBeTrue()
+        ->and((float) $sell->selllines()->first()->quantity_returned)->toBe(1.0);
+});
+
+test('a deleted purchase return comes back with its quantities', function () {
+    $scope = seedPurchaseScope();
+    $purchase = rtReceivedPurchase($scope, null);
+    $return = rtReturnPurchase($scope, $purchase, 2);
+
+    $this->deleteJson("/api/purchase-returns/{$return->id}")->assertSuccessful();
+    expect((float) $purchase->purchaselines()->first()->quantity_returned)->toBe(0.0);
+
+    $this->postJson('/api/purchase-returns/restore_records', [$return->id])->assertSuccessful();
+
+    expect((float) $purchase->purchaselines()->first()->quantity_returned)->toBe(2.0)
+        ->and(rtLegs($return))->toBe([
+            $scope['supplier_code'] => ['debit' => 200.0, 'credit' => 0.0],
+            $scope['local_purchase_code'] => ['debit' => 0.0, 'credit' => 200.0],
+        ]);
+});
+
+test('a return deleted before its quantities were kept is refused with a clear message, not restored empty', function () {
+    $scope = seedSellScope();
+    $sell = rtIssuedSell($scope, null);
+    $return = rtReturnSell($scope, $sell, 1);
+    $this->deleteJson("/api/sell-returns/{$return->id}")->assertSuccessful();
+    DB::table('transactions')->where('id', $return->id)->update(['returned_lines' => null]);
+
+    $this->postJson('/api/sell-returns/restore_records', [$return->id])->assertStatus(422)->assertSee('create a new return instead');
+    expect(Transaction::onlyTrashed()->whereKey($return->id)->exists())->toBeTrue();
 });
 
 // ------------------------------------------------------------------ sell returns
@@ -227,7 +326,7 @@ test('a line that was exempt stays exempt on the return', function () {
 
     expect((float) $return->tax_amount)->toBe(0.0)
         ->and((float) $return->final_amount)->toBe(120.0)
-        ->and(TAccount::query()->where('transaction_id', $return->id)->exists())->toBeFalse();
+        ->and(array_keys(rtLegs($return)))->not->toContain($scope['output_tax_code']);
 });
 
 test('the tax report nets the original and its return, and the return shows its tax', function () {
