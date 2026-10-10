@@ -18,6 +18,9 @@ type SellReturnView = {
     company_address?: string;
     formatted_amount?: string;
     final_amount?: number | string;
+    tax_amount?: number | string;
+    total_before_tax?: number | string;
+    tax_inclusive?: boolean;
     selllines?: SellReturnLine[];
 };
 
@@ -111,6 +114,14 @@ function statusClass(status?: string): string {
                     <div>
                         <dt>Date</dt>
                         <dd>{{ note.transaction_date_label || note.transaction_date || '—' }}</dd>
+                    </div>
+                    <div v-if="Number(note.tax_amount || 0) > 0">
+                        <dt>Value before tax</dt>
+                        <dd>{{ money(note.total_before_tax) }}</dd>
+                    </div>
+                    <div v-if="Number(note.tax_amount || 0) > 0">
+                        <dt>{{ note.tax_inclusive ? 'Tax (included)' : 'Tax returned' }}</dt>
+                        <dd>{{ money(note.tax_amount) }}</dd>
                     </div>
                     <div>
                         <dt>Return total</dt>

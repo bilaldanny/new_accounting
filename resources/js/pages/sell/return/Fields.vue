@@ -96,9 +96,12 @@
         const returned = sellLines.value.reduce((sum, line) => sum + toNumber(line.quantity_returned), 0);
         const remaining = Math.max(issued - returned, 0);
         const amount = sellLines.value.reduce((sum, line) => sum + toNumber(line.row_subtotal), 0);
+        const tax = sellLines.value.reduce((sum, line) => sum + toNumber(line.row_tax), 0);
+        const inclusive = sellLines.value.some((line) => line.tax_inclusive === true);
+        const total = amount + (inclusive ? 0 : tax);
         const percent = issued > 0 ? Math.min((returned / issued) * 100, 100) : 0;
 
-        return { issued, returned, remaining, amount, percent };
+        return { issued, returned, remaining, amount, tax, inclusive, total, percent };
     });
 
     function toNumber(value: unknown, fallback = 0): number {
@@ -126,7 +129,7 @@
         const next = lines.map((line) => ({ ...line }));
         persist({
             selllines: next,
-            final_amount: Number(next.reduce((sum, line) => sum + toNumber(line.row_subtotal), 0).toFixed(2)),
+            final_amount: Number(next.reduce((sum, line) => sum + toNumber(line.row_subtotal) + (line.tax_inclusive === true ? 0 : toNumber(line.row_tax)), 0).toFixed(2)),
         });
     }
 
@@ -148,6 +151,9 @@
             quantity_returned: returned,
             remaining_qty: Number((received - returned).toFixed(4)),
             row_subtotal: Number((rate * returned).toFixed(2)),
+            row_tax: toNumber(line.quantity) > 0 && line.tax_id
+                ? Number((toNumber(line.tax_amount) * Math.min(returned / toNumber(line.quantity), 1)).toFixed(2))
+                : 0,
         };
     }
 
@@ -822,7 +828,12 @@
                         <i :style="{ width: `${totals.percent}%` }"></i>
                     </div>
                 </div>
-                <strong>{{ money(totals.amount) }}</strong>
+                <div class="text-end">
+                    <small v-if="totals.tax > 0" class="d-block text-muted">
+                        {{ totals.inclusive ? 'Includes tax' : 'Tax' }} {{ money(totals.tax) }}
+                    </small>
+                    <strong>{{ money(totals.total) }}</strong>
+                </div>
             </div>
         </div>
     </StaticElement>

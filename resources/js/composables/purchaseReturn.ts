@@ -17,6 +17,10 @@ export type PurchaseReturnLine = {
     quantity_returned: number | string;
     remaining_qty: number | string;
     row_subtotal: number | string;
+    tax_id?: number | string | null;
+    tax_amount?: number | string;
+    tax_inclusive?: boolean;
+    row_tax?: number | string;
 };
 
 export default function usePurchaseReturns(){

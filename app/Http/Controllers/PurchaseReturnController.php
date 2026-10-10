@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
+use App\Services\ReturnJournal;
 use App\Support\ListSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -198,6 +199,8 @@ class PurchaseReturnController extends Controller
                     ->pluck('id');
 
                 Transaction::whereIn('id', $ids)->restore();
+
+                Transaction::query()->purchaseReturns()->whereIn('id', $ids)->get()->each(fn (Transaction $note) => app(ReturnJournal::class)->sync($note));
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);

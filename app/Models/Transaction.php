@@ -9,6 +9,8 @@ use App\Services\Fbr\FbrSubmitter;
 use App\Services\LandedCost;
 use App\Services\PriceRules;
 use App\Services\PurchaseJournal;
+use App\Services\ReturnJournal;
+use App\Services\ReturnTax;
 use App\Services\SaleIncentives;
 use App\Services\SaleStockCheck;
 use App\Services\SellJournal;
@@ -3346,14 +3348,19 @@ class Transaction extends Model
         ]);
 
         return $purchase->purchaselines
-            ->map(function (PurchaseLine $line): array {
+            ->map(function (PurchaseLine $line) use ($purchase): array {
                 $quantity = PurchaseLine::resolveNumeric($line->quantity, 1);
                 $received = PurchaseLine::resolveNumeric($line->quantity_received);
                 $returned = PurchaseLine::resolveNumeric($line->quantity_returned);
                 $rate = PurchaseLine::resolveNumeric($line->purchase_rate);
+                $taxed = $line->tax_id !== null;
 
                 return [
                     'id' => $line->id,
+                    'tax_id' => $line->tax_id,
+                    'tax_amount' => $taxed ? PurchaseLine::resolveNumeric($line->tax_amount) : 0.0,
+                    'tax_inclusive' => (bool) $purchase->tax_inclusive,
+                    'row_tax' => $taxed && $quantity > 0 ? round(PurchaseLine::resolveNumeric($line->tax_amount) * min($returned / $quantity, 1), 2) : 0.0,
                     'product_id' => $line->product_id,
                     'variation_id' => $line->variation_id,
                     'unit_id' => $line->unit_id,
@@ -3482,7 +3489,7 @@ class Transaction extends Model
             ]);
         }
 
-        $total = self::applyReturnedQuantities($purchase, $request->purchaselines ?? []);
+        self::applyReturnedQuantities($purchase, $request->purchaselines ?? []);
 
         $note = new self;
         $note->company_id = $companyId ?? $purchase->company_id;
@@ -3497,12 +3504,14 @@ class Transaction extends Model
         $note->invoice_no = self::generatePurchaseReturnNo($companyId, $request->invoice_no ?? null);
         $note->transaction_date = self::parseTransactionDate($request->transaction_date ?? now());
         $note->attachment = self::storeImage($request);
-        $note->final_amount = $total;
+        self::applyReturnTax($note, $purchase->purchaselines, (bool) $purchase->tax_inclusive);
         $note->total_item = collect($request->purchaselines ?? [])
             ->filter(fn ($row) => is_array($row) && PurchaseLine::resolveNumeric($row['quantity_returned'] ?? 0) > 0)
             ->count();
         $note->created_by = Auth::id();
         $note->save();
+
+        app(ReturnJournal::class)->sync($note);
 
         return $note;
     }
@@ -3521,14 +3530,16 @@ class Transaction extends Model
             abort(404);
         }
 
-        $total = self::applyReturnedQuantities($purchase, $request->purchaselines ?? []);
+        self::applyReturnedQuantities($purchase, $request->purchaselines ?? []);
 
-        $note->final_amount = $total;
+        self::applyReturnTax($note, $purchase->purchaselines, (bool) $purchase->tax_inclusive);
         $note->total_item = collect($request->purchaselines ?? [])
             ->filter(fn ($row) => is_array($row) && PurchaseLine::resolveNumeric($row['quantity_returned'] ?? 0) > 0)
             ->count();
         $note->updated_by = Auth::id();
         $note->save();
+
+        app(ReturnJournal::class)->sync($note);
 
         return $note;
     }
@@ -3547,6 +3558,7 @@ class Transaction extends Model
             $purchase->purchaselines()->update(['quantity_returned' => 0]);
         }
 
+        app(ReturnJournal::class)->deleteFor($note);
         $note->delete();
     }
 
@@ -3645,6 +3657,9 @@ class Transaction extends Model
             'attachment_url' => self::imageUrl($this->attachment),
             'formatted_amount' => number_format((float) $this->final_amount, 2),
             'final_amount' => $this->final_amount,
+            'tax_amount' => (float) $this->tax_amount,
+            'total_before_tax' => (float) $this->total_before_tax,
+            'tax_inclusive' => (bool) $this->tax_inclusive,
             'purchaselines' => $lines,
         ];
     }
@@ -3747,14 +3762,19 @@ class Transaction extends Model
         ]);
 
         return $sell->selllines
-            ->map(function (SellLine $line): array {
+            ->map(function (SellLine $line) use ($sell): array {
                 $quantity = SellLine::resolveNumeric($line->quantity, 1);
                 $issued = SellLine::resolveNumeric($line->quantity_issue);
                 $returned = SellLine::resolveNumeric($line->quantity_returned);
                 $rate = SellLine::resolveNumeric($line->unit_price_after_discount);
+                $taxed = $line->tax_id !== null;
 
                 return [
                     'id' => $line->id,
+                    'tax_id' => $line->tax_id,
+                    'tax_amount' => $taxed ? SellLine::resolveNumeric($line->tax_amount) : 0.0,
+                    'tax_inclusive' => (bool) $sell->tax_inclusive,
+                    'row_tax' => $taxed && $quantity > 0 ? round(SellLine::resolveNumeric($line->tax_amount) * min($returned / $quantity, 1), 2) : 0.0,
                     'product_id' => $line->product_id,
                     'variation_id' => $line->variation_id,
                     'unit_id' => $line->unit_id,
@@ -3883,7 +3903,7 @@ class Transaction extends Model
             ]);
         }
 
-        $total = self::applySellReturnedQuantities($sell, $request->selllines ?? []);
+        self::applySellReturnedQuantities($sell, $request->selllines ?? []);
 
         $note = new self;
         $note->company_id = $companyId ?? $sell->company_id;
@@ -3898,13 +3918,14 @@ class Transaction extends Model
         $note->invoice_no = self::generateSellReturnNo($companyId, $request->invoice_no ?? null);
         $note->transaction_date = self::parseTransactionDate($request->transaction_date ?? now());
         $note->attachment = self::storeImage($request);
-        $note->final_amount = $total;
+        self::applyReturnTax($note, $sell->selllines, (bool) $sell->tax_inclusive);
         $note->total_item = collect($request->selllines ?? [])
             ->filter(fn ($row) => is_array($row) && SellLine::resolveNumeric($row['quantity_returned'] ?? 0) > 0)
             ->count();
         $note->created_by = Auth::id();
         $note->save();
 
+        app(ReturnJournal::class)->sync($note);
         app(SaleIncentives::class)->refreshSale($sell);
 
         return $note;
@@ -3924,15 +3945,16 @@ class Transaction extends Model
             abort(404);
         }
 
-        $total = self::applySellReturnedQuantities($sell, $request->selllines ?? []);
+        self::applySellReturnedQuantities($sell, $request->selllines ?? []);
 
-        $note->final_amount = $total;
+        self::applyReturnTax($note, $sell->selllines, (bool) $sell->tax_inclusive);
         $note->total_item = collect($request->selllines ?? [])
             ->filter(fn ($row) => is_array($row) && SellLine::resolveNumeric($row['quantity_returned'] ?? 0) > 0)
             ->count();
         $note->updated_by = Auth::id();
         $note->save();
 
+        app(ReturnJournal::class)->sync($note);
         app(SaleIncentives::class)->refreshSale($sell);
 
         return $note;
@@ -3952,10 +3974,32 @@ class Transaction extends Model
             $sell->selllines()->update(['quantity_returned' => 0]);
         }
 
+        app(ReturnJournal::class)->deleteFor($note);
         $note->delete();
 
         if ($sell !== null) {
             app(SaleIncentives::class)->refreshSale($sell);
+        }
+    }
+
+    /**
+     * Sets the return's amounts from the returned lines of the document it returns: the value of the goods, and the tax of those
+     * lines reversed in proportion (see ReturnTax). A return of lines without a tax keeps only its final amount, as before.
+     *
+     * @param  iterable<SellLine|PurchaseLine>  $lines
+     */
+    private static function applyReturnTax(self $note, iterable $lines, bool $inclusive): void
+    {
+        $result = app(ReturnTax::class)->compute($lines, $inclusive);
+
+        $note->final_amount = $result['final_amount'];
+
+        if ($result['taxed']) {
+            $note->tax_inclusive = $inclusive;
+            $note->tax_amount = $result['tax_amount'];
+            $note->total_before_tax = $result['total_before_tax'];
+        } else {
+            $note->tax_amount = 0;
         }
     }
 
@@ -4053,6 +4097,9 @@ class Transaction extends Model
             'attachment_url' => self::imageUrl($this->attachment),
             'formatted_amount' => number_format((float) $this->final_amount, 2),
             'final_amount' => $this->final_amount,
+            'tax_amount' => (float) $this->tax_amount,
+            'total_before_tax' => (float) $this->total_before_tax,
+            'tax_inclusive' => (bool) $this->tax_inclusive,
             'selllines' => $lines,
         ];
     }
