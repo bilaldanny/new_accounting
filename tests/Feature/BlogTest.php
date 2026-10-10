@@ -3,6 +3,7 @@
 use App\Models\BlogPost;
 use App\Models\Role;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -206,4 +207,24 @@ test('a cover can be removed and a permanent delete removes the file', function 
 test('blog posts are not company scoped: no company column and no scope but soft delete', function () {
     expect(Schema::hasColumn('blog_posts', 'company_id'))->toBeFalse()
         ->and(array_keys((new BlogPost)->getGlobalScopes()))->toBe([SoftDeletingScope::class]);
+});
+
+test('publish at is entered, stored and shown in UTC, so a scheduled post is not five hours early or late', function () {
+    Sanctum::actingAs(User::query()->findOrFail(1));
+    $this->travelTo(CarbonImmutable::parse('2026-10-10 12:00:00', 'UTC'));
+
+    // 9:00 PM in Karachi (UTC+5) is 16:00 UTC; the form is entered in UTC.
+    $this->post('/api/blog-posts', blPayload(['title' => 'Evening Post', 'published_at' => '2026-10-10T16:00']))->assertSuccessful();
+    $post = BlogPost::query()->where('title', 'Evening Post')->firstOrFail();
+
+    expect(DB::table('blog_posts')->where('id', $post->id)->value('published_at'))->toBe('2026-10-10 16:00:00')
+        ->and(substr((string) $this->getJson("/api/blog-posts/{$post->id}")->json('published_at'), 0, 16))->toBe('2026-10-10T16:00');
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-10 15:59:00', 'UTC'));
+    expect(BlogPost::query()->published()->whereKey($post->id)->exists())->toBeFalse();
+    $this->get('/blog/'.$post->slug)->assertNotFound();
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-10 16:00:00', 'UTC'));
+    expect(BlogPost::query()->published()->whereKey($post->id)->exists())->toBeTrue();
+    $this->get('/blog/'.$post->slug)->assertOk();
 });

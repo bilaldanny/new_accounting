@@ -15,6 +15,9 @@ const props = withDefaults(defineProps<{ branding: Branding; placement?: 'header
 const logo = computed(() => (props.placement === 'footer' ? props.branding.footerLogoUrl : props.branding.headerLogoUrl) ?? null);
 const chip = computed(() => (props.placement === 'footer' ? props.branding.footerChip : props.branding.headerChip) ?? true);
 
+/* No drawn mark: with no logo the chip holds the first letter of the name, like the emails do. */
+const initial = computed(() => (props.branding.name.trim().charAt(0) || '?').toUpperCase());
+
 const showName = computed(() => chip.value || !logo.value || broken.value);
 
 /* A logo file that fails to load falls back to the name, never a broken image. */
@@ -28,7 +31,7 @@ const broken = ref(false);
             <img :src="logo" :alt="chip ? '' : branding.name" height="28" @error="broken = true" />
         </span>
         <span v-else class="lp-logo-mark" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L12 4l8 16M8 14h8" /></svg>
+            {{ initial }}
         </span>
         <!-- A logo uploaded for the website is usually a full wordmark, so the name is not repeated beside it. -->
         <span v-if="showName">{{ branding.name }}</span>

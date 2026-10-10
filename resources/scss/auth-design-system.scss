@@ -103,6 +103,15 @@
     gap: 0.75rem;
 }
 
+.auth-brand-mark--text-only {
+    justify-content: center;
+
+    .auth-brand-mark__text {
+        align-items: center;
+        text-align: center;
+    }
+}
+
 .auth-brand-mark__icon {
     width: 2.75rem;
     height: 2.75rem;

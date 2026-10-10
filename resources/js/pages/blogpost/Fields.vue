@@ -68,7 +68,7 @@
             :can-clear="false"
             rules="required"
         />
-        <TextElement id="PublishedAt" field-name="PublishedAt" name="published_at" label="Publish at" type="datetime-local" :columns="colThird" info="Server time. Leave empty to publish now. A later time keeps the post hidden until then." />
+        <TextElement id="PublishedAt" field-name="PublishedAt" name="published_at" label="Publish at (UTC)" type="datetime-local" :columns="colThird" info="Enter the time in UTC, not your local time. Asia/Karachi is UTC+5: for 9:00 PM Karachi time enter 4:00 PM (16:00). Leave empty to publish now. A later time keeps the post hidden until then." />
         <FileElement
             id="CoverImage"
             field-name="CoverImage"
