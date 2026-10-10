@@ -69,6 +69,7 @@ use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PeriodLockController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PipelineStageController;
 use App\Http\Controllers\PortalController;
@@ -276,6 +277,9 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('account-balances', [AccountBalanceController::class, 'store']);
     Route::get('fetchfinancialyears', [FinancialYearController::class, 'fetch']);
     Route::resource('financialyears', FinancialYearController::class);
+    Route::get('period-locks', [PeriodLockController::class, 'index']);
+    Route::post('period-locks', [PeriodLockController::class, 'store']);
+    Route::put('period-locks/rules', [PeriodLockController::class, 'updateRules']);
     /* Company */
 
     /* Permission */

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\StockMovements;
 use Database\Factories\PurchaseLineFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,39 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PurchaseLine extends Model
 {
+    use GuardsLockedPeriods;
+
+    public static function periodLockDateColumn(): string
+    {
+        return 'transaction_date';
+    }
+
+    /**
+     * A line follows its document's day, and the dating rules are the document's business.
+     */
+    public static function periodLockAppliesDatingRules(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @return array{table: string, foreign_key: string, date: string}
+     */
+    public static function periodLockParent(): array
+    {
+        return ['table' => 'transactions', 'foreign_key' => 'transaction_id', 'date' => 'transaction_date'];
+    }
+
+    /**
+     * Quantities that stock movements and returns keep on a line do not change what the document says.
+     *
+     * @return list<string>
+     */
+    public static function periodLockBookkeeping(): array
+    {
+        return ['updated_at', 'quantity_returned', 'quantity_issue', 'quantity_received', 'quantity_adjustment', 'qunatity_sold', 'landed_cost'];
+    }
+
     /** @use HasFactory<PurchaseLineFactory> */
     use HasFactory;
 

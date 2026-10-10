@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Exceptions\InsufficientStockException;
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\CustomerCreditLimit;
 use App\Services\Fbr\FbrSubmitter;
 use App\Services\LandedCost;
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -39,6 +41,72 @@ use Illuminate\Validation\ValidationException;
 
 class Transaction extends Model
 {
+    use GuardsLockedPeriods;
+
+    public static function periodLockDateColumn(): string
+    {
+        return 'transaction_date';
+    }
+
+    /**
+     * Issue notes and receiving notes are delivery paperwork copied from their sale or purchase: they post nothing, so they are
+     * not part of the lock (the sale or purchase they belong to is).
+     *
+     * @var list<string>
+     */
+    private const PERIOD_LOCK_EXEMPT_TYPES = [self::TYPE_ISSUE_NOTE, self::TYPE_RECEIVING_NOTE];
+
+    public function periodLockIsExempt(): bool
+    {
+        return in_array($this->type, self::PERIOD_LOCK_EXEMPT_TYPES, true);
+    }
+
+    /**
+     * @return Collection<int, object{id: int, company_id: int|null, branch_id: int|null, lock_date: mixed}>
+     */
+    public static function periodLockRows(\Illuminate\Database\Query\Builder $base): Collection
+    {
+        return $base->cloneWithout(['columns', 'orders', 'limit', 'offset'])
+            ->whereNotIn('transactions.type', self::PERIOD_LOCK_EXEMPT_TYPES)
+            ->get(['transactions.id as id', 'transactions.company_id', 'transactions.branch_id', 'transactions.transaction_date as lock_date']);
+    }
+
+    /**
+     * What may change on a document of a locked period: payment progress and delivery / paperwork details do not change what the
+     * books say.
+     *
+     * @return list<string>
+     */
+    public static function periodLockBookkeeping(): array
+    {
+        return [
+            'updated_at', 'updated_by', 'payment_status', 'paid_amount', 'shipping_status', 'shipping_details', 'shipping_note',
+            'shipping_address', 'delivered_to', 'billty_no', 'billty_date', 'billty_image', 'packing', 'additional_note', 'attachment',
+            'sup_ref_no', 'is_print', 'is_edit', 'transporter_id',
+        ];
+    }
+
+    /**
+     * A sale or purchase that an issue note or a receiving note moves to issued / received (or back, when the note is deleted) is a
+     * delivery step, not a change to the books; every other status change (posting a draft, approving, completing a stock document)
+     * is.
+     *
+     * @param  array<string, mixed>  $dirty
+     */
+    public function periodLockIsBookkeeping(array $dirty): bool
+    {
+        $changed = array_values(array_diff(array_keys($dirty), self::periodLockBookkeeping()));
+
+        if ($changed === []) {
+            return true;
+        }
+
+        $step = $this->getOriginal('status').'>'.$this->status;
+
+        return $changed === ['status'] && $this->exists
+            && in_array($step, ['approved>issue', 'issue>approved', 'approved>received', 'received>approved'], true);
+    }
+
     use Auditable;
 
     /** @use HasFactory<TransactionFactory> */

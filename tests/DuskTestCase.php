@@ -234,7 +234,7 @@ abstract class DuskTestCase extends BaseTestCase
             array_push($paths, $base, $base.'/add', $base.'/:id/edit', $base.'/delete', $base.'/restore', $base.'/view');
         }
 
-        array_push($paths, '/stocktracking/edit', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
+        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
 
         return array_values(array_unique($paths));
     }

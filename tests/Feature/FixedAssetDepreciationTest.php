@@ -1,10 +1,13 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\FixedAsset;
 use App\Models\FixedAssetDepreciation;
+use App\Models\PeriodLockEntry;
 use App\Models\Role;
 use App\Models\TAccount;
 use App\Models\User;
+use App\Services\PeriodLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -287,4 +290,83 @@ test('the depreciation menu migration adds the page and its run permission next 
     expect(DB::table('menus')->where('route_path', 'like', '/depreciation%')->orderBy('route_path')->pluck('route_path')->all())->toBe(['/depreciation', '/depreciation/run'])
         ->and((int) DB::table('menus')->where('route_path', '/depreciation')->value('parent_id'))->toBe($group)
         ->and(DB::table('permissions')->where('role_id', $roleId)->count())->toBe(2);
+});
+
+// ------------------------------------------------------------------ period lock
+
+test('depreciation stops at the first locked month, names it, and carries on from there once it is reopened', function () {
+    $scope = faScope();
+    $id = fdAsset($scope, faCategory($scope));
+    PeriodLockEntry::query()->create(['company_id' => $scope['company_id'], 'locked_through' => '2026-02-28', 'action' => 'lock', 'locked_by' => 1]);
+
+    $result = fdRun($scope, '2026-04');
+
+    // January and February are locked: nothing is booked, nothing is re-dated, and the later months are not booked either.
+    expect($result['count'])->toBe(0)
+        ->and($result['blocked']['period'])->toBe('2026-01')
+        ->and($result['blocked']['assets'])->toHaveCount(1)
+        ->and($result['blocked']['skipped_asset_months'])->toBe(4)
+        ->and(FixedAssetDepreciation::query()->count())->toBe(0)
+        ->and(FixedAsset::query()->find($id)->depreciated_through)->toBeNull();
+
+    // Reopened to the end of January: January is booked, February (still locked) stops the run.
+    PeriodLockEntry::query()->create(['company_id' => $scope['company_id'], 'locked_through' => '2026-01-31', 'action' => 'reopen', 'locked_by' => 1]);
+    // January is locked through the 31st, so move the lock back before it.
+    PeriodLockEntry::query()->create(['company_id' => $scope['company_id'], 'locked_through' => '2025-12-31', 'action' => 'reopen', 'locked_by' => 1]);
+
+    $resumed = fdRun($scope, '2026-04');
+
+    expect($resumed['count'])->toBe(4)
+        ->and($resumed['blocked'])->toBeNull()
+        ->and(FixedAssetDepreciation::query()->orderBy('period')->pluck('period')->all())->toBe(['2026-01', '2026-02', '2026-03', '2026-04']);
+});
+
+test('a month in the middle stops the run there and the months before it stay booked', function () {
+    $scope = faScope();
+    fdAsset($scope, faCategory($scope));
+
+    fdRun($scope, '2026-02');
+    PeriodLockEntry::query()->create(['company_id' => $scope['company_id'], 'locked_through' => '2026-03-31', 'action' => 'lock', 'locked_by' => 1]);
+
+    $result = fdRun($scope, '2026-05');
+
+    expect($result['count'])->toBe(0)
+        ->and($result['blocked']['period'])->toBe('2026-03')
+        ->and(FixedAssetDepreciation::query()->count())->toBe(2);
+});
+
+test('an override lets the catch-up run through the locked month, audited, and the lock stays', function () {
+    $scope = faScope();
+    fdAsset($scope, faCategory($scope));
+    PeriodLockEntry::query()->create(['company_id' => $scope['company_id'], 'locked_through' => '2026-03-31', 'action' => 'lock', 'locked_by' => 1]);
+
+    $result = test()->withHeaders([PeriodLock::OVERRIDE_HEADER => 'Catch-up agreed with the auditor'])
+        ->postJson('/api/depreciation/run', ['company_id' => $scope['company_id'], 'period' => '2026-03'])->assertSuccessful()->json('data');
+
+    expect($result['count'])->toBe(3)
+        ->and($result['blocked'])->toBeNull()
+        ->and(AuditLog::query()->where('event', 'period_override')->exists())->toBeTrue()
+        ->and(app(PeriodLock::class)->lockedThrough($scope['company_id']))->toBe('2026-03-31');
+});
+
+test('the scheduled command stops a locked company, reports it, and still books the other companies', function () {
+    $locked = faScope();
+    $open = faScope('FB');
+    $lockedAsset = fdAsset($locked, faCategory($locked));
+    $openAsset = fdAsset($open, faCategory($open));
+    PeriodLockEntry::query()->create(['company_id' => $locked['company_id'], 'locked_through' => '2026-03-31', 'action' => 'lock', 'locked_by' => 1]);
+
+    $role = Role::query()->where('name', 'companyadmin')->whereNull('company_id')->first()
+        ?? Role::query()->create(['name' => 'companyadmin', 'company_id' => null, 'is_active' => true]);
+
+    foreach ([$locked, $open] as $scope) {
+        createStaffUserForRole($role, ['company_id' => $scope['company_id'], 'branch_id' => $scope['branch_id']]);
+    }
+
+    $this->artisan('assets:run-depreciation', ['--period' => '2026-03'])
+        ->expectsOutputToContain('stopped at 2026-01')
+        ->assertSuccessful();
+
+    expect(FixedAssetDepreciation::query()->where('fixed_asset_id', $lockedAsset)->count())->toBe(0)
+        ->and(FixedAssetDepreciation::query()->where('fixed_asset_id', $openAsset)->count())->toBe(3);
 });

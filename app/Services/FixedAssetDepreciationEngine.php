@@ -47,19 +47,44 @@ class FixedAssetDepreciationEngine
     }
 
     /**
-     * Books everything due up to `$period` (Y-m).
+     * Books everything due up to `$period` (Y-m), month by month in order.
+     *
+     * The first month whose end falls in a locked period stops the run for this company: no later month is booked (that would
+     * leave a gap in the assets' history) and nothing is re-dated. The result says which month and which assets, so the run can be
+     * repeated after an override or a reopen and carries on from exactly there.
      *
      * @param  array{branch_id?: int|null, category_id?: int|null}  $filters
-     * @return array{count: int, total: float, months: list<string>, vouchers: int}
+     * @return array{count: int, total: float, months: list<string>, vouchers: int, blocked: array{period: string, period_end: string, reason: string, assets: list<array{code: string, name: string}>, skipped_asset_months: int}|null}
      */
     public function run(int $companyId, string $period, array $filters = []): array
     {
         $rows = $this->preview($companyId, $period, $filters);
         $vouchers = 0;
+        $blocked = null;
+        $booked = collect();
+        $lock = app(PeriodLock::class);
 
         $groups = $rows->groupBy(fn (array $row): string => $row['period'].'|'.$row['branch_id'].'|'.$row['category_id'].'|'.($row['cost_center_id'] ?? 0));
 
         foreach ($groups as $group) {
+            $first = $group->first();
+            $reason = $lock->blocks($companyId, (int) $first['branch_id'], (string) $first['period_end']);
+
+            if ($reason !== null) {
+                $stopped = $rows->filter(fn (array $row): bool => $row['period'] >= $first['period']);
+                $blocked = [
+                    'period' => (string) $first['period'],
+                    'period_end' => (string) $first['period_end'],
+                    'reason' => $reason,
+                    'assets' => $rows->where('period', $first['period'])->map(fn (array $row): array => ['code' => (string) $row['code'], 'name' => (string) $row['name']])->unique('code')->values()->all(),
+                    'skipped_asset_months' => $stopped->count(),
+                ];
+
+                break;
+            }
+
+            $booked = $booked->merge($group);
+
             DB::transaction(function () use ($group, $companyId, &$vouchers): void {
                 $first = $group->first();
                 $category = AssetCategory::query()->findOrFail($first['category_id']);
@@ -103,10 +128,11 @@ class FixedAssetDepreciationEngine
         }
 
         return [
-            'count' => $rows->count(),
-            'total' => round((float) $rows->sum('amount'), 2),
-            'months' => $rows->pluck('period')->unique()->values()->all(),
+            'count' => $booked->count(),
+            'total' => round((float) $booked->sum('amount'), 2),
+            'months' => $booked->pluck('period')->unique()->values()->all(),
             'vouchers' => $vouchers,
+            'blocked' => $blocked,
         ];
     }
 

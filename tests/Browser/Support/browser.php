@@ -118,7 +118,7 @@ function duskSelectOption(Browser $browser, string $css, int $index, string $val
  * @param  array<string, mixed>  $payload
  * @return array{status: int, body: array<string, mixed>}
  */
-function duskRequest(Browser $browser, string $method, string $url, array $payload = []): array
+function duskRequest(Browser $browser, string $method, string $url, array $payload = [], array $headers = []): array
 {
     $result = $browser->driver->executeAsyncScript(
         <<<'JS'
@@ -126,11 +126,11 @@ function duskRequest(Browser $browser, string $method, string $url, array $paylo
         const token = decodeURIComponent((document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN=')) || '').split('=')[1] || '');
         fetch(arguments[1], {
             method: arguments[0],
-            headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest'},
+            headers: Object.assign({'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest'}, JSON.parse(arguments[3])),
             body: arguments[0] === 'GET' ? undefined : arguments[2],
         }).then((response) => response.text().then((text) => done(JSON.stringify({status: response.status, body: text}))));
         JS,
-        [$method, $url, json_encode($payload)],
+        [$method, $url, json_encode($payload), json_encode((object) $headers)],
     );
 
     $decoded = json_decode((string) $result, true);

@@ -114,6 +114,23 @@ async function initializeClientLibraries(): Promise<void> {
                 }
             }
 
+            // A save the period lock refused. An administrator may send that one save through with a reason: ask for it and
+            // repeat the request once with the override header (the lock itself stays closed).
+            const data = error.response?.data;
+
+            if (error.response?.status === 422 && data?.period_locked === true && data?.can_override === true && error.config && !error.config._periodOverrideTried) {
+                const reason = window.prompt(`${data.message}
+
+Reason for overriding the lock for this one save (audited):`, '');
+
+                if (reason && reason.trim().length >= 3) {
+                    error.config._periodOverrideTried = true;
+                    error.config.headers['X-Period-Lock-Override'] = reason.trim();
+
+                    return axios.request(error.config);
+                }
+            }
+
             return Promise.reject(error);
         },
     );

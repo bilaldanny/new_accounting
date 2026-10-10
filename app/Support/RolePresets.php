@@ -27,7 +27,7 @@ final class RolePresets
             'manage' => [
                 '/chart-of-account', '/opening-balance', '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer',
                 '/creditdebitnote', '/bankreconciliation', '/assetcategory', '/fixedasset', '/depreciation', '/costcenter', '/budget',
-                '/taxexemption', '/tax', '/financialyear', '/landedcost',
+                '/taxexemption', '/tax', '/financialyear', '/landedcost', '/period-lock',
             ],
             'view' => [
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',
@@ -35,7 +35,7 @@ final class RolePresets
                 '/report/financial-ratios', '/report/vouchers', '/report/expense', '/report/payment-account', '/report/customer-outstanding',
                 '/report/supplier-outstanding', '/report/customer-aging', '/report/supplier-aging', '/report/payment-age',
             ],
-            'exclude' => [],
+            'exclude' => ['/period-lock/reopen', '/period-lock/override'],
             'approvals' => false,
         ],
         'Cashier' => [

@@ -1530,6 +1530,10 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('financialyear', function () {
         return Inertia::render('company/setting', ['tab' => 'financialYear']);
     })->name('financialyear');
+
+    Route::get('period-lock', function () {
+        return Inertia::render('company/setting', ['tab' => 'financialYear']);
+    })->name('periodlock');
     /* Tax / Financial Year */
 
     /* Setting */

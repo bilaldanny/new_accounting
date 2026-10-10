@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
     fetchTaxes: '/api/fetchtaxes',
     taxPreview: '/api/taxes/preview',
     financialYears: '/api/financialyears',
+    periodLocks: '/api/period-locks',
     fetchObAccounts: '/api/fetchobaccounts',
     accountBalances: '/api/account-balances',
     accountBalancesFetchBalance: '/api/account-balances/fetch-balance',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\LedgerJournal;
 use App\Support\Base64Upload;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,21 @@ use Illuminate\Validation\ValidationException;
 
 class Payment extends Model
 {
+    use GuardsLockedPeriods;
+
+    public static function periodLockDateColumn(): string
+    {
+        return 'paid_on';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function periodLockBookkeeping(): array
+    {
+        return ['updated_at', 'updated_by', 't_account_id', 'document', 'note', 'is_withholding'];
+    }
+
     public const METHODS = ['cash', 'card', 'cheque', 'bank_transfer', 'other'];
 
     protected $fillable = [

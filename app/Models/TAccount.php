@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\LedgerJournal;
 use App\Support\Base64Upload;
 use Database\Factories\TAccountFactory;
@@ -19,6 +20,21 @@ use Illuminate\Validation\ValidationException;
 
 class TAccount extends Model
 {
+    use GuardsLockedPeriods;
+
+    public static function periodLockDateColumn(): string
+    {
+        return 'voucher_date';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function periodLockBookkeeping(): array
+    {
+        return ['updated_at', 'updated_by', 'printed_at', 'printed_by', 'is_print'];
+    }
+
     use Auditable;
 
     /** @use HasFactory<TAccountFactory> */

@@ -36,7 +36,13 @@ class FixedAssetDepreciationController extends Controller
 
         [$companyId, $period, $filters] = $this->input($request);
 
-        return response()->json(['message' => 'Depreciation booked', 'data' => $this->engine->run($companyId, $period, $filters)]);
+        $result = $this->engine->run($companyId, $period, $filters);
+        $blocked = $result['blocked'];
+        $message = $blocked === null
+            ? 'Depreciation booked'
+            : "Depreciation booked up to the month before {$blocked['period']}; stopped there: {$blocked['reason']} Run it again after the period is reopened or with an override.";
+
+        return response()->json(['message' => $message, 'data' => $result]);
     }
 
     public function index(Request $request): JsonResponse

@@ -55,6 +55,12 @@ class RunFixedAssetDepreciation extends Command
                 if ($result['count'] > 0) {
                     $this->info("Company {$company->id}: {$result['count']} asset-months, {$result['total']} in {$result['vouchers']} vouchers.");
                 }
+
+                if ($result['blocked'] !== null) {
+                    $blocked = $result['blocked'];
+                    $assets = collect($blocked['assets'])->map(fn (array $asset): string => $asset['code'].' '.$asset['name'])->implode(', ');
+                    $this->warn("Company {$company->id}: stopped at {$blocked['period']} ({$blocked['skipped_asset_months']} asset-months not booked), {$blocked['reason']} Assets: {$assets}. Reopen the period or override from the Depreciation page, then run again: it continues from there.");
+                }
             });
 
         $this->info("Done: {$booked} asset-months booked up to {$period}.");
