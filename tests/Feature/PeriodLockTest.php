@@ -385,3 +385,32 @@ test('a locked sale still takes delivery, a payment and a return dated in the op
     $this->postJson('/api/sell-returns', validSellReturnPayload($scope, $sell->fresh(), ['transaction_date' => $today]))->assertSuccessful();
     expect(Transaction::query()->sellReturns()->where('parent_id', $sell->id)->exists())->toBeTrue();
 });
+
+// ------------------------------------------------------------------ the menu rows
+
+test('the menu migration adds the period lock rows next to Financial Year and grants them to the company admin', function () {
+    $parent = DB::table('menus')->insertGetId([
+        'parent_id' => null, 'name' => 'Company Settings', 'icon' => 'Cog', 'route_name' => 'companysetting', 'route_path' => '/company/setting',
+        'menu_color' => '#000', 'sort_order' => 1, 'is_hidden' => 0, 'is_active' => 1, 'is_permission' => 0, 'type' => 1, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    DB::table('menus')->insert([
+        'parent_id' => $parent, 'name' => 'Financial Year', 'icon' => 'Calendar', 'route_name' => 'financialyear', 'route_path' => '/financialyear',
+        'menu_color' => '#000', 'sort_order' => 1, 'is_hidden' => 0, 'is_active' => 1, 'is_permission' => 0, 'type' => 1, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $role = Role::query()->firstOrCreate(['name' => 'companyadmin', 'company_id' => null], ['is_active' => true]);
+
+    $migration = require database_path('migrations/2026_10_31_100100_add_period_lock_menus.php');
+    $migration->up();
+    $migration->up();
+
+    $paths = DB::table('menus')->where('route_path', 'like', '/period-lock%')->pluck('route_path', 'id');
+    $granted = DB::table('permissions')->where('role_id', $role->id)->whereIn('menu_id', $paths->keys())->count();
+
+    expect($paths->values()->sort()->values()->all())->toBe(['/period-lock', '/period-lock/add', '/period-lock/override', '/period-lock/reopen', '/period-lock/rollover'])
+        ->and($granted)->toBe(5)
+        ->and((int) DB::table('menus')->where('route_path', '/period-lock')->value('parent_id'))->toBe($parent)
+        ->and((int) DB::table('menus')->where('route_path', '/period-lock')->value('is_hidden'))->toBe(1);
+
+    $migration->down();
+    expect(DB::table('menus')->where('route_path', 'like', '/period-lock%')->count())->toBe(0);
+});

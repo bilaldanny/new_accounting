@@ -18,6 +18,14 @@ class AccountBalance extends Model
     ];
 
     /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['opening_balance' => 'float'];
+    }
+
+    /**
      * @return BelongsTo<ChartOfAccount, $this>
      */
     public function account(): BelongsTo
@@ -31,7 +39,7 @@ class AccountBalance extends Model
             'company_id' => $request->company_id,
             'branch_id' => $request->branch_id,
             'financial_id' => $financialId,
-            'opening_balance' => $request->opening_balance ?? 0,
+            'opening_balance' => round((float) ($request->opening_balance ?? 0), 2),
             'acc_nature' => $accNature,
             'coa_id' => $coaId,
         ]);
@@ -50,7 +58,7 @@ class AccountBalance extends Model
             'company_id' => $companyId,
             'financial_id' => $financialId,
             'branch_id' => $branchId,
-            'opening_balance' => (int) $account['opening_balance'],
+            'opening_balance' => round((float) $account['opening_balance'], 2),
             'acc_nature' => $account['acc_nature'],
             'coa_id' => $account['id'],
         ]);
@@ -70,7 +78,7 @@ class AccountBalance extends Model
         $balance->financial_id = $financialId;
         $balance->company_id = $companyId;
         $balance->branch_id = $branchId;
-        $balance->opening_balance = (int) $account['opening_balance'];
+        $balance->opening_balance = round((float) $account['opening_balance'], 2);
         $balance->coa_id = $account['id'];
         $balance->acc_nature = $account['acc_nature'];
         $balance->save();

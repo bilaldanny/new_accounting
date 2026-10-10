@@ -4,6 +4,7 @@
     import useCommons from '@/composables/common';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import PeriodLockCard from './PeriodLockCard.vue';
+    import YearRolloverCard from './YearRolloverCard.vue';
     import { Plus } from '@boxicons/vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
 
@@ -204,6 +205,7 @@
             </div>
 
             <PeriodLockCard :company-id="props.companyId" class="mt-4" />
+            <YearRolloverCard :company-id="props.companyId" class="mt-4" />
         </template>
 
         <ModalComponent id="FinancialYearAddModal" title="Add Financial Year" :on-open="openAddModal">

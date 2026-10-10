@@ -130,6 +130,7 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseLocationController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\YearRolloverController;
 use App\Http\Middleware\LogPublicApiRequest;
 use App\Http\Middleware\ValidateBulkActionBody;
 use Illuminate\Http\Request;
@@ -280,6 +281,8 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('period-locks', [PeriodLockController::class, 'index']);
     Route::post('period-locks', [PeriodLockController::class, 'store']);
     Route::put('period-locks/rules', [PeriodLockController::class, 'updateRules']);
+    Route::get('year-rollover/preview', [YearRolloverController::class, 'preview']);
+    Route::post('year-rollover', [YearRolloverController::class, 'run']);
     /* Company */
 
     /* Permission */
