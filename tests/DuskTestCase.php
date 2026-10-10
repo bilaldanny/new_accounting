@@ -64,6 +64,37 @@ abstract class DuskTestCase extends BaseTestCase
         }
     }
 
+    /**
+     * Runs before any test body, so before anything is written: the test process itself (the one that seeds data through
+     * Eloquent) must be on database/dusk.sqlite. Without the inline sqlite environment it reads `.env` and would write to
+     * the development MySQL.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        static::assertDuskDatabase(
+            (string) config('database.default'),
+            (string) config('database.connections.'.config('database.default').'.database'),
+        );
+    }
+
+    /**
+     * @throws RuntimeException when the connection is not sqlite or the file is not database/dusk.sqlite
+     */
+    public static function assertDuskDatabase(string $connection, string $database): void
+    {
+        $expected = strtolower(strtr(realpath(static::databasePath()) ?: static::databasePath(), [DIRECTORY_SEPARATOR => '/']));
+        $actual = strtolower(strtr(realpath($database) ?: $database, [DIRECTORY_SEPARATOR => '/']));
+
+        if ($connection !== 'sqlite' || $actual !== $expected) {
+            throw new RuntimeException(
+                "Refusing to run browser tests: they use the [{$connection}] connection on [{$database}], not sqlite on database/dusk.sqlite. "
+                .'Run them with the inline environment: DB_CONNECTION=sqlite DB_DATABASE=<project>/database/dusk.sqlite DB_URL= php artisan dusk'
+            );
+        }
+    }
+
     protected static function projectPath(string $path = ''): string
     {
         return dirname(__DIR__).($path === '' ? '' : DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $path));
