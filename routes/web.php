@@ -1269,6 +1269,13 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('product/trash', function () {
         return Inertia::render('product/trash');
     })->name('product.trash');
+
+    Route::get('productattribute', fn () => Inertia::render('productattribute/index'))->name('productattribute');
+    Route::get('productdiscountrule', fn () => Inertia::render('productdiscountrule/index'))->name('productdiscountrule');
+    Route::get('warrantyclaim', fn () => Inertia::render('warrantyclaim/index'))->name('warrantyclaim');
+    Route::get('consignment', fn () => Inertia::render('consignment/index'))->name('consignment');
+    Route::get('productbom', fn () => Inertia::render('productbom/index'))->name('productbom');
+    Route::get('openingstock', fn () => Inertia::render('openingstock/index'))->name('openingstock');
     /* Product */
 
     /* Payment */

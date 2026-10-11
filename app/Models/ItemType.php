@@ -8,17 +8,88 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ItemType extends Model
 {
     use SoftDeletes;
 
+    public const BEHAVIOUR_INVENTORY = 'inventory';
+
+    public const BEHAVIOUR_NON_INVENTORY = 'non_inventory';
+
+    public const BEHAVIOUR_SERVICE = 'service';
+
+    public const BEHAVIOUR_KIT = 'kit';
+
+    public const BEHAVIOUR_DIGITAL = 'digital';
+
+    /**
+     * What an item type does to stock. NULL (every item type that existed before this column) behaves as inventory.
+     * Non-inventory, service and digital items never move stock; a kit is not stocked itself, its components are
+     * (see StockMovements).
+     *
+     * @var list<string>
+     */
+    public const BEHAVIOURS = [
+        self::BEHAVIOUR_INVENTORY,
+        self::BEHAVIOUR_NON_INVENTORY,
+        self::BEHAVIOUR_SERVICE,
+        self::BEHAVIOUR_KIT,
+        self::BEHAVIOUR_DIGITAL,
+    ];
+
+    /**
+     * @var list<string>
+     */
+    public const UNSTOCKED_BEHAVIOURS = [
+        self::BEHAVIOUR_NON_INVENTORY,
+        self::BEHAVIOUR_SERVICE,
+        self::BEHAVIOUR_KIT,
+        self::BEHAVIOUR_DIGITAL,
+    ];
+
     protected $fillable = [
         'company_id',
         'name',
         'active',
+        'behaviour',
     ];
+
+    private static ?bool $behaviourColumn = null;
+
+    /**
+     * False until the migration has run, so a deploy ahead of it keeps saving item types as before.
+     */
+    public static function supportsBehaviour(): bool
+    {
+        return self::$behaviourColumn ??= Schema::hasColumn('item_types', 'behaviour');
+    }
+
+    /**
+     * The behaviour a request names, or the current one when it names none (a client that predates the field leaves it alone).
+     */
+    private static function behaviourFrom(object $request, ?string $current): ?string
+    {
+        $sent = method_exists($request, 'has') ? $request->has('behaviour') : isset($request->behaviour);
+
+        if (! $sent) {
+            return $current;
+        }
+
+        $value = $request->behaviour ?? null;
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (! in_array($value, self::BEHAVIOURS, true)) {
+            throw ValidationException::withMessages(['behaviour' => ['Choose inventory, non_inventory, service, kit or digital.']]);
+        }
+
+        return $value;
+    }
 
     protected function active(): Attribute
     {
@@ -114,6 +185,10 @@ class ItemType extends Model
         $itemType->company_id = $companyId;
         $itemType->name = $request->name;
         $itemType->active = $request->active ?? true;
+        if (self::supportsBehaviour()) {
+            $itemType->behaviour = self::behaviourFrom($request, null);
+        }
+
         $itemType->save();
 
         return $itemType;
@@ -134,6 +209,10 @@ class ItemType extends Model
         $itemType->company_id = $companyId;
         $itemType->name = $request->name;
         $itemType->active = $request->active ?? true;
+        if (self::supportsBehaviour()) {
+            $itemType->behaviour = self::behaviourFrom($request, $itemType->behaviour);
+        }
+
         $itemType->save();
 
         return $itemType;

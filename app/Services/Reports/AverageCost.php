@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * The weighted average purchase cost of a product variation per base unit.
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\DB;
  */
 class AverageCost
 {
+    private static ?bool $openingTracked = null;
+
     private const PACKING = '(case when apl.packing_qty is null or apl.packing_qty < 1 then 1 else apl.packing_qty end)';
 
     /**
@@ -57,9 +60,27 @@ class AverageCost
     {
         return DB::table('purchase_lines as apl')
             ->join('transactions as apt', 'apt.id', '=', 'apl.transaction_id')
-            ->where('apt.type', Transaction::TYPE_PURCHASE)
-            ->where('apt.status', '!=', 'draft')
+            ->where(function (Builder $query): void {
+                $query->where(fn (Builder $purchase) => $purchase->where('apt.type', Transaction::TYPE_PURCHASE)->where('apt.status', '!=', 'draft'));
+
+                if (self::openingCostsAreTracked()) {
+                    $query->orWhere(fn (Builder $opening) => $opening->where('apt.type', Transaction::TYPE_ADJUSTMENT)
+                        ->where('apt.status', 'completed')
+                        ->whereNotNull('apl.opening_cost')
+                        ->where('apl.quantity_adjustment', '>', 0));
+                }
+            })
             ->whereNull('apt.deleted_at');
+    }
+
+    /**
+     * An Opening Stock screen entry carries its unit cost on the line (`opening_cost`), and counts here as a purchase of
+     * that quantity at that cost. No other adjustment has one, so a database where the screen was never used averages
+     * exactly the purchases it always did.
+     */
+    private static function openingCostsAreTracked(): bool
+    {
+        return self::$openingTracked ??= Schema::hasColumn('purchase_lines', 'opening_cost');
     }
 
     private static function average(): string
@@ -67,6 +88,15 @@ class AverageCost
         $packing = self::PACKING;
 
         $landed = 'coalesce(apl.landed_cost * (apl.quantity - apl.quantity_returned) / nullif(apl.quantity, 0), 0)';
+
+        if (self::openingCostsAreTracked()) {
+            $purchase = "apt.type = '".Transaction::TYPE_PURCHASE."'";
+            $quantity = "(case when {$purchase} then (apl.quantity - apl.quantity_returned) else apl.quantity_adjustment end)";
+            $rate = "(case when {$purchase} then apl.purchase_rate else apl.opening_cost end)";
+            $landedPart = "(case when {$purchase} then {$landed} else 0 end)";
+
+            return "sum({$rate} * {$quantity} * {$packing} + {$landedPart}) / nullif(sum({$quantity} * {$packing}), 0)";
+        }
 
         return "sum(apl.purchase_rate * (apl.quantity - apl.quantity_returned) * {$packing} + {$landed}) / nullif(sum((apl.quantity - apl.quantity_returned) * {$packing}), 0)";
     }

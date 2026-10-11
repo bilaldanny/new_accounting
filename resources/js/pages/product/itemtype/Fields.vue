@@ -136,6 +136,25 @@
         info="Use a short, descriptive name that your team will recognize in product forms."
     />
 
+    <SelectElement
+        id="Behaviour"
+        field-name="Behaviour"
+        name="behaviour"
+        label="Behaviour"
+        :native="false"
+        :items="[
+            { value: 'inventory', label: 'Inventory (stock is kept)' },
+            { value: 'non_inventory', label: 'Non-inventory (no stock kept)' },
+            { value: 'service', label: 'Service (no stock, no shipping)' },
+            { value: 'kit', label: 'Kit / assembly (sells its components)' },
+            { value: 'digital', label: 'Digital (no stock)' },
+        ]"
+        :columns="colThird"
+        :can-clear="true"
+        placeholder="Inventory (default)"
+        info="Decides how products of this type are stocked and sold. Left empty it behaves as inventory, as before."
+    />
+
     <StaticElement name="section_settings" :columns="colFull">
         <div class="company-section-header company-section-header-teal company-section-header-spaced">
             <span class="company-section-icon company-section-icon-teal">

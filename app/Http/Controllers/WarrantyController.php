@@ -24,6 +24,9 @@ class WarrantyController extends Controller
             'name' => 'bail|required|string|min:2|max:200',
             'duration' => 'bail|required|integer|min:0|max:9999',
             'type' => 'bail|required|in:year,month,day',
+            'require_invoice' => 'nullable|boolean',
+            'max_claims' => 'nullable|integer|min:0|max:1000',
+            'terms' => 'nullable|string|max:2000',
             'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
         ];
     }

@@ -45,7 +45,7 @@ final class RolePresets
             'approvals' => false,
         ],
         'Sales Representative' => [
-            'manage' => ['/leads', '/opportunities', '/activities', '/pipeline', '/customer', '/sell'],
+            'manage' => ['/leads', '/opportunities', '/activities', '/pipeline', '/customer', '/sell', '/warrantyclaim'],
             'view' => ['/leadsources', '/pipelinestages', '/crmanalytics', '/product', '/report/sell', '/report/product-sell'],
             'exclude' => ['/sell/pos', '/sell/price-override'],
             'approvals' => false,
@@ -62,7 +62,7 @@ final class RolePresets
         'Warehouse Keeper' => [
             'manage' => [
                 '/warehouse', '/warehouselocation', '/stocktracking', '/stocktake', '/stockadjustment', '/stocktransfer', '/receivingnote',
-                '/issuenote', '/openingstock', '/lowstock', '/printlabel',
+                '/issuenote', '/openingstock', '/lowstock', '/printlabel', '/productbom',
             ],
             'view' => [
                 '/product', '/report/warehouse-stock', '/report/warehouse-usage', '/report/stock-movement-history', '/report/serial-traceability',

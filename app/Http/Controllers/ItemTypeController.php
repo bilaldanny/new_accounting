@@ -22,6 +22,7 @@ class ItemTypeController extends Controller
     {
         return [
             'name' => 'bail|required|string|min:3|max:200',
+            'behaviour' => 'nullable|in:'.implode(',', ItemType::BEHAVIOURS),
             'company_id' => Auth::user()?->hasRole('superadmin') ? 'required' : 'nullable',
         ];
     }

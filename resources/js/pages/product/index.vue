@@ -10,6 +10,7 @@
     import { createTableExportAllRows } from '@/composables/tableExportList';
     import debounce from '@/utils/debounce';
     import ImportModal from './import.vue';
+    import ProductBulkPanel from './ProductBulkPanel.vue';
 
     defineOptions({
         layout: {
@@ -300,6 +301,8 @@
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
+
+            <ProductBulkPanel :ids="(state.edit_ids as number[])" @done="getData" />
 
             <TheFilter v-if="showFilter" v-model:open="filterOpen" :loading="state.loading" @clear="clearSearch" @search="getData">
                 <div v-if="showCompanyFilter" class="col-md-4 col-lg-3 admin-filter-field">

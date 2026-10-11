@@ -590,9 +590,24 @@
         }
     }
 
+    type AttributeDefinition = { field_key: string; name: string; type: string; options: string[] | null; is_required: boolean };
+    const attributeDefinitions = ref<AttributeDefinition[]>([]);
+
+    async function loadAttributeDefinitions(companyId?: string | number | null) {
+        try {
+            const response = await window.axios.get('/api/product-attributes', { params: companyId ? { company_id: companyId } : {} });
+            attributeDefinitions.value = (response.data?.data ?? []).filter((definition: AttributeDefinition & { is_active?: boolean }) => definition.is_active !== false);
+        } catch {
+            attributeDefinitions.value = [];
+        }
+    }
+
+    const ownershipItems = [{ value: 'own', label: 'Own stock' }, { value: 'consignment', label: 'Consignment (supplier-owned)' }];
+
     onMounted(async () => {
         applyScopedDefaults();
         lastSelectedItemTypeId.value = normalizeId(params.formData?.itemtype_id);
+        void loadAttributeDefinitions(isSuperadmin.value ? params.formData?.company_id : authUser.value?.company_id);
         ensureDefaultDetails();
 
         if (showCompanyField.value) {
@@ -959,6 +974,41 @@
             :can-clear="true"
             :disabled="scopeDisabled"
         />
+    </GroupElement>
+
+    <GroupElement name="group_catalog" :columns="colFull" :add-classes="cardClasses">
+        <StaticElement name="section_catalog" :columns="colFull">
+            <div class="product-form-section-head">
+                <span class="product-form-section-icon">
+                    <Layers class="h-4 w-4" />
+                </span>
+                <div>
+                    <h2 class="product-form-section-title">Catalog details</h2>
+                    <p class="product-form-section-copy">Tags, extra barcodes, reorder settings, ownership and custom attributes</p>
+                </div>
+            </div>
+        </StaticElement>
+
+        <TagsElement id="ProductTags" field-name="ProductTags" name="tags" label="Tags" placeholder="Add a tag and press enter" :columns="colHalf" :native="false" />
+        <TagsElement id="ProductBarcodes" field-name="ProductBarcodes" name="barcodes" label="Other barcodes" placeholder="Scan or type a barcode and press enter" :columns="colHalf" :native="false" info="Each code finds this product on the sale and POS screens. Codes are unique inside the company." />
+
+        <TextElement id="ReorderLevel" field-name="ReorderLevel" name="reorder_level" label="Reorder level" input-type="number" :columns="colQuarter" rules="nullable|numeric|min:0" />
+        <TextElement id="ReorderQty" field-name="ReorderQty" name="reorder_qty" label="Reorder quantity" input-type="number" :columns="colQuarter" rules="nullable|numeric|min:0" />
+        <TextElement id="MinStock" field-name="MinStock" name="min_stock" label="Minimum stock" input-type="number" :columns="colQuarter" rules="nullable|numeric|min:0" />
+        <TextElement id="MaxStock" field-name="MaxStock" name="max_stock" label="Maximum stock" input-type="number" :columns="colQuarter" rules="nullable|numeric|min:0" />
+        <TextElement id="LeadTimeDays" field-name="LeadTimeDays" name="lead_time_days" label="Lead time (days)" input-type="number" :columns="colQuarter" rules="nullable|integer|min:0" />
+
+        <SelectElement id="Ownership" field-name="Ownership" name="ownership" label="Stock ownership" :items="ownershipItems" :native="false" :can-clear="false" :columns="colThird" default="own" />
+        <TextElement id="ConsignmentSupplier" field-name="ConsignmentSupplier" name="consignment_supplier_id" label="Consigning supplier id" input-type="number" :columns="colThird" info="Needed when the stock is supplier-owned." />
+
+        <ObjectElement v-if="attributeDefinitions.length" name="custom_fields" :columns="colFull">
+            <template v-for="definition in attributeDefinitions" :key="definition.field_key">
+                <CheckboxElement v-if="definition.type === 'checkbox'" :name="definition.field_key" :columns="colThird">{{ definition.name }}</CheckboxElement>
+                <SelectElement v-else-if="definition.type === 'select'" :name="definition.field_key" :label="definition.name" :items="definition.options ?? []" :native="false" :columns="colThird" :rules="definition.is_required ? 'required' : 'nullable'" />
+                <DateElement v-else-if="definition.type === 'date'" :name="definition.field_key" :label="definition.name" :columns="colThird" value-format="YYYY-MM-DD" :rules="definition.is_required ? 'required' : 'nullable'" />
+                <TextElement v-else :name="definition.field_key" :label="definition.name" :input-type="definition.type === 'number' ? 'number' : 'text'" :columns="colThird" :rules="definition.is_required ? 'required' : 'nullable'" />
+            </template>
+        </ObjectElement>
     </GroupElement>
 
     <GroupElement name="group_media" :columns="colFull" :add-classes="cardClasses">

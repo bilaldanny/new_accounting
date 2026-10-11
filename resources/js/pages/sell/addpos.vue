@@ -36,6 +36,7 @@
     import type { SellLineRow } from '@/composables/sell';
     import useSellPayments from '@/composables/sellPayment';
     import debounce from '@/utils/debounce';
+    import { ruleDiscount } from '@/utils/discountRules';
     import PaymentModal from './payment/add.vue';
     import SaleIncentivesPanel from './SaleIncentivesPanel.vue';
 
@@ -54,6 +55,7 @@
         product_image_url?: string | null;
         current_stock?: number | string;
         units: SellLineRow['units'];
+        discount_rules?: SellLineRow['discount_rules'];
     };
 
     type SuspendedSale = {
@@ -255,7 +257,8 @@
             quantity_issue: 0,
             quantity_returned: 0,
             unit_price: product.default_sell_price,
-            discount_percent: 0,
+            discount_percent: ruleDiscount(product.discount_rules, toNumber(product.default_sell_price), 1).amount,
+            discount_rules: product.discount_rules ?? [],
             unit_price_after_discount: product.default_sell_price,
             packing_qty: unit?.packing_qty ?? 1,
             row_subtotal: product.default_sell_price,
@@ -308,7 +311,20 @@
         unitPrompt.product = null;
     }
 
-    function updateLine(index: number, patch: Partial<SellLineRow>) {
+    function updateLine(index: number, incoming: Partial<SellLineRow>) {
+        let patch = incoming;
+        const previous = lines.value[index];
+
+        // A discount that came from a standing rule follows the quantity (a quantity break); one the cashier typed stays.
+        if (previous && 'quantity' in patch && previous.discount_rules?.length && ! ('discount_percent' in patch)) {
+            const price = toNumber(previous.unit_price);
+            const was = ruleDiscount(previous.discount_rules, price, toNumber(previous.quantity, 1)).amount;
+
+            if (toNumber(previous.discount_percent) === was) {
+                patch = { ...patch, discount_percent: ruleDiscount(previous.discount_rules, price, Math.max(toNumber(patch.quantity, 1), 1)).amount };
+            }
+        }
+
         persistLines(lines.value.map((line, lineIndex) => (
             lineIndex === index ? pricedLine({ ...line, ...patch }) : line
         )));

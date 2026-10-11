@@ -9,6 +9,8 @@ use App\Services\CustomerCreditLimit;
 use App\Services\Fbr\FbrSubmitter;
 use App\Services\LandedCost;
 use App\Services\PriceRules;
+use App\Services\ProductCatalog;
+use App\Services\ProductDiscountRules;
 use App\Services\PurchaseJournal;
 use App\Services\ReturnJournal;
 use App\Services\ReturnTax;
@@ -1556,20 +1558,30 @@ class Transaction extends Model
                     ->when($productId !== null, fn (Builder $productQuery) => $productQuery->where('id', $productId))
                     ->when($brandId !== null, fn (Builder $brandQuery) => $brandQuery->where('brand_id', $brandId));
             })
-            ->when($search !== '', function (Builder $query) use ($search) {
-                $query->where(function (Builder $sub) use ($search) {
+            ->when($search !== '', function (Builder $query) use ($search, $companyId) {
+                $query->where(function (Builder $sub) use ($search, $companyId) {
                     $sub->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhereHas('product', function (Builder $productQuery) use ($search) {
                             $productQuery->where('name', 'like', "%{$search}%")
                                 ->orWhere('sku', 'like', "%{$search}%");
                         });
+
+                    // An extra barcode of a product (exact), so a scan finds it like its SKU does.
+                    if (ProductCatalog::supported()) {
+                        $barcodes = fn () => DB::table('product_barcodes')->where('barcode', $search)->when($companyId !== null, fn ($q) => $q->where('company_id', $companyId));
+
+                        $sub->orWhereIn('product_details.id', $barcodes()->whereNotNull('variation_id')->select('variation_id'))
+                            ->orWhereIn('product_details.product_id', $barcodes()->whereNull('variation_id')->select('product_id'));
+                    }
                 });
             })
             ->limit($search !== '' ? 20 : 500)
             ->get();
 
-        return $details->map(function (ProductDetail $detail) use ($branchId) {
+        $discountRules = ProductDiscountRules::supported() ? app(ProductDiscountRules::class) : null;
+
+        return $details->map(function (ProductDetail $detail) use ($branchId, $discountRules) {
             $product = $detail->product;
             $unitId = (int) ($product?->unit_id ?? 0);
 
@@ -1607,7 +1619,7 @@ class Transaction extends Model
                 'tracking_type' => $product?->tracking_type ?? 'none',
                 'current_stock' => $units[0]['unit_qty'] ?? 0,
                 'units' => $units,
-            ];
+            ] + ($discountRules !== null && $product !== null ? ['discount_rules' => $discountRules->rulesFor((int) $product->company_id, $product)] : []);
         })->values()->all();
     }
 

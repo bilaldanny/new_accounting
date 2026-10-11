@@ -37,10 +37,26 @@ class SaleStockCheck
                 continue;
             }
 
-            $key = (int) $row['product_id'].':'.(int) ($row['variation_id'] ?? 0);
             $factor = max(SellLine::resolveNumeric($row['packing_qty'] ?? 1, 1), 1.0);
+            $baseQuantity = SellLine::resolveNumeric($row['quantity'] ?? 0) * $factor;
+            $components = StockMovements::kitComponents((int) $row['product_id']);
 
-            $requested[$key] = ($requested[$key] ?? 0.0) + SellLine::resolveNumeric($row['quantity'] ?? 0) * $factor;
+            if ($components !== []) {
+                // A kit takes its components out of stock, not itself.
+                foreach ($components as $component) {
+                    $key = $component['product_id'].':'.$component['variation_id'];
+                    $requested[$key] = ($requested[$key] ?? 0.0) + $baseQuantity * $component['quantity'];
+                }
+
+                continue;
+            }
+
+            if (! StockMovements::productKeepsStock((int) $row['product_id'])) {
+                continue;
+            }
+
+            $key = (int) $row['product_id'].':'.(int) ($row['variation_id'] ?? 0);
+            $requested[$key] = ($requested[$key] ?? 0.0) + $baseQuantity;
         }
 
         $branchId = Transaction::resolveScopedId($sale->branch_id);

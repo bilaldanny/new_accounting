@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ItemType;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Transaction;
@@ -44,6 +45,10 @@ class StockMovements
 
     private static ?bool $warehousesTracked = null;
 
+    private static ?bool $itemBehavioursTracked = null;
+
+    private static ?bool $kitsTracked = null;
+
     /**
      * One row per movement line: product_id, variation_id, branch_id, warehouse_id (null when unassigned), qty (base units, signed).
      * `as_of` (a `Y-m-d` day) keeps only movements whose document is dated on or before that day.
@@ -77,7 +82,14 @@ class StockMovements
 
                 return $warehouseId === 0 ? $q->whereNull($column) : $q->where($column, $warehouseId);
             })
-            ->when($asOf !== null, fn (Builder $q) => $q->whereDate('t.transaction_date', '<=', $asOf));
+            ->when($asOf !== null, fn (Builder $q) => $q->whereDate('t.transaction_date', '<=', $asOf))
+            ->when(self::itemBehavioursAreTracked(), fn (Builder $q) => $q->whereNotExists(function (Builder $unstocked) use ($line): void {
+                $unstocked->select(DB::raw(1))
+                    ->from('products as unstocked_p')
+                    ->join('item_types as unstocked_it', 'unstocked_it.id', '=', 'unstocked_p.itemtype_id')
+                    ->whereColumn('unstocked_p.id', "{$line}.product_id")
+                    ->whereIn('unstocked_it.behaviour', ItemType::UNSTOCKED_BEHAVIOURS);
+            }));
 
         $lines = fn (string $type, bool $completedOnly): Builder => DB::table('purchase_lines as pl')
             ->join('transactions as t', 't.id', '=', 'pl.transaction_id')
@@ -139,6 +151,56 @@ class StockMovements
                     ->unionAll($movement($sales(), 't.branch_id', "sl.quantity_returned * {$salePack}", 'sale_return', 'sl'));
             } else {
                 $movements->unionAll($movement($sales(), 't.branch_id', "-(sl.quantity - sl.quantity_returned) * {$salePack}", 'sale', 'sl'));
+            }
+        }
+
+        if (self::salesAreTracked() && self::kitsAreTracked() && self::itemBehavioursAreTracked()) {
+            $kitSales = function (string $expression, string $kind) use ($productId, $variationId, $branchId, $warehouseId, $excludeSaleId, $asOf, $withKinds, $withDocuments, $packing): Builder {
+                $query = DB::table('sell_lines as sl')
+                    ->join('transactions as t', 't.id', '=', 'sl.transaction_id')
+                    ->join('product_components as pc', 'pc.product_id', '=', 'sl.product_id')
+                    ->join('products as kit_p', 'kit_p.id', '=', 'sl.product_id')
+                    ->join('item_types as kit_it', 'kit_it.id', '=', 'kit_p.itemtype_id')
+                    ->where('kit_it.behaviour', ItemType::BEHAVIOUR_KIT)
+                    ->whereNull('t.deleted_at')
+                    ->where('t.type', Transaction::TYPE_SELL)
+                    ->whereNotIn('t.status', Transaction::UNPOSTED_SELL_STATUSES)
+                    ->whereNotNull('pc.component_variation_id')
+                    ->where(function (Builder $cutover): void {
+                        $cutover->whereRaw('(select stock_sales_cutover_at from settings limit 1) is null')
+                            ->orWhereRaw('t.created_at >= (select stock_sales_cutover_at from settings limit 1)');
+                    })
+                    ->when($excludeSaleId !== null, fn (Builder $q) => $q->where('t.id', '!=', $excludeSaleId))
+                    ->when($productId !== null, fn (Builder $q) => $q->where('pc.component_product_id', $productId))
+                    ->when($variationId !== null, fn (Builder $q) => $q->where('pc.component_variation_id', $variationId))
+                    ->when($branchId !== null, fn (Builder $q) => $q->where('t.branch_id', $branchId))
+                    ->when($warehouseId !== null, fn (Builder $q) => $warehouseId === 0 ? $q->whereNull('t.warehouse_id') : $q->where('t.warehouse_id', $warehouseId))
+                    ->when($asOf !== null, fn (Builder $q) => $q->whereDate('t.transaction_date', '<=', $asOf));
+
+                $columns = [
+                    'pc.component_product_id as product_id', 'pc.component_variation_id as variation_id', 't.branch_id as branch_id',
+                    self::warehousesAreTracked() ? 't.warehouse_id as warehouse_id' : DB::raw('null as warehouse_id'),
+                    DB::raw(str_replace('{pack}', $packing('sl'), $expression).' as qty'),
+                ];
+
+                if ($withKinds) {
+                    $columns[] = DB::raw("'{$kind}' as kind");
+                }
+
+                if ($withDocuments) {
+                    array_push($columns, 't.id as transaction_id', 't.invoice_no as document_no', 't.transaction_date as document_date', 't.type as document_type');
+                }
+
+                return $query->select($columns);
+            };
+
+            // A kit is not stocked itself: each sale of it takes its components out, and a return puts them back.
+            if ($withKinds) {
+                $movements
+                    ->unionAll($kitSales('-sl.quantity * {pack} * pc.quantity', 'sale'))
+                    ->unionAll($kitSales('sl.quantity_returned * {pack} * pc.quantity', 'sale_return'));
+            } else {
+                $movements->unionAll($kitSales('-(sl.quantity - sl.quantity_returned) * {pack} * pc.quantity', 'sale'));
             }
         }
 
@@ -242,6 +304,69 @@ class StockMovements
     {
         self::$salesTracked = null;
         self::$warehousesTracked = null;
+        self::$itemBehavioursTracked = null;
+        self::$kitsTracked = null;
+    }
+
+    /**
+     * Whether a product's item type keeps stock at all (inventory, or no behaviour set). Service, non-inventory, digital
+     * and kit items do not: their own movement is never counted and a sale of them is never checked against stock.
+     */
+    public static function productKeepsStock(int $productId): bool
+    {
+        if (! self::itemBehavioursAreTracked()) {
+            return true;
+        }
+
+        $behaviour = DB::table('products as p')
+            ->leftJoin('item_types as it', 'it.id', '=', 'p.itemtype_id')
+            ->where('p.id', $productId)
+            ->value('it.behaviour');
+
+        return ! in_array($behaviour, ItemType::UNSTOCKED_BEHAVIOURS, true);
+    }
+
+    /**
+     * The components a kit takes out of stock per unit sold, empty for any product that is not a kit.
+     *
+     * @return list<array{product_id: int, variation_id: int, quantity: float}>
+     */
+    public static function kitComponents(int $productId): array
+    {
+        if (! self::kitsAreTracked() || ! self::itemBehavioursAreTracked()) {
+            return [];
+        }
+
+        $isKit = DB::table('products as p')
+            ->join('item_types as it', 'it.id', '=', 'p.itemtype_id')
+            ->where('p.id', $productId)
+            ->where('it.behaviour', ItemType::BEHAVIOUR_KIT)
+            ->exists();
+
+        if (! $isKit) {
+            return [];
+        }
+
+        return DB::table('product_components')
+            ->where('product_id', $productId)
+            ->whereNotNull('component_variation_id')
+            ->get(['component_product_id', 'component_variation_id', 'quantity'])
+            ->map(fn (object $row): array => [
+                'product_id' => (int) $row->component_product_id,
+                'variation_id' => (int) $row->component_variation_id,
+                'quantity' => (float) $row->quantity,
+            ])
+            ->all();
+    }
+
+    private static function itemBehavioursAreTracked(): bool
+    {
+        return self::$itemBehavioursTracked ??= Schema::hasColumn('item_types', 'behaviour');
+    }
+
+    private static function kitsAreTracked(): bool
+    {
+        return self::$kitsTracked ??= Schema::hasTable('product_components');
     }
 
     /**

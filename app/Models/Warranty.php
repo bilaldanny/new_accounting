@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class Warranty extends Model
@@ -20,7 +21,44 @@ class Warranty extends Model
         'duration',
         'type',
         'active',
+        'require_invoice',
+        'max_claims',
+        'terms',
     ];
+
+    private static ?bool $rulesColumns = null;
+
+    /**
+     * After-sales rules (invoice required, claim limit, terms) exist once the catalog migration has run.
+     */
+    public static function supportsAfterSalesRules(): bool
+    {
+        return self::$rulesColumns ??= Schema::hasColumn('warranties', 'require_invoice');
+    }
+
+    /**
+     * Sets the after-sales rule fields the request names; a client that does not send them leaves them as they are.
+     */
+    private function applyAfterSalesRules(object $request): void
+    {
+        if (! self::supportsAfterSalesRules()) {
+            return;
+        }
+
+        $has = fn (string $field): bool => method_exists($request, 'has') ? $request->has($field) : isset($request->{$field});
+
+        if ($has('require_invoice')) {
+            $this->require_invoice = filter_var($request->require_invoice, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if ($has('max_claims')) {
+            $this->max_claims = $request->max_claims === null || $request->max_claims === '' ? null : max((int) $request->max_claims, 0);
+        }
+
+        if ($has('terms')) {
+            $this->terms = trim((string) $request->terms) === '' ? null : trim((string) $request->terms);
+        }
+    }
 
     protected function active(): Attribute
     {
@@ -138,6 +176,7 @@ class Warranty extends Model
         $warranty->duration = (string) $request->duration;
         $warranty->type = $request->type ?? 'day';
         $warranty->active = $request->active ?? true;
+        $warranty->applyAfterSalesRules($request);
         $warranty->save();
 
         return $warranty;
@@ -160,6 +199,7 @@ class Warranty extends Model
         $warranty->duration = (string) $request->duration;
         $warranty->type = $request->type ?? 'day';
         $warranty->active = $request->active ?? true;
+        $warranty->applyAfterSalesRules($request);
         $warranty->save();
 
         return $warranty;

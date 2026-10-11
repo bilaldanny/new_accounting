@@ -139,6 +139,9 @@ export default function useProducts(){
             const response = await fetchWithRetry(window.axios.get, `/api/products/${id}`);
             formData.value = {
                 ...response.data,
+                barcodes: Array.isArray(response.data?.barcodes)
+                    ? response.data.barcodes.map((row: { barcode?: string } | string) => (typeof row === 'string' ? row : row.barcode ?? ''))
+                    : [],
                 productdetail: Array.isArray(response.data?.productdetail) && response.data.productdetail.length > 0
                     ? response.data.productdetail
                     : [emptyDetail()],

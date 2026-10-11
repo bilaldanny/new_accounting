@@ -44,6 +44,12 @@ dataset('company pages', [
     'activity log' => ['/auditlogs', 'Activity Log', 'table'],
     'pos shifts' => ['/posshift', 'POS Shifts', null],
     'portal requests' => ['/portalrequests', 'Portal Requests', 'table'],
+    'custom attributes' => ['/productattribute', 'Custom Attributes', 'table'],
+    'product discount rules' => ['/productdiscountrule', 'Product Discount Rules', 'table'],
+    'warranty claims' => ['/warrantyclaim', 'Warranty Claims', 'table'],
+    'consignment stock' => ['/consignment', 'Consignment Stock', 'table'],
+    'kits and bom' => ['/productbom', 'Kits & BOM', 'table'],
+    'opening stock' => ['/openingstock', 'Opening Stock', 'table'],
 ]);
 
 dataset('platform pages', [

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Services\ProductCatalog;
 use App\Services\StockTracking;
 use App\Support\Base64Upload;
 use App\Support\VariantCombiner;
@@ -43,7 +44,24 @@ class Product extends Model
         'product_image',
         'active',
         'type',
+        'tags',
+        'custom_fields',
+        'reorder_level',
+        'reorder_qty',
+        'min_stock',
+        'max_stock',
+        'lead_time_days',
+        'ownership',
+        'consignment_supplier_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'tags' => 'array',
+            'custom_fields' => 'array',
+        ];
+    }
 
     protected function active(): Attribute
     {
@@ -433,6 +451,7 @@ class Product extends Model
         $product->save();
 
         self::syncDetails($product, $request->productdetail ?? []);
+        app(ProductCatalog::class)->apply($product, $request);
 
         return $product;
     }
@@ -461,6 +480,7 @@ class Product extends Model
         $product->save();
 
         self::syncDetails($product, $request->productdetail ?? []);
+        app(ProductCatalog::class)->apply($product, $request);
 
         return $product;
     }
@@ -646,7 +666,7 @@ class Product extends Model
 
         $details = self::parseImportDetails($row, $type, (string) ($row['name'] ?? ''));
 
-        return (object) [
+        return (object) ([
             'company_id' => $companyId,
             'name' => (string) ($row['name'] ?? ''),
             'type' => $type,
@@ -663,7 +683,27 @@ class Product extends Model
             'product_image' => $row['product_image'] ?? null,
             'active' => self::normalizeImportBool($row['active'] ?? $row['is_active'] ?? 1),
             'productdetail' => $details,
-        ];
+        ] + self::importCatalogFields($row));
+    }
+
+    /**
+     * The catalog columns an import row names (tags as a comma list, reorder settings, ownership). A row that does not
+     * have a column leaves that field of an existing product alone.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected static function importCatalogFields(array $row): array
+    {
+        $fields = [];
+
+        foreach (['tags', 'reorder_level', 'reorder_qty', 'min_stock', 'max_stock', 'lead_time_days', 'ownership'] as $field) {
+            if (array_key_exists($field, $row)) {
+                $fields[$field] = $row[$field];
+            }
+        }
+
+        return $fields;
     }
 
     /**

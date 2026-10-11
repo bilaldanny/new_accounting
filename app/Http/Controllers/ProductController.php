@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Product;
+use App\Models\ProductBarcode;
+use App\Services\ProductCatalog;
 use App\Support\VariantCombiner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,6 +38,17 @@ class ProductController extends Controller
             'sku' => 'nullable|string|max:100',
             'product_desc' => 'nullable|string',
             'product_image' => 'nullable',
+            'tags' => 'nullable|array|max:'.ProductCatalog::MAX_TAGS,
+            'tags.*' => 'nullable|string|max:100',
+            'custom_fields' => 'nullable|array',
+            'reorder_level' => 'nullable|numeric|min:0',
+            'reorder_qty' => 'nullable|numeric|min:0',
+            'min_stock' => 'nullable|numeric|min:0',
+            'max_stock' => 'nullable|numeric|min:0',
+            'lead_time_days' => 'nullable|integer|min:0|max:3650',
+            'ownership' => 'nullable|in:own,consignment',
+            'consignment_supplier_id' => 'nullable|integer',
+            'barcodes' => 'nullable|array|max:50',
             'productdetail' => 'bail|required|array|min:1',
             'productdetail.*.variation_name' => 'bail|required|string|max:255',
             'productdetail.*.sku' => 'nullable|string|max:100',
@@ -220,6 +233,10 @@ class ProductController extends Controller
         }
 
         $product->product_image_url = Product::imageUrl($product->product_image);
+
+        if (ProductCatalog::supported()) {
+            $product->barcodes = ProductBarcode::query()->where('product_id', $product->id)->orderBy('id')->get(['barcode', 'variation_id', 'label']);
+        }
 
         return response()->json($product);
     }

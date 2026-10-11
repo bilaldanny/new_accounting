@@ -8,6 +8,8 @@
     import useDocumentTax from '@/composables/documentTax';
     import type { SellLineRow } from '@/composables/sell';
     import FieldHint from '@/pages/journalentry/FieldHint.vue';
+    import { ruleDiscount } from '@/utils/discountRules';
+    import type { DiscountRule } from '@/utils/discountRules';
     import { openLfmImagePickerCallback } from '@/utils/openLfmImagePicker';
     import LineItemsEditor from './LineItemsEditor.vue';
     import SaleIncentivesPanel from './SaleIncentivesPanel.vue';
@@ -587,6 +589,7 @@
         default_sell_price: number | string;
         tracking_type?: 'none' | 'serial' | 'batch';
         units: SellLineRow['units'];
+        discount_rules?: DiscountRule[];
     }) {
         const alreadyAdded = sellLines.value.some((line) => (
             String(line.product_id) === String(product.product_id)
@@ -610,7 +613,8 @@
             quantity_issue: 0,
             quantity_returned: 0,
             unit_price: product.default_sell_price,
-            discount_percent: 0,
+            discount_percent: ruleDiscount(product.discount_rules, toNumber(product.default_sell_price), 1).amount,
+            discount_rules: product.discount_rules ?? [],
             unit_price_after_discount: product.default_sell_price,
             packing_qty: unit?.packing_qty ?? 1,
             row_subtotal: product.default_sell_price,
@@ -663,9 +667,20 @@
         }
     }
 
-    function updateLine(index: number, patch: Partial<SellLineRow>) {
+    function updateLine(index: number, incoming: Partial<SellLineRow>) {
+        let patch = incoming;
         const previous = sellLines.value[index];
         const typedPrice = 'unit_price' in patch && ! ('price_source' in patch);
+
+        // A discount that came from a standing rule follows the quantity (a quantity break); one the user typed stays.
+        if (previous && 'quantity' in patch && previous.discount_rules?.length && ! ('discount_percent' in patch)) {
+            const price = toNumber(previous.unit_price);
+            const was = ruleDiscount(previous.discount_rules, price, toNumber(previous.quantity, 1)).amount;
+
+            if (toNumber(previous.discount_percent) === was) {
+                patch = { ...patch, discount_percent: ruleDiscount(previous.discount_rules, price, Math.max(toNumber(patch.quantity, 1), 1)).amount };
+            }
+        }
 
         persistLines(sellLines.value.map((line, lineIndex) => (
             lineIndex === index ? pricedLine({ ...line, ...patch, ...(typedPrice ? { price_manual: true } : {}) }) : line

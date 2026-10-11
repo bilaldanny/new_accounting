@@ -181,7 +181,11 @@
         "/sell/return/add",
         "/sell/return/delete",
         "/sell/return/restore",
-        "/sell/shipment"
+        "/sell/shipment",
+        "/warrantyclaim",
+        "/warrantyclaim/:id/edit",
+        "/warrantyclaim/add",
+        "/warrantyclaim/delete"
     ],
     "Manager": [
         "/acpayment",
@@ -247,6 +251,9 @@
         "/openingstock/add",
         "/printlabel",
         "/product",
+        "/productbom",
+        "/productbom/:id/edit",
+        "/productbom/kitting",
         "/receivingnote",
         "/receivingnote/:id/edit",
         "/receivingnote/:id/view",

@@ -8,6 +8,7 @@ use Database\Factories\PurchaseLineFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class PurchaseLine extends Model
 {
@@ -154,6 +155,20 @@ class PurchaseLine extends Model
         $this->tax_id = Transaction::resolveScopedId($row['tax_id'] ?? null);
         $this->tax_amount = $this->tax_id !== null && is_numeric($row['tax_amount'] ?? null) ? round((float) $row['tax_amount'], 2) : null;
         $this->tax_exemption_id = $this->tax_id !== null ? Transaction::resolveScopedId($row['tax_exemption_id'] ?? null) : null;
+
+        if (array_key_exists('opening_cost', $row) && self::hasOpeningCostColumn()) {
+            $this->opening_cost = is_numeric($row['opening_cost']) && (float) $row['opening_cost'] >= 0 ? round((float) $row['opening_cost'], 4) : null;
+        }
+    }
+
+    private static ?bool $openingCostColumn = null;
+
+    /**
+     * The unit cost an Opening Stock entry carries exists once the catalog migration has run (see Reports\AverageCost).
+     */
+    public static function hasOpeningCostColumn(): bool
+    {
+        return self::$openingCostColumn ??= Schema::hasColumn('purchase_lines', 'opening_cost');
     }
 
     /**

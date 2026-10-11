@@ -248,7 +248,7 @@ abstract class DuskTestCase extends BaseTestCase
             '/report/budget-vs-actual', '/report/cost-center-analysis', '/warehouse', '/warehouselocation', '/stocktracking', '/taxexemption', '/tax',
             '/purchase', '/sell', '/supplier', '/customer', '/product', '/company/setting', '/purchasereturn/approval', '/stockadjustment/approval',
             '/stocktransfer/approval', '/cashcollection/approval', '/pricelist/approval', '/creditlimit/approval', '/contacts/duplicates', '/auditlogs', '/posshift',
-            '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
+            '/productattribute', '/productdiscountrule', '/warrantyclaim', '/consignment', '/productbom', '/openingstock', '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
         ];
 
         $paths = [];

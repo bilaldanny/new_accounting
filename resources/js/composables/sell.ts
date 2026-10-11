@@ -15,6 +15,8 @@ export type SellLineRow = {
     quantity_returned?: number | string;
     unit_price: number | string;
     discount_percent: number | string;
+    /** Standing discount rules of the product (Product Discount Rules); the line discount follows them until it is typed. */
+    discount_rules?: Array<{ id: number; name: string; scope: string; discount_type: 'percent' | 'fixed'; value: number; min_quantity: number | null }>;
     unit_price_after_discount: number | string;
     packing_qty: number | string;
     row_subtotal: number | string;

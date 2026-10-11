@@ -27,6 +27,7 @@ use App\Http\Controllers\CityController;
 use App\Http\Controllers\CommissionAgentController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanySettingController;
+use App\Http\Controllers\ConsignmentController;
 use App\Http\Controllers\ConsumerController;
 use App\Http\Controllers\ContactAttachmentController;
 use App\Http\Controllers\ContactController;
@@ -68,6 +69,7 @@ use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PeriodLockController;
@@ -84,7 +86,11 @@ use App\Http\Controllers\PriceListApprovalController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\PrintLabelController;
+use App\Http\Controllers\ProductAttributeController;
+use App\Http\Controllers\ProductBulkController;
+use App\Http\Controllers\ProductComponentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductDiscountRuleController;
 use App\Http\Controllers\PublicLeadCaptureController;
 use App\Http\Controllers\PurchaseApprovalController;
 use App\Http\Controllers\PurchaseController;
@@ -132,6 +138,7 @@ use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseLocationController;
+use App\Http\Controllers\WarrantyClaimController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\YearRolloverController;
@@ -1132,6 +1139,13 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     /* Sell Return */
 
     /* Product */
+    Route::post('products/bulk-update', [ProductBulkController::class, 'update']);
+    Route::get('products/export-all', [ProductBulkController::class, 'export']);
+    Route::get('products/lookup', [ProductBulkController::class, 'lookup']);
+    Route::get('products/{id}/components', [ProductComponentController::class, 'show'])->whereNumber('id');
+    Route::put('products/{id}/components', [ProductComponentController::class, 'update'])->whereNumber('id');
+    Route::post('products/{id}/assemble', [ProductComponentController::class, 'assemble'])->whereNumber('id');
+    Route::get('product-components', [ProductComponentController::class, 'index']);
     Route::post('/products/import', [ProductController::class, 'import']);
     Route::post('products/check-name', [ProductController::class, 'checkName']);
     Route::post('/products/generate-variants', [ProductController::class, 'generateVariants']);
@@ -1143,6 +1157,34 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('/products/bulk_delete', [ProductController::class, 'bulk_delete']);
     Route::post('products/bulk_delete_per', [ProductController::class, 'bulk_delete_per']);
     Route::post('products/restore_records', [ProductController::class, 'restore_records']);
+    /* Product */
+
+    Route::get('product-attributes', [ProductAttributeController::class, 'index']);
+    Route::post('product-attributes', [ProductAttributeController::class, 'store']);
+    Route::put('product-attributes/{id}', [ProductAttributeController::class, 'update'])->whereNumber('id');
+    Route::delete('product-attributes/{id}', [ProductAttributeController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('product-discount-rules/resolve', [ProductDiscountRuleController::class, 'resolve']);
+    Route::get('product-discount-rules', [ProductDiscountRuleController::class, 'index']);
+    Route::post('product-discount-rules', [ProductDiscountRuleController::class, 'store']);
+    Route::put('product-discount-rules/{id}', [ProductDiscountRuleController::class, 'update'])->whereNumber('id');
+    Route::delete('product-discount-rules/{id}', [ProductDiscountRuleController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('warranty-claims', [WarrantyClaimController::class, 'index']);
+    Route::post('warranty-claims', [WarrantyClaimController::class, 'store']);
+    Route::get('warranty-claims/{id}', [WarrantyClaimController::class, 'show'])->whereNumber('id');
+    Route::post('warranty-claims/{id}/status', [WarrantyClaimController::class, 'transition'])->whereNumber('id');
+    Route::delete('warranty-claims/{id}', [WarrantyClaimController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('consignment/stock', [ConsignmentController::class, 'stock']);
+    Route::get('consignment/settlements', [ConsignmentController::class, 'index']);
+    Route::post('consignment/settlements', [ConsignmentController::class, 'store']);
+    Route::get('consignment/settlements/{id}', [ConsignmentController::class, 'show'])->whereNumber('id');
+    Route::post('consignment/settlements/{id}/settle', [ConsignmentController::class, 'settle'])->whereNumber('id');
+    Route::delete('consignment/settlements/{id}', [ConsignmentController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('opening-stock', [OpeningStockController::class, 'index']);
+    Route::post('opening-stock', [OpeningStockController::class, 'store']);
     /* Product */
 
     /* Variation */

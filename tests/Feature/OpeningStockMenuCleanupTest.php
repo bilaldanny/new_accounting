@@ -4,7 +4,6 @@ use App\Models\Menu;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 uses(RefreshDatabase::class);
 
@@ -44,9 +43,8 @@ function openingStockCleanupMigration(): object
     return require database_path('migrations/2026_09_19_060918_drop_dead_opening_stock_menus.php');
 }
 
-test('the opening stock path has no web route, which is why the rows are dead', function () {
-    expect(fn () => app('router')->getRoutes()->match(Request::create('/openingstock', 'GET')))
-        ->toThrow(NotFoundHttpException::class);
+test('the opening stock path has a web route since the Opening Stock screen was built, so the old rows are no longer dead', function () {
+    expect(app('router')->getRoutes()->match(Request::create('/openingstock', 'GET'))->getName())->toBe('openingstock');
 });
 
 test('a fresh schema without the legacy rows is left untouched', function () {
