@@ -43,6 +43,7 @@ dataset('company pages', [
     'duplicate contacts' => ['/contacts/duplicates', 'Duplicate Contacts', null],
     'activity log' => ['/auditlogs', 'Activity Log', 'table'],
     'pos shifts' => ['/posshift', 'POS Shifts', null],
+    'portal requests' => ['/portalrequests', 'Portal Requests', 'table'],
 ]);
 
 dataset('platform pages', [

@@ -14,6 +14,7 @@ use Laravel\Dusk\TestCase as BaseTestCase;
 use PHPUnit\Framework\Attributes\BeforeClass;
 use RuntimeException;
 use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * Browser tests run against a real server (`php artisan serve` on port 8099) with its own throw-away SQLite file
@@ -234,7 +235,7 @@ abstract class DuskTestCase extends BaseTestCase
             array_push($paths, $base, $base.'/add', $base.'/:id/edit', $base.'/delete', $base.'/restore', $base.'/view');
         }
 
-        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
+        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/portalrequests', '/portalrequests/approve', '/customer/documents', '/customer/import', '/customer/:id/view', '/supplier/documents', '/supplier/import', '/supplier/:id/view', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
 
         return array_values(array_unique($paths));
     }
@@ -295,6 +296,13 @@ abstract class DuskTestCase extends BaseTestCase
      */
     protected function signIn(Browser $browser, User $user): Browser
     {
+        // A portal user's session is confined to the portal, so the logout route below is turned back for it too: start from no cookies.
+        try {
+            $browser->driver->manage()->deleteAllCookies();
+        } catch (Throwable) {
+            // no page is open yet, so there is no session to drop
+        }
+
         $browser->logout()->loginAs($user);
         $browser->driver->manage()->getLog('browser');
 
