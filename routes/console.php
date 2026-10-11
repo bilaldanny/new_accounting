@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Fixed asset depreciation for last month, on the 1st. Needs the server's cron to call `schedule:run`; it can always be run by hand.
 Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00');
+
+// Standing (recurring) invoices that have come due, once a day.
+Schedule::command('invoices:generate-recurring')->dailyAt('03:00');

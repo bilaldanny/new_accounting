@@ -120,6 +120,7 @@ class CompanySettingController extends Controller
             'portal_payment_info' => 'nullable|string|max:2000',
             'negative_stock_mode' => 'nullable|string|in:allow,warn,block',
             'reservation_mode' => 'nullable|string|in:off,enforce',
+            'cash_rounding' => ['nullable', 'string', 'regex:/^((nearest|up|down):\\d+(\\.\\d+)?)?$/'],
         ]);
 
         DB::beginTransaction();

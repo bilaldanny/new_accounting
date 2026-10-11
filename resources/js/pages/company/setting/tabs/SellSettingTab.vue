@@ -91,6 +91,21 @@
                 <small class="text-muted d-block mt-1">A product can override this on its own form.</small>
             </div>
             <div class="col-md-4">
+                <label for="SellSettingCashRounding" class="form-label">POS cash rounding</label>
+                <select id="SellSettingCashRounding" v-model="formData.cash_rounding" class="form-select form-select-sm">
+                    <option value="">No rounding</option>
+                    <option value="nearest:0.5">Nearest 0.50</option>
+                    <option value="nearest:1">Nearest 1</option>
+                    <option value="nearest:5">Nearest 5</option>
+                    <option value="nearest:10">Nearest 10</option>
+                    <option value="up:1">Up to 1</option>
+                    <option value="up:5">Up to 5</option>
+                    <option value="down:1">Down to 1</option>
+                    <option value="down:5">Down to 5</option>
+                </select>
+                <small class="text-muted d-block mt-1">Rounds the total of a POS sale; the difference is kept on the sale.</small>
+            </div>
+            <div class="col-md-4">
                 <label for="SellSettingReservationMode" class="form-label">Stock reservations</label>
                 <select id="SellSettingReservationMode" v-model="formData.reservation_mode" class="form-select form-select-sm">
                     <option value="off">Record only</option>

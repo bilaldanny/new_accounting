@@ -113,6 +113,7 @@ export default function useCompanySettings() {
         portal_payment_info: '',
         negative_stock_mode: '',
         reservation_mode: 'off',
+        cash_rounding: '',
         auto_grn: false,
         auto_gin: false,
     };

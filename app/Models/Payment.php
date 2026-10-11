@@ -569,6 +569,62 @@ class Payment extends Model
     }
 
     /**
+     * Money paid back to a customer out of their store credit: cash / bank is credited and the customer's account debited (their
+     * receivable is back where it was before the return), with no invoice attached. `is_return` marks it as money going out.
+     *
+     * @throws ValidationException
+     */
+    public static function createSellRefund(Contact $customer, int $companyId, int $branchId, float $amount, string $paidOn, int $cashOrBankAccountId, string $method, string $note): self
+    {
+        $cashOrBank = ChartOfAccount::query()->where('company_id', $companyId)->find($cashOrBankAccountId);
+
+        if ($cashOrBank === null) {
+            throw ValidationException::withMessages([
+                'payment_account' => ['Select a valid cash or bank account before saving the refund.'],
+            ]);
+        }
+
+        $anchor = new Transaction;
+        $anchor->company_id = $companyId;
+        $anchor->branch_id = $branchId;
+
+        $ledger = app(LedgerJournal::class);
+        $contactAccount = $ledger->accountByCode($anchor, (string) ($customer->customer_gl_id ?: $customer->gl_id));
+
+        if ($contactAccount === null) {
+            throw ValidationException::withMessages([
+                'contact_id' => ['Link the customer to a chart of account before refunding them.'],
+            ]);
+        }
+
+        $amount = round($amount, 2);
+        $contactName = $customer->business_name ?: trim($customer->first_name.' '.$customer->last_name);
+
+        $payment = new self;
+        $payment->company_id = $companyId;
+        $payment->branch_id = $branchId;
+        $payment->transaction_id = null;
+        $payment->contact_id = $customer->id;
+        $payment->payment_account = $cashOrBank->id;
+        $payment->is_return = true;
+        $payment->amount = $amount;
+        $payment->method = in_array($method, ['cash', 'bank', 'cheque', 'card', 'online', 'other'], true) ? $method : 'cash';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'sell');
+
+        $journal = $ledger->postPayment($payment, $cashOrBank, 'Refund to '.$contactName, 'SP', [
+            ['account' => $contactAccount, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $customer->id],
+            ['account' => $cashOrBank, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $customer->id],
+        ]);
+
+        $payment->t_account_id = $journal->id;
+        $payment->save();
+
+        return $payment;
+    }
+
+    /**
      * Money paid to a supplier before there is a bill for it: the cash / bank account is credited and the supplier's account
      * debited (it reduces what is owed), with no bill attached. The mirror of createSellAdvance.
      *

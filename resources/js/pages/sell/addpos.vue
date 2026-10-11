@@ -25,6 +25,7 @@
         Tag,
         Trash2,
         Undo2,
+        UserCheck,
         UserPlus,
         X,
         XSquare,
@@ -535,6 +536,36 @@
         Object.assign(formData.value, patch);
     }
 
+    // The cashier who signed in with a code and PIN stays on the till across sales; each sale is stamped with them.
+    const cashierName = ref('');
+
+    async function signInCashier() {
+        const code = window.prompt('Cashier code');
+
+        if (! code) {
+            return;
+        }
+
+        const pin = window.prompt('PIN');
+
+        if (! pin) {
+            return;
+        }
+
+        try {
+            const response = await window.axios.post('/api/cashiers/verify-pin', { code, pin, company_id: formData.value.company_id || undefined });
+            const cashier = response.data?.data;
+
+            cashierName.value = cashier?.name ?? '';
+            persistPatch({ cashier_id: cashier?.id ?? null });
+            Notify(`Cashier: ${cashierName.value}`, 'success');
+        } catch (error: any) {
+            cashierName.value = '';
+            persistPatch({ cashier_id: null });
+            Notify(error?.response?.data?.errors?.code?.[0] ?? error?.response?.data?.message ?? 'The cashier could not be verified.', 'alert');
+        }
+    }
+
     function resetSale() {
         formData.value = {
             ...emptyForm(),
@@ -542,7 +573,8 @@
             company_id: formData.value.company_id,
             branch_id: formData.value.branch_id,
             contact_id: '',
-        };
+            cashier_id: (formData.value as Record<string, unknown>).cashier_id ?? null,
+        } as typeof formData.value;
     }
 
     async function cancelSale() {
@@ -1128,6 +1160,9 @@
             <div class="pos-topbar__actions">
                 <button type="button" class="pos-icon-btn" title="Go back" @click="router.visit('/sell')">
                     <ArrowLeft class="h-4 w-4" />
+                </button>
+                <button type="button" class="pos-icon-btn" :class="{ 'is-active': cashierName }" :title="cashierName ? `Cashier: ${cashierName}` : 'Cashier sign-in'" @click="signInCashier">
+                    <UserCheck class="h-4 w-4" />
                 </button>
                 <Link href="/sell/return/add" class="pos-icon-btn" title="Sell return">
                     <Undo2 class="h-4 w-4" />

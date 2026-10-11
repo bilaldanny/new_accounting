@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CashRounding;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -73,6 +74,7 @@ class CompanySetting extends Model
         'portal_payment_info',
         'negative_stock_mode',
         'reservation_mode',
+        'cash_rounding',
     ];
 
     /**
@@ -318,6 +320,7 @@ class CompanySetting extends Model
             'portal_payment_info' => $setting->portal_payment_info ?? '',
             'negative_stock_mode' => in_array($setting->negative_stock_mode ?? null, ['allow', 'warn', 'block'], true) ? $setting->negative_stock_mode : '',
             'reservation_mode' => ($setting->reservation_mode ?? null) === 'enforce' ? 'enforce' : 'off',
+            'cash_rounding' => CashRounding::parse((string) ($setting->cash_rounding ?? '')) === null ? '' : $setting->cash_rounding,
             'credit_limit_mode' => in_array($setting->credit_limit_mode ?? null, self::CREDIT_LIMIT_MODES, true) ? $setting->credit_limit_mode : 'hard',
         ];
     }
@@ -373,6 +376,11 @@ class CompanySetting extends Model
             'auto_grn',
             'auto_gin',
         ]));
+
+        if ($request->has('cash_rounding') && Schema::hasColumn('company_settings', 'cash_rounding')) {
+            $rule = (string) $request->input('cash_rounding');
+            $setting->cash_rounding = CashRounding::parse($rule) === null ? null : $rule;
+        }
 
         foreach (['negative_stock_mode' => ['allow', 'warn', 'block'], 'reservation_mode' => ['off', 'enforce']] as $column => $allowed) {
             if ($request->has($column) && Schema::hasColumn('company_settings', $column)) {

@@ -64,6 +64,20 @@ dataset('company pages', [
     'inbound shipments' => ['/inboundshipment', 'Inbound Shipments', 'table'],
     'supplier returns rma' => ['/rma', 'Supplier Returns (RMA)', 'table'],
     'supplier price comparison report' => ['/report/supplier-price-comparison', 'Supplier Price Comparison', 'table'],
+    'quotations' => ['/quotation', 'Quotations & Proforma', 'table'],
+    'sales orders' => ['/salesorder', 'Sales Orders', 'table'],
+    'store credit' => ['/storecredit', 'Store Credit & Refunds', 'table'],
+    'cheque management' => ['/chequemanagement', 'Cheque Management', 'table'],
+    'cashiers' => ['/cashier', 'Cashiers', 'table'],
+    'riders' => ['/rider', 'Riders', 'table'],
+    'dispatch board' => ['/dispatch', 'Dispatch Board', 'table'],
+    'sales kpi' => ['/saleskpi', 'Sales KPI & Commission', 'table'],
+    'sales routes' => ['/salesroute', 'Sales Routes', 'table'],
+    'recurring invoices' => ['/recurringinvoice', 'Recurring Invoices', 'table'],
+    'installments' => ['/installment', 'Installments & Layaway', 'table'],
+    'ecommerce sync' => ['/ecommerce', 'E-commerce Sync', 'table'],
+    'messaging settings' => ['/messagingsetting', 'Messaging Settings', null],
+    'import sales' => ['/salesimport', 'Import Sales', 'textarea'],
 ]);
 
 dataset('platform pages', [

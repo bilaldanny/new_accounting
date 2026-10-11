@@ -249,6 +249,8 @@ abstract class DuskTestCase extends BaseTestCase
             '/purchase', '/sell', '/supplier', '/customer', '/product', '/company/setting', '/purchasereturn/approval', '/stockadjustment/approval',
             '/stocktransfer/approval', '/cashcollection/approval', '/pricelist/approval', '/creditlimit/approval', '/contacts/duplicates', '/auditlogs', '/posshift',
             '/productattribute', '/productdiscountrule', '/warrantyclaim', '/consignment', '/productbom', '/openingstock', '/stockreservation', '/warehousetask', '/stockwriteoff', '/inventoryclose', '/purchaseapprovalrule', '/reordersuggestion', '/importpurchase', '/qualityinspection', '/supplierpayment', '/inboundshipment', '/rma', '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
+            '/quotation', '/salesorder', '/storecredit', '/chequemanagement', '/cashier', '/rider', '/dispatch', '/saleskpi', '/salesroute', '/recurringinvoice',
+            '/installment', '/ecommerce', '/messagingsetting', '/salesimport',
         ];
 
         $paths = [];
@@ -257,7 +259,9 @@ abstract class DuskTestCase extends BaseTestCase
             array_push($paths, $base, $base.'/add', $base.'/:id/edit', $base.'/delete', $base.'/restore', $base.'/view');
         }
 
-        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/report/abc-analysis', '/report/stock-ageing', '/report/supplier-price-comparison', '/inventoryclose/add', '/inventoryclose/reopen', '/portalrequests', '/portalrequests/approve', '/customer/documents', '/customer/import', '/customer/:id/view', '/supplier/documents', '/supplier/import', '/supplier/:id/view', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
+        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/report/abc-analysis', '/report/stock-ageing', '/report/supplier-price-comparison', '/inventoryclose/add', '/inventoryclose/reopen', '/portalrequests', '/portalrequests/approve', '/customer/documents', '/customer/import', '/customer/:id/view', '/supplier/documents', '/supplier/import', '/supplier/:id/view', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run',
+            '/salesorder/approve', '/salesorder/invoice', '/quotation/convert', '/storecredit/refund', '/storecredit/apply', '/dispatch/assign', '/saleskpi/edit',
+            '/salesroute/visit', '/recurringinvoice/generate', '/installment/pay', '/ecommerce/sync', '/messagingsetting/edit', '/sell/import');
 
         return array_values(array_unique($paths));
     }

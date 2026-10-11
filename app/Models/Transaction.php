@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\GuardsLockedPeriods;
+use App\Services\CashRounding;
 use App\Services\CustomerCreditLimit;
 use App\Services\Fbr\FbrSubmitter;
 use App\Services\InventoryClose;
@@ -41,6 +42,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -167,6 +169,8 @@ class Transaction extends Model
      * @var list<array{product_id: int, variation_id: int, product_name: string, requested: float, available: float}>
      */
     public array $stockWarnings = [];
+
+    private static ?bool $cashierTracked = null;
 
     public const TYPE_PURCHASE = 'purchaseorder';
 
@@ -888,6 +892,7 @@ class Transaction extends Model
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
         $lines = $transaction->applyDocumentTax($request, (array) ($request->selllines ?? []), 'selllines');
         $transaction->applyWithholding($request);
+        self::applyCashRounding($request, $transaction);
         $stockShortages = self::guardSaleStock($request, $transaction);
         app(CustomerCreditLimit::class)->assertWithinLimit($transaction);
         $transaction->invoice_no = self::generateSellInvoiceNo($companyId, $request->invoice_no ?? null);
@@ -916,6 +921,27 @@ class Transaction extends Model
      *
      * @throws InsufficientStockException
      */
+    /**
+     * Rounds the total of a POS sale to the company's cash rounding rule, keeping the difference on the sale. A company with no rule
+     * (the default), a sale from any other screen, and a draft or quotation are left exactly as they were.
+     */
+    private static function applyCashRounding(object $request, self $sale): void
+    {
+        if (! filter_var($request->is_pos ?? false, FILTER_VALIDATE_BOOLEAN) || in_array($sale->status, self::UNPOSTED_SELL_STATUSES, true)) {
+            return;
+        }
+
+        $rule = CashRounding::ruleFor(self::resolveScopedId($sale->company_id));
+
+        if ($rule === null) {
+            return;
+        }
+
+        $rounded = CashRounding::apply((float) $sale->final_amount, $rule);
+        $sale->rounding_adjustment = round($rounded - (float) $sale->final_amount, 2);
+        $sale->final_amount = $rounded;
+    }
+
     private static function guardSaleStock(object $request, self $sale): array
     {
         $shortages = app(SaleStockCheck::class)->shortages($sale, (array) ($request->selllines ?? []));
@@ -960,6 +986,7 @@ class Transaction extends Model
         $transaction->fillFromSellRequest($request, $companyId, $branchId);
         $lines = $transaction->applyDocumentTax($request, (array) ($request->selllines ?? []), 'selllines');
         $transaction->applyWithholding($request);
+        self::applyCashRounding($request, $transaction);
         $stockShortages = self::guardSaleStock($request, $transaction);
         app(CustomerCreditLimit::class)->assertWithinLimit($transaction, $previous);
         $transaction->invoice_no = trim((string) ($request->invoice_no ?? '')) !== ''
@@ -1312,6 +1339,13 @@ class Transaction extends Model
         $this->status = $status;
         $this->type = self::TYPE_SELL;
         $this->link_account = (bool) ($request->link_account ?? false);
+
+        if (self::$cashierTracked ??= Schema::hasColumn('transactions', 'cashier_id')) {
+            $cashierId = self::resolveScopedId($request->cashier_id ?? null);
+            $this->cashier_id = $cashierId !== null && Cashier::query()->where('company_id', $companyId)->where('is_active', true)->whereKey($cashierId)->exists()
+                ? $cashierId
+                : ($this->exists ? $this->cashier_id : null);
+        }
     }
 
     /**

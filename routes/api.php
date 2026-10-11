@@ -21,8 +21,10 @@ use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\BulkPriceUpdateController;
 use App\Http\Controllers\CashCollectionApprovalController;
 use App\Http\Controllers\CashCollectionController;
+use App\Http\Controllers\CashierController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChartOfAccountController;
+use App\Http\Controllers\ChequeRecordController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CommissionAgentController;
 use App\Http\Controllers\CompanyController;
@@ -49,7 +51,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\DocumentSettingController;
+use App\Http\Controllers\EcommerceConnectionController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FbrController;
 use App\Http\Controllers\FinancialYearController;
@@ -62,6 +66,7 @@ use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\ImportPurchaseController;
 use App\Http\Controllers\InboundShipmentController;
+use App\Http\Controllers\InstallmentPlanController;
 use App\Http\Controllers\InventoryCloseController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
@@ -72,6 +77,7 @@ use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\MessagingSettingController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\PaymentController;
@@ -104,7 +110,10 @@ use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\PurchaseReturnApprovalController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\QualityInspectionController;
+use App\Http\Controllers\QuotationController;
+use App\Http\Controllers\ReceiptShareController;
 use App\Http\Controllers\ReceivingNoteController;
+use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\ReorderSuggestionController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\CrmReportController;
@@ -118,6 +127,10 @@ use App\Http\Controllers\Reports\StockReportController;
 use App\Http\Controllers\Reports\TransactionReportController;
 use App\Http\Controllers\RmaController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SaleImportController;
+use App\Http\Controllers\SalesKpiController;
+use App\Http\Controllers\SalesOrderController;
+use App\Http\Controllers\SalesRouteController;
 use App\Http\Controllers\SellApprovalController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\SellPaymentController;
@@ -132,6 +145,7 @@ use App\Http\Controllers\StockTrackingController;
 use App\Http\Controllers\StockTransferApprovalController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\StockWriteoffController;
+use App\Http\Controllers\StoreCreditController;
 use App\Http\Controllers\SubscriptionInvoiceController;
 use App\Http\Controllers\SubscriptionPlanController;
 use App\Http\Controllers\SupplierController;
@@ -1246,6 +1260,84 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('rma', [RmaController::class, 'store']);
     Route::post('rma/{id}/status', [RmaController::class, 'transition'])->whereNumber('id');
     Route::delete('rma/{id}', [RmaController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('quotations', [QuotationController::class, 'index']);
+    Route::put('quotations/{id}', [QuotationController::class, 'update'])->whereNumber('id');
+    Route::post('quotations/{id}/convert', [QuotationController::class, 'convert'])->whereNumber('id');
+
+    Route::get('sales-orders', [SalesOrderController::class, 'index']);
+    Route::post('sales-orders', [SalesOrderController::class, 'store']);
+    Route::get('sales-orders/{id}', [SalesOrderController::class, 'show'])->whereNumber('id');
+    Route::post('sales-orders/{id}/submit', [SalesOrderController::class, 'submit'])->whereNumber('id');
+    Route::post('sales-orders/{id}/approve', [SalesOrderController::class, 'approve'])->whereNumber('id');
+    Route::post('sales-orders/{id}/cancel', [SalesOrderController::class, 'cancel'])->whereNumber('id');
+    Route::post('sales-orders/{id}/invoice', [SalesOrderController::class, 'invoice'])->whereNumber('id');
+
+    Route::post('sells/import', [SaleImportController::class, 'import']);
+    Route::post('sells/{id}/receipt-share', [ReceiptShareController::class, 'store'])->whereNumber('id');
+    Route::get('sells/{id}/receipt-shares', [ReceiptShareController::class, 'index'])->whereNumber('id');
+
+    Route::get('store-credit', [StoreCreditController::class, 'balance']);
+    Route::get('store-credits', [StoreCreditController::class, 'index']);
+    Route::post('store-credit/issue', [StoreCreditController::class, 'issue']);
+    Route::post('store-credit/refund', [StoreCreditController::class, 'refund']);
+    Route::post('store-credit/apply', [StoreCreditController::class, 'apply']);
+
+    Route::get('cheque-records', [ChequeRecordController::class, 'index']);
+    Route::post('cheque-records', [ChequeRecordController::class, 'store']);
+    Route::post('cheque-records/{id}/status', [ChequeRecordController::class, 'transition'])->whereNumber('id');
+
+    Route::get('cashiers', [CashierController::class, 'index']);
+    Route::get('cashiers/performance', [CashierController::class, 'performance']);
+    Route::post('cashiers/verify-pin', [CashierController::class, 'verifyPin'])->middleware('throttle:30,1');
+    Route::post('cashiers', [CashierController::class, 'store']);
+    Route::put('cashiers/{id}', [CashierController::class, 'update'])->whereNumber('id');
+    Route::delete('cashiers/{id}', [CashierController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('riders', [DispatchController::class, 'riders']);
+    Route::post('riders', [DispatchController::class, 'storeRider']);
+    Route::put('riders/{id}', [DispatchController::class, 'updateRider'])->whereNumber('id');
+    Route::delete('riders/{id}', [DispatchController::class, 'destroyRider'])->whereNumber('id');
+    Route::get('dispatch/board', [DispatchController::class, 'board']);
+    Route::post('dispatch/assign', [DispatchController::class, 'assign']);
+    Route::post('dispatch/{id}/move', [DispatchController::class, 'move'])->whereNumber('id');
+
+    Route::get('sales-kpi/statement', [SalesKpiController::class, 'statement']);
+    Route::get('sales-kpi/targets', [SalesKpiController::class, 'targets']);
+    Route::post('sales-kpi/targets', [SalesKpiController::class, 'setTarget']);
+    Route::get('sales-kpi/tiers', [SalesKpiController::class, 'tiers']);
+    Route::post('sales-kpi/tiers', [SalesKpiController::class, 'storeTier']);
+    Route::delete('sales-kpi/tiers/{id}', [SalesKpiController::class, 'destroyTier'])->whereNumber('id');
+
+    Route::get('sales-routes', [SalesRouteController::class, 'index']);
+    Route::get('sales-routes/sheet', [SalesRouteController::class, 'sheet']);
+    Route::post('sales-routes', [SalesRouteController::class, 'store']);
+    Route::put('sales-routes/{id}', [SalesRouteController::class, 'update'])->whereNumber('id');
+    Route::delete('sales-routes/{id}', [SalesRouteController::class, 'destroy'])->whereNumber('id');
+    Route::post('sales-routes/{id}/visit', [SalesRouteController::class, 'visit'])->whereNumber('id');
+
+    Route::get('recurring-invoices', [RecurringInvoiceController::class, 'index']);
+    Route::post('recurring-invoices', [RecurringInvoiceController::class, 'store']);
+    Route::post('recurring-invoices/generate', [RecurringInvoiceController::class, 'generate']);
+    Route::get('recurring-invoices/{id}', [RecurringInvoiceController::class, 'show'])->whereNumber('id');
+    Route::put('recurring-invoices/{id}', [RecurringInvoiceController::class, 'update'])->whereNumber('id');
+    Route::delete('recurring-invoices/{id}', [RecurringInvoiceController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('installment-plans', [InstallmentPlanController::class, 'index']);
+    Route::post('installment-plans', [InstallmentPlanController::class, 'store']);
+    Route::get('installment-plans/{id}', [InstallmentPlanController::class, 'show'])->whereNumber('id');
+    Route::post('installment-plans/{id}/pay', [InstallmentPlanController::class, 'pay'])->whereNumber('id');
+    Route::post('installment-plans/{id}/cancel', [InstallmentPlanController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('ecommerce-connections', [EcommerceConnectionController::class, 'index']);
+    Route::post('ecommerce-connections', [EcommerceConnectionController::class, 'store']);
+    Route::put('ecommerce-connections/{id}', [EcommerceConnectionController::class, 'update'])->whereNumber('id');
+    Route::post('ecommerce-connections/{id}/sync', [EcommerceConnectionController::class, 'sync'])->whereNumber('id');
+    Route::get('ecommerce-connections/{id}/orders', [EcommerceConnectionController::class, 'orders'])->whereNumber('id');
+    Route::post('ecommerce-connections/{id}/orders/{orderId}/retry', [EcommerceConnectionController::class, 'retry'])->whereNumber('id')->whereNumber('orderId');
+
+    Route::get('messaging-settings', [MessagingSettingController::class, 'index']);
+    Route::put('messaging-settings/{channel}', [MessagingSettingController::class, 'update']);
 
     Route::get('opening-stock', [OpeningStockController::class, 'index']);
     Route::post('opening-stock', [OpeningStockController::class, 'store']);

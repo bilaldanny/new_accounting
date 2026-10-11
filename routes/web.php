@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\PublicLeadCaptureController;
 use App\Http\Controllers\PublicRegistrationController;
+use App\Http\Controllers\ReceiptShareController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
@@ -79,6 +80,9 @@ Route::middleware('guest')->group(function () {
     Route::post('register', [PublicRegistrationController::class, 'store'])->middleware('throttle:self-signup')->name('register.store');
 });
 /* Public landing page and self-service sign-up */
+
+/* A receipt shared by link: only the receipt of that one sale, by an unguessable token, for 30 days */
+Route::get('r/{token}', [ReceiptShareController::class, 'show'])->middleware('throttle:60,1')->name('receipt.public');
 
 /* Public blog (published posts only, for everyone) */
 Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
@@ -1287,6 +1291,20 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('supplierpayment', fn () => Inertia::render('supplierpayment/index'))->name('supplierpayment');
     Route::get('inboundshipment', fn () => Inertia::render('inboundshipment/index'))->name('inboundshipment');
     Route::get('rma', fn () => Inertia::render('rma/index'))->name('rma');
+    Route::get('quotation', fn () => Inertia::render('quotation/index'))->name('quotation');
+    Route::get('salesorder', fn () => Inertia::render('salesorder/index'))->name('salesorder');
+    Route::get('storecredit', fn () => Inertia::render('storecredit/index'))->name('storecredit');
+    Route::get('chequemanagement', fn () => Inertia::render('chequemanagement/index'))->name('chequemanagement');
+    Route::get('cashier', fn () => Inertia::render('cashier/index'))->name('cashier');
+    Route::get('rider', fn () => Inertia::render('rider/index'))->name('rider');
+    Route::get('dispatch', fn () => Inertia::render('dispatch/index'))->name('dispatch');
+    Route::get('saleskpi', fn () => Inertia::render('saleskpi/index'))->name('saleskpi');
+    Route::get('salesroute', fn () => Inertia::render('salesroute/index'))->name('salesroute');
+    Route::get('recurringinvoice', fn () => Inertia::render('recurringinvoice/index'))->name('recurringinvoice');
+    Route::get('installment', fn () => Inertia::render('installment/index'))->name('installment');
+    Route::get('ecommerce', fn () => Inertia::render('ecommerce/index'))->name('ecommerce');
+    Route::get('messagingsetting', fn () => Inertia::render('messagingsetting/index'))->name('messagingsetting');
+    Route::get('salesimport', fn () => Inertia::render('salesimport/index'))->name('salesimport');
     /* Product */
 
     /* Payment */
