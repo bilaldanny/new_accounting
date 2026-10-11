@@ -28,12 +28,13 @@ final class RolePresets
                 '/chart-of-account', '/opening-balance', '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer',
                 '/creditdebitnote', '/bankreconciliation', '/assetcategory', '/fixedasset', '/depreciation', '/costcenter', '/budget',
                 '/taxexemption', '/tax', '/financialyear', '/landedcost', '/period-lock', '/supplierpayment',
+                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation',
             ],
             'view' => [
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',
                 '/report/profit-loss', '/report/cash-flow', '/report/tax', '/report/budget-vs-actual', '/report/cost-center-analysis',
                 '/report/financial-ratios', '/report/vouchers', '/report/expense', '/report/payment-account', '/report/customer-outstanding',
-                '/report/supplier-outstanding', '/report/customer-aging', '/report/supplier-aging', '/report/payment-age',
+                '/report/supplier-outstanding', '/report/customer-aging', '/report/supplier-aging', '/report/payment-age', '/cashflowforecast',
             ],
             'exclude' => ['/period-lock/reopen', '/period-lock/override'],
             'approvals' => false,
@@ -55,6 +56,7 @@ final class RolePresets
             'view' => [
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',
+                '/cashflowforecast', '/loan', '/bankinstrument',
             ],
             'exclude' => [],
             'approvals' => true,

@@ -73,6 +73,17 @@
     const unmatch = (lineId: number) => call(() => window.axios.post(`${base()}/lines/${lineId}/unmatch`));
     const reconcile = () => call(() => window.axios.post(`${base()}/reconcile`));
 
+    /** Books an unmatched outgoing line (a bank charge) as a voucher against the account the user names, and matches it. */
+    function bookCharge(lineId: number) {
+        const account = window.prompt('Id of the expense account to charge (for example Bank Charges)');
+
+        if (! account) {
+            return;
+        }
+
+        return call(() => window.axios.post(`${base()}/lines/${lineId}/charge`, { expense_account_id: Number(account) }), 'Charge booked');
+    }
+
     onMounted(() => call(() => window.axios.get(base())));
 </script>
 
@@ -135,6 +146,7 @@
                                             <option v-for="row in candidatesFor(line.amount)" :key="row.id" :value="row.id">{{ row.voucher_date }} · {{ row.voucher_no }} {{ row.cheque_no }} · {{ money(row.signed_amount) }}</option>
                                         </select>
                                         <button type="button" class="btn btn-outline-primary btn-sm" :disabled="busy || ! choice[line.id]" @click="match(line.id)">Match</button>
+                                        <button v-if="line.amount < 0 && ! line.charge_t_account_id && can('/bankreconciliation/charge')" type="button" class="btn btn-outline-secondary btn-sm" :disabled="busy" @click="bookCharge(line.id)">Book as charge</button>
                                     </div>
                                     <span v-else class="text-muted">-</span>
                                 </td>

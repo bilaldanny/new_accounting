@@ -51,6 +51,43 @@
         })
         .filter((row) => ! Number.isNaN(row.amount)));
 
+    const importFormat = ref('ofx');
+
+    /**
+     * Reads a statement file (OFX / QFX, MT940, CSV) on the server and fills the form with what it holds: the lines, the period
+     * and the balances it carries. Nothing is saved until the statement is.
+     */
+    async function importFile(event: Event) {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+
+        if (! file) {
+            return;
+        }
+
+        try {
+            const content = await file.text();
+            const body: Record<string, unknown> = { format: importFormat.value, content };
+
+            if (isSuperadmin.value && companyId.value !== '') {
+                body.company_id = companyId.value;
+            }
+
+            const parsed = (await window.axios.post('/api/bank-reconciliations/parse', body)).data?.data;
+
+            csv.value = ['date,description,reference,amount', ...parsed.rows.map((row: Row) => [row.txn_date, `"${(row.description ?? '').replace(/"/g, '')}"`, row.reference ?? '', row.amount].join(','))].join('\n');
+            form.statement_from = parsed.from ?? form.statement_from;
+            form.statement_to = parsed.to ?? form.statement_to;
+            form.opening_balance = parsed.opening_balance === null ? form.opening_balance : String(parsed.opening_balance);
+            form.closing_balance = parsed.closing_balance === null ? form.closing_balance : String(parsed.closing_balance);
+            Notify(`${parsed.rows.length} lines read from the ${importFormat.value.toUpperCase()} file`, 'success');
+        } catch (error: unknown) {
+            Notify(errorText(error), 'alert');
+        } finally {
+            input.value = '';
+        }
+    }
+
     function errorText(error: unknown): string {
         if (window.axios.isAxiosError(error)) {
             const errors = error.response?.data?.errors;
@@ -118,6 +155,16 @@
                         <option value="" disabled>Select account</option>
                         <option v-for="account in accounts" :key="account.code" :value="account.code">{{ account.code }} · {{ account.name }}</option>
                     </select>
+                </div>
+                <div class="col-12 d-flex flex-wrap align-items-end gap-2">
+                    <div>
+                        <label class="form-label" for="bank-import-format">Statement file</label>
+                        <select id="bank-import-format" v-model="importFormat" class="form-select form-select-sm">
+                            <option value="ofx">OFX / QFX</option><option value="mt940">MT940 (SWIFT)</option><option value="csv">CSV</option>
+                        </select>
+                    </div>
+                    <input type="file" class="form-control form-control-sm" style="max-width: 18rem" accept=".ofx,.qfx,.sta,.mt940,.txt,.csv" aria-label="Statement file" @change="importFile">
+                    <span class="text-muted small">or paste the lines below</span>
                 </div>
                 <div class="col-md-2"><label class="form-label">From</label><input v-model="form.statement_from" type="date" class="form-control" required></div>
                 <div class="col-md-2"><label class="form-label">To</label><input v-model="form.statement_to" type="date" class="form-control" required></div>

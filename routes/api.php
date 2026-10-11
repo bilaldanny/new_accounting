@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountBalanceController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AllocationController;
 use App\Http\Controllers\Api\PublicApiCustomerController;
 use App\Http\Controllers\Api\PublicApiInvoiceController;
 use App\Http\Controllers\Api\PublicApiProductController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BankController;
+use App\Http\Controllers\BankInstrumentController;
 use App\Http\Controllers\BankIssuerController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\BlogPostController;
@@ -21,9 +23,11 @@ use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\BulkPriceUpdateController;
 use App\Http\Controllers\CashCollectionApprovalController;
 use App\Http\Controllers\CashCollectionController;
+use App\Http\Controllers\CashFlowForecastController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChartOfAccountController;
+use App\Http\Controllers\ChequePrintController;
 use App\Http\Controllers\ChequeRecordController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CommissionAgentController;
@@ -74,6 +78,7 @@ use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LandedCostController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadSourceController;
+use App\Http\Controllers\LoanController;
 use App\Http\Controllers\LowStockController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MenuController;
@@ -81,8 +86,10 @@ use App\Http\Controllers\MessagingSettingController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentTermController;
 use App\Http\Controllers\PeriodLockController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PettyCashController;
 use App\Http\Controllers\PipelineStageController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\PortalCustomerController;
@@ -152,6 +159,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TaxExemptionController;
+use App\Http\Controllers\TaxPaymentController;
 use App\Http\Controllers\TaxPreviewController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TimezoneController;
@@ -166,6 +174,7 @@ use App\Http\Controllers\WarehouseTaskController;
 use App\Http\Controllers\WarrantyClaimController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\YearCloseController;
 use App\Http\Controllers\YearRolloverController;
 use App\Http\Middleware\LogPublicApiRequest;
 use App\Http\Middleware\ValidateBulkActionBody;
@@ -417,6 +426,56 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     /* Landed Cost */
 
     /* Bank Reconciliation */
+    Route::get('petty-cash/funds', [PettyCashController::class, 'index']);
+    Route::post('petty-cash/funds', [PettyCashController::class, 'store']);
+    Route::put('petty-cash/funds/{id}', [PettyCashController::class, 'update'])->whereNumber('id');
+    Route::delete('petty-cash/funds/{id}', [PettyCashController::class, 'destroy'])->whereNumber('id');
+    Route::get('petty-cash/funds/{id}/entries', [PettyCashController::class, 'entries'])->whereNumber('id');
+    Route::post('petty-cash/funds/{id}/expense', [PettyCashController::class, 'expense'])->whereNumber('id');
+    Route::post('petty-cash/funds/{id}/replenish', [PettyCashController::class, 'replenish'])->whereNumber('id');
+    Route::delete('petty-cash/entries/{id}', [PettyCashController::class, 'destroyEntry'])->whereNumber('id');
+
+    Route::get('cheque-layouts', [ChequePrintController::class, 'layouts']);
+    Route::post('cheque-layouts', [ChequePrintController::class, 'storeLayout']);
+    Route::put('cheque-layouts/{id}', [ChequePrintController::class, 'updateLayout'])->whereNumber('id');
+    Route::delete('cheque-layouts/{id}', [ChequePrintController::class, 'destroyLayout'])->whereNumber('id');
+    Route::post('cheque-print', [ChequePrintController::class, 'render']);
+
+    Route::post('bank-reconciliations/parse', [BankReconciliationController::class, 'parse']);
+    Route::post('bank-reconciliations/{id}/lines/{lineId}/charge', [BankReconciliationController::class, 'charge'])->whereNumber('id')->whereNumber('lineId');
+
+    Route::get('bank-instruments', [BankInstrumentController::class, 'index']);
+    Route::post('bank-instruments', [BankInstrumentController::class, 'store']);
+    Route::put('bank-instruments/{id}', [BankInstrumentController::class, 'update'])->whereNumber('id');
+    Route::delete('bank-instruments/{id}', [BankInstrumentController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('loans', [LoanController::class, 'index']);
+    Route::post('loans', [LoanController::class, 'store']);
+    Route::get('loans/{id}', [LoanController::class, 'show'])->whereNumber('id');
+    Route::post('loans/{id}/pay', [LoanController::class, 'pay'])->whereNumber('id');
+
+    Route::get('tax-payments', [TaxPaymentController::class, 'index']);
+    Route::get('tax-payments/summary', [TaxPaymentController::class, 'summary']);
+    Route::post('tax-payments', [TaxPaymentController::class, 'store']);
+    Route::delete('tax-payments/{id}', [TaxPaymentController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('payment-terms', [PaymentTermController::class, 'index']);
+    Route::post('payment-terms', [PaymentTermController::class, 'store']);
+    Route::post('payment-terms/assign', [PaymentTermController::class, 'assign']);
+    Route::put('payment-terms/{id}', [PaymentTermController::class, 'update'])->whereNumber('id');
+    Route::delete('payment-terms/{id}', [PaymentTermController::class, 'destroy'])->whereNumber('id');
+    Route::get('early-payment-discounts', [PaymentTermController::class, 'eligible']);
+    Route::post('early-payment-discounts', [PaymentTermController::class, 'applyDiscount']);
+
+    Route::get('allocation/suggest', [AllocationController::class, 'suggest']);
+    Route::post('allocation/apply', [AllocationController::class, 'apply']);
+
+    Route::get('cash-flow-forecast', [CashFlowForecastController::class, 'show']);
+
+    Route::get('year-close', [YearCloseController::class, 'index']);
+    Route::get('year-close/preview', [YearCloseController::class, 'preview']);
+    Route::post('year-close', [YearCloseController::class, 'run']);
+
     Route::get('bank-reconciliations', [BankReconciliationController::class, 'index']);
     Route::get('bank-reconciliations/accounts', [BankReconciliationController::class, 'accounts']);
     Route::post('bank-reconciliations', [BankReconciliationController::class, 'store']);

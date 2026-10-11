@@ -625,6 +625,67 @@ class Payment extends Model
     }
 
     /**
+     * An early-payment discount taken on an invoice or bill. It settles part of the document without cash moving: on a sale the
+     * customer's account is credited and the discount account debited (a sales discount); on a purchase the supplier's account is
+     * debited and the discount account credited (a purchase discount received). The row counts as a payment on the document, so
+     * its balance and payment status follow.
+     *
+     * @throws ValidationException
+     */
+    public static function createDocumentDiscount(Transaction $document, ChartOfAccount $discountAccount, float $amount, string $paidOn, string $note): self
+    {
+        $amount = round($amount, 2);
+
+        self::assertAmountWithinRemaining($document, $amount);
+
+        $document->loadMissing('contact');
+        $contact = $document->contact;
+        $isPurchase = $document->type === Transaction::TYPE_PURCHASE;
+        $ledger = app(LedgerJournal::class);
+
+        $contactCode = $contact === null ? '' : ($isPurchase ? ($contact->supplier_gl_id ?: $contact->gl_id) : ($contact->customer_gl_id ?: $contact->gl_id));
+        $contactAccount = $contact === null ? null : $ledger->accountByCode($document, (string) $contactCode);
+
+        if ($contactAccount === null) {
+            throw ValidationException::withMessages([
+                'transaction_id' => ['Link the '.($isPurchase ? 'supplier' : 'customer').' to a chart of account before taking a discount.'],
+            ]);
+        }
+
+        $payment = new self;
+        $payment->company_id = $document->company_id;
+        $payment->branch_id = $document->branch_id;
+        $payment->transaction_id = $document->id;
+        $payment->contact_id = $document->contact_id;
+        $payment->payment_account = null;
+        $payment->is_return = false;
+        $payment->amount = $amount;
+        $payment->method = 'other';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo((int) $document->company_id, (int) $document->branch_id, $isPurchase ? 'purchase' : 'sell');
+
+        $lines = $isPurchase
+            ? [
+                ['account' => $contactAccount, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $contact->id],
+                ['account' => $discountAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $contact->id],
+            ]
+            : [
+                ['account' => $discountAccount, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $contact->id],
+                ['account' => $contactAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $contact->id],
+            ];
+
+        $journal = $ledger->postPayment($payment, $discountAccount, 'Early payment discount '.$document->invoice_no, $isPurchase ? 'PP' : 'SP', $lines);
+
+        $payment->t_account_id = $journal->id;
+        $payment->save();
+
+        self::syncTransactionPaymentStatus((int) $document->id);
+
+        return $payment;
+    }
+
+    /**
      * Money paid to a supplier before there is a bill for it: the cash / bank account is credited and the supplier's account
      * debited (it reduces what is owed), with no bill attached. The mirror of createSellAdvance.
      *

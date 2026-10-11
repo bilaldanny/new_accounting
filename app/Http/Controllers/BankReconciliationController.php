@@ -6,7 +6,9 @@ use App\Http\Controllers\Concerns\ResolvesReportScope;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\ChartOfAccount;
+use App\Services\AccountsVoucher;
 use App\Services\BankReconciliation;
+use App\Services\BankStatementParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +104,79 @@ class BankReconciliationController extends Controller
         });
 
         return response()->json(['message' => 'Statement saved', 'id' => $statement->id]);
+    }
+
+    /**
+     * Reads an OFX / MT940 / CSV statement file into rows (and the dates and balances it carries) for the entry form to show and
+     * confirm; nothing is saved.
+     */
+    public function parse(Request $request, BankStatementParser $parser): JsonResponse
+    {
+        $this->authorizeMenuPermission('/bankreconciliation/add');
+
+        $data = $request->validate([
+            'format' => 'required|in:'.implode(',', BankStatementParser::FORMATS),
+            'content' => 'required|string|max:5000000',
+        ]);
+
+        return response()->json(['data' => $parser->parse($data['format'], $data['content'])]);
+    }
+
+    /**
+     * Books a bank charge (or any outgoing line with no entry in the books) straight from an unmatched statement line: a voucher
+     * Dr the chosen expense account / Cr the bank account for the line's amount, dated the line's day, and the line is matched to it
+     * (when the voucher is approved at once; otherwise it matches once the voucher is approved).
+     */
+    public function charge(Request $request, int $id, int $lineId, AccountsVoucher $vouchers): JsonResponse
+    {
+        $this->authorizeMenuPermission('/bankreconciliation/charge');
+
+        $data = $request->validate(['expense_account_id' => 'required|integer', 'description' => 'nullable|string|max:255']);
+        $statement = $this->find($id);
+        $this->reconciliation->assertOpen($statement);
+        $line = $this->line($statement, $lineId);
+
+        if ($line->isMatched() || $line->charge_t_account_id !== null) {
+            throw ValidationException::withMessages(['line' => ['This statement line is already matched or booked.']]);
+        }
+
+        if ($line->amount >= 0) {
+            throw ValidationException::withMessages(['line' => ['Only a line of money going out can be booked as a charge.']]);
+        }
+
+        $bank = ChartOfAccount::query()->where('company_id', $statement->company_id)->where('code', $statement->account_code)->first();
+        $expense = ChartOfAccount::query()->where('company_id', $statement->company_id)->find($data['expense_account_id']);
+
+        if ($bank === null || $expense === null || $bank->id === $expense->id) {
+            throw ValidationException::withMessages(['expense_account_id' => ['Choose an expense account of this company, other than the bank account.']]);
+        }
+
+        $amount = round(abs((float) $line->amount), 2);
+        $text = $data['description'] ?? ($line->description ?: 'Bank charge');
+
+        DB::transaction(function () use ($vouchers, $statement, $line, $bank, $expense, $amount, $text): void {
+            $voucher = $vouchers->post(
+                (int) $statement->company_id, $statement->branch_id === null ? null : (int) $statement->branch_id, $line->txn_date->toDateString(),
+                [
+                    ['account_id' => (int) $expense->id, 'debit' => $amount, 'description' => $text],
+                    ['account_id' => (int) $bank->id, 'credit' => $amount, 'description' => $text],
+                ],
+                'Bank charge from statement: '.$text,
+                (string) ($line->reference ?? ''),
+            );
+
+            $line->forceFill(['charge_t_account_id' => $voucher->id])->save();
+
+            if ($voucher->status === 'approved') {
+                $detail = $voucher->details()->where('coa_id', $bank->id)->first();
+
+                if ($detail !== null) {
+                    $this->reconciliation->match($statement, $line, (int) $detail->id);
+                }
+            }
+        });
+
+        return response()->json(['message' => 'Charge booked', 'data' => $this->detail($statement)]);
     }
 
     public function show(int $id): JsonResponse
@@ -200,6 +275,7 @@ class BankReconciliationController extends Controller
                 'reference' => $line->reference,
                 'amount' => $line->amount,
                 'matched_detail_id' => $line->matched_detail_id,
+                'charge_t_account_id' => $line->charge_t_account_id,
             ])->all(),
             'summary' => $this->reconciliation->summary($statement),
         ];

@@ -251,6 +251,7 @@ abstract class DuskTestCase extends BaseTestCase
             '/productattribute', '/productdiscountrule', '/warrantyclaim', '/consignment', '/productbom', '/openingstock', '/stockreservation', '/warehousetask', '/stockwriteoff', '/inventoryclose', '/purchaseapprovalrule', '/reordersuggestion', '/importpurchase', '/qualityinspection', '/supplierpayment', '/inboundshipment', '/rma', '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
             '/quotation', '/salesorder', '/storecredit', '/chequemanagement', '/cashier', '/rider', '/dispatch', '/saleskpi', '/salesroute', '/recurringinvoice',
             '/installment', '/ecommerce', '/messagingsetting', '/salesimport',
+            '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/cashflowforecast', '/yearclose',
         ];
 
         $paths = [];
@@ -261,7 +262,9 @@ abstract class DuskTestCase extends BaseTestCase
 
         array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/report/abc-analysis', '/report/stock-ageing', '/report/supplier-price-comparison', '/inventoryclose/add', '/inventoryclose/reopen', '/portalrequests', '/portalrequests/approve', '/customer/documents', '/customer/import', '/customer/:id/view', '/supplier/documents', '/supplier/import', '/supplier/:id/view', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run',
             '/salesorder/approve', '/salesorder/invoice', '/quotation/convert', '/storecredit/refund', '/storecredit/apply', '/dispatch/assign', '/saleskpi/edit',
-            '/salesroute/visit', '/recurringinvoice/generate', '/installment/pay', '/ecommerce/sync', '/messagingsetting/edit', '/sell/import');
+            '/salesroute/visit', '/recurringinvoice/generate', '/installment/pay', '/ecommerce/sync', '/messagingsetting/edit', '/sell/import',
+            '/pettycash/expense', '/pettycash/replenish', '/chequeprint/layout', '/chequeprint/print', '/loan/pay', '/paymentterm/assign', '/paymentterm/discount',
+            '/allocation/apply', '/yearclose/run', '/bankreconciliation/charge');
 
         return array_values(array_unique($paths));
     }

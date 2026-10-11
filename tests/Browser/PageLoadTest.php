@@ -78,6 +78,15 @@ dataset('company pages', [
     'ecommerce sync' => ['/ecommerce', 'E-commerce Sync', 'table'],
     'messaging settings' => ['/messagingsetting', 'Messaging Settings', null],
     'import sales' => ['/salesimport', 'Import Sales', 'textarea'],
+    'petty cash' => ['/pettycash', 'Petty Cash', 'table'],
+    'cheque printing' => ['/chequeprint', 'Cheque Printing', 'table'],
+    'guarantees and lcs' => ['/bankinstrument', 'Guarantees & Letters of Credit', 'table'],
+    'loans' => ['/loan', 'Loans & Financing', 'table'],
+    'tax payments' => ['/taxpayment', 'Tax Payments', 'table'],
+    'payment terms' => ['/paymentterm', 'Payment Terms', 'table'],
+    'advance allocation' => ['/allocation', 'Advance Allocation', null],
+    'cash flow forecast' => ['/cashflowforecast', 'Cash Flow Forecast', 'table'],
+    'year end close' => ['/yearclose', 'Year-End Close', 'table'],
 ]);
 
 dataset('platform pages', [

@@ -214,3 +214,46 @@ test('only a role holding the rollover menu may preview or run it', function () 
     $this->postJson('/api/year-rollover', $query)->assertSuccessful();
     expect(app(PeriodLock::class)->lockedThrough($scope['company_id']))->toBe('2026-12-31');
 });
+
+// ------------------------------------------------------------------ the year-end close on top of it
+
+test('closing a year runs the rollover, records the closing statement and activates the new year, posting nothing', function () {
+    $scope = yrScope();
+    yrLock($scope, '2026-12-31');
+    $vouchers = DB::table('t_accounts')->count();
+
+    $preview = $this->getJson('/api/year-close/preview?'.http_build_query(yrQuery($scope)))->assertOk()->json('data');
+
+    expect($preview['can_run'])->toBeTrue()
+        ->and($preview['statement']['net_result'])->toEqual(300.55)
+        ->and(collect($preview['statement']['branches'][0]['lines'])->pluck('code')->sort()->values()->all())->toBe(['401-00001', '501-00001']);
+
+    $this->postJson('/api/year-close', yrQuery($scope))->assertOk();
+
+    $closing = DB::table('year_closings')->where('from_year_id', $scope['from'])->first();
+    expect($closing)->not->toBeNull()
+        ->and((float) $closing->net_result)->toBe(300.55)
+        ->and((bool) DB::table('financial_years')->where('id', $scope['to'])->value('status'))->toBeTrue()
+        ->and((bool) DB::table('financial_years')->where('id', $scope['from'])->value('status'))->toBeFalse()
+        ->and(yrOpenings($scope))->not->toBeEmpty()
+        ->and(DB::table('t_accounts')->count())->toBe($vouchers);
+
+    // run again: still one closing record
+    $this->postJson('/api/year-close', yrQuery($scope))->assertOk();
+    expect(DB::table('year_closings')->where('company_id', $scope['company_id'])->count())->toBe(1);
+
+    $list = $this->getJson('/api/year-close?company_id='.$scope['company_id'])->assertOk()->json();
+    expect($list['data'])->toHaveCount(1)->and($list['years'])->toHaveCount(2);
+});
+
+test('a year close waits for the lock and records nothing while it is blocked', function () {
+    $scope = yrScope();
+
+    $this->postJson('/api/year-close', yrQuery($scope))->assertStatus(422);
+    yrLock($scope, '2026-11-30');
+    $this->postJson('/api/year-close', yrQuery($scope))->assertStatus(422);
+
+    expect(DB::table('year_closings')->count())->toBe(0)
+        ->and((bool) DB::table('financial_years')->where('id', $scope['from'])->value('status'))->toBeTrue()
+        ->and(AccountBalance::query()->where('financial_id', $scope['to'])->count())->toBe(0);
+});
