@@ -11,6 +11,7 @@
     import debounce from '@/utils/debounce';
     import AddModal from './add.vue';
     import EditModal from './edit.vue';
+    import ContactImport from '../ContactImport.vue';
 
     defineOptions({
         layout: {
@@ -372,7 +373,7 @@
                     :deleteRecord="deleteRecord"
                     :url="`${props.routeName?.split('.')[0]}`"
                     :show-filter="showFilter"
-                    :show-import="false"
+                    :show-import="true"
                     @toggle-filter="filterOpen = !filterOpen"
                 />
             </div>
@@ -437,6 +438,7 @@
         </div>
     </div>
 
+    <ContactImport kind="supplier" :on-success="getData" />
     <AddModal
         :showLoader="state.modalLoading"
         :formData="formData"

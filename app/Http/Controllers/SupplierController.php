@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
+use App\Http\Controllers\Concerns\ImportsContacts;
 use App\Models\Contact;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ use Throwable;
 class SupplierController extends Controller
 {
     use HandlesIndexAndBulkDelete;
+    use ImportsContacts;
 
     /**
      * @return array<string, string>
@@ -163,6 +165,16 @@ class SupplierController extends Controller
         }
 
         return response()->json(['message' => 'Successfully Saved']);
+    }
+
+    /**
+     * Bulk-adds suppliers from spreadsheet rows; `dry_run` only checks the file (see ContactImporter).
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $this->authorizeMenuPermission('/supplier/import');
+
+        return $this->importContacts($request, 'supplier');
     }
 
     public function show(int $id): JsonResponse

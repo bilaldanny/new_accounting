@@ -442,6 +442,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('suppliers/trash', [SupplierController::class, 'trash']);
     Route::get('suppliers/generate-code', [SupplierController::class, 'generateCode']);
     Route::resource('suppliers', SupplierController::class);
+    Route::post('suppliers/import', [SupplierController::class, 'import']);
     Route::post('/suppliers/statusupdate', [SupplierController::class, 'updatestatus']);
     Route::post('/suppliers/duplicate', [SupplierController::class, 'duplicate']);
     Route::post('/suppliers/{id}/link-coa', [SupplierController::class, 'linkCoa']);
@@ -471,6 +472,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('customers/trash', [CustomerController::class, 'trash']);
     Route::get('customers/generate-code', [CustomerController::class, 'generateCode']);
     Route::resource('customers', CustomerController::class);
+    Route::post('customers/import', [CustomerController::class, 'import']);
     Route::post('/customers/statusupdate', [CustomerController::class, 'updatestatus']);
     Route::post('/customers/duplicate', [CustomerController::class, 'duplicate']);
     Route::post('/customers/{id}/link-coa', [CustomerController::class, 'linkCoa']);
