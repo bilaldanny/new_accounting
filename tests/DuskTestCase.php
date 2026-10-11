@@ -78,6 +78,28 @@ abstract class DuskTestCase extends BaseTestCase
             (string) config('database.default'),
             (string) config('database.connections.'.config('database.default').'.database'),
         );
+
+        static::assertDuskAppUrl((string) config('app.url'));
+    }
+
+    /**
+     * The browser is pointed at APP_URL: with the .env value (the dev site) it would drive the real application, so
+     * only the throw-away test server (127.0.0.1 or localhost on PORT) is accepted.
+     *
+     * @throws RuntimeException when APP_URL is not the sqlite test server
+     */
+    public static function assertDuskAppUrl(string $appUrl): void
+    {
+        $parts = parse_url(rtrim($appUrl, '/'));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $path = (string) ($parts['path'] ?? '');
+
+        if (($parts['scheme'] ?? '') !== 'http' || ! in_array($host, ['127.0.0.1', 'localhost'], true) || ($parts['port'] ?? null) !== self::PORT || $path !== '') {
+            throw new RuntimeException(
+                "Refusing to run browser tests: APP_URL is [{$appUrl}], not the test server http://127.0.0.1:".self::PORT.'. '
+                .'Run them with the inline environment: APP_URL=http://127.0.0.1:'.self::PORT.' DB_CONNECTION=sqlite DB_DATABASE=<project>/database/dusk.sqlite DB_URL= php artisan dusk'
+            );
+        }
     }
 
     /**
