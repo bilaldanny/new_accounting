@@ -14,6 +14,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class Company extends Model
@@ -632,7 +633,7 @@ class Company extends Model
 
     /**
      * Bytes used by this company's stored attachments: its own logo, its products'/variations' images,
-     * and the documents attached to its sell/purchase payments. Computed on demand from the files that
+     * and the documents attached to its sell/purchase payments and customers/suppliers. Computed on demand from the files that
      * actually exist rather than a running counter, so it can never drift out of sync with reality.
      */
     public function storageUsedBytes(): int
@@ -658,6 +659,10 @@ class Company extends Model
             ->each(function (string $file) use (&$bytes): void {
                 $bytes += self::fileSize(Payment::imageDirectory().'/'.$file);
             });
+
+        if (Schema::hasTable('contact_attachments')) {
+            $bytes += (int) ContactAttachment::query()->where('company_id', $this->id)->sum('size');
+        }
 
         return $bytes;
     }

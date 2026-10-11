@@ -141,6 +141,7 @@
         "/customer/:id/view",
         "/customer/add",
         "/customer/delete",
+        "/customer/documents",
         "/customer/import",
         "/leads",
         "/leads/:id/edit",

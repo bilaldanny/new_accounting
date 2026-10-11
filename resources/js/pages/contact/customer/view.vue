@@ -24,6 +24,7 @@
     import type { Component } from 'vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import ActivityTimeline from '@/components/ActivityTimeline.vue';
+    import ContactDocuments from '../ContactDocuments.vue';
     import FiscalYearDateRange from '@/components/FiscalYearDateRange.vue';
     import Loader from '@/components/Loader.vue';
     import useActiveFinancialYear from '@/composables/activeFinancialYear';
@@ -60,6 +61,7 @@
 
     const permissionPaths = computed(() => (page.props.auth?.user as { permission_paths?: string[] } | null)?.permission_paths ?? []);
     const canAddActivity = computed(() => permissionPaths.value.includes('/activities/add'));
+    const canManageDocuments = computed(() => permissionPaths.value.includes('/customer/documents'));
 
     const {
         fetchCompany,
@@ -1043,6 +1045,10 @@
 
                         <div v-else-if="activeTab === 'activities'" class="customer-view-ledger">
                             <ActivityTimeline :contact-id="contact.id" :can-add="canAddActivity" />
+                        </div>
+
+                        <div v-else-if="activeTab === 'documents'" class="customer-view-ledger">
+                            <ContactDocuments kind="customer" :contact-id="contact.id" :can-manage="canManageDocuments" />
                         </div>
 
                         <div v-else class="customer-view-empty">
