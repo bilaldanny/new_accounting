@@ -62,7 +62,8 @@ export type ReportKey =
     | 'serial-traceability'
     | 'batch-expiry'
     | 'abc-analysis'
-    | 'stock-ageing';
+    | 'stock-ageing'
+    | 'supplier-price-comparison';
 
 export type ReportColumn = {
     key: string;
@@ -935,6 +936,8 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             money('paid', 'Paid', WIDE),
             money('outstanding', 'Outstanding', MID),
             money('average_order', 'Average Order', WIDE),
+            known('on_time_percent', 'On-time %', MID),
+            known('defect_rate', 'Defect %', MID),
             text('last_purchase', 'Last Purchase', WIDE),
         ],
         summary: [
@@ -944,6 +947,29 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             { key: 'outstanding', label: 'Outstanding', accent: true },
         ],
         searchPlaceholder: 'Supplier name',
+    },
+    'supplier-price-comparison': {
+        title: 'Supplier Price Comparison',
+        subtitle: 'For each product bought in the period (default the last 180 days), the latest, average and lowest rate per supplier and how far each is above the cheapest. Rates are per base unit.',
+        exportName: 'supplier-price-comparison',
+        filters: {},
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('supplier_name', 'Supplier', ALL),
+            known('last_rate', 'Last rate', MID),
+            known('avg_rate', 'Average rate'),
+            known('min_rate', 'Lowest rate', WIDE),
+            count('purchases', 'Purchases', WIDE),
+            known('above_best_percent', 'Above best %', MID),
+            text('best', '', ALL),
+            text('last_date', 'Last bought', WIDE),
+        ],
+        summary: [
+            { key: 'products', label: 'Products', kind: 'count' },
+            { key: 'suppliers', label: 'Suppliers', kind: 'count' },
+            { key: 'compared_products', label: 'Bought from more than one supplier', kind: 'count', accent: true },
+        ],
+        searchPlaceholder: 'Product or supplier',
     },
     backorder: {
         title: 'Backorder Report',

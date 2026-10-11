@@ -60,6 +60,8 @@ use App\Http\Controllers\FixedAssetLifecycleController;
 use App\Http\Controllers\FixedAssetTransferController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\GiftCardController;
+use App\Http\Controllers\ImportPurchaseController;
+use App\Http\Controllers\InboundShipmentController;
 use App\Http\Controllers\InventoryCloseController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
@@ -94,13 +96,16 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductDiscountRuleController;
 use App\Http\Controllers\PublicLeadCaptureController;
 use App\Http\Controllers\PurchaseApprovalController;
+use App\Http\Controllers\PurchaseApprovalRuleController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchasePaymentController;
 use App\Http\Controllers\PurchaseRequisitionApprovalController;
 use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\PurchaseReturnApprovalController;
 use App\Http\Controllers\PurchaseReturnController;
+use App\Http\Controllers\QualityInspectionController;
 use App\Http\Controllers\ReceivingNoteController;
+use App\Http\Controllers\ReorderSuggestionController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\CrmReportController;
 use App\Http\Controllers\Reports\CustomerSubscriptionReportController;
@@ -111,6 +116,7 @@ use App\Http\Controllers\Reports\PartyReportController;
 use App\Http\Controllers\Reports\ProductReportController;
 use App\Http\Controllers\Reports\StockReportController;
 use App\Http\Controllers\Reports\TransactionReportController;
+use App\Http\Controllers\RmaController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SellApprovalController;
 use App\Http\Controllers\SellController;
@@ -129,6 +135,7 @@ use App\Http\Controllers\StockWriteoffController;
 use App\Http\Controllers\SubscriptionInvoiceController;
 use App\Http\Controllers\SubscriptionPlanController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TaxExemptionController;
 use App\Http\Controllers\TaxPreviewController;
@@ -1205,6 +1212,40 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('inventory-close', [InventoryCloseController::class, 'show']);
     Route::post('inventory-close', [InventoryCloseController::class, 'close']);
     Route::post('inventory-close/reopen', [InventoryCloseController::class, 'reopen']);
+
+    Route::get('purchase-approval-rules', [PurchaseApprovalRuleController::class, 'index']);
+    Route::post('purchase-approval-rules', [PurchaseApprovalRuleController::class, 'store']);
+    Route::put('purchase-approval-rules/{id}', [PurchaseApprovalRuleController::class, 'update'])->whereNumber('id');
+    Route::delete('purchase-approval-rules/{id}', [PurchaseApprovalRuleController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('reorder-suggestions', [ReorderSuggestionController::class, 'index']);
+    Route::post('reorder-suggestions/purchase-orders', [ReorderSuggestionController::class, 'createOrders']);
+
+    Route::get('import-purchases', [ImportPurchaseController::class, 'index']);
+    Route::get('import-purchases/{id}', [ImportPurchaseController::class, 'show'])->whereNumber('id');
+    Route::put('import-purchases/{id}', [ImportPurchaseController::class, 'update'])->whereNumber('id');
+
+    Route::get('quality-inspections', [QualityInspectionController::class, 'index']);
+    Route::get('quality-inspections/purchase/{transactionId}/lines', [QualityInspectionController::class, 'lines'])->whereNumber('transactionId');
+    Route::post('quality-inspections', [QualityInspectionController::class, 'store']);
+    Route::get('quality-inspections/{id}', [QualityInspectionController::class, 'show'])->whereNumber('id');
+    Route::delete('quality-inspections/{id}', [QualityInspectionController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('supplier-payments', [SupplierPaymentController::class, 'index']);
+    Route::post('supplier-payments', [SupplierPaymentController::class, 'store']);
+    Route::get('supplier-payments/{id}', [SupplierPaymentController::class, 'show'])->whereNumber('id');
+    Route::post('supplier-payments/{id}/apply-advance', [SupplierPaymentController::class, 'applyAdvance'])->whereNumber('id');
+    Route::post('supplier-payments/{id}/reverse', [SupplierPaymentController::class, 'reverse'])->whereNumber('id');
+
+    Route::get('inbound-shipments', [InboundShipmentController::class, 'index']);
+    Route::post('inbound-shipments', [InboundShipmentController::class, 'store']);
+    Route::get('inbound-shipments/{id}', [InboundShipmentController::class, 'show'])->whereNumber('id');
+    Route::put('inbound-shipments/{id}', [InboundShipmentController::class, 'update'])->whereNumber('id');
+
+    Route::get('rma', [RmaController::class, 'index']);
+    Route::post('rma', [RmaController::class, 'store']);
+    Route::post('rma/{id}/status', [RmaController::class, 'transition'])->whereNumber('id');
+    Route::delete('rma/{id}', [RmaController::class, 'destroy'])->whereNumber('id');
 
     Route::get('opening-stock', [OpeningStockController::class, 'index']);
     Route::post('opening-stock', [OpeningStockController::class, 'store']);

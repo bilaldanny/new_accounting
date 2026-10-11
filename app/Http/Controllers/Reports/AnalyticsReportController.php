@@ -27,6 +27,7 @@ use App\Services\Reports\SerialTraceabilityReport;
 use App\Services\Reports\StockAgeingReport;
 use App\Services\Reports\StockMovementHistoryReport;
 use App\Services\Reports\SupplierPerformanceReport;
+use App\Services\Reports\SupplierPriceComparisonReport;
 use App\Services\Reports\WarehouseStockReport;
 use App\Services\Reports\WarehouseUsageReport;
 use Illuminate\Http\JsonResponse;
@@ -72,6 +73,7 @@ class AnalyticsReportController extends Controller
         'batch-expiry' => '/report/batch-expiry',
         'abc-analysis' => '/report/abc-analysis',
         'stock-ageing' => '/report/stock-ageing',
+        'supplier-price-comparison' => '/report/supplier-price-comparison',
     ];
 
     /**
@@ -102,6 +104,7 @@ class AnalyticsReportController extends Controller
         'batch-expiry' => BatchExpiryReport::class,
         'abc-analysis' => AbcAnalysisReport::class,
         'stock-ageing' => StockAgeingReport::class,
+        'supplier-price-comparison' => SupplierPriceComparisonReport::class,
     ];
 
     /**

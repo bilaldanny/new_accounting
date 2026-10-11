@@ -56,6 +56,14 @@ dataset('company pages', [
     'inventory close' => ['/inventoryclose', 'Inventory Close', 'table'],
     'abc analysis report' => ['/report/abc-analysis', 'ABC Analysis', 'table'],
     'stock ageing report' => ['/report/stock-ageing', 'Stock Ageing', 'table'],
+    'purchase approval rules' => ['/purchaseapprovalrule', 'Purchase Approval Rules', 'table'],
+    'reorder suggestions' => ['/reordersuggestion', 'Reorder Suggestions', 'table'],
+    'import purchases' => ['/importpurchase', 'Import Purchases', 'table'],
+    'quality inspection' => ['/qualityinspection', 'Quality Inspection', 'table'],
+    'supplier payments' => ['/supplierpayment', 'Supplier Payments', 'table'],
+    'inbound shipments' => ['/inboundshipment', 'Inbound Shipments', 'table'],
+    'supplier returns rma' => ['/rma', 'Supplier Returns (RMA)', 'table'],
+    'supplier price comparison report' => ['/report/supplier-price-comparison', 'Supplier Price Comparison', 'table'],
 ]);
 
 dataset('platform pages', [

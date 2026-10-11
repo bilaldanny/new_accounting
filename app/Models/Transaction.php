@@ -13,6 +13,7 @@ use App\Services\NegativeStockRules;
 use App\Services\PriceRules;
 use App\Services\ProductCatalog;
 use App\Services\ProductDiscountRules;
+use App\Services\PurchaseApprovals;
 use App\Services\PurchaseJournal;
 use App\Services\ReturnJournal;
 use App\Services\ReturnTax;
@@ -1816,6 +1817,11 @@ class Transaction extends Model
             throw ValidationException::withMessages([
                 'status' => 'Only pending purchases can be approved.',
             ]);
+        }
+
+        // A purchase that a multi-level rule covers stays pending until its last level approves; with no rule this is the one step.
+        if (! app(PurchaseApprovals::class)->advance($purchase)) {
+            return $purchase;
         }
 
         $purchase->status = 'approved';

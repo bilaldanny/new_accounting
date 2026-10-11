@@ -5,6 +5,7 @@ namespace App\Services\Reports;
 use App\Models\Transaction;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Supplier Performance & Comparison: for each supplier with purchases in the range (default the last 365
@@ -23,6 +24,8 @@ class SupplierPerformanceReport
         'paid' => 'paid',
         'outstanding' => 'outstanding',
         'average_order' => 'average_order',
+        'on_time_percent' => 'on_time_percent',
+        'defect_rate' => 'defect_rate',
         'last_purchase' => 'last_purchase',
         'rank' => 'rank',
     ];
@@ -74,8 +77,47 @@ class SupplierPerformanceReport
 
         $names = DB::table('contacts')->whereIn('id', $purchases->keys())->pluck('business_name', 'id');
 
+        // On-time delivery: shipments tracked with an ETA that arrived on or before it (needs the inbound shipment tracking).
+        $delivery = collect();
+
+        if (Schema::hasTable('inbound_shipments')) {
+            $delivery = DB::table('inbound_shipments as s')
+                ->join('transactions as t', 't.id', '=', 's.transaction_id')
+                ->whereNotNull('s.eta')
+                ->whereNotNull('s.arrived_on')
+                ->whereNotIn('s.status', ['cancelled'])
+                ->when($companyId !== null, fn ($q) => $q->where('t.company_id', $companyId))
+                ->when($branchId !== null, fn ($q) => $q->where('t.branch_id', $branchId))
+                ->whereDate('t.transaction_date', '>=', $from)
+                ->whereDate('t.transaction_date', '<=', $to)
+                ->groupBy('t.contact_id')
+                ->selectRaw('t.contact_id as contact_id, COUNT(*) as shipments, SUM(CASE WHEN s.arrived_on <= s.eta THEN 1 ELSE 0 END) as on_time')
+                ->get()
+                ->keyBy('contact_id');
+        }
+
+        // Defect rate: what quality inspections rejected over what they inspected (needs the quality inspection tables).
+        $defects = collect();
+
+        if (Schema::hasTable('quality_inspection_lines')) {
+            $defects = DB::table('quality_inspection_lines as ql')
+                ->join('purchase_lines as pl', 'pl.id', '=', 'ql.purchase_line_id')
+                ->join('transactions as t', 't.id', '=', 'pl.transaction_id')
+                ->where('t.type', Transaction::TYPE_PURCHASE)
+                ->where('t.status', '!=', 'draft')
+                ->whereNull('t.deleted_at')
+                ->when($companyId !== null, fn ($q) => $q->where('t.company_id', $companyId))
+                ->when($branchId !== null, fn ($q) => $q->where('t.branch_id', $branchId))
+                ->whereDate('t.transaction_date', '>=', $from)
+                ->whereDate('t.transaction_date', '<=', $to)
+                ->groupBy('t.contact_id')
+                ->selectRaw('t.contact_id as contact_id, SUM(ql.accepted_qty + ql.rejected_qty) as inspected, SUM(ql.rejected_qty) as rejected')
+                ->get()
+                ->keyBy('contact_id');
+        }
+
         return $purchases
-            ->map(function ($row, $contactId) use ($returns, $paid, $names): array {
+            ->map(function ($row, $contactId) use ($returns, $paid, $names, $delivery, $defects): array {
                 $purchased = round((float) $row->purchased, 2);
                 $returned = round((float) ($returns[$contactId] ?? 0), 2);
                 $amountPaid = round((float) ($paid[$contactId] ?? 0), 2);
@@ -90,6 +132,11 @@ class SupplierPerformanceReport
                     'paid' => $amountPaid,
                     'outstanding' => round($purchased - $returned - $amountPaid, 2),
                     'average_order' => round($purchased / max((int) $row->purchase_count, 1), 2),
+                    // null when there is nothing to judge by: a dash, never a false 0% or 100%
+                    'on_time_percent' => isset($delivery[$contactId]) && (int) $delivery[$contactId]->shipments > 0
+                        ? round((int) $delivery[$contactId]->on_time / (int) $delivery[$contactId]->shipments * 100, 2) : null,
+                    'defect_rate' => isset($defects[$contactId]) && (float) $defects[$contactId]->inspected > 0
+                        ? round((float) $defects[$contactId]->rejected / (float) $defects[$contactId]->inspected * 100, 2) : null,
                     'last_purchase' => substr((string) $row->last_purchase, 0, 10),
                 ];
             })

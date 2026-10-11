@@ -49,6 +49,8 @@ class StockMovements
 
     private static ?bool $kitsTracked = null;
 
+    private static ?bool $rejectionsTracked = null;
+
     /**
      * One row per movement line: product_id, variation_id, branch_id, warehouse_id (null when unassigned), qty (base units, signed).
      * `as_of` (a `Y-m-d` day) keeps only movements whose document is dated on or before that day.
@@ -120,12 +122,15 @@ class StockMovements
         $pack = $packing('pl');
         $purchases = fn (): Builder => $scope($lines(Transaction::TYPE_PURCHASE, false), 'pl', 't.branch_id');
 
+        // What a quality inspection rejected is not stock (purchase_lines.quantity_rejected is 0 until one does).
+        $received = self::rejectionsAreTracked() ? '(pl.quantity_received - pl.quantity_rejected)' : 'pl.quantity_received';
+
         if ($withKinds) {
-            $movements = $movement($purchases(), 't.branch_id', "pl.quantity_received * {$pack}", 'purchase')
+            $movements = $movement($purchases(), 't.branch_id', "{$received} * {$pack}", 'purchase')
                 ->unionAll($movement($purchases(), 't.branch_id', "-pl.quantity_returned * {$pack}", 'purchase_return'))
                 ->unionAll($movement($purchases(), 't.branch_id', "-(pl.qunatity_sold + pl.quantity_adjustment) * {$pack}", 'adjustment'));
         } else {
-            $movements = $movement($purchases(), 't.branch_id', "(pl.quantity_received - pl.qunatity_sold - pl.quantity_returned - pl.quantity_adjustment) * {$pack}", 'purchase');
+            $movements = $movement($purchases(), 't.branch_id', "({$received} - pl.qunatity_sold - pl.quantity_returned - pl.quantity_adjustment) * {$pack}", 'purchase');
         }
 
         $movements
@@ -362,6 +367,11 @@ class StockMovements
     private static function itemBehavioursAreTracked(): bool
     {
         return self::$itemBehavioursTracked ??= Schema::hasColumn('item_types', 'behaviour');
+    }
+
+    private static function rejectionsAreTracked(): bool
+    {
+        return self::$rejectionsTracked ??= Schema::hasColumn('purchase_lines', 'quantity_rejected');
     }
 
     private static function kitsAreTracked(): bool

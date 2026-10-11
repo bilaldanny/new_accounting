@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
+use App\Services\PurchaseApprovals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -41,14 +42,23 @@ class PurchaseApprovalController extends Controller
             abort(404);
         }
 
-        return response()->json($purchase->presentForApproval());
+        return response()->json($purchase->presentForApproval() + ['approval' => app(PurchaseApprovals::class)->progress($purchase)]);
     }
 
     public function approve(int $id): JsonResponse
     {
         $this->authorizeMenuPermission('/purchase/approval');
 
-        Transaction::approvePurchase($id);
+        $purchase = Transaction::approvePurchase($id);
+
+        if ($purchase->status === 'pending') {
+            $progress = app(PurchaseApprovals::class)->progress($purchase);
+
+            return response()->json([
+                'message' => 'Approved level '.$progress['done'].' of '.$progress['required'].': waiting for the next approver.',
+                'approval' => $progress,
+            ]);
+        }
 
         return response()->json(['message' => 'Successfully Approved']);
     }

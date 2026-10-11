@@ -569,6 +569,93 @@ class Payment extends Model
     }
 
     /**
+     * Money paid to a supplier before there is a bill for it: the cash / bank account is credited and the supplier's account
+     * debited (it reduces what is owed), with no bill attached. The mirror of createSellAdvance.
+     *
+     * @throws ValidationException
+     */
+    public static function createPurchaseAdvance(Contact $supplier, int $companyId, int $branchId, float $amount, string $paidOn, int $cashOrBankAccountId, string $note): self
+    {
+        $cashOrBank = ChartOfAccount::query()->where('company_id', $companyId)->find($cashOrBankAccountId);
+
+        if ($cashOrBank === null) {
+            throw ValidationException::withMessages([
+                'payment_account' => ['Select a valid cash or bank account before saving the payment.'],
+            ]);
+        }
+
+        $anchor = new Transaction;
+        $anchor->company_id = $companyId;
+        $anchor->branch_id = $branchId;
+
+        $ledger = app(LedgerJournal::class);
+        $contactAccount = $ledger->accountByCode($anchor, (string) ($supplier->supplier_gl_id ?: $supplier->gl_id));
+
+        if ($contactAccount === null) {
+            throw ValidationException::withMessages([
+                'contact_id' => ['Link the supplier to a chart of account before paying them in advance.'],
+            ]);
+        }
+
+        $amount = round($amount, 2);
+        $contactName = $supplier->business_name ?: trim($supplier->first_name.' '.$supplier->last_name);
+
+        $payment = new self;
+        $payment->company_id = $companyId;
+        $payment->branch_id = $branchId;
+        $payment->transaction_id = null;
+        $payment->contact_id = $supplier->id;
+        $payment->payment_account = $cashOrBank->id;
+        $payment->is_return = false;
+        $payment->amount = $amount;
+        $payment->method = 'cash';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'purchase');
+
+        $journal = $ledger->postPayment($payment, $cashOrBank, 'Advance to '.$contactName, 'PP', [
+            ['account' => $contactAccount, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $supplier->id],
+            ['account' => $cashOrBank, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $supplier->id],
+        ]);
+
+        $payment->t_account_id = $journal->id;
+        $payment->save();
+
+        return $payment;
+    }
+
+    /**
+     * A payment on a bill that is settled out of an advance already paid: no cash moves and no voucher is posted (the
+     * supplier's account already holds the debit); it only settles the bill's payment status.
+     *
+     * @throws ValidationException
+     */
+    public static function createPurchasePaymentFromAdvance(Transaction $purchase, float $amount, string $paidOn, string $note): self
+    {
+        $amount = round($amount, 2);
+
+        self::assertAmountWithinRemaining($purchase, $amount);
+
+        $payment = new self;
+        $payment->company_id = $purchase->company_id;
+        $payment->branch_id = $purchase->branch_id;
+        $payment->transaction_id = $purchase->id;
+        $payment->contact_id = $purchase->contact_id;
+        $payment->payment_account = null;
+        $payment->is_return = false;
+        $payment->amount = $amount;
+        $payment->method = 'other';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo((int) $purchase->company_id, (int) $purchase->branch_id, 'purchase');
+        $payment->save();
+
+        self::syncTransactionPaymentStatus((int) $purchase->id);
+
+        return $payment;
+    }
+
+    /**
      * A payment on an invoice that is paid out of an advance already taken. No cash moves and no journal is
      * posted (the customer's account already holds the credit): it only settles the invoice's payment status.
      *
