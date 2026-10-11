@@ -70,6 +70,7 @@ class CompanySetting extends Model
         'auto_grn',
         'auto_gin',
         'credit_limit_mode',
+        'portal_payment_info',
     ];
 
     /**
@@ -312,6 +313,7 @@ class CompanySetting extends Model
             'limit_account' => (bool) $setting->limit_account,
             'auto_grn' => (bool) $setting->auto_grn,
             'auto_gin' => (bool) $setting->auto_gin,
+            'portal_payment_info' => $setting->portal_payment_info ?? '',
             'credit_limit_mode' => in_array($setting->credit_limit_mode ?? null, self::CREDIT_LIMIT_MODES, true) ? $setting->credit_limit_mode : 'hard',
         ];
     }
@@ -367,6 +369,10 @@ class CompanySetting extends Model
             'auto_grn',
             'auto_gin',
         ]));
+
+        if ($request->has('portal_payment_info') && Schema::hasColumn('company_settings', 'portal_payment_info')) {
+            $setting->portal_payment_info = trim((string) $request->input('portal_payment_info'));
+        }
 
         if (self::hasCreditLimitModeColumn() && in_array($request->input('credit_limit_mode'), self::CREDIT_LIMIT_MODES, true)) {
             $setting->credit_limit_mode = $request->input('credit_limit_mode');

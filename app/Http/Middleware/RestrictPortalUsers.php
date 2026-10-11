@@ -23,6 +23,9 @@ class RestrictPortalUsers
     private const ALLOWED = [
         'portal', 'api/portal', 'api/portal/change-password', 'api/user', 'logout', 'idle-timeout-alert/*', 'up',
         'api/portal/subscriptions', 'api/portal/subscriptions/*', 'api/portal/subscription-invoices', 'api/portal/subscription-plans',
+        'api/portal/payment-info', 'api/portal/invoices', 'api/portal/invoices/*', 'api/portal/statement', 'api/portal/products',
+        'api/portal/requests', 'api/portal/requests/*', 'api/portal/purchase-orders', 'api/portal/purchase-orders/*',
+        'api/portal/bills', 'api/portal/bills/*',
     ];
 
     public function handle(Request $request, Closure $next): Response

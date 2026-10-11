@@ -80,6 +80,18 @@
                 </select>
                 <small class="text-muted d-block mt-1">What happens when a sale would take a customer past their credit limit.</small>
             </div>
+            <div class="col-md-8">
+                <label for="SellSettingPortalPaymentInfo" class="form-label">Portal payment instructions</label>
+                <textarea
+                    id="SellSettingPortalPaymentInfo"
+                    v-model="formData.portal_payment_info"
+                    class="form-control form-control-sm"
+                    rows="3"
+                    maxlength="2000"
+                    placeholder="Bank, account title, account number / IBAN"
+                ></textarea>
+                <small class="text-muted d-block mt-1">Shown to customers and suppliers in their portal. Payments are not taken online.</small>
+            </div>
         </div>
     </div>
 </template>

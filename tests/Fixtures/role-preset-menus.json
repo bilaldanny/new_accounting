@@ -215,6 +215,8 @@
         "/journalentry/:id/approve",
         "/journalentry/:id/reject",
         "/journalentry/approval",
+        "/portalrequests",
+        "/portalrequests/approve",
         "/pricelist",
         "/pricelist/approval",
         "/purchase",

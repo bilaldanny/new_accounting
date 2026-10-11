@@ -3,6 +3,9 @@
     import { LogOut } from '@lucide/vue';
     import { onMounted, ref } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
+    import PortalCustomerTools from './PortalCustomerTools.vue';
+    import PortalPaymentInfo from './PortalPaymentInfo.vue';
+    import PortalSupplierTools from './PortalSupplierTools.vue';
 
     type Document = { id: number; invoice_no: string | null; date: string | null; amount: number; paid: number; due: number };
     type PaymentRow = { id: number; date: string | null; amount: number; method: string; reference: string | null; invoice_no: string | null };
@@ -239,6 +242,8 @@
                 </div>
             </div>
 
+            <PortalPaymentInfo />
+
             <div v-for="section in sections" :key="section.kind" class="mb-5" :data-section="section.kind">
                 <h5 v-if="sections.length > 1">{{ section.kind === 'customer' ? 'As a customer' : 'As a supplier' }}</h5>
 
@@ -279,6 +284,11 @@
                             <tr v-if="! section.payments.length"><td colspan="5" class="text-center text-muted">Nothing yet.</td></tr>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="mt-4">
+                    <PortalCustomerTools v-if="section.kind === 'customer'" />
+                    <PortalSupplierTools v-else />
                 </div>
             </div>
         </template>

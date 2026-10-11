@@ -110,6 +110,7 @@ export default function useCompanySettings() {
         payment: false,
         limit_account: false,
         credit_limit_mode: 'hard',
+        portal_payment_info: '',
         auto_grn: false,
         auto_gin: false,
     };

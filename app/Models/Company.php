@@ -633,7 +633,7 @@ class Company extends Model
 
     /**
      * Bytes used by this company's stored attachments: its own logo, its products'/variations' images,
-     * and the documents attached to its sell/purchase payments and customers/suppliers. Computed on demand from the files that
+     * and the documents attached to its sell/purchase payments, customers' and suppliers' documents and the bills suppliers send through the portal. Computed on demand from the files that
      * actually exist rather than a running counter, so it can never drift out of sync with reality.
      */
     public function storageUsedBytes(): int
@@ -659,6 +659,10 @@ class Company extends Model
             ->each(function (string $file) use (&$bytes): void {
                 $bytes += self::fileSize(Payment::imageDirectory().'/'.$file);
             });
+
+        if (Schema::hasTable('portal_requests')) {
+            $bytes += (int) PortalRequest::query()->where('company_id', $this->id)->sum('file_size');
+        }
 
         if (Schema::hasTable('contact_attachments')) {
             $bytes += (int) ContactAttachment::query()->where('company_id', $this->id)->sum('size');

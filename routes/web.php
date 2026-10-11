@@ -468,6 +468,12 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
 
         return Inertia::render('portalusers/index');
     })->name('portalusers');
+
+    Route::get('portalrequests', function () {
+        abortUnlessMenuPermission('/portalrequests');
+
+        return Inertia::render('portalrequests/index');
+    })->name('portalrequests');
     /* Customer / supplier portal */
 
     /* Exchange rates */

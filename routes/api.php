@@ -74,7 +74,10 @@ use App\Http\Controllers\PeriodLockController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PipelineStageController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalCustomerController;
+use App\Http\Controllers\PortalRequestController;
 use App\Http\Controllers\PortalSubscriptionController;
+use App\Http\Controllers\PortalSupplierController;
 use App\Http\Controllers\PortalUserController;
 use App\Http\Controllers\PosShiftController;
 use App\Http\Controllers\PriceListApprovalController;
@@ -169,6 +172,28 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('portal/subscriptions/{id}/pause', [PortalSubscriptionController::class, 'pause']);
     Route::post('portal/subscriptions/{id}/resume', [PortalSubscriptionController::class, 'resume']);
     Route::post('portal/subscriptions/{id}/cancel', [PortalSubscriptionController::class, 'cancel']);
+    /* Customer / supplier portal: documents, statement, requests and bills (rate limited per account) */
+    Route::middleware('throttle:portal')->group(function () {
+        Route::get('portal/payment-info', [PortalController::class, 'paymentInfo']);
+        Route::get('portal/invoices', [PortalCustomerController::class, 'invoices']);
+        Route::get('portal/invoices/{id}', [PortalCustomerController::class, 'invoice']);
+        Route::get('portal/statement', [PortalCustomerController::class, 'statement']);
+        Route::get('portal/products', [PortalCustomerController::class, 'products']);
+        Route::get('portal/requests', [PortalCustomerController::class, 'requests']);
+        Route::get('portal/purchase-orders', [PortalSupplierController::class, 'purchaseOrders']);
+        Route::get('portal/purchase-orders/{id}', [PortalSupplierController::class, 'purchaseOrder']);
+        Route::get('portal/bills', [PortalSupplierController::class, 'bills']);
+        Route::get('portal/bills/{id}/file', [PortalSupplierController::class, 'billFile']);
+    });
+    Route::middleware('throttle:portal-submit')->group(function () {
+        Route::post('portal/requests', [PortalCustomerController::class, 'storeRequest']);
+        Route::post('portal/requests/{id}/cancel', [PortalCustomerController::class, 'cancelRequest']);
+        Route::post('portal/bills', [PortalSupplierController::class, 'storeBill']);
+    });
+    Route::get('portal-requests', [PortalRequestController::class, 'index']);
+    Route::get('portal-requests/{id}/document', [PortalRequestController::class, 'document']);
+    Route::post('portal-requests/{id}/approve', [PortalRequestController::class, 'approve']);
+    Route::post('portal-requests/{id}/reject', [PortalRequestController::class, 'reject']);
     /* Customer Self-Service Portal */
 
     /* Exchange rates (display only) */

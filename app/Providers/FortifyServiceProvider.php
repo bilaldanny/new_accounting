@@ -114,6 +114,16 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // The customer / supplier portal: per signed-in account. Reads are generous enough for a page of tables;
+        // anything that creates a record (a request, a bill upload) is held much lower.
+        RateLimiter::for('portal', function (Request $request) {
+            return Limit::perMinute(60)->by('portal|'.($request->user()?->id ?: $request->ip()));
+        });
+
+        RateLimiter::for('portal-submit', function (Request $request) {
+            return Limit::perMinute(10)->by('portal-submit|'.($request->user()?->id ?: $request->ip()));
+        });
+
         // The public REST API (api/v1/*, Integrations & Open API) — keyed by the authenticated token
         // (every request here already passed auth:sanctum), not by IP, since a key's owner may call
         // from a shared office/server IP shared with other tenants' keys.

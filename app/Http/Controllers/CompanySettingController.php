@@ -117,6 +117,7 @@ class CompanySettingController extends Controller
             'auto_grn' => 'nullable|boolean',
             'auto_gin' => 'nullable|boolean',
             'credit_limit_mode' => 'nullable|string|in:hard,warn,off',
+            'portal_payment_info' => 'nullable|string|max:2000',
         ]);
 
         DB::beginTransaction();
