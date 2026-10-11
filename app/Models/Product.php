@@ -52,6 +52,7 @@ class Product extends Model
         'max_stock',
         'lead_time_days',
         'ownership',
+        'negative_stock',
         'consignment_supplier_id',
     ];
 
@@ -697,7 +698,7 @@ class Product extends Model
     {
         $fields = [];
 
-        foreach (['tags', 'reorder_level', 'reorder_qty', 'min_stock', 'max_stock', 'lead_time_days', 'ownership'] as $field) {
+        foreach (['tags', 'reorder_level', 'reorder_qty', 'min_stock', 'max_stock', 'lead_time_days', 'ownership', 'negative_stock'] as $field) {
             if (array_key_exists($field, $row)) {
                 $fields[$field] = $row[$field];
             }

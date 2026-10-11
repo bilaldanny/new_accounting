@@ -1276,6 +1276,10 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('consignment', fn () => Inertia::render('consignment/index'))->name('consignment');
     Route::get('productbom', fn () => Inertia::render('productbom/index'))->name('productbom');
     Route::get('openingstock', fn () => Inertia::render('openingstock/index'))->name('openingstock');
+    Route::get('stockreservation', fn () => Inertia::render('stockreservation/index'))->name('stockreservation');
+    Route::get('warehousetask', fn () => Inertia::render('warehousetask/index'))->name('warehousetask');
+    Route::get('stockwriteoff', fn () => Inertia::render('stockwriteoff/index'))->name('stockwriteoff');
+    Route::get('inventoryclose', fn () => Inertia::render('inventoryclose/index'))->name('inventoryclose');
     /* Product */
 
     /* Payment */

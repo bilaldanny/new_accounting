@@ -999,6 +999,7 @@
         <TextElement id="LeadTimeDays" field-name="LeadTimeDays" name="lead_time_days" label="Lead time (days)" input-type="number" :columns="colQuarter" rules="nullable|integer|min:0" />
 
         <SelectElement id="Ownership" field-name="Ownership" name="ownership" label="Stock ownership" :items="ownershipItems" :native="false" :can-clear="false" :columns="colThird" default="own" />
+        <SelectElement id="NegativeStock" field-name="NegativeStock" name="negative_stock" label="Selling below zero" :items="[{ value: 'allow', label: 'Allow' }, { value: 'block', label: 'Refuse' }]" :native="false" :can-clear="true" placeholder="Company rule" :columns="colThird" />
         <TextElement id="ConsignmentSupplier" field-name="ConsignmentSupplier" name="consignment_supplier_id" label="Consigning supplier id" input-type="number" :columns="colThird" info="Needed when the stock is supplier-owned." />
 
         <ObjectElement v-if="attributeDefinitions.length" name="custom_fields" :columns="colFull">

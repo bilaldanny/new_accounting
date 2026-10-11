@@ -60,7 +60,9 @@ export type ReportKey =
     | 'stock-movement-history'
     | 'warehouse-usage'
     | 'serial-traceability'
-    | 'batch-expiry';
+    | 'batch-expiry'
+    | 'abc-analysis'
+    | 'stock-ageing';
 
 export type ReportColumn = {
     key: string;
@@ -1408,6 +1410,60 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             { key: 'expiring_qty', label: 'Expiring soon', kind: 'count' },
         ],
         searchPlaceholder: 'Product or batch number',
+    },
+    'abc-analysis': {
+        title: 'ABC Analysis',
+        subtitle: 'Products ranked by what they sold for in the period (default the last 90 days, posted sales net of returns). Class A makes the first 80% of the sales value, B the next 15%, C the rest.',
+        exportName: 'abc-analysis',
+        filters: {
+            statuses: [{ value: '', label: 'All classes' }, { value: 'A', label: 'Class A' }, { value: 'B', label: 'Class B' }, { value: 'C', label: 'Class C' }],
+            statusLabel: 'Class',
+            defaultStatus: '',
+        },
+        columns: [
+            known('rank', 'Rank', ALL),
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            qty('quantity', 'Sold', MID),
+            money('sales_value', 'Sales value'),
+            known('share_percent', 'Share %', MID),
+            known('cumulative_percent', 'Cumulative %', WIDE),
+            text('class', 'Class', ALL),
+        ],
+        summary: [
+            { key: 'products', label: 'Products', kind: 'count' },
+            { key: 'class_a', label: 'Class A', kind: 'count', accent: true },
+            { key: 'class_b', label: 'Class B', kind: 'count' },
+            { key: 'class_c', label: 'Class C', kind: 'count' },
+            { key: 'sales_value', label: 'Sales value' },
+        ],
+        searchPlaceholder: 'Product name or SKU',
+    },
+    'stock-ageing': {
+        title: 'Stock Ageing',
+        subtitle: 'How old the stock on hand is on a day (default today): stock is laid over the newest receipts first and each receipt lands in its age band. Stock no receipt explains is shown as unknown.',
+        exportName: 'stock-ageing',
+        filters: { asOf: true },
+        columns: [
+            text('product_name', 'Product', ALL, 'primary'),
+            text('sku', 'SKU', WIDE),
+            qty('stock', 'In stock'),
+            qty('age_0_30', '0-30 days', MID),
+            qty('age_31_60', '31-60', MID),
+            qty('age_61_90', '61-90', WIDE),
+            qty('age_91_180', '91-180', WIDE),
+            qty('age_181_plus', '181+', MID),
+            qty('unknown', 'Unknown', WIDE),
+            known('oldest_days', 'Oldest (days)', WIDE),
+            known('stock_value', 'Stock value', WIDE),
+        ],
+        summary: [
+            { key: 'variations', label: 'Variations', kind: 'count' },
+            { key: 'stock', label: 'In stock' },
+            { key: 'older_than_180', label: 'Older than 180 days', accent: true },
+            { key: 'stock_value', label: 'Stock value' },
+        ],
+        searchPlaceholder: 'Product name or SKU',
     },
 };
 

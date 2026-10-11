@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reports;
 use App\Http\Controllers\Concerns\PaginatesReportRows;
 use App\Http\Controllers\Concerns\ResolvesReportScope;
 use App\Http\Controllers\Controller;
+use App\Services\Reports\AbcAnalysisReport;
 use App\Services\Reports\ActivitySummaryReport;
 use App\Services\Reports\BackorderReport;
 use App\Services\Reports\BatchExpiryReport;
@@ -23,6 +24,7 @@ use App\Services\Reports\PurchasePriceTrendReport;
 use App\Services\Reports\RegisterReport;
 use App\Services\Reports\SalesDiscountReport;
 use App\Services\Reports\SerialTraceabilityReport;
+use App\Services\Reports\StockAgeingReport;
 use App\Services\Reports\StockMovementHistoryReport;
 use App\Services\Reports\SupplierPerformanceReport;
 use App\Services\Reports\WarehouseStockReport;
@@ -68,6 +70,8 @@ class AnalyticsReportController extends Controller
         'warehouse-usage' => '/report/warehouse-usage',
         'serial-traceability' => '/report/serial-traceability',
         'batch-expiry' => '/report/batch-expiry',
+        'abc-analysis' => '/report/abc-analysis',
+        'stock-ageing' => '/report/stock-ageing',
     ];
 
     /**
@@ -96,6 +100,8 @@ class AnalyticsReportController extends Controller
         'warehouse-usage' => WarehouseUsageReport::class,
         'serial-traceability' => SerialTraceabilityReport::class,
         'batch-expiry' => BatchExpiryReport::class,
+        'abc-analysis' => AbcAnalysisReport::class,
+        'stock-ageing' => StockAgeingReport::class,
     ];
 
     /**

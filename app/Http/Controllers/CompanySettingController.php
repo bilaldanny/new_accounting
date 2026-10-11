@@ -118,6 +118,8 @@ class CompanySettingController extends Controller
             'auto_gin' => 'nullable|boolean',
             'credit_limit_mode' => 'nullable|string|in:hard,warn,off',
             'portal_payment_info' => 'nullable|string|max:2000',
+            'negative_stock_mode' => 'nullable|string|in:allow,warn,block',
+            'reservation_mode' => 'nullable|string|in:off,enforce',
         ]);
 
         DB::beginTransaction();

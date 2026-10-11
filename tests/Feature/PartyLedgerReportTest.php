@@ -118,6 +118,7 @@ test('rolling back removes the report and the group and it can be applied again'
     (require database_path('migrations/2026_10_19_100000_add_stock_movement_history_menu.php'))->down();
     (require database_path('migrations/2026_10_20_100100_add_warehouse_location_menus.php'))->down();
     (require database_path('migrations/2026_10_26_100000_add_stock_tracking_menus.php'))->down();
+    (require database_path('migrations/2026_11_05_110000_add_inventory_closeout_menus.php'))->down();
     reportsMenuMigration()->down();
 
     expect(reportsGroupId())->toBeNull()

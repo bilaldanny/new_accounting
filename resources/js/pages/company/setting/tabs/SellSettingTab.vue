@@ -80,6 +80,24 @@
                 </select>
                 <small class="text-muted d-block mt-1">What happens when a sale would take a customer past their credit limit.</small>
             </div>
+            <div class="col-md-4">
+                <label for="SellSettingNegativeStock" class="form-label">Selling below zero stock</label>
+                <select id="SellSettingNegativeStock" v-model="formData.negative_stock_mode" class="form-select form-select-sm">
+                    <option value="">Default: POS refuses, sale form warns</option>
+                    <option value="allow">Allow everywhere</option>
+                    <option value="warn">Warn everywhere</option>
+                    <option value="block">Refuse everywhere</option>
+                </select>
+                <small class="text-muted d-block mt-1">A product can override this on its own form.</small>
+            </div>
+            <div class="col-md-4">
+                <label for="SellSettingReservationMode" class="form-label">Stock reservations</label>
+                <select id="SellSettingReservationMode" v-model="formData.reservation_mode" class="form-select form-select-sm">
+                    <option value="off">Record only</option>
+                    <option value="enforce">Held stock is not sold to others</option>
+                </select>
+                <small class="text-muted d-block mt-1">With enforcement a sale may take only what is on hand less what others hold.</small>
+            </div>
             <div class="col-md-8">
                 <label for="SellSettingPortalPaymentInfo" class="form-label">Portal payment instructions</label>
                 <textarea

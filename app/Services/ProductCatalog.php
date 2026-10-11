@@ -72,6 +72,12 @@ class ProductCatalog
             throw ValidationException::withMessages(['min_stock' => ['Minimum stock cannot be above maximum stock.']]);
         }
 
+        if ($this->sent($request, 'negative_stock') && Schema::hasColumn('products', 'negative_stock')) {
+            $rule = $request->negative_stock ?? null;
+            $product->negative_stock = in_array($rule, ['allow', 'block'], true) ? $rule : null;
+            $changed = true;
+        }
+
         if ($this->sent($request, 'ownership') || $this->sent($request, 'consignment_supplier_id')) {
             $this->applyOwnership($product, $request);
             $changed = true;

@@ -47,6 +47,7 @@ class ProductController extends Controller
             'max_stock' => 'nullable|numeric|min:0',
             'lead_time_days' => 'nullable|integer|min:0|max:3650',
             'ownership' => 'nullable|in:own,consignment',
+            'negative_stock' => 'nullable|in:allow,block',
             'consignment_supplier_id' => 'nullable|integer',
             'barcodes' => 'nullable|array|max:50',
             'productdetail' => 'bail|required|array|min:1',

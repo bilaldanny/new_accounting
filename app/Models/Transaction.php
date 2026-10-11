@@ -7,7 +7,9 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\CustomerCreditLimit;
 use App\Services\Fbr\FbrSubmitter;
+use App\Services\InventoryClose;
 use App\Services\LandedCost;
+use App\Services\NegativeStockRules;
 use App\Services\PriceRules;
 use App\Services\ProductCatalog;
 use App\Services\ProductDiscountRules;
@@ -64,13 +66,56 @@ class Transaction extends Model
     }
 
     /**
+     * The inventory closing lock (App\Services\InventoryClose) on stock documents, beside the period lock above. A save that
+     * changes nothing but bookkeeping attributes is not a stock change and passes.
+     */
+    protected static function booted(): void
+    {
+        $inventory = fn (): InventoryClose => app(InventoryClose::class);
+
+        static::saving(function (self $transaction) use ($inventory): void {
+            if ($transaction->exists) {
+                $dirty = $transaction->getDirty();
+
+                if ($dirty === [] || $transaction->periodLockIsBookkeeping($dirty)) {
+                    return;
+                }
+            }
+
+            $inventory()->guard($transaction);
+        });
+
+        static::deleting(fn (self $transaction) => $inventory()->guard($transaction));
+        static::restoring(fn (self $transaction) => $inventory()->guard($transaction));
+    }
+
+    /**
      * @return Collection<int, object{id: int, company_id: int|null, branch_id: int|null, lock_date: mixed}>
      */
     public static function periodLockRows(\Illuminate\Database\Query\Builder $base): Collection
     {
-        return $base->cloneWithout(['columns', 'orders', 'limit', 'offset'])
+        $rows = $base->cloneWithout(['columns', 'orders', 'limit', 'offset'])
             ->whereNotIn('transactions.type', self::PERIOD_LOCK_EXEMPT_TYPES)
-            ->get(['transactions.id as id', 'transactions.company_id', 'transactions.branch_id', 'transactions.transaction_date as lock_date']);
+            ->get(['transactions.id as id', 'transactions.company_id', 'transactions.branch_id', 'transactions.transaction_date as lock_date', 'transactions.type', 'transactions.status']);
+
+        // Bulk updates, deletes and restores of stock documents meet the inventory closing lock here too.
+        $inventory = app(InventoryClose::class);
+
+        foreach ($rows as $row) {
+            if ($row->type === self::TYPE_SELL && in_array($row->status, self::UNPOSTED_SELL_STATUSES, true)) {
+                continue;
+            }
+
+            $inventory->guardDays(
+                $row->company_id === null ? null : (int) $row->company_id,
+                $row->branch_id === null ? null : (int) $row->branch_id,
+                $row->lock_date === null ? [] : [Carbon::parse((string) $row->lock_date)->toDateString()],
+                (string) $row->type,
+                $row->id,
+            );
+        }
+
+        return $rows;
     }
 
     /**
@@ -874,11 +919,22 @@ class Transaction extends Model
     {
         $shortages = app(SaleStockCheck::class)->shortages($sale, (array) ($request->selllines ?? []));
 
-        if ($shortages !== [] && filter_var($request->is_pos ?? false, FILTER_VALIDATE_BOOLEAN)) {
-            throw InsufficientStockException::forShortages($shortages);
+        if ($shortages === []) {
+            return [];
         }
 
-        return $shortages;
+        // With no company mode and no product override this is the old rule: the POS refuses, the sale form warns.
+        $split = app(NegativeStockRules::class)->split(
+            $shortages,
+            self::resolveScopedId($sale->company_id),
+            filter_var($request->is_pos ?? false, FILTER_VALIDATE_BOOLEAN),
+        );
+
+        if ($split['blocking'] !== []) {
+            throw InsufficientStockException::forShortages($split['blocking']);
+        }
+
+        return $split['warnings'];
     }
 
     public static function updateSell(object $request, int $id): self

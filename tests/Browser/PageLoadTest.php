@@ -50,6 +50,12 @@ dataset('company pages', [
     'consignment stock' => ['/consignment', 'Consignment Stock', 'table'],
     'kits and bom' => ['/productbom', 'Kits & BOM', 'table'],
     'opening stock' => ['/openingstock', 'Opening Stock', 'table'],
+    'stock reservations' => ['/stockreservation', 'Stock Reservations', 'table'],
+    'pick pack put-away' => ['/warehousetask', 'Pick, Pack & Put-away', 'table'],
+    'damage expired wastage' => ['/stockwriteoff', 'Damage, Expired & Wastage', 'table'],
+    'inventory close' => ['/inventoryclose', 'Inventory Close', 'table'],
+    'abc analysis report' => ['/report/abc-analysis', 'ABC Analysis', 'table'],
+    'stock ageing report' => ['/report/stock-ageing', 'Stock Ageing', 'table'],
 ]);
 
 dataset('platform pages', [

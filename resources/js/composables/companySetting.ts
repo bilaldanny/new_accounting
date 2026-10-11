@@ -111,6 +111,8 @@ export default function useCompanySettings() {
         limit_account: false,
         credit_limit_mode: 'hard',
         portal_payment_info: '',
+        negative_stock_mode: '',
+        reservation_mode: 'off',
         auto_grn: false,
         auto_gin: false,
     };

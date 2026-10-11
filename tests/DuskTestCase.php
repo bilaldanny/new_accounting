@@ -248,7 +248,7 @@ abstract class DuskTestCase extends BaseTestCase
             '/report/budget-vs-actual', '/report/cost-center-analysis', '/warehouse', '/warehouselocation', '/stocktracking', '/taxexemption', '/tax',
             '/purchase', '/sell', '/supplier', '/customer', '/product', '/company/setting', '/purchasereturn/approval', '/stockadjustment/approval',
             '/stocktransfer/approval', '/cashcollection/approval', '/pricelist/approval', '/creditlimit/approval', '/contacts/duplicates', '/auditlogs', '/posshift',
-            '/productattribute', '/productdiscountrule', '/warrantyclaim', '/consignment', '/productbom', '/openingstock', '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
+            '/productattribute', '/productdiscountrule', '/warrantyclaim', '/consignment', '/productbom', '/openingstock', '/stockreservation', '/warehousetask', '/stockwriteoff', '/inventoryclose', '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
         ];
 
         $paths = [];
@@ -257,7 +257,7 @@ abstract class DuskTestCase extends BaseTestCase
             array_push($paths, $base, $base.'/add', $base.'/:id/edit', $base.'/delete', $base.'/restore', $base.'/view');
         }
 
-        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/portalrequests', '/portalrequests/approve', '/customer/documents', '/customer/import', '/customer/:id/view', '/supplier/documents', '/supplier/import', '/supplier/:id/view', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
+        array_push($paths, '/stocktracking/edit', '/period-lock', '/period-lock/add', '/period-lock/reopen', '/period-lock/override', '/period-lock/rollover', '/report/abc-analysis', '/report/stock-ageing', '/inventoryclose/add', '/inventoryclose/reopen', '/portalrequests', '/portalrequests/approve', '/customer/documents', '/customer/import', '/customer/:id/view', '/supplier/documents', '/supplier/import', '/supplier/:id/view', '/fixedasset/acquire', '/fixedasset/dispose', '/bankreconciliation/match', '/bankreconciliation/reconcile', '/depreciation/run');
 
         return array_values(array_unique($paths));
     }

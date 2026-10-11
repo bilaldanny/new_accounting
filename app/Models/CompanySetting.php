@@ -71,6 +71,8 @@ class CompanySetting extends Model
         'auto_gin',
         'credit_limit_mode',
         'portal_payment_info',
+        'negative_stock_mode',
+        'reservation_mode',
     ];
 
     /**
@@ -314,6 +316,8 @@ class CompanySetting extends Model
             'auto_grn' => (bool) $setting->auto_grn,
             'auto_gin' => (bool) $setting->auto_gin,
             'portal_payment_info' => $setting->portal_payment_info ?? '',
+            'negative_stock_mode' => in_array($setting->negative_stock_mode ?? null, ['allow', 'warn', 'block'], true) ? $setting->negative_stock_mode : '',
+            'reservation_mode' => ($setting->reservation_mode ?? null) === 'enforce' ? 'enforce' : 'off',
             'credit_limit_mode' => in_array($setting->credit_limit_mode ?? null, self::CREDIT_LIMIT_MODES, true) ? $setting->credit_limit_mode : 'hard',
         ];
     }
@@ -369,6 +373,13 @@ class CompanySetting extends Model
             'auto_grn',
             'auto_gin',
         ]));
+
+        foreach (['negative_stock_mode' => ['allow', 'warn', 'block'], 'reservation_mode' => ['off', 'enforce']] as $column => $allowed) {
+            if ($request->has($column) && Schema::hasColumn('company_settings', $column)) {
+                $value = $request->input($column);
+                $setting->{$column} = in_array($value, $allowed, true) ? $value : null;
+            }
+        }
 
         if ($request->has('portal_payment_info') && Schema::hasColumn('company_settings', 'portal_payment_info')) {
             $setting->portal_payment_info = trim((string) $request->input('portal_payment_info'));

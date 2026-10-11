@@ -61,10 +61,16 @@ class SaleStockCheck
 
         $branchId = Transaction::resolveScopedId($sale->branch_id);
         $shortages = [];
+        $reservations = StockReservations::enforced($sale->company_id === null ? null : (int) $sale->company_id) ? app(StockReservations::class) : null;
 
         foreach ($requested as $key => $quantity) {
             [$productId, $variationId] = array_map('intval', explode(':', $key));
             $available = StockMovements::baseStock($productId, $variationId, $branchId, $isExisting ? $sale->id : null);
+
+            if ($reservations !== null) {
+                // Stock others hold is not available to this sale (the customer's own holds are).
+                $available = round($available - $reservations->heldForOthers((int) $sale->company_id, $productId, $variationId, $branchId, $sale->contact_id === null ? null : (int) $sale->contact_id), 6);
+            }
 
             if (round($quantity, 6) > $available) {
                 $shortages[] = [

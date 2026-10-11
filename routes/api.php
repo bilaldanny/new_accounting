@@ -60,6 +60,7 @@ use App\Http\Controllers\FixedAssetLifecycleController;
 use App\Http\Controllers\FixedAssetTransferController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\GiftCardController;
+use App\Http\Controllers\InventoryCloseController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
@@ -119,10 +120,12 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StateController;
 use App\Http\Controllers\StockAdjustmentApprovalController;
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockReservationController;
 use App\Http\Controllers\StockTakeController;
 use App\Http\Controllers\StockTrackingController;
 use App\Http\Controllers\StockTransferApprovalController;
 use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\StockWriteoffController;
 use App\Http\Controllers\SubscriptionInvoiceController;
 use App\Http\Controllers\SubscriptionPlanController;
 use App\Http\Controllers\SupplierController;
@@ -138,6 +141,7 @@ use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseLocationController;
+use App\Http\Controllers\WarehouseTaskController;
 use App\Http\Controllers\WarrantyClaimController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\WebhookController;
@@ -1182,6 +1186,25 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('consignment/settlements/{id}', [ConsignmentController::class, 'show'])->whereNumber('id');
     Route::post('consignment/settlements/{id}/settle', [ConsignmentController::class, 'settle'])->whereNumber('id');
     Route::delete('consignment/settlements/{id}', [ConsignmentController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('stock-reservations/availability', [StockReservationController::class, 'availability']);
+    Route::get('stock-reservations', [StockReservationController::class, 'index']);
+    Route::post('stock-reservations', [StockReservationController::class, 'store']);
+    Route::post('stock-reservations/{id}/close', [StockReservationController::class, 'close'])->whereNumber('id');
+
+    Route::get('warehouse-tasks', [WarehouseTaskController::class, 'index']);
+    Route::post('warehouse-tasks', [WarehouseTaskController::class, 'store']);
+    Route::get('warehouse-tasks/{id}', [WarehouseTaskController::class, 'show'])->whereNumber('id');
+    Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
+    Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
+    Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('stock-writeoffs', [StockWriteoffController::class, 'index']);
+    Route::post('stock-writeoffs', [StockWriteoffController::class, 'store']);
+
+    Route::get('inventory-close', [InventoryCloseController::class, 'show']);
+    Route::post('inventory-close', [InventoryCloseController::class, 'close']);
+    Route::post('inventory-close/reopen', [InventoryCloseController::class, 'reopen']);
 
     Route::get('opening-stock', [OpeningStockController::class, 'index']);
     Route::post('opening-stock', [OpeningStockController::class, 'store']);

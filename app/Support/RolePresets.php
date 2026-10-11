@@ -62,11 +62,11 @@ final class RolePresets
         'Warehouse Keeper' => [
             'manage' => [
                 '/warehouse', '/warehouselocation', '/stocktracking', '/stocktake', '/stockadjustment', '/stocktransfer', '/receivingnote',
-                '/issuenote', '/openingstock', '/lowstock', '/printlabel', '/productbom',
+                '/issuenote', '/openingstock', '/lowstock', '/printlabel', '/productbom', '/stockreservation', '/warehousetask', '/stockwriteoff',
             ],
             'view' => [
                 '/product', '/report/warehouse-stock', '/report/warehouse-usage', '/report/stock-movement-history', '/report/serial-traceability',
-                '/report/batch-expiry', '/report/stock', '/report/stock-adjustment', '/report/stock-transfer', '/report/backorder', '/report/fsn',
+                '/report/batch-expiry', '/report/abc-analysis', '/report/stock-ageing', '/report/stock', '/report/stock-adjustment', '/report/stock-transfer', '/report/backorder', '/report/fsn',
             ],
             'exclude' => [],
             'approvals' => false,
