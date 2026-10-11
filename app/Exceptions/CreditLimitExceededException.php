@@ -22,7 +22,12 @@ class CreditLimitExceededException extends ValidationException
         'projected_balance' => 0.0,
     ];
 
-    public static function forSale(string $customer, float $creditLimit, float $currentBalance, float $saleAmount): static
+    /**
+     * Whether this is the warn-mode warning, which the user may pass by sending a reason, rather than a hard stop.
+     */
+    public bool $overridable = false;
+
+    public static function forSale(string $customer, float $creditLimit, float $currentBalance, float $saleAmount, bool $warning = false): static
     {
         $projectedBalance = round($currentBalance + $saleAmount, 2);
 
@@ -37,6 +42,7 @@ class CreditLimitExceededException extends ValidationException
             )],
         ]);
 
+        $exception->overridable = $warning;
         $exception->details = [
             'credit_limit' => $creditLimit,
             'current_balance' => $currentBalance,
@@ -56,7 +62,7 @@ class CreditLimitExceededException extends ValidationException
         return response()->json([
             'message' => $this->errors()['contact_id'][0],
             'errors' => $this->errors(),
-            'code' => 'credit_limit_exceeded',
-        ] + $this->details, $this->status);
+            'code' => $this->overridable ? 'credit_limit_warning' : 'credit_limit_exceeded',
+        ] + $this->details + ($this->overridable ? ['requires_override_reason' => true] : []), $this->status);
     }
 }

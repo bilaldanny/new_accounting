@@ -109,6 +109,7 @@ export default function useCompanySettings() {
         cash_collection: false,
         payment: false,
         limit_account: false,
+        credit_limit_mode: 'hard',
         auto_grn: false,
         auto_gin: false,
     };

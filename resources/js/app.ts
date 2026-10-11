@@ -131,6 +131,26 @@ Reason for overriding the lock for this one save (audited):`, '');
                 }
             }
 
+            // A sale past the customer's credit limit in the company's "warn" mode: show the figures, ask for the reason
+            // and repeat the request once with it (the server writes the override to the audit log).
+            if (error.response?.status === 422 && data?.code === 'credit_limit_warning' && error.config && !error.config._creditOverrideTried) {
+                const reason = window.prompt(`${data.message}
+
+Reason for going ahead anyway (audited):`, '');
+
+                if (reason && reason.trim().length >= 3) {
+                    error.config._creditOverrideTried = true;
+
+                    if (error.config.data instanceof FormData) {
+                        error.config.data.set('credit_override_reason', reason.trim());
+                    } else if (typeof error.config.data === 'string') {
+                        error.config.data = JSON.stringify({ ...JSON.parse(error.config.data), credit_override_reason: reason.trim() });
+                    }
+
+                    return axios.request(error.config);
+                }
+            }
+
             return Promise.reject(error);
         },
     );

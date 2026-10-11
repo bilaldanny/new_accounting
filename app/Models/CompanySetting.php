@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 class CompanySetting extends Model
@@ -68,6 +69,7 @@ class CompanySetting extends Model
         'limit_account',
         'auto_grn',
         'auto_gin',
+        'credit_limit_mode',
     ];
 
     /**
@@ -103,6 +105,28 @@ class CompanySetting extends Model
         }
 
         return (bool) self::query()->where('company_id', $companyId)->value($column);
+    }
+
+    public const CREDIT_LIMIT_MODES = ['hard', 'warn', 'off'];
+
+    /**
+     * How a sale past a customer's credit limit is handled for the company: `hard` (refused, also what an unset
+     * company or a database without the column gets), `warn` (allowed with a reason) or `off`.
+     */
+    public static function creditLimitMode(?int $companyId): string
+    {
+        if ($companyId === null || ! self::hasCreditLimitModeColumn()) {
+            return 'hard';
+        }
+
+        $mode = self::query()->where('company_id', $companyId)->value('credit_limit_mode');
+
+        return in_array($mode, self::CREDIT_LIMIT_MODES, true) ? $mode : 'hard';
+    }
+
+    private static function hasCreditLimitModeColumn(): bool
+    {
+        return Schema::hasColumn('company_settings', 'credit_limit_mode');
     }
 
     protected function casts(): array
@@ -288,6 +312,7 @@ class CompanySetting extends Model
             'limit_account' => (bool) $setting->limit_account,
             'auto_grn' => (bool) $setting->auto_grn,
             'auto_gin' => (bool) $setting->auto_gin,
+            'credit_limit_mode' => in_array($setting->credit_limit_mode ?? null, self::CREDIT_LIMIT_MODES, true) ? $setting->credit_limit_mode : 'hard',
         ];
     }
 
@@ -342,6 +367,10 @@ class CompanySetting extends Model
             'auto_grn',
             'auto_gin',
         ]));
+
+        if (self::hasCreditLimitModeColumn() && in_array($request->input('credit_limit_mode'), self::CREDIT_LIMIT_MODES, true)) {
+            $setting->credit_limit_mode = $request->input('credit_limit_mode');
+        }
 
         if ($request->filled('start_date')) {
             $setting->start_date = Carbon::parse(str_replace('/', '-', (string) $request->input('start_date')))->format('Y-m-d');

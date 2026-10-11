@@ -67,6 +67,19 @@
                 </select>
                 <small class="text-muted d-block mt-1">Default customer used on sell screens.</small>
             </div>
+            <div class="col-md-4">
+                <label for="SellSettingCreditLimitMode" class="form-label">Customer Credit Limit</label>
+                <select
+                    id="SellSettingCreditLimitMode"
+                    v-model="formData.credit_limit_mode"
+                    class="form-select form-select-sm"
+                >
+                    <option value="hard">Hard stop: refuse a sale past the limit</option>
+                    <option value="warn">Warn: allow with a reason (audited)</option>
+                    <option value="off">Off: do not check</option>
+                </select>
+                <small class="text-muted d-block mt-1">What happens when a sale would take a customer past their credit limit.</small>
+            </div>
         </div>
     </div>
 </template>
