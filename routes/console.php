@@ -26,3 +26,6 @@ Schedule::command('approvals:notify-pending')->hourly();
 
 // SaaS: usage snapshots, cancel at period end, overdue reminders and suspension, and due tenant deletions, daily.
 Schedule::command('tenants:run-billing')->dailyAt('05:00');
+
+// Scheduled and emailed reports that are due today.
+Schedule::command('reports:send-scheduled')->dailyAt('06:00');

@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  *  - Investing: assets (2xx) named like a fixed asset, equipment, vehicle, machinery, building, furniture, land or property;
  *  - Operating: everything else (sales, purchases, expenses, receivables, payables, stock).
  * The chart has no flag for this, so the section is a reading of the class and name, and a counter account
- * named unusually may sit in Operating. The indirect method is not provided.
+ * named unusually may sit in Operating. The indirect method is IndirectCashFlowReport.
  */
 class CashFlowReport
 {
@@ -127,7 +127,7 @@ class CashFlowReport
         ];
     }
 
-    private function section(string $code, string $name): string
+    public function section(string $code, string $name): string
     {
         $digit = AccountClass::of($code)['digit'] ?? 0;
 

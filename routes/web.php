@@ -17,6 +17,7 @@ use App\Http\Controllers\Reports\StockReportController;
 use App\Http\Controllers\Reports\TransactionReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Middleware\EnforcePageMenuPermission;
+use App\Services\Reports\InsightReportCatalog;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use UniSharp\LaravelFilemanager\Lfm;
@@ -1096,6 +1097,14 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
         })->name('report.'.$report);
     }
 
+    foreach (InsightReportCatalog::REPORTS as $report => [, $path]) {
+        Route::get(ltrim($path, '/'), function () use ($report, $path) {
+            abortUnlessMenuPermission($path);
+
+            return Inertia::render('report/index', ['report' => $report]);
+        })->name('report.'.$report);
+    }
+
     foreach (FinancialReportController::PERMISSIONS as $report => $path) {
         Route::get(ltrim($path, '/'), function () use ($report, $path) {
             abortUnlessMenuPermission($path);
@@ -1516,6 +1525,8 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('foreigncurrency', fn () => Inertia::render('foreigncurrency/index'))->name('foreigncurrency');
     Route::get('interbranch', fn () => Inertia::render('interbranch/index'))->name('interbranch');
     Route::get('security', fn () => Inertia::render('security/index'))->name('security');
+    Route::get('analytics', fn () => Inertia::render('analytics/index'))->name('analytics');
+    Route::get('reportbuilder', fn () => Inertia::render('reportbuilder/index'))->name('reportbuilder');
     Route::get('approvalcenter', fn () => Inertia::render('approvalcenter/index'))->name('approvalcenter');
     Route::get('saasadmin', fn () => Inertia::render('saasadmin/index'))->name('saasadmin');
     Route::get('tenant-billing', fn () => Inertia::render('tenant-billing/index'))->name('tenant-billing');

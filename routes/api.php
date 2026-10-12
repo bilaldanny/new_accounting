@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountBalanceController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AllocationController;
+use App\Http\Controllers\AnalyticsOverviewController;
 use App\Http\Controllers\Api\PublicApiCustomerController;
 use App\Http\Controllers\Api\PublicApiInvoiceController;
 use App\Http\Controllers\Api\PublicApiProductController;
@@ -135,16 +136,20 @@ use App\Http\Controllers\ReceiptShareController;
 use App\Http\Controllers\ReceivingNoteController;
 use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\ReorderSuggestionController;
+use App\Http\Controllers\ReportBuilderController;
+use App\Http\Controllers\ReportFilterController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\CrmReportController;
 use App\Http\Controllers\Reports\CustomerSubscriptionReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
+use App\Http\Controllers\Reports\InsightReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
 use App\Http\Controllers\Reports\PartyLedgerReportController;
 use App\Http\Controllers\Reports\PartyReportController;
 use App\Http\Controllers\Reports\ProductReportController;
 use App\Http\Controllers\Reports\StockReportController;
 use App\Http\Controllers\Reports\TransactionReportController;
+use App\Http\Controllers\ReportScheduleController;
 use App\Http\Controllers\RmaController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SaasAdminController;
@@ -195,6 +200,7 @@ use App\Http\Controllers\YearCloseController;
 use App\Http\Controllers\YearRolloverController;
 use App\Http\Middleware\LogPublicApiRequest;
 use App\Http\Middleware\ValidateBulkActionBody;
+use App\Services\Reports\InsightReportCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -1134,6 +1140,12 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     }
     /* Analytics reports */
 
+    /* Insight reports: comparative statements, sales and profit by dimension, tax and stock take reports */
+    foreach (array_keys(InsightReportCatalog::REPORTS) as $report) {
+        Route::get('reports/'.$report, [InsightReportController::class, 'index'])->defaults('report', $report);
+    }
+    /* Insight reports */
+
     /* Party reports */
     foreach (array_keys(PartyReportController::PERMISSIONS) as $report) {
         Route::get('reports/'.$report, [PartyReportController::class, 'index'])->defaults('report', $report);
@@ -1532,6 +1544,24 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('dispatch/assign', [DispatchController::class, 'assign']);
     Route::post('dispatch/{id}/move', [DispatchController::class, 'move'])->whereNumber('id');
 
+    Route::get('analytics-overview', [AnalyticsOverviewController::class, 'show']);
+    Route::get('report-filters', [ReportFilterController::class, 'index']);
+    Route::post('report-filters', [ReportFilterController::class, 'store']);
+    Route::put('report-filters/{id}/favourite', [ReportFilterController::class, 'favourite'])->whereNumber('id');
+    Route::delete('report-filters/{id}', [ReportFilterController::class, 'destroy'])->whereNumber('id');
+    Route::get('report-builder/meta', [ReportBuilderController::class, 'meta']);
+    Route::post('report-builder/preview', [ReportBuilderController::class, 'preview']);
+    Route::get('report-builder', [ReportBuilderController::class, 'index']);
+    Route::post('report-builder', [ReportBuilderController::class, 'store']);
+    Route::put('report-builder/{id}', [ReportBuilderController::class, 'update'])->whereNumber('id');
+    Route::delete('report-builder/{id}', [ReportBuilderController::class, 'destroy'])->whereNumber('id');
+    Route::get('report-builder/{id}/run', [ReportBuilderController::class, 'run'])->whereNumber('id');
+    Route::get('report-schedules', [ReportScheduleController::class, 'index']);
+    Route::post('report-schedules', [ReportScheduleController::class, 'store']);
+    Route::put('report-schedules/{id}', [ReportScheduleController::class, 'toggle'])->whereNumber('id');
+    Route::delete('report-schedules/{id}', [ReportScheduleController::class, 'destroy'])->whereNumber('id');
+    Route::post('report-schedules/{id}/run', [ReportScheduleController::class, 'runNow'])->whereNumber('id');
+    Route::get('report-schedules/{id}/runs', [ReportScheduleController::class, 'runs'])->whereNumber('id');
     Route::get('sales-kpi/statement', [SalesKpiController::class, 'statement']);
     Route::get('sales-kpi/targets', [SalesKpiController::class, 'targets']);
     Route::post('sales-kpi/targets', [SalesKpiController::class, 'setTarget']);

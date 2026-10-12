@@ -12,7 +12,7 @@ with a throw-away test), `npm run build`, Dusk only with the inline sqlite env, 
 | 1 | CRM, Customer Subscription, User Mgmt, Dashboard | built, see `closeout-wave1.md` (full regression pending at the time of writing) |
 | 2 | Approval Center | built, see `closeout-wave2.md` |
 | 3 | SaaS billing + integrations | built (couriers, gateway, bank feed, custom domain Partial), see `closeout-wave3.md` |
-| 4 | Reports & analytics | not started |
+| 4 | Reports & analytics | built (FBR audit trail Partial = stub, scheduled email delivery Partial), see `closeout-wave4.md` |
 | 5 | Documents & communication | not started |
 | 6 | Settings & system setup | not started |
 | 7 | HRM & payroll | not started |
@@ -20,17 +20,18 @@ with a throw-away test), `npm run build`, Dusk only with the inline sqlite env, 
 
 ## Next
 
-Wave 4 (Reports & analytics, 17 items): comparative P&L / balance sheet with inventory line from the active valuation method, indirect
-cash flow, sales by salesperson / warehouse / payment method, commission + target, forecasting, stock take, advance, withholding tax,
-tax exemption, tax liability reconciliation, FBR audit trail (FBR stays STUB), profit by customer / branch / salesperson / warehouse,
-dashboard analytics, custom report builder (whitelisted datasets), scheduled / emailed reports, saved filters + favourites.
+Wave 5 (Documents & communication, 13 items): block-based invoice designer (JSON sanitised), templates by branch / type with a default,
+branding with a CSS allowlist, header / footer / T&C / signature / QR, custom fields on the invoice (shared with wave 6), multi-language
+printing, export and send (PDF / thermal / Excel / link / email / WhatsApp), email / SMS / WhatsApp templates, due and overdue reminders
+through the schedule engine, instant delivery, attachments. Reuse `MessageDispatcher`, `Dunning` templates, `ReportScheduler::csv`.
 
 ## Shared pieces built so far (reuse them)
 
 `AppNotifier` + `app_notifications` (in-app and email), `Dunning` levels and templates, `JournalScheduleEngine`, `AccountsVoucher`,
 `MultiCurrency`, `CostSource`, `PosOfflineSync` + service worker, `MessageDispatcher` adapters (webhook, WhatsApp Cloud, Twilio),
 `EnforceSecurity` middleware, `SecuritySettings`, `ApprovalWorkflowGate`, `EnforceTenantPlan` + `PlanFeatures`, `TenantLifecycle`,
-`integration_accounts` (encrypted credentials) with `Http::fake` fixtures in `tests/Fixtures/integrations/`.
+`integration_accounts` (encrypted credentials) with `Http::fake` fixtures in `tests/Fixtures/integrations/`, `InsightReportCatalog` (add a
+report key there + `composables/report.ts` + menu row), `ReportBuilder` whitelist, `ReportScheduler`, `SalesKpiStatement`.
 
 ## Pitfalls met
 

@@ -63,7 +63,26 @@ export type ReportKey =
     | 'batch-expiry'
     | 'abc-analysis'
     | 'stock-ageing'
-    | 'supplier-price-comparison';
+    | 'supplier-price-comparison'
+    | 'profit-loss-comparative'
+    | 'balance-sheet-comparative'
+    | 'cash-flow-indirect'
+    | 'sales-by-salesperson'
+    | 'sales-by-warehouse'
+    | 'sales-by-payment-method'
+    | 'profit-by-customer'
+    | 'profit-by-branch'
+    | 'profit-by-salesperson'
+    | 'profit-by-warehouse'
+    | 'commission-report'
+    | 'target-achievement'
+    | 'sales-forecast'
+    | 'stock-take'
+    | 'advance'
+    | 'withholding-tax'
+    | 'tax-exemption'
+    | 'tax-liability'
+    | 'fbr-audit-trail';
 
 export type ReportColumn = {
     key: string;
@@ -121,6 +140,12 @@ export type ReportFilters = {
     accountGroups?: boolean;
     /** The receipt / payment selector of the voucher report. */
     voucherTypes?: boolean;
+    /** The comparison period (two dates) or comparison day of the comparative statements. */
+    compare?: 'period' | 'date';
+    /** A month picker (Y-m) and the agent / salesperson / cashier selector of the commission and target reports. */
+    monthSubject?: boolean;
+    /** The receivable / payable selector of the withholding tax report. */
+    withholdingSides?: boolean;
 };
 
 export type ReportConfig = {
@@ -278,6 +303,56 @@ const agingReport = (title: string, party: 'customer' | 'supplier', document: st
     ],
     searchPlaceholder: `${title} name or code`,
 });
+/** Sales split by one dimension; the three share their columns. */
+const salesByReport = (dimension: string, note: string): ReportConfig => ({
+    title: `Sales by ${dimension}`,
+    subtitle: `Net sales (posted sales less the returns against them) of the range per ${dimension.toLowerCase()}. ${note} Defaults to the last 30 days.`,
+    exportName: `sales-by-${dimension.toLowerCase()}`,
+    filters: {},
+    columns: [
+        text('name', dimension, ALL, 'primary'),
+        count('sales_count', 'Sales', MID),
+        money('gross', 'Gross', WIDE),
+        money('returned', 'Returns', WIDE),
+        money('net', 'Net sales'),
+        money('average_sale', 'Average sale', WIDE),
+        money('share', 'Share %', MID),
+    ],
+    summary: [
+        { key: 'count', label: `${dimension}s`, kind: 'count' },
+        { key: 'sales_count', label: 'Sales', kind: 'count' },
+        { key: 'net', label: 'Net sales', accent: true },
+        { key: 'average_sale', label: 'Average sale' },
+    ],
+    searchPlaceholder: '',
+});
+
+/** Profit split by one dimension, on the lines of Item Profit & Loss. */
+const profitByReport = (dimension: string): ReportConfig => ({
+    title: `Profit by ${dimension}`,
+    subtitle: `Sales, cost and profit of the range per ${dimension.toLowerCase()}, from the lines of Item Profit & Loss with the costing method in force. A line without a known cost is counted apart and kept out of cost and profit. Defaults to the last 30 days.`,
+    exportName: `profit-by-${dimension.toLowerCase()}`,
+    filters: {},
+    columns: [
+        text('name', dimension, ALL, 'primary'),
+        count('lines', 'Lines', WIDE),
+        money('sales', 'Sales', MID),
+        money('cost', 'Cost', MID),
+        known('profit', 'Profit'),
+        known('margin', 'Margin %', MID),
+        count('without_cost', 'Without cost', WIDE),
+    ],
+    summary: [
+        { key: 'count', label: `${dimension}s`, kind: 'count' },
+        { key: 'sales', label: 'Sales' },
+        { key: 'cost', label: 'Cost' },
+        { key: 'profit', label: 'Profit', accent: true },
+        { key: 'margin', label: 'Margin %' },
+        { key: 'without_cost', label: 'Lines without cost', kind: 'count' },
+    ],
+    searchPlaceholder: '',
+});
+
 export const REPORTS: Record<ReportKey, ReportConfig> = {
     purchase: {
         title: 'Purchase Report',
@@ -875,6 +950,304 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
         searchPlaceholder: '',
     },
 
+    'profit-loss-comparative': {
+        title: 'Comparative Profit & Loss',
+        subtitle: 'The profit and loss of two periods side by side (default: the period right before, of the same length) with the change and the change in percent. Stock is valued with the costing method in force, as in the Profit & Loss.',
+        exportName: 'comparative-profit-and-loss',
+        filters: { requiresCompany: true, compare: 'period' },
+        columns: [
+            text('code', 'Code', MID),
+            text('name', 'Account', ALL, 'primary'),
+            known('current', 'This period'),
+            known('previous', 'Compared with', MID),
+            known('change', 'Change', MID),
+            known('change_percent', 'Change %', WIDE),
+        ],
+        summary: [
+            { key: 'revenue', label: 'Revenue' },
+            { key: 'revenue_previous', label: 'Revenue (compared)' },
+            { key: 'gross_profit', label: 'Gross profit' },
+            { key: 'gross_profit_previous', label: 'Gross profit (compared)' },
+            { key: 'net_profit', label: 'Net profit', accent: true },
+            { key: 'net_profit_previous', label: 'Net profit (compared)' },
+        ],
+        searchPlaceholder: '',
+    },
+    'balance-sheet-comparative': {
+        title: 'Comparative Balance Sheet',
+        subtitle: 'The balance sheet on two days side by side (default: the same day one year earlier). Stock is not an account in the ledger, so the inventory at cost, valued with the method in force on each day, is a memo line outside the totals.',
+        exportName: 'comparative-balance-sheet',
+        filters: { requiresCompany: true, asOf: true, compare: 'date' },
+        columns: [
+            text('code', 'Code', MID),
+            text('name', 'Account', ALL, 'primary'),
+            known('current', 'On the day'),
+            known('previous', 'Compared with', MID),
+            known('change', 'Change', MID),
+            known('change_percent', 'Change %', WIDE),
+        ],
+        summary: [
+            { key: 'total_assets', label: 'Total assets' },
+            { key: 'total_assets_previous', label: 'Total assets (compared)' },
+            { key: 'total_equity', label: 'Equity (with profit)' },
+            { key: 'inventory', label: 'Inventory at cost (memo)' },
+            { key: 'inventory_previous', label: 'Inventory (compared)' },
+            { key: 'difference', label: 'Difference', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'cash-flow-indirect': {
+        title: 'Cash Flow Statement (Indirect)',
+        subtitle: 'The net profit of the period and the cash effect of every other balance sheet account, as Operating, Investing and Financing. It reconciles to the direct method: the difference below must be zero.',
+        exportName: 'cash-flow-indirect',
+        filters: { requiresCompany: true },
+        columns: [
+            text('section', 'Section', MID),
+            text('account_code', 'Account', WIDE),
+            text('account_name', 'Account / line', ALL, 'primary'),
+            money('amount', 'Cash effect'),
+        ],
+        summary: [
+            { key: 'operating', label: 'Operating' },
+            { key: 'investing', label: 'Investing' },
+            { key: 'financing', label: 'Financing' },
+            { key: 'net_change', label: 'Net change', accent: true },
+            { key: 'opening_cash', label: 'Opening cash' },
+            { key: 'closing_cash', label: 'Closing cash' },
+            { key: 'difference_to_direct', label: 'Difference to direct method' },
+            { key: 'stock_change_memo', label: 'Change in stock value (memo)' },
+        ],
+        searchPlaceholder: '',
+    },
+    'sales-by-salesperson': salesByReport('Salesperson', 'The user who saved each sale.'),
+    'sales-by-warehouse': salesByReport('Warehouse', 'The warehouse each sale left from; sales without one are Unassigned.'),
+    'sales-by-payment-method': {
+        title: 'Sales by Payment Method',
+        subtitle: 'What was received on sales in the range by payment method, less refunds on sale returns. By payment date, so a cash view that is not expected to equal net sales of the same dates. Defaults to the last 30 days.',
+        exportName: 'sales-by-payment-method',
+        filters: {},
+        columns: [
+            text('name', 'Method', ALL, 'primary'),
+            count('sales_count', 'Payments', MID),
+            money('gross', 'Received'),
+            money('returned', 'Refunded', MID),
+            money('net', 'Net'),
+            money('share', 'Share %', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Methods', kind: 'count' },
+            { key: 'sales_count', label: 'Payments', kind: 'count' },
+            { key: 'gross', label: 'Received' },
+            { key: 'returned', label: 'Refunded' },
+            { key: 'net', label: 'Net', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'profit-by-customer': profitByReport('Customer'),
+    'profit-by-branch': profitByReport('Branch'),
+    'profit-by-salesperson': profitByReport('Salesperson'),
+    'profit-by-warehouse': profitByReport('Warehouse'),
+    'commission-report': {
+        title: 'Commission Report',
+        subtitle: 'Net sales of the month and the commission of each commission agent at the base percentage or the highest tier reached. Read only; nothing is posted.',
+        exportName: 'commission-report',
+        filters: { requiresCompany: true, monthSubject: true },
+        columns: [
+            text('name', 'Agent', ALL, 'primary'),
+            count('sales', 'Sales', MID),
+            money('gross', 'Gross', WIDE),
+            money('returned', 'Returns', WIDE),
+            money('net', 'Net sales'),
+            money('rate_percent', 'Rate %', MID),
+            money('commission', 'Commission'),
+        ],
+        summary: [
+            { key: 'count', label: 'Agents', kind: 'count' },
+            { key: 'net', label: 'Net sales' },
+            { key: 'commission', label: 'Commission', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'target-achievement': {
+        title: 'Target Achievement',
+        subtitle: 'The month\'s sales target of each agent, salesperson or cashier against net sales, with the shortfall.',
+        exportName: 'target-achievement',
+        filters: { requiresCompany: true, monthSubject: true },
+        columns: [
+            text('name', 'Name', ALL, 'primary'),
+            money('net', 'Net sales', MID),
+            money('target', 'Target'),
+            money('achievement_percent', 'Achieved %', MID),
+            money('shortfall', 'Shortfall'),
+        ],
+        summary: [
+            { key: 'count', label: 'With a target', kind: 'count' },
+            { key: 'targets_met', label: 'Targets met', kind: 'count' },
+            { key: 'net', label: 'Net sales' },
+            { key: 'target', label: 'Target' },
+            { key: 'achievement_percent', label: 'Achieved %', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'sales-forecast': {
+        title: 'Sales Forecast',
+        subtitle: 'Net sales of the last months, this month at its run rate and next month\'s estimate with a low and high (moving average and straight line). It is an estimate from history, not a plan.',
+        exportName: 'sales-forecast',
+        filters: {},
+        columns: [
+            text('month', 'Month', ALL, 'primary'),
+            text('kind', 'Kind', MID),
+            known('net_sales', 'Net sales'),
+            known('low', 'Low', MID),
+            known('high', 'High', MID),
+            text('note', 'Note', WIDE),
+        ],
+        summary: [
+            { key: 'months', label: 'Months of history', kind: 'count' },
+            { key: 'average', label: 'Average month' },
+            { key: 'estimate', label: 'Estimate', accent: true },
+            { key: 'low', label: 'Low' },
+            { key: 'high', label: 'High' },
+        ],
+        searchPlaceholder: '',
+    },
+    'stock-take': {
+        title: 'Stock Take Variance',
+        subtitle: 'Counted against system quantity for each line of the stock takes in the range (default: the last year), valued at the unit cost on the count date. Base units.',
+        exportName: 'stock-take-variance',
+        filters: { statuses: [{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'completed', label: 'Completed' }], defaultStatus: 'all' },
+        columns: [
+            text('count_date', 'Count date'),
+            text('reference', 'Stock take', MID),
+            text('product_name', 'Product', ALL, 'primary'),
+            qty('system_qty', 'System', MID),
+            qty('counted_qty', 'Counted', MID),
+            qty('variance_qty', 'Variance'),
+            known('unit_cost', 'Unit cost', WIDE),
+            known('variance_value', 'Variance value'),
+        ],
+        summary: [
+            { key: 'lines', label: 'Lines', kind: 'count' },
+            { key: 'with_variance', label: 'With variance', kind: 'count' },
+            { key: 'shortage_value', label: 'Shortage value' },
+            { key: 'excess_value', label: 'Excess value' },
+            { key: 'net_value', label: 'Net', accent: true },
+        ],
+        searchPlaceholder: 'Product or stock take',
+    },
+    advance: {
+        title: 'Advances Held',
+        subtitle: 'Customer advances kept from cash collections and supplier advances kept from supplier payments, with what has been used and refunded and what remains.',
+        exportName: 'advances-held',
+        filters: { contactTypes: true },
+        columns: [
+            text('taken_on', 'Date'),
+            text('party_type', 'Party', MID),
+            text('contact_name', 'Name', ALL, 'primary'),
+            text('reference', 'Reference', WIDE),
+            money('amount', 'Advance', MID),
+            money('used', 'Used', MID),
+            money('remaining', 'Remaining'),
+        ],
+        summary: [
+            { key: 'count', label: 'Advances', kind: 'count' },
+            { key: 'customer_advances', label: 'Customer advances held' },
+            { key: 'supplier_advances', label: 'Supplier advances held' },
+            { key: 'remaining', label: 'Remaining', accent: true },
+        ],
+        searchPlaceholder: 'Name or reference',
+    },
+    'withholding-tax': {
+        title: 'Withholding Tax',
+        subtitle: 'Withholding tax of each sale (withheld by the customer, claimed back) and purchase (withheld by us, owed to the tax office). Defaults to the last year.',
+        exportName: 'withholding-tax',
+        filters: { withholdingSides: true },
+        columns: [
+            text('transaction_date', 'Date'),
+            text('document', 'Document', MID),
+            text('invoice_no', 'Invoice No', ALL, 'primary'),
+            text('contact_name', 'Party', MID),
+            text('tax_name', 'Tax', WIDE),
+            money('rate', 'Rate %', WIDE),
+            money('final_amount', 'Invoice total', MID),
+            money('withholding_amount', 'Withheld'),
+        ],
+        summary: [
+            { key: 'count', label: 'Documents', kind: 'count' },
+            { key: 'receivable', label: 'Withheld from us (receivable)' },
+            { key: 'payable', label: 'Withheld by us (payable)' },
+            { key: 'net_payable', label: 'Net payable', accent: true },
+        ],
+        searchPlaceholder: 'Invoice or party',
+    },
+    'tax-exemption': {
+        title: 'Tax Exemptions Used',
+        subtitle: 'Every sale and purchase line taxed at zero because an exemption rule applied, with its certificate and the tax that would have been charged at the line\'s rate.',
+        exportName: 'tax-exemptions-used',
+        filters: { taxSides: true },
+        columns: [
+            text('transaction_date', 'Date'),
+            text('document', 'Document', MID),
+            text('invoice_no', 'Invoice No', ALL, 'primary'),
+            text('contact_name', 'Party', WIDE),
+            text('product_name', 'Product', MID),
+            text('exemption_name', 'Exemption', MID),
+            text('certificate_no', 'Certificate', WIDE),
+            money('amount', 'Amount', MID),
+            money('tax_forgone', 'Tax not charged'),
+        ],
+        summary: [
+            { key: 'lines', label: 'Lines', kind: 'count' },
+            { key: 'rules', label: 'Rules used', kind: 'count' },
+            { key: 'amount', label: 'Amount' },
+            { key: 'tax_forgone', label: 'Tax not charged', accent: true },
+        ],
+        searchPlaceholder: 'Invoice, party, product or rule',
+    },
+    'tax-liability': {
+        title: 'Tax Liability Reconciliation',
+        subtitle: 'Output and input tax from the documents, what was paid to the tax office, and the same tax read from the mapped tax accounts of the ledger with the difference. Defaults to the last 30 days.',
+        exportName: 'tax-liability',
+        filters: { requiresCompany: true },
+        columns: [
+            text('section', 'Part', WIDE),
+            text('line', 'Line', ALL, 'primary'),
+            known('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'output_tax', label: 'Output tax' },
+            { key: 'input_tax', label: 'Input tax' },
+            { key: 'net_tax', label: 'Net payable' },
+            { key: 'paid', label: 'Paid' },
+            { key: 'balance', label: 'Balance to pay', accent: true },
+            { key: 'output_difference', label: 'Output: documents less ledger' },
+            { key: 'input_difference', label: 'Input: documents less ledger' },
+        ],
+        searchPlaceholder: '',
+    },
+    'fbr-audit-trail': {
+        title: 'FBR Submission Audit Trail',
+        subtitle: 'Every invoice submission attempt with its status, number and error. The FBR gateway here is a stub: nothing is sent to FBR and stub numbers are not FBR invoice numbers, so this is a log of what the application did, not evidence of compliance.',
+        exportName: 'fbr-audit-trail',
+        filters: { statuses: [{ value: 'all', label: 'All' }, { value: 'stub', label: 'Stub' }, { value: 'submitted', label: 'Submitted' }, { value: 'failed', label: 'Failed' }, { value: 'pending', label: 'Pending' }], defaultStatus: 'all' },
+        columns: [
+            text('submitted_at', 'When'),
+            text('invoice_no', 'Invoice No', ALL, 'primary'),
+            text('contact_name', 'Customer', WIDE),
+            money('final_amount', 'Total', MID),
+            text('status', 'Status', MID),
+            text('fbr_invoice_number', 'Number returned', WIDE),
+            count('attempts', 'Attempts', WIDE),
+            text('error', 'Error', WIDE),
+        ],
+        summary: [
+            { key: 'count', label: 'Attempts', kind: 'count' },
+            { key: 'stub', label: 'Stub (not sent)', kind: 'count' },
+            { key: 'submitted', label: 'Submitted', kind: 'count' },
+            { key: 'failed', label: 'Failed', kind: 'count' },
+        ],
+        searchPlaceholder: 'Invoice or FBR number',
+    },
     'sales-discount': {
         title: 'Sales Discount Report',
         subtitle: 'Every posted sale that gave a discount: what its lines gave and what the invoice-level discount gave. Drafts and quotations are left out. Defaults to the last 30 days.',
@@ -1561,6 +1934,10 @@ export default function useReport(report: ReportKey) {
             adjustment_type: 'all',
             start_date: '',
             end_date: '',
+            compare_start: '',
+            compare_end: '',
+            period: '',
+            subject: '',
         },
         loading: false,
         modalLoading: true,

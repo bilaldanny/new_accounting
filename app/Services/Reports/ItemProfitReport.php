@@ -49,6 +49,19 @@ class ItemProfitReport
     }
 
     /**
+     * The same rows with the id of the sale each line belongs to (`txn_id`), for reports that group profit by a property of the sale.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function rowsWithTransaction(?int $companyId, ?int $branchId, array $filters = []): Collection
+    {
+        return $this->costedLines($companyId, $branchId, $filters)
+            ->map(fn (stdClass $row): array => $this->present($row) + ['txn_id' => (int) $row->txn_id])
+            ->values();
+    }
+
+    /**
      * The sold lines with the unit cost each carries (`average_cost`): the weighted average, or the company's chosen method, or the
      * cost a recalculation locked (`$useLocks`, false to see what a recalculation would give). Also `cost_company_id` and `txn_id`.
      *

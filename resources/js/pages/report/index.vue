@@ -134,6 +134,80 @@
         { value: 'supplier', label: 'Suppliers' },
     ];
 
+    const WITHHOLDING_SIDES = [
+        { value: 'all', label: 'Receivable and payable' },
+        { value: 'receivable', label: 'Withheld from us (sales)' },
+        { value: 'payable', label: 'Withheld by us (purchases)' },
+    ];
+
+    const SUBJECTS = [
+        { value: '', label: 'Default' },
+        { value: 'agent', label: 'Commission agents' },
+        { value: 'user', label: 'Salespeople' },
+        { value: 'cashier', label: 'Cashiers' },
+    ];
+
+    type SavedFilter = { id: number; name: string; filters: Record<string, string | number | boolean | null>; is_favourite: boolean };
+
+    const savedFilters = ref<SavedFilter[]>([]);
+    const savedName = ref('');
+    const SAVED_FIELDS = [
+        'start_date', 'end_date', 'compare_start', 'compare_end', 'period', 'subject', 'contact_type', 'tax_side', 'status', 'search', 'contact_id',
+        'customer_group_id', 'product_id', 'brand_id', 'category_id', 'warehouse_id', 'top', 'by_branch', 'include_zero', 'payment_status', 'method',
+        'adjustment_type', 'account_code', 'account_group', 'voucher_type', 'from_branch_id', 'to_branch_id',
+    ] as const;
+
+    async function loadSavedFilters() {
+        try {
+            const response = await window.axios.get('/api/report-filters', { params: { report_key: pageProps.report } });
+            savedFilters.value = response.data.data ?? [];
+        } catch {
+            savedFilters.value = [];
+        }
+    }
+
+    async function saveCurrentFilters(favourite = false) {
+        const name = savedName.value.trim();
+
+        if (name.length < 2) {
+            return;
+        }
+
+        const filters: Record<string, string | number | boolean> = {};
+        const current = state.search as Record<string, string | number | boolean>;
+
+        for (const field of SAVED_FIELDS) {
+            if (current[field] !== '' && current[field] !== undefined && current[field] !== null) {
+                filters[field] = current[field];
+            }
+        }
+
+        await window.axios.post('/api/report-filters', { report_key: pageProps.report, name, filters, is_favourite: favourite });
+        savedName.value = '';
+        await loadSavedFilters();
+    }
+
+    async function applySavedFilter(id: number | string) {
+        const saved = savedFilters.value.find((item) => item.id === Number(id));
+
+        if (!saved) {
+            return;
+        }
+
+        Object.assign(state.search, saved.filters);
+        search();
+    }
+
+    async function toggleFavourite(item: SavedFilter) {
+        await window.axios.put(`/api/report-filters/${item.id}/favourite`, { is_favourite: !item.is_favourite });
+        await loadSavedFilters();
+    }
+
+    async function deleteSavedFilter(item: SavedFilter) {
+        await window.axios.delete(`/api/report-filters/${item.id}`);
+        await loadSavedFilters();
+    }
+
     const cards = computed(() =>
         config.summary.map((card) => {
             const value = card.key.split('.').reduce<unknown>(
@@ -312,6 +386,10 @@
         state.search.warehouse_id = '';
         state.search.account_group = '';
         state.search.voucher_type = 'all';
+        state.search.compare_start = '';
+        state.search.compare_end = '';
+        state.search.period = '';
+        state.search.subject = '';
         state.search.status = config.filters.defaultStatus ?? '';
         state.search.payment_status = 'all';
         state.search.method = 'all';
@@ -361,6 +439,7 @@
         }
 
         await getData();
+        await loadSavedFilters();
     });
 </script>
 
@@ -550,6 +629,45 @@
                     </select>
                 </div>
 
+                <div v-if="config.filters.withholdingSides" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-withholding-side">Withholding</label>
+                    <select id="report-filter-withholding-side" v-model="state.search.tax_side" class="form-select form-select-sm">
+                        <option v-for="option in WITHHOLDING_SIDES" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
+                </div>
+
+                <template v-if="config.filters.compare === 'period'">
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-compare-start">Compare from</label>
+                        <input id="report-filter-compare-start" v-model="state.search.compare_start" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-compare-end">Compare to</label>
+                        <input id="report-filter-compare-end" v-model="state.search.compare_end" type="date" class="form-control form-control-sm" />
+                    </div>
+                </template>
+
+                <div v-if="config.filters.compare === 'date'" class="col-md-4 col-lg-3 admin-filter-field">
+                    <label class="form-label" for="report-filter-compare-date">Compare with day</label>
+                    <input id="report-filter-compare-date" v-model="state.search.compare_end" type="date" class="form-control form-control-sm" />
+                </div>
+
+                <template v-if="config.filters.monthSubject">
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-period">Month</label>
+                        <input id="report-filter-period" v-model="state.search.period" type="month" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                        <label class="form-label" for="report-filter-subject">Who</label>
+                        <select id="report-filter-subject" v-model="state.search.subject" class="form-select form-select-sm">
+                            <option v-for="option in SUBJECTS" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                    </div>
+                </template>
                 <div v-if="config.filters.customerGroup" class="col-md-4 col-lg-3 admin-filter-field">
                     <label class="form-label" for="report-filter-group">Customer group</label>
                     <select
@@ -644,6 +762,20 @@
             </TheFilter>
 
             <div class="admin-list-card__body">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-3 report-saved-filters">
+                    <select class="form-select form-select-sm w-auto" aria-label="Saved filters" @change="applySavedFilter(($event.target as HTMLSelectElement).value)">
+                        <option value="">Saved filters ({{ savedFilters.length }})</option>
+                        <option v-for="item in savedFilters" :key="item.id" :value="item.id">{{ item.is_favourite ? '★ ' : '' }}{{ item.name }}</option>
+                    </select>
+                    <input v-model="savedName" type="text" class="form-control form-control-sm w-auto" placeholder="Name this filter" maxlength="120" aria-label="Name of the filter to save" />
+                    <button type="button" class="btn btn-outline-dark btn-sm" :disabled="savedName.trim().length < 2" @click="saveCurrentFilters(false)">Save</button>
+                    <button type="button" class="btn btn-outline-dark btn-sm" :disabled="savedName.trim().length < 2" @click="saveCurrentFilters(true)">Save as favourite</button>
+                    <span v-for="item in savedFilters" :key="`fav-${item.id}`" class="small">
+                        <button type="button" class="btn btn-link btn-sm p-0" :aria-label="`Toggle favourite ${item.name}`" @click="toggleFavourite(item)">{{ item.is_favourite ? '★' : '☆' }}</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-1" @click="applySavedFilter(item.id)">{{ item.name }}</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-danger" :aria-label="`Delete ${item.name}`" @click="deleteSavedFilter(item)">x</button>
+                    </span>
+                </div>
                 <div class="transaction-report__kpis">
                     <article
                         v-for="card in cards"
