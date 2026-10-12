@@ -40,6 +40,10 @@ class InsightReportCatalog
         'statutory-liability' => ['Statutory Liability', '/report/statutory-liability', true],
         'attendance-summary' => ['Attendance Summary', '/report/attendance-summary', true],
         'loan-balances' => ['Employee Loan Balances', '/report/loan-balances', true],
+        'production-summary' => ['Production Summary', '/report/production-summary', true],
+        'wip-report' => ['Work in Progress', '/report/wip-report', true],
+        'material-variance' => ['Material Variance', '/report/material-variance', true],
+        'scrap-report' => ['Production Scrap', '/report/scrap-report', true],
     ];
 
     /**
@@ -108,6 +112,14 @@ class InsightReportCatalog
                 return $result(app(AttendanceSummaryReport::class));
             case 'loan-balances':
                 return $result(app(LoanBalancesReport::class));
+            case 'production-summary':
+                return $result(app(ProductionSummaryReport::class));
+            case 'wip-report':
+                return $result(app(WipReport::class));
+            case 'material-variance':
+                return $result(app(MaterialVarianceReport::class));
+            case 'scrap-report':
+                return $result(app(ScrapReport::class));
         }
 
         abort(404);

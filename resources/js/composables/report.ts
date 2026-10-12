@@ -86,7 +86,11 @@ export type ReportKey =
     | 'payroll-register'
     | 'statutory-liability'
     | 'attendance-summary'
-    | 'loan-balances';
+    | 'loan-balances'
+    | 'production-summary'
+    | 'wip-report'
+    | 'material-variance'
+    | 'scrap-report';
 
 export type ReportColumn = {
     key: string;
@@ -1346,6 +1350,103 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             { key: 'balance', label: 'Still owed', accent: true },
         ],
         searchPlaceholder: 'Employee name or number',
+    },
+    'production-summary': {
+        title: 'Production Summary',
+        subtitle: 'Work orders of the period with the quantity planned and produced, scrap and the material, labour and overhead cost they absorbed. Defaults to the last 90 days.',
+        exportName: 'production-summary',
+        filters: {
+            requiresCompany: true,
+            statuses: [{ value: 'all', label: 'All' }, { value: 'draft', label: 'Draft' }, { value: 'released', label: 'Released' }, { value: 'in_progress', label: 'In progress' }, { value: 'completed', label: 'Completed' }, { value: 'cancelled', label: 'Cancelled' }],
+            defaultStatus: 'all',
+        },
+        columns: [
+            text('wo_no', 'Work order', MID),
+            text('product', 'Product', ALL, 'primary'),
+            text('status', 'Status', MID),
+            money('planned_qty', 'Planned', WIDE),
+            money('produced_qty', 'Produced', MID),
+            money('material_cost', 'Material', WIDE),
+            money('labor_cost', 'Labour', WIDE),
+            money('overhead_cost', 'Overhead', WIDE),
+            money('total_cost', 'Total cost'),
+        ],
+        summary: [
+            { key: 'orders', label: 'Work orders', kind: 'count' },
+            { key: 'produced_qty', label: 'Produced' },
+            { key: 'scrap_qty', label: 'Scrap' },
+            { key: 'total_cost', label: 'Cost absorbed', accent: true },
+        ],
+        searchPlaceholder: 'Work order or product',
+    },
+    'wip-report': {
+        title: 'Work in Progress',
+        subtitle: 'What each open work order holds today: materials, labour and overhead less what receipts absorbed and what was taken out as loss.',
+        exportName: 'work-in-progress',
+        filters: { requiresCompany: true },
+        columns: [
+            text('wo_no', 'Work order', MID),
+            text('product', 'Product', ALL, 'primary'),
+            text('status', 'Status', MID),
+            money('material_cost', 'Material', WIDE),
+            money('labor_cost', 'Labour', WIDE),
+            money('overhead_cost', 'Overhead', WIDE),
+            money('absorbed_cost', 'Absorbed', WIDE),
+            money('wip_value', 'In progress'),
+        ],
+        summary: [
+            { key: 'orders', label: 'Work orders', kind: 'count' },
+            { key: 'material_cost', label: 'Material' },
+            { key: 'wip_value', label: 'Work in progress', accent: true },
+        ],
+        searchPlaceholder: 'Work order or product',
+    },
+    'material-variance': {
+        title: 'Material Variance',
+        subtitle: 'Materials each work order required against what was issued; a positive variance is an over-issue. Defaults to the last 90 days.',
+        exportName: 'material-variance',
+        filters: { requiresCompany: true },
+        columns: [
+            text('wo_no', 'Work order', MID),
+            text('product', 'Product', WIDE),
+            text('component', 'Material', ALL, 'primary'),
+            money('required_qty', 'Required', MID),
+            money('issued_qty', 'Issued', MID),
+            money('variance_qty', 'Variance', MID),
+            money('variance_percent', 'Variance %', WIDE),
+            money('issued_cost', 'Cost issued'),
+        ],
+        summary: [
+            { key: 'lines', label: 'Lines', kind: 'count' },
+            { key: 'over_issued', label: 'Over-issued', kind: 'count', accent: true },
+            { key: 'issued_cost', label: 'Cost issued' },
+        ],
+        searchPlaceholder: 'Work order, product or material',
+    },
+    'scrap-report': {
+        title: 'Production Scrap',
+        subtitle: 'Scrap recorded on work orders: normal scrap stays in the cost of the good units, abnormal scrap is a loss. Defaults to the last 90 days.',
+        exportName: 'production-scrap',
+        filters: {
+            requiresCompany: true,
+            statuses: [{ value: 'all', label: 'All' }, { value: 'normal', label: 'Normal' }, { value: 'abnormal', label: 'Abnormal' }],
+            defaultStatus: 'all',
+        },
+        columns: [
+            text('recorded_on', 'Date'),
+            text('wo_no', 'Work order', MID),
+            text('product', 'Product', ALL, 'primary'),
+            money('quantity', 'Quantity', MID),
+            text('type', 'Type', MID),
+            text('reason', 'Reason', WIDE),
+            money('cost', 'Loss'),
+        ],
+        summary: [
+            { key: 'entries', label: 'Entries', kind: 'count' },
+            { key: 'abnormal_qty', label: 'Abnormal quantity' },
+            { key: 'loss', label: 'Loss', accent: true },
+        ],
+        searchPlaceholder: 'Work order, product or reason',
     },
     'sales-discount': {
         title: 'Sales Discount Report',

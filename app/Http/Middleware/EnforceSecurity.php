@@ -39,7 +39,7 @@ class EnforceSecurity
         'stock-transfer-approvals' => ['transactions', 'created_by'], 'cash-collection-approvals' => ['cash_collections', 'collected_by'],
         'asset-approvals' => ['fixed_assets', 'created_by'], 'pricelist-approvals' => ['price_lists', 'created_by'],
         'credit-limit-approvals' => ['credit_limit_requests', 'requested_by'], 'purchase-requisition-approvals' => ['purchase_requisitions', 'requested_by'],
-        'sales-orders' => ['sales_orders', 'created_by'], 'leave-requests' => ['leave_requests', 'created_by'], 'payroll-runs' => ['payroll_runs', 'created_by'],
+        'sales-orders' => ['sales_orders', 'created_by'], 'leave-requests' => ['leave_requests', 'created_by'], 'payroll-runs' => ['payroll_runs', 'created_by'], 'boms' => ['boms', 'created_by'], 'work-orders' => ['work_orders', 'created_by'],
     ];
 
     public function handle(Request $request, Closure $next): Response

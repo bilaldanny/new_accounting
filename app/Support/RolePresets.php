@@ -28,7 +28,7 @@ final class RolePresets
                 '/chart-of-account', '/opening-balance', '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer',
                 '/creditdebitnote', '/bankreconciliation', '/assetcategory', '/fixedasset', '/depreciation', '/costcenter', '/budget',
                 '/taxexemption', '/tax', '/financialyear', '/landedcost', '/period-lock', '/supplierpayment',
-                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/journalschedule', '/baddebt', '/dunning', '/project', '/foreigncurrency', '/interbranch', '/hrm',
+                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/journalschedule', '/baddebt', '/dunning', '/project', '/foreigncurrency', '/interbranch', '/hrm', '/report/production-summary', '/report/wip-report', '/report/material-variance', '/report/scrap-report',
             ],
             'view' => [
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',
@@ -58,7 +58,7 @@ final class RolePresets
             'view' => [
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',
-                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support', '/documentcenter', '/hrm',
+                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support', '/documentcenter', '/hrm', '/manufacturing',
                 '/analytics', '/reportbuilder', '/setup', '/help', '/report/sales-by-salesperson', '/report/sales-by-warehouse', '/report/sales-by-payment-method', '/report/sales-forecast',
                 '/report/commission-report', '/report/target-achievement', '/report/profit-by-customer', '/report/profit-by-branch', '/report/profit-by-salesperson',
                 '/report/profit-by-warehouse',
@@ -69,7 +69,7 @@ final class RolePresets
         'Warehouse Keeper' => [
             'manage' => [
                 '/warehouse', '/warehouselocation', '/stocktracking', '/stocktake', '/stockadjustment', '/stocktransfer', '/receivingnote',
-                '/issuenote', '/openingstock', '/lowstock', '/printlabel', '/productbom', '/stockreservation', '/warehousetask', '/stockwriteoff', '/qualityinspection', '/inboundshipment',
+                '/issuenote', '/openingstock', '/lowstock', '/printlabel', '/productbom', '/stockreservation', '/warehousetask', '/stockwriteoff', '/qualityinspection', '/inboundshipment', '/manufacturing',
             ],
             'view' => [
                 '/product', '/report/warehouse-stock', '/report/warehouse-usage', '/report/stock-movement-history', '/report/serial-traceability',
