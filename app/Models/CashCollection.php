@@ -161,7 +161,7 @@ class CashCollection extends Model
     {
         $used = (float) $this->allocations()->where('kind', CashCollectionAllocation::KIND_ADVANCE)->whereNull('reversed_at')->sum('amount');
 
-        return round(max((float) $this->advance_amount - $used, 0), 2);
+        return round(max((float) $this->advance_amount - $used - AdvanceRefund::refundedFor('cash_collection_id', (int) $this->id), 0), 2);
     }
 
     /**

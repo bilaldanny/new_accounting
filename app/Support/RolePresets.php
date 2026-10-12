@@ -42,7 +42,7 @@ final class RolePresets
         'Cashier' => [
             'manage' => ['/sell/pos', '/sell/payment/add', '/posshift', '/cashcollection', '/giftcard/redeem', '/loyalty/redeem'],
             'view' => ['/product', '/customer', '/report/register'],
-            'exclude' => ['/cashcollection/reverse', '/cashcollection/cancel'],
+            'exclude' => ['/cashcollection/reverse', '/cashcollection/cancel', '/cashcollection/refund'],
             'approvals' => false,
         ],
         'Sales Representative' => [

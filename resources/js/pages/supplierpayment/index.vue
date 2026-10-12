@@ -11,7 +11,7 @@
         },
     });
 
-    type Batch = { id: number; reference: string; contact_id: number; paid_on: string; amount: number; advance_amount: number; advance_remaining: number; status: string; allocations_count: number };
+    type Batch = { id: number; reference: string; contact_id: number; payment_account: number; paid_on: string; amount: number; advance_amount: number; advance_remaining: number; status: string; allocations_count: number };
 
     const { can, companyId, isSuperadmin, scope, money, run } = useCloseout();
     const rows = ref<Batch[]>([]);
@@ -42,6 +42,20 @@
         const body = { paid_on: new Date().toISOString().slice(0, 10), allocations: [{ transaction_id: Number(billId), amount: Number(amount) }] };
 
         if (await run(() => window.axios.post(`/api/supplier-payments/${batch.id}/apply-advance`, body), 'Bill settled from the advance')) {
+            await load();
+        }
+    }
+
+    async function refundAdvance(batch: Batch) {
+        const amount = window.prompt(`Amount the supplier pays back (up to ${batch.advance_remaining})`, String(batch.advance_remaining));
+
+        if (! amount) {
+            return;
+        }
+
+        const body = { refunded_on: new Date().toISOString().slice(0, 10), amount: Number(amount), payment_account: batch.payment_account };
+
+        if (await run(() => window.axios.post(`/api/supplier-payments/${batch.id}/refund-advance`, body), 'Refund recorded')) {
             await load();
         }
     }
@@ -96,6 +110,7 @@
                         <td class="text-end">{{ row.allocations_count }}</td><td class="text-end">{{ money(row.advance_remaining) }}</td><td class="text-capitalize">{{ row.status }}</td>
                         <td class="text-end text-nowrap">
                             <button v-if="row.status === 'completed' && row.advance_remaining > 0 && can('/supplierpayment/add')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="useAdvance(row)">Use advance</button>
+                            <button v-if="row.status === 'completed' && row.advance_remaining > 0 && can('/supplierpayment/refund')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="refundAdvance(row)">Refund advance</button>
                             <button v-if="row.status === 'completed' && can('/supplierpayment/reverse')" type="button" class="btn btn-outline-danger btn-sm" @click="reverse(row)">Reverse</button>
                         </td>
                     </tr>

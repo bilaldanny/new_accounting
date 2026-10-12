@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AdvanceRefund;
 use App\Models\CashCollection;
 use App\Models\CashCollectionAllocation;
 use App\Models\CompanySetting;
@@ -11,6 +12,7 @@ use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -195,6 +197,46 @@ class CashCollections
     }
 
     /**
+     * Pays back part or all of the advance a completed collection kept and no invoice took: cash / bank is credited and the
+     * customer's account debited (Payment::createSellRefund), and the advance's remaining balance falls by the amount.
+     *
+     * @throws RuntimeException `not_completed`, `advance_exceeded`
+     */
+    public function refundAdvance(CashCollection $collection, float $amount, string $refundedOn, int $paymentAccountId, string $method, ?string $note, ?int $userId): AdvanceRefund
+    {
+        return DB::transaction(function () use ($collection, $amount, $refundedOn, $paymentAccountId, $method, $note, $userId): AdvanceRefund {
+            $locked = CashCollection::query()->lockForUpdate()->findOrFail($collection->id);
+
+            if ($locked->status !== CashCollection::STATUS_COMPLETED) {
+                throw new RuntimeException('not_completed');
+            }
+
+            $amount = round($amount, 2);
+
+            if ($amount <= 0 || $amount > $locked->advanceRemaining() + 0.000001) {
+                throw new RuntimeException('advance_exceeded');
+            }
+
+            $payment = Payment::createSellRefund(
+                Contact::query()->where('company_id', $locked->company_id)->findOrFail($locked->contact_id),
+                (int) $locked->company_id,
+                (int) $locked->branch_id,
+                $amount,
+                $refundedOn,
+                $paymentAccountId,
+                $method,
+                trim('Advance refund '.$locked->reference.($note ? ': '.$note : '')),
+            );
+
+            return AdvanceRefund::query()->create([
+                'company_id' => $locked->company_id, 'branch_id' => $locked->branch_id, 'party' => 'customer', 'contact_id' => $locked->contact_id,
+                'cash_collection_id' => $locked->id, 'payment_id' => $payment->id, 'amount' => $amount, 'refunded_on' => $refundedOn,
+                'note' => $note, 'created_by' => $userId,
+            ]);
+        });
+    }
+
+    /**
      * Undoes a completed collection: every payment it made is removed and it goes back to pending. Payments
      * that were already deleted by hand (on the Sell Payment screen) are simply skipped.
      *
@@ -217,6 +259,18 @@ class CashCollections
 
                 if ($payment !== null) {
                     Payment::removeCollectedPayment($payment);
+                }
+            }
+
+            if (Schema::hasTable('advance_refunds')) {
+                foreach (AdvanceRefund::query()->where('cash_collection_id', $locked->id)->get() as $refund) {
+                    $payment = $refund->payment_id === null ? null : Payment::query()->find($refund->payment_id);
+
+                    if ($payment !== null) {
+                        Payment::removeCollectedPayment($payment);
+                    }
+
+                    $refund->delete();
                 }
             }
 

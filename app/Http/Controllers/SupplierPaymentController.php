@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdvanceRefund;
 use App\Models\ChartOfAccount;
 use App\Models\Contact;
 use App\Models\Payment;
@@ -12,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -201,6 +203,52 @@ class SupplierPaymentController extends Controller
         return response()->json(['message' => 'Successfully Saved', 'data' => $batch->fresh('allocations')]);
     }
 
+    /**
+     * The supplier pays back part or all of the advance a batch kept and no bill took: cash / bank is debited and the supplier's
+     * account credited (Payment::createPurchaseAdvanceRefund), and the advance's remaining balance falls by the same amount.
+     */
+    public function refundAdvance(Request $request, int $id): JsonResponse
+    {
+        $this->authorizeMenuPermission('/supplierpayment/refund');
+
+        $data = $request->validate([
+            'refunded_on' => 'required|date_format:Y-m-d',
+            'amount' => 'required|numeric|gt:0',
+            'payment_account' => 'required|integer',
+            'method' => 'nullable|in:cash,bank,cheque,card,online,other',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $batch = SupplierPaymentBatch::query()->visibleToCurrentUser()->findOrFail($id);
+
+        if ($batch->status !== 'completed') {
+            throw ValidationException::withMessages(['status' => ['This payment has been reversed.']]);
+        }
+
+        $amount = round((float) $data['amount'], 2);
+
+        if ($amount > $batch->advanceRemaining() + 0.000001) {
+            throw ValidationException::withMessages(['amount' => ['The refund is more than is left of the advance ('.$batch->advanceRemaining().').']]);
+        }
+
+        $supplier = Contact::query()->where('company_id', $batch->company_id)->findOrFail($batch->contact_id);
+
+        $refund = DB::transaction(function () use ($batch, $supplier, $data, $amount): AdvanceRefund {
+            $payment = Payment::createPurchaseAdvanceRefund(
+                $supplier, (int) $batch->company_id, (int) $batch->branch_id, $amount, $data['refunded_on'], (int) $data['payment_account'],
+                $data['method'] ?? 'cash', trim('Advance refund '.$batch->reference.(($data['note'] ?? null) ? ': '.$data['note'] : '')),
+            );
+
+            return AdvanceRefund::query()->create([
+                'company_id' => $batch->company_id, 'branch_id' => $batch->branch_id, 'party' => 'supplier', 'contact_id' => $batch->contact_id,
+                'supplier_payment_batch_id' => $batch->id, 'payment_id' => $payment->id, 'amount' => $amount,
+                'refunded_on' => $data['refunded_on'], 'note' => $data['note'] ?? null, 'created_by' => Auth::id(),
+            ]);
+        });
+
+        return response()->json(['message' => 'Refund recorded', 'data' => $refund, 'advance_remaining' => $batch->fresh()->advanceRemaining()], 201);
+    }
+
     public function reverse(int $id): JsonResponse
     {
         $this->authorizeMenuPermission('/supplierpayment/reverse');
@@ -218,6 +266,19 @@ class SupplierPaymentController extends Controller
 
                 if ($payment !== null) {
                     Payment::removeCollectedPayment($payment);
+                }
+            }
+
+            // money paid back out of the advance comes out before the advance itself
+            if (Schema::hasTable('advance_refunds')) {
+                foreach (AdvanceRefund::query()->where('supplier_payment_batch_id', $batch->id)->get() as $refund) {
+                    $payment = $refund->payment_id === null ? null : Payment::query()->find($refund->payment_id);
+
+                    if ($payment !== null) {
+                        Payment::removeCollectedPayment($payment);
+                    }
+
+                    $refund->delete();
                 }
             }
 

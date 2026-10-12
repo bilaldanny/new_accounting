@@ -123,6 +123,7 @@
         "/supplier",
         "/supplierpayment",
         "/supplierpayment/add",
+        "/supplierpayment/refund",
         "/supplierpayment/reverse",
         "/tax",
         "/tax/:id/edit",

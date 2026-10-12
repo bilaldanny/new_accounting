@@ -43,6 +43,6 @@ class SupplierPaymentBatch extends Model
     {
         $used = (float) $this->allocations()->where('kind', 'advance')->sum('amount');
 
-        return round(max((float) $this->advance_amount - $used, 0), 2);
+        return round(max((float) $this->advance_amount - $used - AdvanceRefund::refundedFor('supplier_payment_batch_id', (int) $this->id), 0), 2);
     }
 }

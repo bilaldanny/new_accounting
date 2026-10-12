@@ -250,6 +250,38 @@ class CashCollectionController extends Controller
     }
 
     /**
+     * Pays back part or all of the unused advance a completed collection kept (cash / bank out, customer's account debited).
+     */
+    public function refundAdvance(Request $request, $id): JsonResponse
+    {
+        $this->authorizeMenuPermission('/cashcollection/refund');
+
+        $collection = $this->findVisible($id);
+
+        $data = $request->validate([
+            'refunded_on' => 'required|date_format:Y-m-d',
+            'amount' => 'required|numeric|decimal:0,2|gt:0|max:9999999.99',
+            'payment_account' => 'required|integer',
+            'method' => 'nullable|in:cash,bank,cheque,card,online,other',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        if (! $this->collections->enabledFor((int) $collection->company_id)) {
+            return $this->rejection('disabled');
+        }
+
+        try {
+            $refund = $this->collections->refundAdvance(
+                $collection, (float) $data['amount'], $data['refunded_on'], (int) $data['payment_account'], $data['method'] ?? 'cash', $data['note'] ?? null, Auth::id(),
+            );
+        } catch (RuntimeException $e) {
+            return $this->rejection($e->getMessage());
+        }
+
+        return response()->json(['message' => 'Refund recorded', 'data' => $refund, 'advance_remaining' => $collection->fresh()->advanceRemaining()], 201);
+    }
+
+    /**
      * Undoes a completed collection: its payments are removed and it is pending again.
      */
     public function reverse(Request $request, $id): JsonResponse

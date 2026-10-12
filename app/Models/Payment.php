@@ -742,6 +742,62 @@ class Payment extends Model
     }
 
     /**
+     * Money a supplier pays back out of an advance that was not used: cash / bank is debited and the supplier's account credited
+     * (their balance is back to what it was before the advance), with no bill attached. The mirror of createSellRefund.
+     *
+     * @throws ValidationException
+     */
+    public static function createPurchaseAdvanceRefund(Contact $supplier, int $companyId, int $branchId, float $amount, string $paidOn, int $cashOrBankAccountId, string $method, string $note): self
+    {
+        $cashOrBank = ChartOfAccount::query()->where('company_id', $companyId)->find($cashOrBankAccountId);
+
+        if ($cashOrBank === null) {
+            throw ValidationException::withMessages([
+                'payment_account' => ['Select a valid cash or bank account before saving the refund.'],
+            ]);
+        }
+
+        $anchor = new Transaction;
+        $anchor->company_id = $companyId;
+        $anchor->branch_id = $branchId;
+
+        $ledger = app(LedgerJournal::class);
+        $contactAccount = $ledger->accountByCode($anchor, (string) ($supplier->supplier_gl_id ?: $supplier->gl_id));
+
+        if ($contactAccount === null) {
+            throw ValidationException::withMessages([
+                'contact_id' => ['Link the supplier to a chart of account before taking an advance back.'],
+            ]);
+        }
+
+        $amount = round($amount, 2);
+        $contactName = $supplier->business_name ?: trim($supplier->first_name.' '.$supplier->last_name);
+
+        $payment = new self;
+        $payment->company_id = $companyId;
+        $payment->branch_id = $branchId;
+        $payment->transaction_id = null;
+        $payment->contact_id = $supplier->id;
+        $payment->payment_account = $cashOrBank->id;
+        $payment->is_return = true;
+        $payment->amount = $amount;
+        $payment->method = in_array($method, ['cash', 'bank', 'cheque', 'card', 'online', 'other'], true) ? $method : 'cash';
+        $payment->paid_on = self::parsePaidOn($paidOn);
+        $payment->note = $note;
+        $payment->payment_ref_no = self::generatePaymentRefNo($companyId, $branchId, 'purchase');
+
+        $journal = $ledger->postPayment($payment, $cashOrBank, 'Advance refund from '.$contactName, 'PP', [
+            ['account' => $cashOrBank, 'debit' => $amount, 'credit' => 0.0, 'contact_id' => $supplier->id],
+            ['account' => $contactAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $supplier->id],
+        ]);
+
+        $payment->t_account_id = $journal->id;
+        $payment->save();
+
+        return $payment;
+    }
+
+    /**
      * A payment on a bill that is settled out of an advance already paid: no cash moves and no voucher is posted (the
      * supplier's account already holds the debit); it only settles the bill's payment status.
      *

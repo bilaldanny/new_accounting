@@ -51,6 +51,7 @@
         note?: string | null;
         advance_amount?: number;
         advance_remaining?: number;
+        payment_account?: number | null;
         enabled?: boolean;
         reversed_at?: string | null;
         contact_id?: number;
@@ -194,6 +195,27 @@
 
             const response = await window.axios.post(`${API_ENDPOINTS.cashCollections}/${routeProps.id}/apply-advance`, { allocations });
             Notify(response.data?.message || 'Successfully Saved', 'success');
+            await load();
+        } catch (error: unknown) {
+            Notify(errorMessage(error), 'alert');
+        } finally {
+            saving.value = false;
+        }
+    }
+
+    async function refundAdvance() {
+        const amount = window.prompt(`Amount to pay back to the customer (up to ${advanceLeft.value})`, String(advanceLeft.value));
+
+        if (! amount || ! collection.value.payment_account) {
+            return;
+        }
+
+        saving.value = true;
+
+        try {
+            const body = { refunded_on: new Date().toISOString().slice(0, 10), amount: Number(amount), payment_account: collection.value.payment_account };
+            const response = await window.axios.post(`${API_ENDPOINTS.cashCollections}/${routeProps.id}/refund-advance`, body);
+            Notify(response.data?.message || 'Refund recorded', 'success');
             await load();
         } catch (error: unknown) {
             Notify(errorMessage(error), 'alert');
@@ -399,6 +421,7 @@
                                 </table>
                             </div>
                             <button type="button" class="btn btn-primary btn-sm" :disabled="saving || ! canApplyAdvance" @click="applyAdvance">Use advance</button>
+                            <button v-if="permissionPaths.includes('/cashcollection/refund')" type="button" class="btn btn-outline-dark btn-sm ms-2" :disabled="saving" @click="refundAdvance">Pay back advance</button>
                         </div>
                     </div>
 

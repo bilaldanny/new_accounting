@@ -823,6 +823,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('cash-collections/{id}/complete', [CashCollectionController::class, 'complete']);
     Route::post('cash-collections/{id}/cancel', [CashCollectionController::class, 'cancel']);
     Route::post('cash-collections/{id}/apply-advance', [CashCollectionController::class, 'applyAdvance']);
+    Route::post('cash-collections/{id}/refund-advance', [CashCollectionController::class, 'refundAdvance']);
     Route::post('cash-collections/{id}/reverse', [CashCollectionController::class, 'reverse']);
     Route::post('cash-collections/bulk_delete', [CashCollectionController::class, 'bulk_delete']);
     Route::post('cash-collections/bulk_delete_per', [CashCollectionController::class, 'bulk_delete_per']);
@@ -1308,6 +1309,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('supplier-payments', [SupplierPaymentController::class, 'store']);
     Route::get('supplier-payments/{id}', [SupplierPaymentController::class, 'show'])->whereNumber('id');
     Route::post('supplier-payments/{id}/apply-advance', [SupplierPaymentController::class, 'applyAdvance'])->whereNumber('id');
+    Route::post('supplier-payments/{id}/refund-advance', [SupplierPaymentController::class, 'refundAdvance'])->whereNumber('id');
     Route::post('supplier-payments/{id}/reverse', [SupplierPaymentController::class, 'reverse'])->whereNumber('id');
 
     Route::get('inbound-shipments', [InboundShipmentController::class, 'index']);
