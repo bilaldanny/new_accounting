@@ -123,6 +123,7 @@ test('rolling back removes the report and the group and it can be applied again'
     (require database_path('migrations/2026_11_15_100100_add_report_tools_menus.php'))->down();
     (require database_path('migrations/2026_11_18_100100_add_hrm_payroll_menus.php'))->down();
     (require database_path('migrations/2026_11_19_100100_add_manufacturing_menus.php'))->down();
+    (require database_path('migrations/2026_11_20_100100_add_service_menus.php'))->down();
     reportsMenuMigration()->down();
 
     expect(reportsGroupId())->toBeNull()

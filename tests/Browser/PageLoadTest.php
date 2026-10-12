@@ -115,6 +115,8 @@ dataset('company pages', [
     'attendance summary' => ['/report/attendance-summary', 'Attendance Summary', null],
     'loan balances' => ['/report/loan-balances', 'Employee Loan Balances', null],
     'manufacturing' => ['/manufacturing', 'Manufacturing', null],
+    'service jobs' => ['/service', 'Service and Field Jobs', null],
+    'my service jobs' => ['/service/work', 'My Jobs', null],
     'production summary' => ['/report/production-summary', 'Production Summary', null],
     'work in progress' => ['/report/wip-report', 'Work in Progress', null],
     'material variance' => ['/report/material-variance', 'Material Variance', null],

@@ -32,6 +32,7 @@ class PlanFeatures
         'api_access' => ['API keys and webhooks', ['api/api-keys', 'api/webhooks']],
         'hrm' => ['HR and payroll', ['api/hrm', 'api/leave-requests', 'api/payroll-runs']],
         'manufacturing' => ['Manufacturing', ['api/manufacturing', 'api/boms', 'api/work-orders']],
+        'service' => ['Repair and field service', ['api/service']],
         'manufacturing' => ['Manufacturing', ['api/manufacturing']],
         'reports_builder' => ['Custom report builder', ['api/report-builder', 'api/report-schedules']],
     ];
