@@ -1510,6 +1510,7 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('baddebt', fn () => Inertia::render('baddebt/index'))->name('baddebt');
     Route::get('dunning', fn () => Inertia::render('dunning/index'))->name('dunning');
     Route::get('project', fn () => Inertia::render('project/index'))->name('project');
+    Route::get('foreigncurrency', fn () => Inertia::render('foreigncurrency/index'))->name('foreigncurrency');
     Route::get('bankreconciliation/{id}', fn ($id) => Inertia::render('bankreconciliation/view', ['id' => $id]))->name('bankreconciliation.view');
     Route::get('posshift', fn () => Inertia::render('posshift/index'))->name('posshift');
     Route::get('assetcategory', fn () => Inertia::render('assetcategory/index'))->name('assetcategory');

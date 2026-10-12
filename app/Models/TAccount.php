@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\LedgerJournal;
+use App\Services\MultiCurrency;
 use App\Services\ProjectTag;
 use App\Support\Base64Upload;
 use Database\Factories\TAccountFactory;
@@ -411,6 +412,8 @@ class TAccount extends Model
 
     public static function createJournalEntry(Request $request): self
     {
+        self::normaliseForeignLines($request);
+
         $journal = new self;
         $journal->fillFromRequest($request, isNew: true);
         $journal->save();
@@ -423,6 +426,8 @@ class TAccount extends Model
 
     public static function updateJournalEntry(Request $request, int $id, string $family = 'journal'): self
     {
+        self::normaliseForeignLines($request);
+
         $journal = self::findVisibleManualVoucher($id, $family);
 
         if ($journal === null) {
@@ -558,6 +563,21 @@ class TAccount extends Model
         ];
     }
 
+    /**
+     * With multi-currency vouchers switched on for the company, checks the foreign lines of the voucher and fills in the base amount
+     * of a line that has none. With it off (the default) the request is left exactly as it came.
+     */
+    private static function normaliseForeignLines(Request $request): void
+    {
+        $companyId = self::resolveScopedId($request->company_id);
+
+        if (! MultiCurrency::enabled($companyId)) {
+            return;
+        }
+
+        $request->merge(['taccountdetails' => MultiCurrency::normalise($companyId, (string) $request->input('voucher_date'), (array) $request->input('taccountdetails', []))]);
+    }
+
     private function fillFromRequest(Request $request, bool $isNew): void
     {
         $companyId = self::resolveScopedId($request->company_id);
@@ -644,6 +664,8 @@ class TAccount extends Model
             if (isset($line['project_id']) && $line['project_id'] !== '' && ProjectTag::supported('t_account_details')) {
                 $attributes['project_id'] = ProjectTag::resolve($line['project_id'], (int) $this->company_id, 't_account_details');
             }
+
+            $attributes += MultiCurrency::attributes((int) $this->company_id, $line);
 
             $this->details()->create($attributes + [
                 'branch_id' => $this->branch_id,

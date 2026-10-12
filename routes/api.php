@@ -68,6 +68,7 @@ use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\FixedAssetDepreciationController;
 use App\Http\Controllers\FixedAssetLifecycleController;
 use App\Http\Controllers\FixedAssetTransferController;
+use App\Http\Controllers\ForeignCurrencyController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\ImportPurchaseController;
@@ -1284,6 +1285,11 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('foreign-currency', [ForeignCurrencyController::class, 'show']);
+    Route::put('foreign-currency/settings', [ForeignCurrencyController::class, 'saveSettings']);
+    Route::post('foreign-currency/rates', [ForeignCurrencyController::class, 'addRate']);
+    Route::post('foreign-currency/settle', [ForeignCurrencyController::class, 'settle']);
 
     Route::get('projects', [ProjectController::class, 'index']);
     Route::post('projects', [ProjectController::class, 'store']);

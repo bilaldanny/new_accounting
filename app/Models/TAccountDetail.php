@@ -51,6 +51,9 @@ class TAccountDetail extends Model
         'amount',
         'cost_center_id',
         'project_id',
+        'currency_id',
+        'exchange_rate',
+        'foreign_amount',
     ];
 
     /**
