@@ -102,6 +102,7 @@ use App\Http\Controllers\PortalRequestController;
 use App\Http\Controllers\PortalSubscriptionController;
 use App\Http\Controllers\PortalSupplierController;
 use App\Http\Controllers\PortalUserController;
+use App\Http\Controllers\PosOfflineController;
 use App\Http\Controllers\PosShiftController;
 use App\Http\Controllers\PriceListApprovalController;
 use App\Http\Controllers\PriceListController;
@@ -1286,6 +1287,11 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('pos/offline/catalog', [PosOfflineController::class, 'catalog']);
+    Route::post('pos/offline/sync', [PosOfflineController::class, 'sync']);
+    Route::get('pos/offline/sales', [PosOfflineController::class, 'index']);
+    Route::post('pos/offline/sales/{id}/resolve', [PosOfflineController::class, 'resolve'])->whereNumber('id');
 
     Route::get('interbranch', [InterBranchController::class, 'index']);
     Route::put('interbranch/settings', [InterBranchController::class, 'saveSettings']);

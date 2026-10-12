@@ -1,0 +1,12 @@
+{
+    "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "api_version": "2010-04-01",
+    "body": "Your receipt",
+    "date_created": "Mon, 12 Oct 2026 09:00:00 +0000",
+    "direction": "outbound-api",
+    "from": "+15005550006",
+    "sid": "SMaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "queued",
+    "to": "+923001234567",
+    "uri": "/2010-04-01/Accounts/ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/Messages/SMaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+}

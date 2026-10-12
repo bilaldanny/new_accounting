@@ -1210,6 +1210,9 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
         return Inertia::render('sell/addpos');
     })->name('sell.pos.add');
 
+    Route::get('sell/pos/offline', fn () => Inertia::render('sell/posoffline'))->name('sell.pos.offline');
+    Route::get('posoffline', fn () => Inertia::render('posoffline/index'))->name('posoffline');
+
     Route::get('sell/pos/display', function () {
         return Inertia::render('sell/posdisplay');
     })->name('sell.pos.display');

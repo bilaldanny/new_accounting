@@ -1,0 +1,18 @@
+{
+    "orders": [
+        {
+            "id": 450789471,
+            "name": "#1003",
+            "email": "sam@example.com",
+            "created_at": "2026-10-03T15:45:00-04:00",
+            "cancelled_at": null,
+            "financial_status": "pending",
+            "currency": "USD",
+            "total_price": "60.00",
+            "total_tax": "0.00",
+            "customer": {"first_name": "Sam", "last_name": "Lee", "phone": "+923001234567"},
+            "line_items": [{"id": 2, "name": "Case - Black", "sku": "CASE-BLK", "quantity": 3, "price": "20.00", "discount_allocations": []}],
+            "shipping_lines": [{"id": 3, "title": "Standard", "price": "5.00", "discounted_price": "5.00"}]
+        }
+    ]
+}

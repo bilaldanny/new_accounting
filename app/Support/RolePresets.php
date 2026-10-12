@@ -41,7 +41,7 @@ final class RolePresets
         ],
         'Cashier' => [
             'manage' => ['/sell/pos', '/sell/payment/add', '/posshift', '/cashcollection', '/giftcard/redeem', '/loyalty/redeem'],
-            'view' => ['/product', '/customer', '/report/register'],
+            'view' => ['/product', '/customer', '/report/register', '/posoffline'],
             'exclude' => ['/cashcollection/reverse', '/cashcollection/cancel', '/cashcollection/refund'],
             'approvals' => false,
         ],
@@ -52,7 +52,7 @@ final class RolePresets
             'approvals' => false,
         ],
         'Manager' => [
-            'manage' => [],
+            'manage' => ['/posoffline'],
             'view' => [
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',

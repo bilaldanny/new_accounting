@@ -87,6 +87,15 @@ dataset('company pages', [
     'advance allocation' => ['/allocation', 'Advance Allocation', null],
     'cash flow forecast' => ['/cashflowforecast', 'Cash Flow Forecast', 'table'],
     'year end close' => ['/yearclose', 'Year-End Close', 'table'],
+    'inventory valuation' => ['/valuation', 'Inventory Valuation', 'table'],
+    'journal schedules' => ['/journalschedule', 'Journal Schedules', 'table'],
+    'bad debt' => ['/baddebt', 'Bad Debt', 'table'],
+    'dunning and collections' => ['/dunning', 'Dunning & Collections', 'table'],
+    'projects' => ['/project', 'Projects', 'table'],
+    'foreign currency' => ['/foreigncurrency', 'Foreign Currency', 'table'],
+    'inter-branch transfers' => ['/interbranch', 'Inter-Branch Transfers', 'table'],
+    'offline pos sales' => ['/posoffline', 'Offline POS Sales', 'table'],
+    'offline pos terminal' => ['/sell/pos/offline', 'Offline POS', 'table'],
 ]);
 
 dataset('platform pages', [

@@ -942,12 +942,39 @@ class Transaction extends Model
         $sale->final_amount = $rounded;
     }
 
+    private static bool $allowOversell = false;
+
+    /**
+     * Runs a callback in which a sale may take stock below zero whatever the negative stock rule says, the shortage coming back as a
+     * warning. Only the offline POS sync uses it: a sale already made at the till cannot be refused after the fact.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    public static function allowingOversell(callable $callback): mixed
+    {
+        self::$allowOversell = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$allowOversell = false;
+        }
+    }
+
     private static function guardSaleStock(object $request, self $sale): array
     {
         $shortages = app(SaleStockCheck::class)->shortages($sale, (array) ($request->selllines ?? []));
 
         if ($shortages === []) {
             return [];
+        }
+
+        // An offline POS sale was already made at the till; at sync it is posted and the shortage is flagged (PosOfflineSync).
+        if (self::$allowOversell) {
+            return $shortages;
         }
 
         // With no company mode and no product override this is the old rule: the POS refuses, the sale form warns.
