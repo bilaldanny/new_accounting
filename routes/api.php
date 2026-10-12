@@ -74,6 +74,7 @@ use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\ImportPurchaseController;
 use App\Http\Controllers\InboundShipmentController;
 use App\Http\Controllers\InstallmentPlanController;
+use App\Http\Controllers\InterBranchController;
 use App\Http\Controllers\InventoryCloseController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
@@ -1285,6 +1286,12 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('interbranch', [InterBranchController::class, 'index']);
+    Route::put('interbranch/settings', [InterBranchController::class, 'saveSettings']);
+    Route::get('interbranch/consolidation', [InterBranchController::class, 'consolidation']);
+    Route::post('interbranch', [InterBranchController::class, 'store']);
+    Route::post('interbranch/{id}/reverse', [InterBranchController::class, 'reverse'])->whereNumber('id');
 
     Route::get('foreign-currency', [ForeignCurrencyController::class, 'show']);
     Route::put('foreign-currency/settings', [ForeignCurrencyController::class, 'saveSettings']);

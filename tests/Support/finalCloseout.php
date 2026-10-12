@@ -65,7 +65,7 @@ function fcoOtherCompany(string $suffix = '2'): array
  * @param  array<string, mixed>  $scope
  * @param  list<string>  $paths
  */
-function fcoStaff(array $scope, array $paths): User
+function fcoStaff(array $scope, array $paths, bool $branchBound = true): User
 {
     $role = Role::query()->create(['name' => 'fco_'.uniqid(), 'company_id' => $scope['company_id'], 'is_active' => true]);
 
@@ -73,7 +73,7 @@ function fcoStaff(array $scope, array $paths): User
         grantMenuPermission($role->id, $path);
     }
 
-    return createStaffUserForRole($role, ['company_id' => $scope['company_id'], 'branch_id' => $scope['branch_id'], 'email_verified_at' => now()]);
+    return createStaffUserForRole($role, ['company_id' => $scope['company_id'], 'branch_id' => $branchBound ? $scope['branch_id'] : null, 'email_verified_at' => now()]);
 }
 
 /**
