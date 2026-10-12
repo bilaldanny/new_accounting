@@ -5,6 +5,7 @@ namespace App\Services\Service;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductDetail;
+use App\Services\AppNotifier;
 use App\Services\SaleDocumentBuilder;
 use App\Support\Base64Upload;
 use Illuminate\Support\Facades\DB;
@@ -110,6 +111,10 @@ class ServiceJobs
 
         DB::table('service_jobs')->where('id', $id)->update(['technician_id' => $technicianId, 'scheduled_at' => $scheduledAt, 'status' => $status, 'updated_at' => now()]);
         $this->event($companyId, $id, 'assigned', $job->status, $status, $technicianId === null ? 'Unassigned' : null, $userId);
+
+        if ($technicianId !== null && ((int) $job->technician_id !== $technicianId || $job->scheduled_at !== $scheduledAt)) {
+            app(AppNotifier::class)->notify($technicianId, 'service_job', 'Job assigned to you', $job->job_no.': '.$job->title.($scheduledAt !== null ? ' ('.$scheduledAt.')' : ''), '/service/work');
+        }
     }
 
     /**

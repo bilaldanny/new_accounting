@@ -207,3 +207,15 @@ test('the field app manifest names its start page and icons, and its service wor
     $worker = (string) file_get_contents(public_path('field-sw.js'));
     expect($worker)->toContain("url.pathname.startsWith('/api/')")->and($worker)->toContain("request.method !== 'GET'");
 });
+
+test('assigning a job tells the technician once and reassigning the same technician and time does not repeat it', function () {
+    $scope = w8sWorld();
+    $tech = w8sTech($scope);
+    Sanctum::actingAs(w8sManager($scope));
+    $id = w8sJob($scope);
+
+    $this->postJson("/api/service/jobs/{$id}/assign", ['technician_id' => $tech->id, 'scheduled_at' => '2026-10-25 11:00:00'])->assertOk();
+    $this->postJson("/api/service/jobs/{$id}/assign", ['technician_id' => $tech->id, 'scheduled_at' => '2026-10-25 11:00:00'])->assertOk();
+
+    expect(DB::table('app_notifications')->where('user_id', $tech->id)->where('kind', 'service_job')->count())->toBe(1);
+});

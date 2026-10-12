@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\PublicLeadCaptureController;
 use App\Http\Controllers\PublicRegistrationController;
+use App\Http\Controllers\PublicStorefrontController;
 use App\Http\Controllers\ReceiptShareController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
@@ -87,6 +88,7 @@ Route::get('r/{token}', [ReceiptShareController::class, 'show'])->middleware('th
 
 /* Public blog (published posts only, for everyone) */
 Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('shop/{code}', [PublicStorefrontController::class, 'page'])->where('code', '[a-z0-9-]+')->middleware('throttle:60,1')->name('shop.public');
 Route::get('blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
 /* Public blog */
 
@@ -1536,6 +1538,10 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('manufacturing', fn () => Inertia::render('manufacturing/index'))->name('manufacturing');
     Route::get('service', fn () => Inertia::render('service/index'))->name('service');
     Route::get('service/work', fn () => Inertia::render('service/work'))->name('service.work');
+    Route::get('rental', fn () => Inertia::render('rental/index'))->name('rental');
+    Route::get('project/work', fn () => Inertia::render('projectwork/index'))->name('project.work');
+    Route::get('expenseclaim', fn () => Inertia::render('expenseclaim/index'))->name('expenseclaim');
+    Route::get('storefront', fn () => Inertia::render('storefront/index'))->name('storefront');
     Route::get('reportbuilder', fn () => Inertia::render('reportbuilder/index'))->name('reportbuilder');
     Route::get('approvalcenter', fn () => Inertia::render('approvalcenter/index'))->name('approvalcenter');
     Route::get('saasadmin', fn () => Inertia::render('saasadmin/index'))->name('saasadmin');

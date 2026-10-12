@@ -16,16 +16,16 @@ with a throw-away test), `npm run build`, Dusk only with the inline sqlite env, 
 | 5 | Documents & communication | built (PDF, QR, live delivery Partial), see `closeout-wave5.md` |
 | 6 | Settings & system setup | built (rate sync, push, remote backup, cash drawer, language, Tally / QuickBooks Partial), see `closeout-wave6.md` |
 | 7 | HRM & payroll | built (device sync, payslip email, bank file, gratuity Partial), see `closeout-wave7.md` |
-| 8 | Manufacturing + advanced | not started |
+| 8 | Manufacturing + advanced | built (late-charge invoice document, PWA install / offline, storefront payment Partial), see `closeout-wave8.md` |
 
 ## Next
 
-Wave 8 (Manufacturing 10 items + Advanced 15 items): see the plan at the top of the request: multi-level versioned BOM, MPS, work
-orders, material issue, FG receipt with by / co-products, WIP, overhead and direct labour costing, scrap, production QC, reports (GL
-guarded, off by default); then repair / service job cards, parts, warranty claims, rental, deposits, late / damage billing, projects,
-field service, digital signature, PWA, e-commerce storefront, expense claims. A tracker table of waves 1-6 is in
-`docs/tracker-sync-waves-1-6.md` (its follow-up list names the open code rows: six dashboard rows, approver picker, price-list
-approval, drag-and-drop canvas, language coverage, cash drawer in the POS).
+All eight waves are done. What is left is code work that the tracker audit of waves 1-6 exposed: the six Dashboard rows (role dashboards,
+date / branch / warehouse filters, widget builder, notification centre, daily business summary, universal search), an approver picker
+and department trigger in the Approval Center, price-list approval in the workflow registry, a drag-and-drop canvas for the
+document designer, language coverage, the cash drawer read by the POS. They are listed in `docs/tracker-sync-waves-1-6.md`
+("Follow-up the table exposes") and none was started. Live work: run the migrations of every wave in order (the closeout docs list them),
+then each wave's live-check list.
 
 ## Shared pieces built so far (reuse them)
 
@@ -35,6 +35,7 @@ approval, drag-and-drop canvas, language coverage, cash drawer in the POS).
 `integration_accounts` (encrypted credentials) with `Http::fake` fixtures in `tests/Fixtures/integrations/`, `InsightReportCatalog` (add a
 report key there + `composables/report.ts` + menu row), `ReportBuilder` whitelist, `ReportScheduler`, `SalesKpiStatement`, `Documents\*` (`DocumentBlocks` whitelist, `DocumentRenderer`,
 `DocumentTemplates`, `MessageTemplates`, `DocumentDelivery`, `DocumentReminders`, `CustomFields`, `QrCode`, `XlsxWriter`),
+`Manufacturing\*` (`BomService`, `WorkOrderService`, `ProductionPlanner`, `ManufacturingPosting`), `Rental\*`, `Service\ServiceJobs`,
 `Hrm\*` (`HrSettings`, `AttendanceService`, `LeaveService`, `PayrollEngine`, `PayrollPosting`, `PayslipRenderer`),
 `System\*` (`BusinessSettings`, `BranchTree`, `ExchangeRateSync`, `WebPush`, `DataTransfer`, `ImportHistory`, `DataMigration`, `BackupTools`,
 `DataRetention`, `SystemLogs`, `FranchiseGroups`, `SetupWizard`, `DemoCompany`, `NotificationTemplates`).
