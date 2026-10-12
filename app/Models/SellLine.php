@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\GuardsLockedPeriods;
+use App\Services\ProjectTag;
 use Database\Factories\SellLineFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -63,6 +64,7 @@ class SellLine extends Model
         'tax_id',
         'tax_amount',
         'tax_exemption_id',
+        'project_id',
     ];
 
     /**
@@ -171,5 +173,9 @@ class SellLine extends Model
         $this->tax_id = Transaction::resolveScopedId($row['tax_id'] ?? null);
         $this->tax_amount = $this->tax_id !== null && is_numeric($row['tax_amount'] ?? null) ? round((float) $row['tax_amount'], 2) : null;
         $this->tax_exemption_id = $this->tax_id !== null ? Transaction::resolveScopedId($row['tax_exemption_id'] ?? null) : null;
+
+        if (array_key_exists('project_id', $row) && ProjectTag::supported('sell_lines')) {
+            $this->project_id = ProjectTag::resolve($row['project_id'], Transaction::query()->whereKey($transactionId)->value('company_id'), 'sell_lines');
+        }
     }
 }

@@ -110,6 +110,7 @@ use App\Http\Controllers\ProductBulkController;
 use App\Http\Controllers\ProductComponentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductDiscountRuleController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\PublicLeadCaptureController;
 use App\Http\Controllers\PurchaseApprovalController;
 use App\Http\Controllers\PurchaseApprovalRuleController;
@@ -1283,6 +1284,13 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('projects', [ProjectController::class, 'index']);
+    Route::post('projects', [ProjectController::class, 'store']);
+    Route::get('projects/report', [ProjectController::class, 'report']);
+    Route::post('projects/tag', [ProjectController::class, 'tag']);
+    Route::put('projects/{id}', [ProjectController::class, 'update'])->whereNumber('id');
+    Route::delete('projects/{id}', [ProjectController::class, 'destroy'])->whereNumber('id');
 
     Route::get('dunning/levels', [DunningController::class, 'levels']);
     Route::put('dunning/levels/{level}', [DunningController::class, 'updateLevel'])->whereNumber('level');

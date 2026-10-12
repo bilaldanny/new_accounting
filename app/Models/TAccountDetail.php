@@ -50,6 +50,7 @@ class TAccountDetail extends Model
         'highlight',
         'amount',
         'cost_center_id',
+        'project_id',
     ];
 
     /**

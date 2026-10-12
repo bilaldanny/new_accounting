@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\GuardsLockedPeriods;
 use App\Services\LedgerJournal;
+use App\Services\ProjectTag;
 use App\Support\Base64Upload;
 use Database\Factories\TAccountFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -638,7 +639,13 @@ class TAccount extends Model
                 ]);
             }
 
-            $this->details()->create([
+            $attributes = [];
+
+            if (isset($line['project_id']) && $line['project_id'] !== '' && ProjectTag::supported('t_account_details')) {
+                $attributes['project_id'] = ProjectTag::resolve($line['project_id'], (int) $this->company_id, 't_account_details');
+            }
+
+            $this->details()->create($attributes + [
                 'branch_id' => $this->branch_id,
                 'coa_id' => $account->id,
                 'cost_center_id' => $costCenterId,

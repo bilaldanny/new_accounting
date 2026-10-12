@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\GuardsLockedPeriods;
+use App\Services\ProjectTag;
 use App\Services\StockMovements;
 use Database\Factories\PurchaseLineFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -158,6 +159,10 @@ class PurchaseLine extends Model
 
         if (array_key_exists('opening_cost', $row) && self::hasOpeningCostColumn()) {
             $this->opening_cost = is_numeric($row['opening_cost']) && (float) $row['opening_cost'] >= 0 ? round((float) $row['opening_cost'], 4) : null;
+        }
+
+        if (array_key_exists('project_id', $row) && ProjectTag::supported('purchase_lines')) {
+            $this->project_id = ProjectTag::resolve($row['project_id'], Transaction::query()->whereKey($transactionId)->value('company_id'), 'purchase_lines');
         }
     }
 
