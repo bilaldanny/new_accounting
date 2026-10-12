@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Models\Product;
+use App\Services\System\ImportHistory;
 use App\Support\ImportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -26,6 +29,10 @@ trait HandlesBulkImport
     {
         DB::beginTransaction();
 
+        $user = Auth::user();
+        $track = $modelClass === Product::class && $user?->company_id !== null && ImportHistory::available();
+        $firstNew = $track ? (int) DB::table('products')->max('id') : 0;
+
         try {
             $created = 0;
             $updated = 0;
@@ -42,6 +49,14 @@ trait HandlesBulkImport
                 } else {
                     $updated++;
                 }
+            }
+
+            if ($track && $created > 0) {
+                app(ImportHistory::class)->record(
+                    (int) $user->company_id, $user->id, 'products',
+                    DB::table('products')->where('company_id', $user->company_id)->where('id', '>', $firstNew)->pluck('id')->map(fn ($id): int => (int) $id)->all(),
+                    ['total' => count($request->rows), 'created' => $created, 'updated' => $updated], 'file', $request->input('file_name'),
+                );
             }
 
             DB::commit();

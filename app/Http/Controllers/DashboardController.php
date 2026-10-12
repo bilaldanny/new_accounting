@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResolvesReportScope;
 use App\Services\DashboardMetrics;
+use App\Services\Reports\PurchaseSaleSummary;
 use Carbon\CarbonInterface;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * The dashboard cards. The page loads them one group at a time (`GET /api/dashboard/{widget}`), so the light ones
@@ -66,6 +69,11 @@ class DashboardController extends Controller
 
     private ?CarbonInterface $asOf = null;
 
+    /** @var array{0: string, 1: string}|null */
+    private ?array $range = null;
+
+    private ?int $warehouseId = null;
+
     public function __construct(private readonly DashboardMetrics $metrics) {}
 
     public function show(Request $request, string $widget): JsonResponse
@@ -77,12 +85,21 @@ class DashboardController extends Controller
             'branch_id' => 'nullable|integer',
             'refresh' => 'nullable|in:0,1,true,false',
             'as_of' => 'nullable|date',
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+            'warehouse_id' => 'nullable|integer',
         ]);
 
         $this->asOf = $request->filled('as_of') ? Carbon::parse($request->input('as_of'))->startOfDay() : null;
 
         [$companyId, $branchId] = $this->reportScope($request);
         $refresh = $request->boolean('refresh');
+        $this->range = $request->filled('start_date') && $request->filled('end_date') ? [$request->input('start_date'), $request->input('end_date')] : null;
+        $this->warehouseId = $request->filled('warehouse_id') ? $request->integer('warehouse_id') : null;
+
+        if ($this->warehouseId !== null && ($companyId === null || ! DB::table('warehouses')->where('company_id', $companyId)->where('id', $this->warehouseId)->exists())) {
+            throw ValidationException::withMessages(['warehouse_id' => ['Choose a warehouse of this company.']]);
+        }
 
         $allowed = array_keys(array_filter(self::PERMISSIONS[$widget], fn (string $path): bool => hasMenuPermission($path)));
         $skipped = $companyId === null ? array_values(array_intersect($allowed, self::NEEDS_COMPANY)) : [];
@@ -104,7 +121,15 @@ class DashboardController extends Controller
      */
     private function sales(array $wanted, ?int $companyId, ?int $branchId): array
     {
-        return array_intersect_key($this->metrics->trade($companyId, $branchId, $this->today()), array_flip($wanted));
+        $figures = $this->metrics->trade($companyId, $branchId, $this->today(), $this->warehouseId);
+
+        if ($this->range !== null) {
+            $totals = app(PurchaseSaleSummary::class)->build($companyId, $branchId, ['start_date' => $this->range[0], 'end_date' => $this->range[1], 'warehouse_id' => $this->warehouseId])['totals'];
+            $figures['range'] = ['from' => $this->range[0], 'to' => $this->range[1], 'warehouse_id' => $this->warehouseId, 'net_sales' => (float) $totals['net_sales'], 'net_purchases' => (float) $totals['net_purchases']];
+            $wanted[] = 'range';
+        }
+
+        return array_intersect_key($figures, array_flip($wanted));
     }
 
     /**

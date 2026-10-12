@@ -39,3 +39,6 @@ Schedule::command('system:apply-retention')->dailyAt('02:30');
 
 // HR: employee documents that expire soon or have expired.
 Schedule::command('hrm:document-alerts')->dailyAt('08:30');
+
+// The daily business summary of the companies that switched it on (a recipient gets a day once).
+Schedule::command('dashboard:daily-summary')->hourly();

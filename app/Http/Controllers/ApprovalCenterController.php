@@ -35,6 +35,22 @@ class ApprovalCenterController extends Controller
         return response()->json(['data' => collect(ApprovalRegistry::all())->map(fn (array $d, string $type): array => ['type' => $type, 'label' => $d['label']])->values()]);
     }
 
+    /**
+     * The people, roles and departments of the company a workflow can name, for the pickers of the editor.
+     */
+    public function directory(Request $request): JsonResponse
+    {
+        $this->authorizeMenuPermission('/approvalcenter');
+        $companyId = $this->scopeCompanyId($request);
+
+        return response()->json(['data' => [
+            'users' => DB::table('users')->where('company_id', $companyId)->orderBy('first_name')->get(['id', 'first_name', 'last_name'])
+                ->map(fn (object $u): array => ['id' => (int) $u->id, 'name' => trim($u->first_name.' '.$u->last_name)])->all(),
+            'roles' => Role::query()->where('company_id', $companyId)->orderBy('name')->get(['id', 'name'])->map(fn (Role $r): array => ['id' => (int) $r->id, 'name' => $r->name])->all(),
+            'departments' => DB::table('departments')->where('company_id', $companyId)->whereNull('deleted_at')->orderBy('name')->get(['id', 'name'])->map(fn (object $d): array => ['id' => (int) $d->id, 'name' => $d->name])->all(),
+        ]]);
+    }
+
     public function workflows(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/approvalcenter');

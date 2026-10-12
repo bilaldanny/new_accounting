@@ -14,7 +14,7 @@ import {
     Truck,
     Users,
 } from '@lucide/vue';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import useCommons from '@/composables/common';
 
 /*
@@ -50,6 +50,16 @@ const companyId = ref<string>('');
 /** The date the dashboard reads "today" as (empty = today) and the branch it is limited to (empty = all the user may see). */
 const asOf = ref<string>('');
 const branchId = ref<string>('');
+/** An optional date range and warehouse for the sales and purchases cards (empty = not used). */
+const rangeFrom = ref<string>('');
+const rangeTo = ref<string>('');
+const warehouseId = ref<string>('');
+const warehouses = ref<Array<{ id: number; name: string }>>([]);
+/** The cards the user's layout hides, the order it asks for, and the KPI widgets they built. */
+const layoutHidden = ref<Set<string>>(new Set());
+const layoutOrder = ref<string[]>([]);
+const kpiCards = ref<Array<{ id: number; label: string; value: number | null; period: string }>>([]);
+const hiddenByLayout = (key: WidgetName): boolean => layoutHidden.value.has(key);
 const isCompanyAdmin = computed(() => String(authUser.value?.rolename ?? '').toLowerCase().replace(/\s+/g, '') === 'companyadmin');
 const canPickBranch = computed(() => (isSuperadmin.value && companyId.value !== '') || isCompanyAdmin.value);
 
@@ -92,6 +102,15 @@ async function loadWidget(name: WidgetName, refresh = false): Promise<void> {
             params.branch_id = branchId.value;
         }
 
+        if (name === 'sales' && rangeFrom.value !== '' && rangeTo.value !== '' && rangeFrom.value <= rangeTo.value) {
+            params.start_date = rangeFrom.value;
+            params.end_date = rangeTo.value;
+        }
+
+        if (name === 'sales' && warehouseId.value !== '') {
+            params.warehouse_id = warehouseId.value;
+        }
+
         if (refresh) {
             params.refresh = 1;
         }
@@ -113,6 +132,71 @@ const HEAVY: WidgetName[] = ['inventory', 'financial', 'receivables', 'forecast'
 function loadAll(refresh = false): void {
     [...LIGHT, ...HEAVY].forEach((name) => {
         void loadWidget(name, refresh);
+    });
+    void loadKpis();
+}
+
+/** The cards the signed-in user is meant to see and their order: their own layout, their role's, or the built-in one. */
+async function loadLayout(): Promise<void> {
+    try {
+        const response = await window.axios.get('/api/dashboard-tools/layout');
+        layoutHidden.value = new Set<string>(response.data?.data?.hidden ?? []);
+        layoutOrder.value = response.data?.data?.order ?? [];
+        await nextTick();
+        applyOrder();
+    } catch {
+        layoutHidden.value = new Set();
+    }
+}
+
+async function loadKpis(): Promise<void> {
+    try {
+        const params: Record<string, string> = {};
+
+        if (isSuperadmin.value && companyId.value !== '') {
+            params.company_id = companyId.value;
+        }
+
+        if (branchId.value !== '' && canPickBranch.value) {
+            params.branch_id = branchId.value;
+        }
+
+        const response = await window.axios.get('/api/dashboard-tools/kpis', { params });
+        kpiCards.value = response.data?.data ?? [];
+    } catch {
+        kpiCards.value = [];
+    }
+}
+
+async function loadWarehouses(): Promise<void> {
+    try {
+        const company = isSuperadmin.value ? companyId.value : String(authUser.value?.company_id ?? '');
+
+        if (company === '') {
+            warehouses.value = [];
+
+            return;
+        }
+
+        const response = await window.axios.get('/api/fetchwarehouses', { params: branchId.value !== '' ? { branch_id: branchId.value } : {} });
+        warehouses.value = (response.data ?? []).map((w: Record<string, any>) => ({ id: Number(w.id), name: String(w.text ?? w.name) }));
+    } catch {
+        warehouses.value = [];
+    }
+}
+
+/** Which dashboard group each drawn card belongs to, to apply the layout order inside its row. */
+const CARD_GROUP: Record<string, WidgetName> = {
+    'sales-today': 'sales', 'sales-month': 'sales', 'purchases-month': 'sales', 'sales-range': 'sales', receivables: 'receivables', payables: 'receivables', credit: 'receivables',
+    financial: 'financial', approvals: 'approvals', inventory: 'inventory', 'cheques-given': 'cheques', 'cheques-received': 'cheques', forecast: 'forecast', trends: 'trends',
+    aging: 'aging', movement: 'movement', recent: 'recent', 'recent-payments': 'recent',
+};
+
+function applyOrder(): void {
+    document.querySelectorAll<HTMLElement>('[data-card]').forEach((element) => {
+        const group = CARD_GROUP[element.dataset.card ?? ''] ?? (String(element.dataset.card).startsWith('stat-') ? 'stats' : null);
+        const index = group === null ? -1 : layoutOrder.value.indexOf(group);
+        element.style.order = index < 0 ? '' : String(index);
     });
 }
 
@@ -137,6 +221,8 @@ onMounted(async () => {
     }
 
     void loadBranches();
+    void loadLayout();
+    void loadWarehouses();
     loadAll();
 });
 
@@ -152,8 +238,13 @@ async function loadBranches(): Promise<void> {
     }
 }
 
-watch([asOf, branchId], () => {
+watch([asOf, branchId, rangeFrom, rangeTo, warehouseId], () => {
     loadAll();
+});
+
+watch(branchId, () => {
+    warehouseId.value = '';
+    void loadWarehouses();
 });
 
 watch(companyId, (value) => {
@@ -182,6 +273,8 @@ const cachedAt = computed(() => {
 /* Sales and purchases (the dark band) */
 const sales = computed(() => widgets.sales.data.sales as Record<string, any> | undefined);
 const purchases = computed(() => widgets.sales.data.purchases as Record<string, any> | undefined);
+const salesRange = computed(() => widgets.sales.data.range as { from: string; to: string; net_sales: number; net_purchases: number } | undefined);
+const periodLabel = (period: string): string => ({ today: 'today', week: 'this week', month: 'this month', last_30: 'last 30 days' }[period] ?? period);
 const receivables = computed(() => widgets.receivables.data.receivables as Record<string, any> | undefined);
 const payables = computed(() => widgets.receivables.data.payables as Record<string, any> | undefined);
 const creditWatch = computed(() => widgets.receivables.data.credit_watch as { near: number; exceeded: number; items: Array<Record<string, any>> } | undefined);
@@ -248,24 +341,24 @@ const visibleApprovals = computed(() => approvalRows.filter((row) => can(row.per
 const approvalsTotal = computed(() => visibleApprovals.value.reduce((sum, row) => sum + Number(widgets.approvals.data[row.key] ?? 0), 0));
 
 /* Which cards are drawn */
-const showSales = computed(() => can('/sell'));
-const showPurchases = computed(() => can('/purchase'));
-const showReceivables = computed(() => can('/report/customer-outstanding'));
-const showPayables = computed(() => can('/report/supplier-outstanding'));
-const showFinancial = computed(() => can('/report/profit-loss') || can('/chart-of-account'));
-const showApprovals = computed(() => visibleApprovals.value.length > 0);
-const showInventory = computed(() => can('/lowstock') || can('/report/stock'));
-const showChequesGiven = computed(() => can('/purchase/payment'));
-const showChequesReceived = computed(() => can('/sell/payment'));
+const showSales = computed(() => can('/sell') && ! hiddenByLayout('sales'));
+const showPurchases = computed(() => can('/purchase') && ! hiddenByLayout('sales'));
+const showReceivables = computed(() => can('/report/customer-outstanding') && ! hiddenByLayout('receivables'));
+const showPayables = computed(() => can('/report/supplier-outstanding') && ! hiddenByLayout('receivables'));
+const showFinancial = computed(() => (can('/report/profit-loss') || can('/chart-of-account')) && ! hiddenByLayout('financial'));
+const showApprovals = computed(() => visibleApprovals.value.length > 0 && ! hiddenByLayout('approvals'));
+const showInventory = computed(() => (can('/lowstock') || can('/report/stock')) && ! hiddenByLayout('inventory'));
+const showChequesGiven = computed(() => can('/purchase/payment') && ! hiddenByLayout('cheques'));
+const showChequesReceived = computed(() => can('/sell/payment') && ! hiddenByLayout('cheques'));
 const showCheques = computed(() => showChequesGiven.value || showChequesReceived.value);
-const showCredit = computed(() => can('/customer'));
-const showStats = computed(() => can('/customer') || can('/supplier') || can('/product'));
-const showRecent = computed(() => can('/sell'));
-const showForecast = computed(() => can('/report/purchase-sale'));
-const showTrends = computed(() => can('/report/purchase-sale') || can('/report/profit-loss'));
-const showAging = computed(() => can('/report/customer-outstanding') || can('/report/supplier-outstanding'));
-const showMovement = computed(() => can('/report/stock'));
-const showRecentPayments = computed(() => can('/sell/payment'));
+const showCredit = computed(() => can('/customer') && ! hiddenByLayout('receivables'));
+const showStats = computed(() => (can('/customer') || can('/supplier') || can('/product')) && ! hiddenByLayout('stats'));
+const showRecent = computed(() => can('/sell') && ! hiddenByLayout('recent'));
+const showForecast = computed(() => can('/report/purchase-sale') && ! hiddenByLayout('forecast'));
+const showTrends = computed(() => (can('/report/purchase-sale') || can('/report/profit-loss')) && ! hiddenByLayout('trends'));
+const showAging = computed(() => (can('/report/customer-outstanding') || can('/report/supplier-outstanding')) && ! hiddenByLayout('aging'));
+const showMovement = computed(() => can('/report/stock') && ! hiddenByLayout('movement'));
+const showRecentPayments = computed(() => can('/sell/payment') && ! hiddenByLayout('recent'));
 
 const showAnything = computed(() => [
     showSales.value, showPurchases.value, showReceivables.value, showPayables.value, showFinancial.value,
@@ -311,6 +404,12 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                         <option v-for="branch in branchesdata" :key="branch.id" :value="String(branch.id)">{{ branch.text ?? branch.name }}</option>
                     </select>
                     <input v-model="asOf" type="date" class="form-control form-control-sm dash-date-input" aria-label="Show the dashboard as of" title="Show the dashboard as of this date (empty = today)">
+                    <input v-model="rangeFrom" type="date" class="form-control form-control-sm dash-date-input" aria-label="Sales from" title="Sales and purchases from this date">
+                    <input v-model="rangeTo" type="date" class="form-control form-control-sm dash-date-input" aria-label="Sales to" title="Sales and purchases up to this date">
+                    <select v-if="warehouses.length" v-model="warehouseId" class="form-select form-select-sm dash-company-select" aria-label="Warehouse" title="Only the sales and purchases of one warehouse">
+                        <option value="">All warehouses</option>
+                        <option v-for="w in warehouses" :key="w.id" :value="String(w.id)">{{ w.name }}</option>
+                    </select>
                     <button type="button" class="dash-period-pill" :disabled="refreshing" title="Recalculate the figures kept for five minutes" @click="loadAll(true)">
                         <RefreshCw class="dash-refresh" :class="{ 'is-spinning': refreshing }" aria-hidden="true" />
                         Refresh
@@ -365,6 +464,18 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                     <span v-else-if="failed('receivables')" class="dash-kpi-cell__value">–</span>
                     <span v-else class="dash-kpi-cell__value">{{ money(receivables?.total_due) }}</span>
                     <div v-if="receivables" class="dash-kpi-cell__trend"><span>{{ whole(receivables.contacts) }} customers with a balance</span></div>
+                </div>
+
+                <div v-if="showSales && salesRange" class="dash-kpi-cell" data-card="sales-range">
+                    <span class="dash-kpi-cell__label">Sales {{ salesRange.from }} to {{ salesRange.to }}</span>
+                    <span class="dash-kpi-cell__value">{{ money(salesRange.net_sales) }}</span>
+                    <div class="dash-kpi-cell__trend"><span>Purchases: {{ money(salesRange.net_purchases) }}</span></div>
+                </div>
+
+                <div v-for="kpi in kpiCards" :key="`kpi-${kpi.id}`" class="dash-kpi-cell" :data-card="`kpi-${kpi.id}`">
+                    <span class="dash-kpi-cell__label">{{ kpi.label }}</span>
+                    <span class="dash-kpi-cell__value">{{ kpi.value === null ? '-' : money(kpi.value) }}</span>
+                    <div class="dash-kpi-cell__trend"><span>{{ periodLabel(kpi.period) }}</span></div>
                 </div>
 
                 <div v-if="showPayables" class="dash-kpi-cell" data-card="payables">

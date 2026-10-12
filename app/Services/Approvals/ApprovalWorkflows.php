@@ -37,13 +37,16 @@ class ApprovalWorkflows
             return null;
         }
 
-        $creatorRole = $document['creator_id'] === null ? null : DB::table('users')->where('id', $document['creator_id'])->value('role_id');
+        $creator = $document['creator_id'] === null ? null : DB::table('users')->where('id', $document['creator_id'])->first(['role_id', 'department_id']);
+        $creatorRole = $creator->role_id ?? null;
+        $creatorDepartment = $creator->department_id ?? null;
 
         foreach (DB::table('approval_workflows')->where('company_id', $companyId)->where('document_type', $type)->where('is_active', true)->orderBy('priority')->orderBy('id')->get() as $workflow) {
             $fits = ($workflow->min_amount === null || $document['amount'] >= (float) $workflow->min_amount)
                 && ($workflow->max_amount === null || $document['amount'] <= (float) $workflow->max_amount)
                 && ($workflow->branch_id === null || (int) $workflow->branch_id === (int) $document['branch_id'])
-                && ($workflow->creator_role_id === null || (int) $workflow->creator_role_id === (int) $creatorRole);
+                && ($workflow->creator_role_id === null || (int) $workflow->creator_role_id === (int) $creatorRole)
+                && ($workflow->department_id === null || (int) $workflow->department_id === (int) $creatorDepartment);
 
             if (! $fits) {
                 continue;

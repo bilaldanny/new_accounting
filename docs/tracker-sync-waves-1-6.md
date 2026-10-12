@@ -6,7 +6,7 @@ Test column: `W1` = `tests/Feature/WaveOneTest.php`, `W2` = `WaveTwoApprovalCent
 `W4` = `WaveFourReportsTest.php`, `W5` = `WaveFiveDocumentsTest.php`, `W6` = `WaveSixSystemTest.php` (all in `tests/Feature/`);
 `Dusk` = a page-load or smoke test in `tests/Browser/`.
 
-Tally: **Built 62, Partial 28, Not built 4**.
+Tally: see `tracker-sync-final.md` (this file is regenerated into it).
 
 ## Things to know before reading the table
 
@@ -21,19 +21,19 @@ Tally: **Built 62, Partial 28, Not built 4**.
 
 | Module | Item name (as in the tracker) | Status | Why (Partial / Not built) | Test |
 |---|---|---|---|---|
-| 1. Dashboard & BI | Role-Based Dashboards (Owner, Accountant, Sales Manager, Warehouse Incharge, Cashier) | Not built | Figures still differ only by menu permission; no role-tailored layouts were written (wave 1 did not take this row). | - |
-| 1. Dashboard & BI | Date / Branch / Warehouse Filters | Not built | No warehouse filter and no date range on the dashboard were added. | - |
-| 1. Dashboard & BI | Custom Widget Builder & Dashboard Layout Customization | Partial | Personal layout (cards shown, order) is saved and used on `/dashboard/insights`; the main Dashboard page does not read it and there is no widget builder. | W1 "the dashboard insights show the top customers and products ... keep a personal layout" |
-| 1. Dashboard & BI | Notification Center (in-app alerts) (New) | Partial | Stored notifications with read / unread and the My Notifications page exist; the header bell still shows its own live counts. | W1 "a follow-up due soon or overdue reminds its assignee once ..." |
-| 1. Dashboard & BI | Daily Business Summary (auto Email/WhatsApp) (New) | Not built | Not written (wave 1 did not take this row); reuse `ReportScheduler` + `MessageDispatcher` when built. | - |
-| 1. Dashboard & BI | Universal Search Bar | Not built | Search box is still unbound; no backend search was written. | - |
+| 1. Dashboard & BI | Role-Based Dashboards (Owner, Accountant, Sales Manager, Warehouse Incharge, Cashier) | Built | Wave 1b: own layout, else the company layout of the role, else a built-in layout by kind of role; a card still needs its permission. | W1B "a user gets their own layout, else the company layout of their role, else the built-in layout of that kind of role" |
+| 1. Dashboard & BI | Date / Branch / Warehouse Filters | Built | Wave 1b: date range and warehouse on the sales and purchases cards (branch and as-of date existed); ledger-based cards have no warehouse. | W1B "the sales card takes a date range and a warehouse, and without them answers exactly as before" |
+| 1. Dashboard & BI | Custom Widget Builder & Dashboard Layout Customization | Built | Wave 1b: KPI widgets from the figures of reports the user may open; the layout now drives the main dashboard (hide, order inside each row). | W1B "a user builds KPI widgets from the figures of reports they may open ..."; Dusk DashboardToolsSmokeTest |
+| 1. Dashboard & BI | Notification Center (in-app alerts) (New) | Built | Wave 1b: the bell lists stored unread notifications with mark read / mark all read, beside the live approval counts. | W1 "a follow-up due soon or overdue reminds its assignee once ..."; Dusk DashboardToolsSmokeTest |
+| 1. Dashboard & BI | Daily Business Summary (auto Email/WhatsApp) (New) | Partial | Wave 1b: figures, settings, hourly command, once-a-day per recipient and the run log are built and tested; delivery through a real SMTP server / WhatsApp provider is not proven. | W1B "the daily summary works out the day ...", "the daily summary goes to a phone through the company messaging provider ..." |
+| 1. Dashboard & BI | Universal Search Bar | Built | Wave 1b: `/api/search` over pages, customers, suppliers, products, sales, purchases and vouchers, permission and company scoped. | W1B "the search bar finds pages, contacts, products and documents the user may open, inside their company only"; Dusk DashboardToolsSmokeTest |
 | 8. CRM | Lead Assignment & Sales Rep Allocation Rules | Built | | W1 "a lead with no owner is allocated in turn ..." and "allocation rules by source ... company scoped" |
 | 8. CRM | Follow-ups, Reminders, Tasks, Calls & Meetings | Built | Email not proven against live SMTP. | W1 "a follow-up due soon or overdue reminds its assignee once ..." |
-| 11. Approval Center | Discount & Price List | Partial | Discount-code approval built; price-list approval keeps its own controller and is not in the workflow registry. | W2 "discount codes need approval once the company asks for it ..." |
-| 11. Approval Center | Workflow Builder | Built | Approvers typed as `user:12 role:3` text, no picker. | W2 "a two level workflow takes the approvers in order ..." |
+| 11. Approval Center | Discount & Price List | Built | Wave 1b: price lists are now in the workflow registry (their approve route is gated like the other documents). | W1B-Approval "a price list can be put behind an approval workflow"; W2 "discount codes need approval once the company asks for it ..." |
+| 11. Approval Center | Workflow Builder | Built | Wave 1b: approvers are picked from the users and roles of the company (the text entry is gone). | W2 "a two level workflow takes the approvers in order ..."; W1B-Approval "the directory lists the people, roles and departments of the company only" |
 | 11. Approval Center | Centralized Approval Inbox & Outbox | Built | | W2 "the inbox shows a user only what waits for them ..." |
 | 11. Approval Center | Multi-Level Approval Workflows | Built | | W2 "a two level workflow ..." and "a parallel level needs every approver ..." |
-| 11. Approval Center | Trigger Rules (Amount, Role, Branch, Department) | Partial | Amount, role, branch and priority are evaluated; department is stored but not evaluated (documents carry no department). | W2 "trigger rules choose the workflow by amount ..." |
+| 11. Approval Center | Trigger Rules (Amount, Role, Branch, Department) | Built | Wave 1b: the department rule is evaluated against the department of the person who made the document. | W1B-Approval "a workflow with a department trigger applies only to documents made by people of that department" |
 | 11. Approval Center | Approval Delegation (during leave) | Built | | W2 "a delegate acts for an approver who is away ..." |
 | 11. Approval Center | Approval History & Instant Notifications | Built | In-app and email notices; email not proven against live SMTP. | W2 "the inbox shows a user only what waits for them, ... approvers are notified once" |
 | 12. Reports | Profit & Loss (Comparative, Multi-Period) | Built | | W4 "the comparative profit and loss lines up two periods ..." |
@@ -54,7 +54,7 @@ Tally: **Built 62, Partial 28, Not built 4**.
 | 12. Reports | Scheduled Reports (New) | Partial | Schedule, due logic and CSV are tested with a faked mailer; real SMTP delivery not proven. | W4 "a scheduled report is mailed as a CSV when due ..." |
 | 12. Reports | Saved Filters & Favorite Reports (New) | Built | | W4 "saved filters are the user own, can be favourites ..." |
 | 13. Documents | Invoice Designer (custom design) | Built | Block list with property fields. | W5 "block lists are checked against the whitelist ..." |
-| 13. Documents | Drag & Drop Invoice/Receipt Builder | Partial | Blocks are added, ordered and edited with fields; there is no drag-and-drop canvas. | W5 "block lists are checked against the whitelist ..."; Dusk `DocumentCenterSmokeTest` |
+| 13. Documents | Drag & Drop Invoice/Receipt Builder | Built | Wave 1b: blocks are dragged by their handle to reorder (up / down buttons stay); layout is a block list, not a free-position canvas. | W5 "block lists are checked against the whitelist ..."; Dusk DocumentCenterSmokeTest "a block of the designer is moved by dragging its handle" |
 | 13. Documents | Multiple Templates (Branch/Business-Type) | Built | Business types = document types (invoice, quotation, receipt, return, PO). | W5 "templates are the company own, one default per branch and type ..." |
 | 13. Documents | Branding (Logo, Fonts, Colors, Custom CSS) | Built | "Custom CSS" is an allowlist of structured properties; free CSS is refused on purpose. | W5 "the renderer escapes everything, refuses unsafe logos ..." |
 | 13. Documents | Header/Footer, T&Cs, Signature Block, QR Code | Partial | QR encoder verified against the published reference and a spec decoder but never read by a phone scanner. | W5 "the QR encoder matches the published error correction vector and decodes back to its text" |
@@ -85,7 +85,7 @@ Tally: **Built 62, Partial 28, Not built 4**.
 | 15. Settings | Email, SMS & WhatsApp Gateways | Partial | Webhook, WhatsApp Cloud and Twilio adapters from earlier rounds tested on fixtures; no live provider run. | `ChannelAdaptersTest.php`; W5 "sending by link, whatsapp ..." |
 | 15. Settings | Push Notifications | Partial | RFC 8291 / 8292 verified by the RFC worked example; never run against a real browser vendor push service. | W6 "web push encryption follows the worked example of RFC 8291" (+ 2 more push tests) |
 | 15. Settings | Import/Export Center (centralized) | Built | | W6 "exports are the company own, templates match the importer ..." |
-| 15. Settings | Import History with Undo/Rollback (New) | Partial | Customers and suppliers only; other importers are not hooked. | W6 "an import is recorded and can be undone while its records are untouched" |
+| 15. Settings | Import History with Undo/Rollback (New) | Partial | Customers, suppliers and (wave 1b) products are recorded and undone while unused; master-data importers (brands, categories, units, ...) and updates of existing records are not tracked. | W6 "an import is recorded and can be undone while its records are untouched" |
 | 15. Settings | Backup & Restore (Google Drive, AWS S3, Local) | Partial | S3 / Google Drive adapter packages not installed (dependency change needs approval); real `mysql` restore run not tried. | W6 "a backup is copied to a configured remote disk and restored only with the typed confirmation ..." |
 | 15. Settings | Data Retention & Archiving | Built | Log tables only, by design. | W6 "retention removes only old log rows of its own company ..." |
 | 15. Settings | System Logs | Built | | W6 "the log viewer lists entries newest first, filters, masks secrets ..." |
@@ -116,9 +116,10 @@ Tally: **Built 62, Partial 28, Not built 4**.
 | 18. Customer Subscription | Dunning & Failed Payment Recovery | Built | Reminder levels, not a card retry. | W1 "billing generates the next invoice ... applies the dunning levels once" |
 | 18. Customer Subscription | Pro-Rated Refunds & Payment History | Built | | W1 "cancelling refunds the unused part of the paid period pro rata, and only when asked" |
 
-## Follow-up the table exposes
+## Follow-up the table exposed, and wave 1b
 
-Open rows of waves 1-6 that are code work, not live checks: the six Dashboard rows (role dashboards, filters, widget builder,
-notification center, daily business summary, universal search), approver picker / department trigger in the Approval Center, price-list
-approval in the workflow registry, drag-and-drop canvas, Multi-language coverage, cash drawer read by the POS. They are scheduled
-as "wave 1b" after wave 8 unless the owner says otherwise.
+The first pass of wave 1 did not take the six dashboard rows of the audit, and waves 2-6 left a few rows Partial for want of code.
+Wave 1b (see `closeout-wave1b.md`) closed: the six dashboard rows (role dashboards, filters, widget builder, notification centre,
+daily business summary [delivery Partial], universal search), the department trigger, price-list approval, the approver picker and the
+drag-and-drop designer. Still open as code work: language coverage beyond a small word list, the cash drawer read by the POS (hardware),
+import history for the master-data importers, a form layout builder for custom fields, and a free-position canvas.

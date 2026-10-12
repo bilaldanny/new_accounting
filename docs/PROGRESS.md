@@ -16,16 +16,15 @@ with a throw-away test), `npm run build`, Dusk only with the inline sqlite env, 
 | 5 | Documents & communication | built (PDF, QR, live delivery Partial), see `closeout-wave5.md` |
 | 6 | Settings & system setup | built (rate sync, push, remote backup, cash drawer, language, Tally / QuickBooks Partial), see `closeout-wave6.md` |
 | 7 | HRM & payroll | built (device sync, payslip email, bank file, gratuity Partial), see `closeout-wave7.md` |
+| 1b | Dashboard rows left open by wave 1 + code-only Partials | built (daily summary delivery Partial), see `closeout-wave1b.md` |
 | 8 | Manufacturing + advanced | built (late-charge invoice document, PWA install / offline, storefront payment Partial), see `closeout-wave8.md` |
 
 ## Next
 
-All eight waves are done. What is left is code work that the tracker audit of waves 1-6 exposed: the six Dashboard rows (role dashboards,
-date / branch / warehouse filters, widget builder, notification centre, daily business summary, universal search), an approver picker
-and department trigger in the Approval Center, price-list approval in the workflow registry, a drag-and-drop canvas for the
-document designer, language coverage, the cash drawer read by the POS. They are listed in `docs/tracker-sync-waves-1-6.md`
-("Follow-up the table exposes") and none was started. Live work: run the migrations of every wave in order (the closeout docs list them),
-then each wave's live-check list.
+All waves, including 1b, are done. `docs/tracker-sync-final.md` has every row with its status (Built / Partial, none left Not built);
+the Partial rows are external services (SMTP, WhatsApp / SMS providers, FBR, couriers, payment gateway, bank, web push vendor, S3 /
+Drive, devices, DNS) or named gaps (language coverage, cash drawer in the POS, form layout builder, free-position canvas, server PDF).
+Live work: run the migrations of every wave in order (the closeout docs list them), then each wave's live-check list.
 
 ## Shared pieces built so far (reuse them)
 

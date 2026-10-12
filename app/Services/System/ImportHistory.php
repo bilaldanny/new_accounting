@@ -3,6 +3,7 @@
 namespace App\Services\System;
 
 use App\Models\Contact;
+use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -50,6 +51,10 @@ class ImportHistory
         $undone = 0;
         $kept = [];
 
+        if ($run->entity === 'products') {
+            return $this->undoProducts($run, $companyId, $userId);
+        }
+
         foreach ((array) json_decode((string) $run->created_ids, true) as $id) {
             $contact = Contact::withTrashed()->withoutGlobalScopes()->where('company_id', $companyId)->find((int) $id);
 
@@ -66,6 +71,46 @@ class ImportHistory
             }
 
             $contact->delete();
+            $undone++;
+        }
+
+        DB::table('import_runs')->where('id', $run->id)->update(['status' => $kept === [] ? 'undone' : 'partly_undone', 'undone_at' => now(), 'undone_by' => $userId, 'updated_at' => now()]);
+
+        return ['undone' => $undone, 'kept' => $kept];
+    }
+
+    /**
+     * Removes the products a product import created that nothing has used since: a product on a sale, purchase, stock adjustment,
+     * opening stock line or component list stays.
+     *
+     * @return array{undone: int, kept: list<array{id: int, reason: string}>}
+     */
+    private function undoProducts(object $run, int $companyId, ?int $userId): array
+    {
+        $undone = 0;
+        $kept = [];
+
+        foreach ((array) json_decode((string) $run->created_ids, true) as $id) {
+            $product = Product::withTrashed()->withoutGlobalScopes()->where('company_id', $companyId)->find((int) $id);
+
+            if ($product === null || $product->trashed()) {
+                continue;
+            }
+
+            $reason = match (true) {
+                DB::table('sell_lines')->where('product_id', $id)->exists() => 'it is on a sale',
+                DB::table('purchase_lines')->where('product_id', $id)->exists() => 'it is on a purchase, stock adjustment or opening stock',
+                Schema::hasTable('product_components') && DB::table('product_components')->where(fn ($q) => $q->where('product_id', $id)->orWhere('component_product_id', $id))->exists() => 'it is in a component list',
+                default => null,
+            };
+
+            if ($reason !== null) {
+                $kept[] = ['id' => (int) $id, 'reason' => $reason];
+
+                continue;
+            }
+
+            $product->delete();
             $undone++;
         }
 

@@ -63,8 +63,9 @@ class DashboardMetrics
      *
      * @return array{sales: array<string, float|string|null>, purchases: array<string, float|string|null>}
      */
-    public function trade(?int $companyId, ?int $branchId, CarbonInterface $today): array
+    public function trade(?int $companyId, ?int $branchId, CarbonInterface $today, ?int $warehouseId = null): array
     {
+        $this->warehouseId = $warehouseId;
         $monthStart = $today->copy()->startOfMonth();
         $lastStart = $monthStart->copy()->subMonthNoOverflow()->startOfMonth();
         $lastEnd = $monthStart->copy()->subDay();
@@ -74,6 +75,8 @@ class DashboardMetrics
         $month = $this->summary($companyId, $branchId, $monthStart, $today);
         $lastToDate = $this->summary($companyId, $branchId, $lastStart, $lastSameDay->gt($lastEnd) ? $lastEnd : $lastSameDay);
         $lastMonth = $this->summary($companyId, $branchId, $lastStart, $lastEnd);
+
+        $this->warehouseId = null;
 
         return [
             'sales' => [
@@ -541,11 +544,14 @@ class DashboardMetrics
     /**
      * @return array{net_sales: float, net_purchases: float}
      */
+    private ?int $warehouseId = null;
+
     private function summary(?int $companyId, ?int $branchId, CarbonInterface $from, CarbonInterface $to): array
     {
         $totals = $this->trade->build($companyId, $branchId, [
             'start_date' => $from->toDateString(),
             'end_date' => $to->toDateString(),
+            'warehouse_id' => $this->warehouseId,
         ])['totals'];
 
         return ['net_sales' => (float) $totals['net_sales'], 'net_purchases' => (float) $totals['net_purchases']];

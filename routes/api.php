@@ -59,6 +59,7 @@ use App\Http\Controllers\CustomerSubscriptionInvoiceController;
 use App\Http\Controllers\CustomerSubscriptionPlanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardInsightsController;
+use App\Http\Controllers\DashboardToolsController;
 use App\Http\Controllers\DataCenterController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepositController;
@@ -202,6 +203,7 @@ use App\Http\Controllers\TenantSelfServiceController;
 use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UnitController;
+use App\Http\Controllers\UniversalSearchController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ValuationController;
 use App\Http\Controllers\VariationController;
@@ -1384,6 +1386,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
 
     /* Wave 2: Approval Center */
     Route::get('approval-center/types', [ApprovalCenterController::class, 'types']);
+    Route::get('approval-center/directory', [ApprovalCenterController::class, 'directory']);
     Route::get('approval-center/workflows', [ApprovalCenterController::class, 'workflows']);
     Route::post('approval-center/workflows', [ApprovalCenterController::class, 'saveWorkflow']);
     Route::put('approval-center/workflows/{id}', [ApprovalCenterController::class, 'saveWorkflow'])->whereNumber('id');
@@ -1404,6 +1407,20 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('my-notifications/read-all', [MyNotificationsController::class, 'readAll']);
     Route::post('my-notifications/{id}/read', [MyNotificationsController::class, 'read'])->whereNumber('id');
     Route::get('dashboard-insights', [DashboardInsightsController::class, 'show']);
+    Route::get('search', UniversalSearchController::class);
+    Route::get('dashboard-tools/layout', [DashboardToolsController::class, 'layout']);
+    Route::get('dashboard-tools/role-layouts', [DashboardToolsController::class, 'roleLayouts']);
+    Route::put('dashboard-tools/role-layouts/{roleId}', [DashboardToolsController::class, 'saveRoleLayout'])->whereNumber('roleId');
+    Route::delete('dashboard-tools/role-layouts/{roleId}', [DashboardToolsController::class, 'resetRoleLayout'])->whereNumber('roleId');
+    Route::get('dashboard-tools/summary', [DashboardToolsController::class, 'summary']);
+    Route::put('dashboard-tools/summary', [DashboardToolsController::class, 'saveSummary']);
+    Route::get('dashboard-tools/summary/preview', [DashboardToolsController::class, 'previewSummary']);
+    Route::post('dashboard-tools/summary/send', [DashboardToolsController::class, 'sendSummary']);
+    Route::get('dashboard-tools/kpi-catalog', [DashboardToolsController::class, 'kpiCatalog']);
+    Route::get('dashboard-tools/kpi-figures/{report}', [DashboardToolsController::class, 'kpiFigures'])->where('report', '[a-z-]+');
+    Route::get('dashboard-tools/kpis', [DashboardToolsController::class, 'kpis']);
+    Route::post('dashboard-tools/kpis', [DashboardToolsController::class, 'saveKpi']);
+    Route::delete('dashboard-tools/kpis/{id}', [DashboardToolsController::class, 'deleteKpi'])->whereNumber('id');
     Route::get('dashboard-preferences', [DashboardInsightsController::class, 'preferences']);
     Route::put('dashboard-preferences', [DashboardInsightsController::class, 'savePreferences']);
     Route::get('crm/allocation-rules', [CrmAutomationController::class, 'rules']);

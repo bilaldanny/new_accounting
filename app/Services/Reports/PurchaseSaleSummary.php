@@ -85,7 +85,7 @@ class PurchaseSaleSummary
 
     /**
      * @param  list<string>  $excluded
-     * @param  array{start_date?: ?string, end_date?: ?string}  $filters
+     * @param  array{start_date?: ?string, end_date?: ?string, warehouse_id?: ?int}  $filters
      * @return array{count: int, before_tax: float, tax: float, final: float, paid: float}
      */
     private function totals(string $type, array $excluded, ?int $companyId, ?int $branchId, array $filters): array
@@ -106,6 +106,7 @@ class PurchaseSaleSummary
             ->when($branchId !== null, fn (Builder $query) => $query->where('t.branch_id', $branchId))
             ->when($startDate !== '', fn (Builder $query) => $query->whereDate('t.transaction_date', '>=', $startDate))
             ->when($endDate !== '', fn (Builder $query) => $query->whereDate('t.transaction_date', '<=', $endDate))
+            ->when(! empty($filters['warehouse_id']), fn (Builder $query) => $query->where('t.warehouse_id', (int) $filters['warehouse_id']))
             ->selectRaw('count(*) as documents')
             ->selectRaw('coalesce(sum(t.total_before_tax), 0) as before_tax')
             ->selectRaw('coalesce(sum(t.tax_amount), 0) as tax')

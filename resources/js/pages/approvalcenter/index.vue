@@ -28,15 +28,21 @@
     const types = ref<{ type: string; label: string }[]>([]);
     const pendingDiscounts = ref<{ id: number; name: string; code: string; value: number }[]>([]);
     const discountApproval = ref(false);
-    const form = ref({ name: '', document_type: 'journal', min_amount: '' as number | '', max_amount: '' as number | '', levels: [{ label: 'Level 1', mode: 'any', approvers: '' }] });
+    type FormLevel = { label: string; mode: string; users: number[]; roles: number[] };
+    const directory = ref<{ users: { id: number; name: string }[]; roles: { id: number; name: string }[]; departments: { id: number; name: string }[] }>({ users: [], roles: [], departments: [] });
+    const form = ref<{ name: string; document_type: string; min_amount: number | ''; max_amount: number | ''; department_id: number | ''; levels: FormLevel[] }>({
+        name: '', document_type: 'journal', min_amount: '', max_amount: '', department_id: '', levels: [{ label: 'Level 1', mode: 'any', users: [], roles: [] }],
+    });
     const delegate = ref({ to_user_id: '' as number | '', starts_on: new Date().toISOString().slice(0, 10), ends_on: new Date().toISOString().slice(0, 10), reason: '' });
 
     async function load() {
         const get = (url: string) => run(() => window.axios.get(url, { params: scope() }));
-        const [i, o, h, w, d, t, s, pd] = await Promise.all([
+        const [i, o, h, w, d, t, s, pd, dir] = await Promise.all([
             get('/api/approval-center/inbox'), get('/api/approval-center/outbox'), get('/api/approval-center/history'), get('/api/approval-center/workflows'),
             get('/api/approval-center/delegations'), get('/api/approval-center/types'), get('/api/approval-center/settings'), get('/api/approval-center/discount-codes'),
+            get('/api/approval-center/directory'),
         ]);
+        directory.value = dir?.data?.data ?? directory.value;
         inbox.value = i?.data?.data ?? [];
         outbox.value = o?.data?.data ?? [];
         history.value = h?.data?.data ?? [];
@@ -62,19 +68,14 @@
         }
     }
 
-    function parseApprovers(text: string) {
-        return text.split(/[\s,]+/).filter(Boolean).map((part) => {
-            const [type, id] = part.split(':');
-
-            return { type: type === 'role' ? 'role' : 'user', id: Number(id ?? type) };
-        });
-    }
-
     async function saveWorkflow() {
         const body = {
             ...scope(), name: form.value.name, document_type: form.value.document_type, min_amount: form.value.min_amount === '' ? null : form.value.min_amount,
-            max_amount: form.value.max_amount === '' ? null : form.value.max_amount,
-            levels: form.value.levels.map((level) => ({ label: level.label, mode: level.mode, approvers: parseApprovers(level.approvers) })),
+            max_amount: form.value.max_amount === '' ? null : form.value.max_amount, department_id: form.value.department_id === '' ? null : form.value.department_id,
+            levels: form.value.levels.map((level) => ({
+                label: level.label, mode: level.mode,
+                approvers: [...level.users.map((id) => ({ type: 'user', id })), ...level.roles.map((id) => ({ type: 'role', id }))],
+            })),
         };
 
         if (await run(() => window.axios.post('/api/approval-center/workflows', body), 'Workflow saved')) {
@@ -167,13 +168,15 @@
                     <div class="col-md-2"><select v-model="form.document_type" class="form-select form-select-sm" aria-label="Document type"><option v-for="type in types" :key="type.type" :value="type.type">{{ type.label }}</option></select></div>
                     <div class="col-md-2"><input v-model.number="form.min_amount" type="number" class="form-control form-control-sm" placeholder="Amount from" aria-label="Amount from" /></div>
                     <div class="col-md-2"><input v-model.number="form.max_amount" type="number" class="form-control form-control-sm" placeholder="Amount to" aria-label="Amount to" /></div>
+                    <div class="col-md-3"><select v-model="form.department_id" class="form-select form-select-sm" aria-label="Department of the person who made it"><option value="">Any department</option><option v-for="d in directory.departments" :key="d.id" :value="d.id">{{ d.name }}</option></select></div>
                 </div>
                 <div v-for="(level, index) in form.levels" :key="index" class="row g-2 mb-1">
                     <div class="col-md-3"><input v-model="level.label" class="form-control form-control-sm" aria-label="Level label" /></div>
                     <div class="col-md-2"><select v-model="level.mode" class="form-select form-select-sm" aria-label="Mode"><option value="any">Any one approver</option><option value="all">All approvers</option></select></div>
-                    <div class="col-md-5"><input v-model="level.approvers" class="form-control form-control-sm" placeholder="user:12 role:3 user:15" aria-label="Approvers" /></div>
+                    <div class="col-md-3"><select v-model="level.users" multiple class="form-select form-select-sm" size="3" aria-label="Approver users"><option v-for="u in directory.users" :key="u.id" :value="u.id">{{ u.name }}</option></select></div>
+                    <div class="col-md-2"><select v-model="level.roles" multiple class="form-select form-select-sm" size="3" aria-label="Approver roles"><option v-for="r in directory.roles" :key="r.id" :value="r.id">Role: {{ r.name }}</option></select></div>
                 </div>
-                <button type="button" class="btn btn-outline-secondary btn-sm me-2" @click="form.levels.push({ label: `Level ${form.levels.length + 1}`, mode: 'any', approvers: '' })">Add level</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm me-2" @click="form.levels.push({ label: `Level ${form.levels.length + 1}`, mode: 'any', users: [], roles: [] })">Add level</button>
                 <button type="button" class="btn btn-dark btn-sm" @click="saveWorkflow">Save workflow</button>
             </div>
             <table class="table table-sm">
@@ -181,7 +184,7 @@
                 <tbody>
                     <tr v-for="workflow in workflows" :key="workflow.id" :class="{ 'text-muted': ! workflow.is_active }">
                         <td>{{ workflow.name }}</td><td>{{ workflow.document_type }}</td><td>{{ workflow.min_amount ?? 0 }} - {{ workflow.max_amount ?? 'no limit' }}</td>
-                        <td><div v-for="level in workflow.levels" :key="level.level_no" class="small">{{ level.level_no }}. {{ level.label }} ({{ level.mode }}): {{ level.approvers.map((a) => `${a.type}:${a.id}`).join(', ') }}</div></td>
+                        <td><div v-for="level in workflow.levels" :key="level.level_no" class="small">{{ level.level_no }}. {{ level.label }} ({{ level.mode }}): {{ level.approvers.map((a) => (a.type === 'role' ? directory.roles : directory.users).find((x) => x.id === a.id)?.name ?? `${a.type}:${a.id}`).join(', ') }}</div></td>
                         <td class="text-end"><button v-if="can('/approvalcenter/manage')" type="button" class="btn btn-outline-danger btn-sm" @click="removeWorkflow(workflow)">Remove</button></td>
                     </tr>
                     <tr v-if="! workflows.length"><td colspan="5" class="text-center text-muted">No workflows: every document keeps its single approval step.</td></tr>

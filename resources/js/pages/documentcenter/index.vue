@@ -81,6 +81,23 @@
         form.blocks.push({ type, props: {} });
     }
 
+    /** Drag and drop: the block being dragged and the one it is over. */
+    const dragFrom = ref<number | null>(null);
+    const dragOver = ref<number | null>(null);
+
+    function dropBlock(target: number) {
+        const from = dragFrom.value;
+        dragFrom.value = null;
+        dragOver.value = null;
+
+        if (from === null || from === target || from < 0 || target < 0 || from >= form.blocks.length || target >= form.blocks.length) {
+            return;
+        }
+
+        const [moved] = form.blocks.splice(from, 1);
+        form.blocks.splice(target, 0, moved);
+    }
+
     function moveBlock(index: number, by: -1 | 1) {
         const target = index + by;
 
@@ -237,8 +254,12 @@ return 'number';
                     </div>
 
                     <h6 class="mt-3">Blocks</h6>
-                    <div v-for="(block, index) in form.blocks" :key="index" class="border rounded p-2 mb-2">
+                    <div
+                        v-for="(block, index) in form.blocks" :key="index" class="border rounded p-2 mb-2" :class="{ 'border-primary': dragOver === index && dragFrom !== index, 'opacity-50': dragFrom === index }"
+                        :data-block-index="index" @dragover.prevent="dragOver = index" @drop.prevent="dropBlock(index)"
+                    >
                         <div class="d-flex gap-1 align-items-center">
+                            <span class="text-muted me-1" style="cursor: grab" draggable="true" :aria-label="`Drag block ${index + 1}`" title="Drag to move this block" @dragstart="dragFrom = index" @dragend="dragFrom = null; dragOver = null">::</span>
                             <strong class="flex-grow-1 text-capitalize">{{ block.type.replace('_', ' ') }}</strong>
                             <button type="button" class="btn btn-outline-secondary btn-sm py-0" :aria-label="`Move block ${index + 1} up`" @click="moveBlock(index, -1)">up</button>
                             <button type="button" class="btn btn-outline-secondary btn-sm py-0" :aria-label="`Move block ${index + 1} down`" @click="moveBlock(index, 1)">down</button>

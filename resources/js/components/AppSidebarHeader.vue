@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
     import { Bell, Cog, HomeCircle, Menu, Power, Search, User } from '@boxicons/vue';
     import { Link, router, usePage } from '@inertiajs/vue3';
-    import { computed, onMounted, ref } from 'vue';
+    import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
     import useSidebarToggle from '@/composables/useSidebarToggle';
     import { dashboard, logout } from '@/routes';
 
@@ -9,6 +9,15 @@
     const page = usePage();
     const user = computed(() => (page.props as any)?.auth?.user || {});
     const searchQuery = ref('');
+    type SearchHit = { group: string; label: string; hint: string; url: string };
+    const searchResults = ref<SearchHit[]>([]);
+    const searchOpen = ref(false);
+    const searchBusy = ref(false);
+    let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+    type StoredNotification = { id: number; kind: string; title: string; body: string | null; url: string | null; read_at: string | null; created_at: string };
+    const storedNotifications = ref<StoredNotification[]>([]);
+    const unreadStored = ref(0);
 
     const notificationCounts = ref<Record<string, number>>({});
     const notificationTotal = ref(0);
@@ -46,7 +55,105 @@
         }
     }
 
-    onMounted(loadNotifications);
+    async function loadStored() {
+        try {
+            const response = await window.axios.get('/api/my-notifications', { params: { unread: 1 } });
+            storedNotifications.value = (response.data?.data ?? []).slice(0, 6);
+            unreadStored.value = Number(response.data?.unread ?? 0);
+        } catch {
+            storedNotifications.value = [];
+            unreadStored.value = 0;
+        }
+    }
+
+    async function openNotification(row: StoredNotification) {
+        try {
+            await window.axios.post(`/api/my-notifications/${row.id}/read`);
+        } catch {
+            // the link still works
+        }
+
+        storedNotifications.value = storedNotifications.value.filter((n) => n.id !== row.id);
+        unreadStored.value = Math.max(0, unreadStored.value - 1);
+
+        if (row.url) {
+            router.visit(row.url);
+        }
+    }
+
+    async function readAllStored() {
+        try {
+            await window.axios.post('/api/my-notifications/read-all');
+        } catch {
+            // nothing to do
+        }
+
+        storedNotifications.value = [];
+        unreadStored.value = 0;
+    }
+
+    function refreshNotifications() {
+        void loadNotifications();
+        void loadStored();
+    }
+
+    async function runSearch() {
+        const q = searchQuery.value.trim();
+
+        if (q.length < 2) {
+            searchResults.value = [];
+            searchBusy.value = false;
+
+            return;
+        }
+
+        searchBusy.value = true;
+
+        try {
+            const response = await window.axios.get('/api/search', { params: { q } });
+            searchResults.value = response.data?.data ?? [];
+        } catch {
+            searchResults.value = [];
+        } finally {
+            searchBusy.value = false;
+        }
+    }
+
+    watch(searchQuery, () => {
+        searchOpen.value = true;
+
+        if (searchTimer !== null) {
+            clearTimeout(searchTimer);
+        }
+
+        searchTimer = setTimeout(runSearch, 250);
+    });
+
+    function goToHit(hit: SearchHit) {
+        searchOpen.value = false;
+        searchQuery.value = '';
+        searchResults.value = [];
+        router.visit(hit.url);
+    }
+
+    function searchEnter() {
+        if (searchResults.value.length > 0) {
+            goToHit(searchResults.value[0]);
+        }
+    }
+
+    const closeSearch = (event: MouseEvent) => {
+        if (! (event.target as HTMLElement | null)?.closest('.topbar-search')) {
+            searchOpen.value = false;
+        }
+    };
+
+    onMounted(() => {
+        refreshNotifications();
+        document.addEventListener('click', closeSearch);
+    });
+
+    onBeforeUnmount(() => document.removeEventListener('click', closeSearch));
 
     const handleLogout = () => {
         router.flushAll();
@@ -83,14 +190,29 @@
                         <Menu size="sm" class="topbar-icon" aria-hidden="true" />
                     </button>
 
-                    <div class="topbar-search">
+                    <div class="topbar-search" style="position: relative">
                         <Search size="sm" class="topbar-search__icon" aria-hidden="true" />
                         <input
                             type="text"
                             v-model="searchQuery"
                             class="topbar-search__input"
-                            placeholder="Search reports, routes, analytics..."
+                            placeholder="Search pages, customers, products, invoices..."
+                            aria-label="Search"
+                            autocomplete="off"
+                            @keydown.enter.prevent="searchEnter"
+                            @keydown.esc="searchOpen = false"
+                            @focus="searchOpen = true"
                         >
+                        <ul v-if="searchOpen && searchQuery.trim().length >= 2" class="dropdown-menu show topbar-search__results" style="position: absolute; top: 100%; left: 0; min-width: 22rem; max-height: 22rem; overflow: auto" data-test="search-results">
+                            <li v-if="searchBusy" class="dropdown-item-text small text-muted">Searching...</li>
+                            <li v-else-if="! searchResults.length" class="dropdown-item-text small text-muted">Nothing found</li>
+                            <li v-for="hit in searchResults" :key="hit.group + hit.url + hit.label">
+                                <a class="dropdown-item d-flex justify-content-between gap-3" :href="hit.url" @click.prevent="goToHit(hit)">
+                                    <span>{{ hit.label }} <small class="text-muted">{{ hit.hint }}</small></span>
+                                    <small class="text-muted">{{ hit.group }}</small>
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
@@ -107,15 +229,25 @@
                             title="Notifications"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
-                            @click="loadNotifications"
+                            @click="refreshNotifications"
                         >
                             <Bell size="sm" class="topbar-icon" aria-hidden="true" />
-                            <span v-if="notificationTotal > 0" class="topbar-bell__dot"></span>
+                            <span v-if="notificationTotal + unreadStored > 0" class="topbar-bell__dot"></span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end topbar-user-menu" style="min-width: 18rem">
                             <li class="topbar-user-menu__header">
                                 <p class="topbar-user-menu__name mb-0">Notifications</p>
-                                <p class="topbar-user-menu__email mb-0">{{ notificationTotal === 0 ? 'Nothing is waiting for you' : `${notificationTotal} waiting` }}</p>
+                                <p class="topbar-user-menu__email mb-0">{{ notificationTotal + unreadStored === 0 ? 'Nothing is waiting for you' : `${notificationTotal} waiting, ${unreadStored} unread` }}</p>
+                            </li>
+                            <li v-for="row in storedNotifications" :key="`n-${row.id}`">
+                                <a class="dropdown-item" href="#" @click.prevent="openNotification(row)">
+                                    <span class="d-block">{{ row.title }}</span>
+                                    <small v-if="row.body" class="text-muted d-block text-truncate" style="max-width: 16rem">{{ row.body }}</small>
+                                </a>
+                            </li>
+                            <li v-if="unreadStored > 0" class="d-flex justify-content-between px-3 py-1 small">
+                                <a href="#" @click.prevent="readAllStored">Mark all read</a>
+                                <Link href="/my-notifications">See all</Link>
                             </li>
                             <li v-for="row in notificationRows" :key="row.key">
                                 <Link class="dropdown-item d-flex justify-content-between gap-3" :href="row.href">
