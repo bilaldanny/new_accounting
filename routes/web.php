@@ -1532,6 +1532,7 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('help', fn () => Inertia::render('help/index'))->name('help');
     Route::get('systemcenter', fn () => Inertia::render('systemcenter/index'))->name('systemcenter');
     Route::get('franchise', fn () => Inertia::render('franchise/index'))->name('franchise');
+    Route::get('hrm', fn () => Inertia::render('hrm/index'))->name('hrm');
     Route::get('reportbuilder', fn () => Inertia::render('reportbuilder/index'))->name('reportbuilder');
     Route::get('approvalcenter', fn () => Inertia::render('approvalcenter/index'))->name('approvalcenter');
     Route::get('saasadmin', fn () => Inertia::render('saasadmin/index'))->name('saasadmin');

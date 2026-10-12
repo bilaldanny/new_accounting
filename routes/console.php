@@ -36,3 +36,6 @@ Schedule::command('documents:send-reminders')->dailyAt('08:00');
 // Exchange rates from each company's feed, and the retention of logs.
 Schedule::command('currency:sync-rates')->dailyAt('07:00');
 Schedule::command('system:apply-retention')->dailyAt('02:30');
+
+// HR: employee documents that expire soon or have expired.
+Schedule::command('hrm:document-alerts')->dailyAt('08:30');

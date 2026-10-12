@@ -28,7 +28,7 @@ final class RolePresets
                 '/chart-of-account', '/opening-balance', '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer',
                 '/creditdebitnote', '/bankreconciliation', '/assetcategory', '/fixedasset', '/depreciation', '/costcenter', '/budget',
                 '/taxexemption', '/tax', '/financialyear', '/landedcost', '/period-lock', '/supplierpayment',
-                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/journalschedule', '/baddebt', '/dunning', '/project', '/foreigncurrency', '/interbranch',
+                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/journalschedule', '/baddebt', '/dunning', '/project', '/foreigncurrency', '/interbranch', '/hrm',
             ],
             'view' => [
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',
@@ -36,7 +36,7 @@ final class RolePresets
                 '/report/financial-ratios', '/report/vouchers', '/report/expense', '/report/payment-account', '/report/customer-outstanding',
                 '/report/supplier-outstanding', '/report/customer-aging', '/report/supplier-aging', '/report/payment-age', '/cashflowforecast', '/valuation',
                 '/report/profit-loss-comparative', '/report/balance-sheet-comparative', '/report/cash-flow-indirect', '/report/withholding-tax', '/report/tax-exemption',
-                '/report/tax-liability', '/report/advance', '/report/stock-take', '/report/fbr-audit-trail', '/analytics', '/reportbuilder', '/setup', '/help',
+                '/report/tax-liability', '/report/advance', '/report/stock-take', '/report/fbr-audit-trail', '/report/payroll-register', '/report/statutory-liability', '/report/attendance-summary', '/report/loan-balances', '/analytics', '/reportbuilder', '/setup', '/help',
             ],
             'exclude' => ['/period-lock/reopen', '/period-lock/override'],
             'approvals' => false,
@@ -58,7 +58,7 @@ final class RolePresets
             'view' => [
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',
-                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support', '/documentcenter',
+                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support', '/documentcenter', '/hrm',
                 '/analytics', '/reportbuilder', '/setup', '/help', '/report/sales-by-salesperson', '/report/sales-by-warehouse', '/report/sales-by-payment-method', '/report/sales-forecast',
                 '/report/commission-report', '/report/target-achievement', '/report/profit-by-customer', '/report/profit-by-branch', '/report/profit-by-salesperson',
                 '/report/profit-by-warehouse',

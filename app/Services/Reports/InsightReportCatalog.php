@@ -36,6 +36,10 @@ class InsightReportCatalog
         'tax-exemption' => ['Tax Exemptions Used', '/report/tax-exemption', false],
         'tax-liability' => ['Tax Liability Reconciliation', '/report/tax-liability', true],
         'fbr-audit-trail' => ['FBR Submission Audit Trail', '/report/fbr-audit-trail', false],
+        'payroll-register' => ['Payroll Register', '/report/payroll-register', true],
+        'statutory-liability' => ['Statutory Liability', '/report/statutory-liability', true],
+        'attendance-summary' => ['Attendance Summary', '/report/attendance-summary', true],
+        'loan-balances' => ['Employee Loan Balances', '/report/loan-balances', true],
     ];
 
     /**
@@ -96,6 +100,14 @@ class InsightReportCatalog
                 return $result(app(TaxLiabilityReport::class));
             case 'fbr-audit-trail':
                 return $result(app(FbrAuditTrailReport::class));
+            case 'payroll-register':
+                return $result(app(PayrollRegisterReport::class));
+            case 'statutory-liability':
+                return $result(app(StatutoryLiabilityReport::class));
+            case 'attendance-summary':
+                return $result(app(AttendanceSummaryReport::class));
+            case 'loan-balances':
+                return $result(app(LoanBalancesReport::class));
         }
 
         abort(404);

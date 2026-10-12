@@ -15,15 +15,17 @@ with a throw-away test), `npm run build`, Dusk only with the inline sqlite env, 
 | 4 | Reports & analytics | built (FBR audit trail Partial = stub, scheduled email delivery Partial), see `closeout-wave4.md` |
 | 5 | Documents & communication | built (PDF, QR, live delivery Partial), see `closeout-wave5.md` |
 | 6 | Settings & system setup | built (rate sync, push, remote backup, cash drawer, language, Tally / QuickBooks Partial), see `closeout-wave6.md` |
-| 7 | HRM & payroll | not started |
+| 7 | HRM & payroll | built (device sync, payslip email, bank file, gratuity Partial), see `closeout-wave7.md` |
 | 8 | Manufacturing + advanced | not started |
 
 ## Next
 
-Wave 5 (Documents & communication, 13 items): block-based invoice designer (JSON sanitised), templates by branch / type with a default,
-branding with a CSS allowlist, header / footer / T&C / signature / QR, custom fields on the invoice (shared with wave 6), multi-language
-printing, export and send (PDF / thermal / Excel / link / email / WhatsApp), email / SMS / WhatsApp templates, due and overdue reminders
-through the schedule engine, instant delivery, attachments. Reuse `MessageDispatcher`, `Dunning` templates, `ReportScheduler::csv`.
+Wave 8 (Manufacturing 10 items + Advanced 15 items): see the plan at the top of the request: multi-level versioned BOM, MPS, work
+orders, material issue, FG receipt with by / co-products, WIP, overhead and direct labour costing, scrap, production QC, reports (GL
+guarded, off by default); then repair / service job cards, parts, warranty claims, rental, deposits, late / damage billing, projects,
+field service, digital signature, PWA, e-commerce storefront, expense claims. A tracker table of waves 1-6 is in
+`docs/tracker-sync-waves-1-6.md` (its follow-up list names the open code rows: six dashboard rows, approver picker, price-list
+approval, drag-and-drop canvas, language coverage, cash drawer in the POS).
 
 ## Shared pieces built so far (reuse them)
 
@@ -33,6 +35,7 @@ through the schedule engine, instant delivery, attachments. Reuse `MessageDispat
 `integration_accounts` (encrypted credentials) with `Http::fake` fixtures in `tests/Fixtures/integrations/`, `InsightReportCatalog` (add a
 report key there + `composables/report.ts` + menu row), `ReportBuilder` whitelist, `ReportScheduler`, `SalesKpiStatement`, `Documents\*` (`DocumentBlocks` whitelist, `DocumentRenderer`,
 `DocumentTemplates`, `MessageTemplates`, `DocumentDelivery`, `DocumentReminders`, `CustomFields`, `QrCode`, `XlsxWriter`),
+`Hrm\*` (`HrSettings`, `AttendanceService`, `LeaveService`, `PayrollEngine`, `PayrollPosting`, `PayslipRenderer`),
 `System\*` (`BusinessSettings`, `BranchTree`, `ExchangeRateSync`, `WebPush`, `DataTransfer`, `ImportHistory`, `DataMigration`, `BackupTools`,
 `DataRetention`, `SystemLogs`, `FranchiseGroups`, `SetupWizard`, `DemoCompany`, `NotificationTemplates`).
 

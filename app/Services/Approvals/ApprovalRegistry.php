@@ -39,6 +39,8 @@ final class ApprovalRegistry
             'cashcollection' => ['label' => 'Cash collection', 'prefix' => 'cash-collection-approvals', 'permission' => '/cashcollection/approval', 'table' => 'cash_collections', 'number' => 'reference', 'amount' => 'amount', 'branch' => 'branch_id', 'creator' => 'collected_by', 'pending' => fn (Builder $q): Builder => $q->where('status', 'pending')],
             'creditlimit' => ['label' => 'Credit limit request', 'prefix' => 'credit-limit-approvals', 'permission' => '/creditlimit/approval', 'table' => 'credit_limit_requests', 'number' => 'id', 'amount' => 'requested_limit', 'branch' => null, 'creator' => 'requested_by', 'pending' => fn (Builder $q): Builder => $q->where('status', 'pending')],
             'salesorder' => ['label' => 'Sales order', 'prefix' => 'sales-orders', 'permission' => '/salesorder/approve', 'table' => 'sales_orders', 'number' => 'order_no', 'amount' => 'total', 'branch' => 'branch_id', 'creator' => 'created_by', 'pending' => fn (Builder $q): Builder => $q->where('status', 'pending_approval')],
+            'leave' => ['label' => 'Leave request', 'prefix' => 'leave-requests', 'permission' => '/hrm/leave/approve', 'table' => 'leave_requests', 'number' => 'id', 'amount' => 'days', 'branch' => 'branch_id', 'creator' => 'created_by', 'pending' => fn (Builder $q): Builder => $q->where('status', 'pending')],
+            'payroll' => ['label' => 'Payroll run', 'prefix' => 'payroll-runs', 'permission' => '/hrm/payroll/approve', 'table' => 'payroll_runs', 'number' => 'period', 'amount' => null, 'branch' => 'branch_id', 'creator' => 'created_by', 'pending' => fn (Builder $q): Builder => $q->where('status', 'draft')],
         ];
     }
 

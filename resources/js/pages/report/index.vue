@@ -654,12 +654,12 @@
                     <input id="report-filter-compare-date" v-model="state.search.compare_end" type="date" class="form-control form-control-sm" />
                 </div>
 
-                <template v-if="config.filters.monthSubject">
+                <template v-if="config.filters.monthSubject || config.filters.monthOnly">
                     <div class="col-md-4 col-lg-3 admin-filter-field">
                         <label class="form-label" for="report-filter-period">Month</label>
                         <input id="report-filter-period" v-model="state.search.period" type="month" class="form-control form-control-sm" />
                     </div>
-                    <div class="col-md-4 col-lg-3 admin-filter-field">
+                    <div v-if="config.filters.monthSubject" class="col-md-4 col-lg-3 admin-filter-field">
                         <label class="form-label" for="report-filter-subject">Who</label>
                         <select id="report-filter-subject" v-model="state.search.subject" class="form-select form-select-sm">
                             <option v-for="option in SUBJECTS" :key="option.value" :value="option.value">

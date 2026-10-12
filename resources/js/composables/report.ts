@@ -82,7 +82,11 @@ export type ReportKey =
     | 'withholding-tax'
     | 'tax-exemption'
     | 'tax-liability'
-    | 'fbr-audit-trail';
+    | 'fbr-audit-trail'
+    | 'payroll-register'
+    | 'statutory-liability'
+    | 'attendance-summary'
+    | 'loan-balances';
 
 export type ReportColumn = {
     key: string;
@@ -144,6 +148,8 @@ export type ReportFilters = {
     compare?: 'period' | 'date';
     /** A month picker (Y-m) and the agent / salesperson / cashier selector of the commission and target reports. */
     monthSubject?: boolean;
+    /** A month picker (Y-m) alone: payroll reports. */
+    monthOnly?: boolean;
     /** The receivable / payable selector of the withholding tax report. */
     withholdingSides?: boolean;
 };
@@ -1247,6 +1253,99 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             { key: 'failed', label: 'Failed', kind: 'count' },
         ],
         searchPlaceholder: 'Invoice or FBR number',
+    },
+    'payroll-register': {
+        title: 'Payroll Register',
+        subtitle: 'One row per employee of the approved or posted payroll of the chosen month: earnings, deductions, tax and net pay. A draft payroll is not shown.',
+        exportName: 'payroll-register',
+        filters: { requiresCompany: true, monthOnly: true },
+        columns: [
+            text('employee_no', 'No', MID),
+            text('name', 'Employee', ALL, 'primary'),
+            money('gross', 'Gross', MID),
+            money('attendance_deduction', 'Attendance', WIDE),
+            money('statutory_employee', 'Deductions', WIDE),
+            money('tax', 'Tax', MID),
+            money('loan_deduction', 'Loan', WIDE),
+            money('net', 'Net pay'),
+        ],
+        summary: [
+            { key: 'employees', label: 'Employees', kind: 'count' },
+            { key: 'gross', label: 'Gross' },
+            { key: 'statutory_employer', label: 'Employer contributions' },
+            { key: 'tax', label: 'Tax withheld' },
+            { key: 'net', label: 'Net pay', accent: true },
+        ],
+        searchPlaceholder: 'Employee name or number',
+    },
+    'statutory-liability': {
+        title: 'Statutory Liability',
+        subtitle: 'What is owed to the statutory bodies and the tax office from approved or posted payrolls in the range, by contribution code and side. Rates are the ones your accountant entered; verify them with your accountant.',
+        exportName: 'statutory-liability',
+        filters: { requiresCompany: true },
+        columns: [
+            text('code', 'Code', MID, 'primary'),
+            text('name', 'Name', ALL),
+            text('side', 'Side', MID),
+            count('employees', 'Employees', WIDE),
+            money('amount', 'Amount'),
+        ],
+        summary: [
+            { key: 'employee_share', label: 'Withheld from employees' },
+            { key: 'employer_share', label: 'Employer share' },
+            { key: 'income_tax', label: 'Income tax withheld' },
+            { key: 'total', label: 'Total owed', accent: true },
+        ],
+        searchPlaceholder: '',
+    },
+    'attendance-summary': {
+        title: 'Attendance Summary',
+        subtitle: 'Days present, absent and on leave, minutes late and early and overtime minutes per employee. Defaults to the last 30 days.',
+        exportName: 'attendance-summary',
+        filters: { requiresCompany: true },
+        columns: [
+            text('employee_no', 'No', MID),
+            text('name', 'Employee', ALL, 'primary'),
+            count('present', 'Present', MID),
+            count('absent', 'Absent', MID),
+            count('leave_days', 'Paid leave', WIDE),
+            count('unpaid_leave', 'Unpaid leave', WIDE),
+            count('late_minutes', 'Late min', WIDE),
+            count('overtime_minutes', 'Overtime min', WIDE),
+        ],
+        summary: [
+            { key: 'employees', label: 'Employees', kind: 'count' },
+            { key: 'present', label: 'Days present', kind: 'count' },
+            { key: 'absent', label: 'Days absent', kind: 'count', accent: true },
+            { key: 'overtime_minutes', label: 'Overtime minutes', kind: 'count' },
+        ],
+        searchPlaceholder: 'Employee name or number',
+    },
+    'loan-balances': {
+        title: 'Employee Loan Balances',
+        subtitle: 'Loans and salary advances given to employees, what payroll recovered and what is still owed.',
+        exportName: 'employee-loan-balances',
+        filters: {
+            requiresCompany: true,
+            statuses: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'closed', label: 'Closed' }],
+            defaultStatus: 'all',
+        },
+        columns: [
+            text('employee_no', 'No', MID),
+            text('name', 'Employee', ALL, 'primary'),
+            text('kind', 'Kind', MID),
+            money('amount', 'Given', MID),
+            money('recovered', 'Recovered', WIDE),
+            money('balance', 'Balance'),
+            text('status', 'Status', WIDE),
+        ],
+        summary: [
+            { key: 'loans', label: 'Loans', kind: 'count' },
+            { key: 'amount', label: 'Given' },
+            { key: 'recovered', label: 'Recovered' },
+            { key: 'balance', label: 'Still owed', accent: true },
+        ],
+        searchPlaceholder: 'Employee name or number',
     },
     'sales-discount': {
         title: 'Sales Discount Report',

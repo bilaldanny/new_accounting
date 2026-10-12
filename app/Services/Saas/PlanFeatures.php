@@ -30,7 +30,7 @@ class PlanFeatures
         'projects' => ['Project costing', ['api/projects']],
         'ecommerce' => ['E-commerce sync', ['api/ecommerce-connections']],
         'api_access' => ['API keys and webhooks', ['api/api-keys', 'api/webhooks']],
-        'hrm' => ['HR and payroll', ['api/hrm']],
+        'hrm' => ['HR and payroll', ['api/hrm', 'api/leave-requests', 'api/payroll-runs']],
         'manufacturing' => ['Manufacturing', ['api/manufacturing']],
         'reports_builder' => ['Custom report builder', ['api/report-builder', 'api/report-schedules']],
     ];
