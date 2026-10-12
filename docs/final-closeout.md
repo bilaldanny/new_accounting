@@ -11,6 +11,16 @@ throw-away SQLite file on port 8099 with the inline environment and the `APP_URL
 Status words: **Built** = built and proven by tests here; **Partial** = built, but a stated part cannot be proven without an
 outside account or was left out on purpose (the reason is given); **Not built** = not built (the reason is given).
 
+## Test numbers
+
+* Full Pest suite: **3,727 tests, 3,727 passed, 21,766 assertions** (`php -d memory_limit=-1 vendor/bin/pest`, about 21 minutes).
+* New Pest tests in this closeout: 53 (advances 3, valuation 7, journal schedules 9, bad debt 3, dunning 4, projects 3, foreign
+  currency 5, inter-branch 4, offline POS sync 7, channel adapters 8).
+* Dusk (real Chrome, throw-away SQLite on port 8099): `OfflinePosTest` (network switched off at the browser; 35 assertions) and the
+  page-load tests of the 9 new pages plus Messaging Settings (10 tests), all passed.
+* `RolePresetAccessTest` fixtures and `live-menus.json` regenerated; Pint clean.
+* The task listed 13 items (Sales 3, Accounts 10, Inventory 2); those numbers add up to 15, and all 15 are in the table at the end.
+
 ## Live migrations, in this order
 
 None has been run live. The code tolerates the new tables / columns being absent, so deploying before migrating changes nothing.
