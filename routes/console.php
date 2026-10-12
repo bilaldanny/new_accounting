@@ -13,3 +13,6 @@ Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00');
 
 // Standing (recurring) invoices that have come due, once a day.
 Schedule::command('invoices:generate-recurring')->dailyAt('03:00');
+
+// Journal schedules (recurring / reversing journals, recurring expenses, amortization, accruals), once a day.
+Schedule::command('journals:run-schedules')->dailyAt('03:30');

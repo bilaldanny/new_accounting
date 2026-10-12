@@ -57,5 +57,6 @@ require __DIR__.'/Support/voucherApproval.php';
 require __DIR__.'/Support/transactionReports.php';
 require __DIR__.'/Support/partyReports.php';
 require __DIR__.'/Support/productReports.php';
+require __DIR__.'/Support/finalCloseout.php';
 require __DIR__.'/Support/ledgerReports.php';
 require __DIR__.'/Browser/Support/browser.php';

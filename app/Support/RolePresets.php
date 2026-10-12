@@ -28,7 +28,7 @@ final class RolePresets
                 '/chart-of-account', '/opening-balance', '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer',
                 '/creditdebitnote', '/bankreconciliation', '/assetcategory', '/fixedasset', '/depreciation', '/costcenter', '/budget',
                 '/taxexemption', '/tax', '/financialyear', '/landedcost', '/period-lock', '/supplierpayment',
-                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation',
+                '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/journalschedule',
             ],
             'view' => [
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',

@@ -32,7 +32,7 @@ class TAccount extends Model
      */
     public static function periodLockBookkeeping(): array
     {
-        return ['updated_at', 'updated_by', 'printed_at', 'printed_by', 'is_print'];
+        return ['updated_at', 'updated_by', 'printed_at', 'printed_by', 'is_print', 'reversed_by_id'];
     }
 
     use Auditable;
@@ -94,6 +94,8 @@ class TAccount extends Model
         'printed_at',
         'approved_at',
         'rejected_at',
+        'reversal_of_id',
+        'reversed_by_id',
     ];
 
     /**

@@ -75,6 +75,7 @@ use App\Http\Controllers\InventoryCloseController;
 use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ItemTypeController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\JournalScheduleController;
 use App\Http\Controllers\LandedCostController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadSourceController;
@@ -1280,6 +1281,17 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('journal-schedules', [JournalScheduleController::class, 'index']);
+    Route::post('journal-schedules', [JournalScheduleController::class, 'store']);
+    Route::get('journal-schedules/preview', [JournalScheduleController::class, 'preview']);
+    Route::post('journal-schedules/run', [JournalScheduleController::class, 'run']);
+    Route::put('journal-schedules/{id}', [JournalScheduleController::class, 'update'])->whereNumber('id');
+    Route::delete('journal-schedules/{id}', [JournalScheduleController::class, 'destroy'])->whereNumber('id');
+    Route::get('journal-schedules/{id}/runs', [JournalScheduleController::class, 'runs'])->whereNumber('id');
+    Route::post('journal-schedules/{id}/pause', fn (int $id) => app(JournalScheduleController::class)->setStatus($id, 'paused'))->whereNumber('id');
+    Route::post('journal-schedules/{id}/resume', fn (int $id) => app(JournalScheduleController::class)->setStatus($id, 'active'))->whereNumber('id');
+    Route::post('journal-schedules/{id}/cancel', fn (int $id) => app(JournalScheduleController::class)->setStatus($id, 'cancelled'))->whereNumber('id');
 
     Route::get('valuation', [ValuationController::class, 'show']);
     Route::post('valuation/method', [ValuationController::class, 'setMethod']);

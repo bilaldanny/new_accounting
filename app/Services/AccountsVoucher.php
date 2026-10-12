@@ -15,11 +15,12 @@ use Illuminate\Validation\ValidationException;
 class AccountsVoucher
 {
     /**
-     * @param  list<array{account_id: int, debit?: float, credit?: float, contact_id?: int|null, description?: string}>  $lines
+     * @param  list<array{account_id: int, debit?: float, credit?: float, contact_id?: int|null, description?: string, cost_center_id?: int|null, project_id?: int|null}>  $lines
+     * @param  string  $voucherType  JV for a journal, EXP for an expense voucher (the company's expense approval rule then applies)
      *
      * @throws ValidationException
      */
-    public function post(int $companyId, ?int $branchId, string $date, array $lines, string $comments, string $reference = ''): TAccount
+    public function post(int $companyId, ?int $branchId, string $date, array $lines, string $comments, string $reference = '', string $voucherType = 'JV'): TAccount
     {
         $details = [];
 
@@ -37,13 +38,15 @@ class AccountsVoucher
                 'credit' => round((float) ($line['credit'] ?? 0), 2),
                 'contact_id' => $line['contact_id'] ?? null,
                 'description' => $line['description'] ?? $comments,
+                'cost_center_id' => $line['cost_center_id'] ?? null,
+                'project_id' => $line['project_id'] ?? null,
             ];
         }
 
         return TAccount::createJournalEntry(new Request([
             'company_id' => $companyId,
             'branch_id' => $branchId,
-            'voucher_type' => 'JV',
+            'voucher_type' => $voucherType,
             'voucher_date' => $date,
             'ref_no' => $reference,
             'comments' => $comments,
