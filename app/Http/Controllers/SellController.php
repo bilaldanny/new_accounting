@@ -13,6 +13,7 @@ use App\Models\SaleLoyaltyRedemption;
 use App\Models\Transaction;
 use App\Services\CustomerCreditLimit;
 use App\Services\DisplayCurrency;
+use App\Services\Documents\DocumentDelivery;
 use App\Services\LoyaltyPoints;
 use App\Services\SaleIncentives;
 use App\Services\SellJournal;
@@ -188,6 +189,8 @@ class SellController extends Controller
 
             return response()->json(['errormessage' => $e->getMessage()], 500);
         }
+
+        app(DocumentDelivery::class)->afterSale($sell);
 
         return response()->json([
             'message' => 'Successfully Saved',

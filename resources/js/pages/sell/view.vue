@@ -5,6 +5,7 @@
     import { Head, router, setLayoutProps } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
+    import DocumentTools from '@/components/DocumentTools.vue';
     import ViewFields from './ViewFields.vue';
 
     const pageProps = defineProps({
@@ -80,6 +81,8 @@
             <Loader v-if="!pageReady" message="Loading sell…" />
 
             <ViewFields v-else :note="viewData" />
+
+            <DocumentTools v-if="pageReady" :id="recordId" :can-edit="can('/sell/:id/edit')" />
 
             <div class="product-form-page__footer purchase-approval-page__footer">
                 <div class="product-form-page__actions">

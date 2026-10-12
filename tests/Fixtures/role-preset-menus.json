@@ -285,6 +285,7 @@
         "/deposit/:id/approve",
         "/deposit/:id/reject",
         "/deposit/approval",
+        "/documentcenter",
         "/expense",
         "/expense/:id/approve",
         "/expense/:id/reject",

@@ -58,7 +58,7 @@ final class RolePresets
             'view' => [
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',
-                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support',
+                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support', '/documentcenter',
                 '/analytics', '/reportbuilder', '/report/sales-by-salesperson', '/report/sales-by-warehouse', '/report/sales-by-payment-method', '/report/sales-forecast',
                 '/report/commission-report', '/report/target-achievement', '/report/profit-by-customer', '/report/profit-by-branch', '/report/profit-by-salesperson',
                 '/report/profit-by-warehouse',

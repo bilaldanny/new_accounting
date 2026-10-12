@@ -97,6 +97,7 @@ dataset('company pages', [
     'offline pos sales' => ['/posoffline', 'Offline POS Sales', 'table'],
     'offline pos terminal' => ['/sell/pos/offline', 'Offline POS', 'table'],
     'approval center' => ['/approvalcenter', 'Approval Center', 'table'],
+    'document center' => ['/documentcenter', 'Document Center', null],
     'analytics' => ['/analytics', 'Analytics', null],
     'report builder' => ['/reportbuilder', 'Report Builder', null],
     'comparative profit and loss' => ['/report/profit-loss-comparative', 'Comparative Profit & Loss', null],

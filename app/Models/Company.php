@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -666,6 +667,10 @@ class Company extends Model
 
         if (Schema::hasTable('contact_attachments')) {
             $bytes += (int) ContactAttachment::query()->where('company_id', $this->id)->sum('size');
+        }
+
+        if (Schema::hasTable('document_attachments')) {
+            $bytes += (int) DB::table('document_attachments')->where('company_id', $this->id)->sum('size');
         }
 
         return $bytes;

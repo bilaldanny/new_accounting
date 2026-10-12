@@ -6,10 +6,14 @@ use App\Models\Company;
 use App\Models\Contact;
 use App\Models\ReceiptShare;
 use App\Models\Transaction;
+use App\Services\Documents\DocumentData;
+use App\Services\Documents\DocumentRenderer;
+use App\Services\Documents\DocumentTemplates;
 use App\Services\MessageDispatcher;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -89,7 +93,7 @@ class ReceiptShareController extends Controller
     /**
      * The public receipt page behind a share link.
      */
-    public function show(string $token): View
+    public function show(string $token): View|Response
     {
         $share = ReceiptShare::query()->where('token', $token)->first();
 
@@ -97,6 +101,16 @@ class ReceiptShareController extends Controller
 
         $sale = Transaction::query()->withTrashed()->find($share->transaction_id);
         abort_if($sale === null || $sale->trashed(), 404);
+
+        // A company that made a default receipt template in the Document Center prints its public receipt with it;
+        // without one the page below is exactly what it always was.
+        if (DocumentTemplates::available() && DB::table('document_templates')->where('company_id', $sale->company_id)->where('doc_type', 'receipt')->where('is_default', true)->where('is_active', true)->whereNull('deleted_at')->exists()) {
+            $template = app(DocumentTemplates::class)->resolve((int) $sale->getRawOriginal('company_id'), $sale->branch_id === null ? null : (int) $sale->branch_id, 'receipt');
+            $data = app(DocumentData::class)->forTransaction($sale, route('receipt.public', ['token' => $token]));
+            $data['doc']['type'] = 'receipt';
+
+            return response(app(DocumentRenderer::class)->render($template, $data), 200, ['Content-Type' => 'text/html; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff']);
+        }
 
         $lines = DB::table('sell_lines')
             ->leftJoin('products', 'products.id', '=', 'sell_lines.product_id')
