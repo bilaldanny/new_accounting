@@ -3,7 +3,7 @@
 namespace App\Services\Ecommerce;
 
 use App\Models\EcommerceConnection;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 
 /**
  * What the sync needs from a web-shop platform: its orders since a moment, each reduced to one common shape:
@@ -18,5 +18,5 @@ interface EcommerceAdapter
      *
      * @throws EcommerceNotConfigured
      */
-    public function fetchOrders(EcommerceConnection $connection, ?Carbon $since): array;
+    public function fetchOrders(EcommerceConnection $connection, ?CarbonInterface $since): array;
 }

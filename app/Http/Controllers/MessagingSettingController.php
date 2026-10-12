@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ScopesToCompany;
 use App\Models\MessagingSetting;
+use App\Services\MessageDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,7 +29,9 @@ class MessagingSettingController extends Controller
             return [
                 'channel' => $channel, 'provider' => $setting?->provider ?? 'none', 'endpoint' => $setting?->endpoint, 'sender' => $setting?->sender,
                 'is_active' => (bool) $setting?->is_active, 'has_credentials' => filled($setting?->credentials),
-                'configured' => $setting !== null && $setting->is_active && $setting->provider !== 'none' && filled($setting->endpoint),
+                'options' => (object) ($setting?->options ?? []),
+                'configured' => $setting !== null && $setting->is_active && $setting->provider !== 'none'
+                    && (MessageDispatcher::adapterFor((string) $setting->provider)?->isConfigured($setting) ?? false),
             ];
         })->values()]);
     }
@@ -46,6 +49,11 @@ class MessagingSettingController extends Controller
             'credentials' => 'nullable|string|max:500',
             'sender' => 'nullable|string|max:60',
             'is_active' => 'nullable|boolean',
+            'options' => 'nullable|array',
+            'options.template' => 'nullable|string|max:120',
+            'options.language' => 'nullable|string|max:12',
+            'options.api_version' => 'nullable|string|max:12',
+            'options.country_code' => 'nullable|string|max:4',
         ]);
 
         $companyId = $this->scopeCompanyId($request);
@@ -53,6 +61,7 @@ class MessagingSettingController extends Controller
         $setting->fill([
             'provider' => $data['provider'], 'endpoint' => $data['endpoint'] ?? null, 'sender' => $data['sender'] ?? null,
             'is_active' => (bool) ($data['is_active'] ?? false),
+            'options' => $data['options'] ?? null,
         ]);
 
         if (filled($data['credentials'] ?? null)) {

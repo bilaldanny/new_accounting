@@ -43,6 +43,13 @@ class EcommerceSync
         $result = ['fetched' => count($orders), 'imported' => 0, 'failed' => 0, 'skipped' => 0];
 
         foreach ($orders as $order) {
+            // a cancelled / failed / refunded web order is never a sale
+            if (! empty($order['cancelled'])) {
+                $result['skipped']++;
+
+                continue;
+            }
+
             $record = EcommerceOrder::query()->firstOrNew(['ecommerce_connection_id' => $connection->id, 'external_id' => (string) $order['external_id']]);
 
             if ($record->exists && $record->status === 'imported') {
