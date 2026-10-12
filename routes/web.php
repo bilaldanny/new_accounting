@@ -1284,6 +1284,7 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('warehousetask', fn () => Inertia::render('warehousetask/index'))->name('warehousetask');
     Route::get('stockwriteoff', fn () => Inertia::render('stockwriteoff/index'))->name('stockwriteoff');
     Route::get('inventoryclose', fn () => Inertia::render('inventoryclose/index'))->name('inventoryclose');
+    Route::get('valuation', fn () => Inertia::render('valuation/index'))->name('valuation');
     Route::get('purchaseapprovalrule', fn () => Inertia::render('purchaseapprovalrule/index'))->name('purchaseapprovalrule');
     Route::get('reordersuggestion', fn () => Inertia::render('reordersuggestion/index'))->name('reordersuggestion');
     Route::get('importpurchase', fn () => Inertia::render('importpurchase/index'))->name('importpurchase');

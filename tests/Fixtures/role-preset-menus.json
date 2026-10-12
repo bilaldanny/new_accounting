@@ -135,7 +135,8 @@
         "/taxexemption/delete",
         "/taxpayment",
         "/taxpayment/add",
-        "/taxpayment/delete"
+        "/taxpayment/delete",
+        "/valuation"
     ],
     "Cashier": [
         "/cashcollection",

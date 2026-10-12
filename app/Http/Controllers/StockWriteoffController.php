@@ -7,8 +7,8 @@ use App\Models\Product;
 use App\Models\ProductDetail;
 use App\Models\StockWriteoff;
 use App\Models\Transaction;
-use App\Services\Reports\AverageCost;
 use App\Services\StockMovements;
+use App\Services\Valuation\CostSource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -105,7 +105,7 @@ class StockWriteoffController extends Controller
             ];
         }
 
-        $costs = AverageCost::byVariation($companyId, $data['date']);
+        $costs = app(CostSource::class)->stockCosts($companyId, $data['date']);
         $value = 0.0;
 
         foreach ($lines as $line) {

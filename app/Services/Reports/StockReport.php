@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Services\StockMovements;
+use App\Services\Valuation\CostSource;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -56,7 +57,7 @@ class StockReport
         $endDate = trim((string) ($filters['end_date'] ?? ''));
         $asOf = $endDate !== '' ? $endDate : null;
         $byBranch = filter_var($filters['by_branch'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $costs = AverageCost::byVariation($companyId, $asOf);
+        $costs = app(CostSource::class)->stockCosts($companyId, $asOf);
 
         return $this->grouped($companyId, $branchId, $filters, $asOf, $byBranch)
             ->get()

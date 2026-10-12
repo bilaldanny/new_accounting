@@ -166,6 +166,7 @@ use App\Http\Controllers\TimezoneController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ValuationController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
 use App\Http\Controllers\WarehouseController;
@@ -1279,6 +1280,14 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('valuation', [ValuationController::class, 'show']);
+    Route::post('valuation/method', [ValuationController::class, 'setMethod']);
+    Route::post('valuation/standard-costs', [ValuationController::class, 'setStandardCosts']);
+    Route::get('valuation/variance', [ValuationController::class, 'variance']);
+    Route::get('valuation/reconciliation', [ValuationController::class, 'reconciliation']);
+    Route::get('valuation/recalculation', [ValuationController::class, 'preview']);
+    Route::post('valuation/recalculate', [ValuationController::class, 'recalculate']);
 
     Route::get('stock-writeoffs', [StockWriteoffController::class, 'index']);
     Route::post('stock-writeoffs', [StockWriteoffController::class, 'store']);

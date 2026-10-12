@@ -56,6 +56,34 @@ class AverageCost
             ->mapWithKeys(fn (object $row): array => [(int) $row->variation_id => (float) $row->average_cost]);
     }
 
+    /**
+     * The same rows the average is built from, one per purchase / opening-stock line (a cost layer): variation_id, layer_date,
+     * layer_id, qty (base units, net of returns) and cost (that quantity's cost with its landed cost). For FIFO costing
+     * (Services\Valuation\LayerCosting); the weighted average of these rows over a date is exactly byVariation().
+     */
+    public static function layerRows(int $companyId, ?string $from, string $to): Builder
+    {
+        $packing = self::PACKING;
+        $landed = 'coalesce(apl.landed_cost * (apl.quantity - apl.quantity_returned) / nullif(apl.quantity, 0), 0)';
+
+        if (self::openingCostsAreTracked()) {
+            $purchase = "apt.type = '".Transaction::TYPE_PURCHASE."'";
+            $quantity = "(case when {$purchase} then (apl.quantity - apl.quantity_returned) else apl.quantity_adjustment end) * {$packing}";
+            $cost = "(case when {$purchase} then apl.purchase_rate * (apl.quantity - apl.quantity_returned) * {$packing} + {$landed} else apl.opening_cost * apl.quantity_adjustment * {$packing} end)";
+        } else {
+            $quantity = "(apl.quantity - apl.quantity_returned) * {$packing}";
+            $cost = "(apl.purchase_rate * (apl.quantity - apl.quantity_returned) * {$packing} + {$landed})";
+        }
+
+        return self::base()
+            ->where('apt.company_id', $companyId)
+            ->when($from !== null, fn (Builder $query) => $query->whereDate('apt.transaction_date', '>=', $from))
+            ->whereDate('apt.transaction_date', '<=', $to)
+            ->selectRaw("apl.variation_id, apt.transaction_date as layer_date, apl.id as layer_id, {$quantity} as qty, {$cost} as cost")
+            ->orderBy('apt.transaction_date')
+            ->orderBy('apl.id');
+    }
+
     private static function base(): Builder
     {
         return DB::table('purchase_lines as apl')

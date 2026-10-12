@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Services\StockMovements;
+use App\Services\Valuation\CostSource;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -31,7 +32,7 @@ class StockValuation
             ->select('m.variation_id', DB::raw('sum(m.qty) as stock'))
             ->get();
 
-        $costs = AverageCost::byVariation($companyId, $asOf);
+        $costs = app(CostSource::class)->stockCosts($companyId, $asOf);
         $value = 0.0;
         $uncosted = 0;
 

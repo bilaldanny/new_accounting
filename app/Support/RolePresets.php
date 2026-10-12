@@ -34,7 +34,7 @@ final class RolePresets
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',
                 '/report/profit-loss', '/report/cash-flow', '/report/tax', '/report/budget-vs-actual', '/report/cost-center-analysis',
                 '/report/financial-ratios', '/report/vouchers', '/report/expense', '/report/payment-account', '/report/customer-outstanding',
-                '/report/supplier-outstanding', '/report/customer-aging', '/report/supplier-aging', '/report/payment-age', '/cashflowforecast',
+                '/report/supplier-outstanding', '/report/customer-aging', '/report/supplier-aging', '/report/payment-age', '/cashflowforecast', '/valuation',
             ],
             'exclude' => ['/period-lock/reopen', '/period-lock/override'],
             'approvals' => false,

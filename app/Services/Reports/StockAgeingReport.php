@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Services\StockMovements;
+use App\Services\Valuation\CostSource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +53,7 @@ class StockAgeingReport
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('p.name', 'like', "%{$search}%")->orWhere('p.sku', 'like', "%{$search}%")))
             ->get(['m.product_id', 'm.variation_id', 'm.qty', 'm.kind', 'm.document_date', 'p.name as product_name', 'p.sku', 'p.company_id']);
 
-        $costs = AverageCost::byVariation($companyId, $asOf);
+        $costs = app(CostSource::class)->stockCosts($companyId, $asOf);
 
         return $movements->groupBy('variation_id')->map(function (Collection $group, $variationId) use ($day, $costs): ?array {
             $stock = round((float) $group->sum('qty'), 4);
