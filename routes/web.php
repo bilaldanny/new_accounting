@@ -1508,6 +1508,7 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('yearclose', fn () => Inertia::render('yearclose/index'))->name('yearclose');
     Route::get('journalschedule', fn () => Inertia::render('journalschedule/index'))->name('journalschedule');
     Route::get('baddebt', fn () => Inertia::render('baddebt/index'))->name('baddebt');
+    Route::get('dunning', fn () => Inertia::render('dunning/index'))->name('dunning');
     Route::get('bankreconciliation/{id}', fn ($id) => Inertia::render('bankreconciliation/view', ['id' => $id]))->name('bankreconciliation.view');
     Route::get('posshift', fn () => Inertia::render('posshift/index'))->name('posshift');
     Route::get('assetcategory', fn () => Inertia::render('assetcategory/index'))->name('assetcategory');

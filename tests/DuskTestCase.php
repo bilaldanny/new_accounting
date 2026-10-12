@@ -251,7 +251,7 @@ abstract class DuskTestCase extends BaseTestCase
             '/productattribute', '/productdiscountrule', '/warrantyclaim', '/consignment', '/productbom', '/openingstock', '/stockreservation', '/warehousetask', '/stockwriteoff', '/inventoryclose', '/purchaseapprovalrule', '/reordersuggestion', '/importpurchase', '/qualityinspection', '/supplierpayment', '/inboundshipment', '/rma', '/chart-of-account', '/role', '/journalentry', '/journalentry/approval', '/expense', '/sell/pos', '/cashcollection', '/cashcollection/reverse',
             '/quotation', '/salesorder', '/storecredit', '/chequemanagement', '/cashier', '/rider', '/dispatch', '/saleskpi', '/salesroute', '/recurringinvoice',
             '/installment', '/ecommerce', '/messagingsetting', '/salesimport',
-            '/valuation', '/journalschedule', '/baddebt', '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/cashflowforecast', '/yearclose',
+            '/valuation', '/journalschedule', '/baddebt', '/dunning', '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/cashflowforecast', '/yearclose',
         ];
 
         $paths = [];
@@ -264,7 +264,7 @@ abstract class DuskTestCase extends BaseTestCase
             '/salesorder/approve', '/salesorder/invoice', '/quotation/convert', '/storecredit/refund', '/storecredit/apply', '/dispatch/assign', '/saleskpi/edit',
             '/salesroute/visit', '/recurringinvoice/generate', '/installment/pay', '/ecommerce/sync', '/messagingsetting/edit', '/sell/import',
             '/pettycash/expense', '/pettycash/replenish', '/chequeprint/layout', '/chequeprint/print', '/loan/pay', '/paymentterm/assign', '/paymentterm/discount',
-            '/allocation/apply', '/yearclose/run', '/bankreconciliation/charge', '/baddebt/add', '/baddebt/approve', '/baddebt/reverse', '/baddebt/settings', '/baddebt/provision', '/journalschedule/add', '/journalschedule/:id/edit', '/journalschedule/delete', '/journalschedule/run', '/valuation/method', '/valuation/standard', '/valuation/recalculate', '/cashcollection/refund', '/supplierpayment/refund');
+            '/allocation/apply', '/yearclose/run', '/bankreconciliation/charge', '/dunning/levels', '/dunning/send', '/dunning/case', '/baddebt/add', '/baddebt/approve', '/baddebt/reverse', '/baddebt/settings', '/baddebt/provision', '/journalschedule/add', '/journalschedule/:id/edit', '/journalschedule/delete', '/journalschedule/run', '/valuation/method', '/valuation/standard', '/valuation/recalculate', '/cashcollection/refund', '/supplierpayment/refund');
 
         return array_values(array_unique($paths));
     }

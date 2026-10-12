@@ -58,6 +58,7 @@ use App\Http\Controllers\DepositController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\DocumentSettingController;
+use App\Http\Controllers\DunningController;
 use App\Http\Controllers\EcommerceConnectionController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FbrController;
@@ -1282,6 +1283,14 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('dunning/levels', [DunningController::class, 'levels']);
+    Route::put('dunning/levels/{level}', [DunningController::class, 'updateLevel'])->whereNumber('level');
+    Route::get('dunning/candidates', [DunningController::class, 'candidates']);
+    Route::post('dunning/send', [DunningController::class, 'send']);
+    Route::get('dunning/events', [DunningController::class, 'events']);
+    Route::get('dunning/cases', [DunningController::class, 'cases']);
+    Route::post('dunning/cases', [DunningController::class, 'setCase']);
 
     Route::get('bad-debt/settings', [BadDebtController::class, 'settings']);
     Route::put('bad-debt/settings', [BadDebtController::class, 'saveSettings']);
