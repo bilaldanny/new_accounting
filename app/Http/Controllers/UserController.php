@@ -6,6 +6,7 @@ use App\Actions\SendUserCredentials;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\User;
+use App\Rules\CompanyPasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -56,9 +57,9 @@ class UserController extends Controller
 
         if ($userId === null) {
             $rules['username'] = ['bail', 'required', 'string', 'max:200', $usernameRule];
-            $rules['password'] = ['bail', 'required', 'confirmed', $this->strongPasswordRule()];
+            $rules['password'] = ['bail', 'required', 'confirmed', $this->strongPasswordRule(), new CompanyPasswordPolicy(auth()->user()?->company_id === null ? null : (int) auth()->user()->company_id)];
         } else {
-            $rules['password'] = ['nullable', 'confirmed', $this->strongPasswordRule()];
+            $rules['password'] = ['nullable', 'confirmed', $this->strongPasswordRule(), new CompanyPasswordPolicy(auth()->user()?->company_id === null ? null : (int) auth()->user()->company_id)];
         }
 
         return $rules;

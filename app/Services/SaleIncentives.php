@@ -157,6 +157,7 @@ class SaleIncentives
      */
     private const DISCOUNT_REJECTIONS = [
         'inactive' => 'This discount is switched off.',
+        'not_approved' => 'This discount code is waiting for approval.',
         'not_started' => 'This discount is not valid yet.',
         'expired' => 'This discount has expired.',
         'min_purchase' => 'The sale is below the minimum amount for this discount.',

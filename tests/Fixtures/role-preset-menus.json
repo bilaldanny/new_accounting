@@ -255,6 +255,7 @@
         "/acpayment/:id/approve",
         "/acpayment/:id/reject",
         "/acpayment/approval",
+        "/approvalcenter",
         "/assetapproval",
         "/assetapproval/reject",
         "/baddebt/approve",
@@ -309,7 +310,8 @@
         "/stockadjustment",
         "/stockadjustment/approval",
         "/stocktransfer",
-        "/stocktransfer/approval"
+        "/stocktransfer/approval",
+        "/support"
     ],
     "Warehouse Keeper": [
         "/inboundshipment",

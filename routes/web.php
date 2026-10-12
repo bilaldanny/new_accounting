@@ -1515,6 +1515,16 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('project', fn () => Inertia::render('project/index'))->name('project');
     Route::get('foreigncurrency', fn () => Inertia::render('foreigncurrency/index'))->name('foreigncurrency');
     Route::get('interbranch', fn () => Inertia::render('interbranch/index'))->name('interbranch');
+    Route::get('security', fn () => Inertia::render('security/index'))->name('security');
+    Route::get('approvalcenter', fn () => Inertia::render('approvalcenter/index'))->name('approvalcenter');
+    Route::get('saasadmin', fn () => Inertia::render('saasadmin/index'))->name('saasadmin');
+    Route::get('tenant-billing', fn () => Inertia::render('tenant-billing/index'))->name('tenant-billing');
+    Route::get('integrations', fn () => Inertia::render('integrations/index'))->name('integrations');
+    Route::get('support', fn () => Inertia::render('support/index'))->name('support');
+    Route::get('leadallocation', fn () => Inertia::render('leadallocation/index'))->name('leadallocation');
+    Route::get('subscriptionbilling', fn () => Inertia::render('subscriptionbilling/index'))->name('subscriptionbilling');
+    Route::get('my-notifications', fn () => Inertia::render('mynotifications/index'))->name('mynotifications');
+    Route::get('dashboard/insights', fn () => Inertia::render('dashboardinsights/index'))->name('dashboard.insights');
     Route::get('bankreconciliation/{id}', fn ($id) => Inertia::render('bankreconciliation/view', ['id' => $id]))->name('bankreconciliation.view');
     Route::get('posshift', fn () => Inertia::render('posshift/index'))->name('posshift');
     Route::get('assetcategory', fn () => Inertia::render('assetcategory/index'))->name('assetcategory');

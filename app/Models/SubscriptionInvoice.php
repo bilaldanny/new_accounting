@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Saas\TenantLifecycle;
+use App\Services\Saas\TenantServices;
 use App\Services\WebhookDispatcher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -155,6 +158,9 @@ class SubscriptionInvoice extends Model
 
         $isRenewal = self::query()->where('company_id', $company->id)->exists();
         $amount = round((float) $plan->price, 2);
+        $addons = Schema::hasColumn('subscription_invoices', 'addons_amount')
+            ? app(TenantServices::class)->addonsTotal((int) $company->id, $periodStart->toDateString(), $periodEnd->toDateString())
+            : 0.0;
 
         $invoice = new self;
         $invoice->company_id = $company->id;
@@ -164,7 +170,12 @@ class SubscriptionInvoice extends Model
         $invoice->period_end = $periodEnd->toDateString();
         $invoice->amount = $amount;
         $invoice->discount_amount = 0;
-        $invoice->total_amount = $amount;
+
+        if ($addons > 0) {
+            $invoice->addons_amount = $addons;
+        }
+
+        $invoice->total_amount = round($amount + $addons, 2);
         $invoice->status = 'unpaid';
         $invoice->due_date = $periodEnd->toDateString();
         $invoice->save();
@@ -200,7 +211,7 @@ class SubscriptionInvoice extends Model
 
         $this->coupon_id = $coupon->id;
         $this->discount_amount = $coupon->discountFor((float) $this->amount);
-        $this->total_amount = round((float) $this->amount - (float) $this->discount_amount, 2);
+        $this->total_amount = round((float) $this->amount + (float) ($this->addons_amount ?? 0) - (float) $this->discount_amount, 2);
         $this->save();
 
         $coupon->redeem();
@@ -220,6 +231,11 @@ class SubscriptionInvoice extends Model
         $this->document = $document;
         $this->marked_paid_by = $markedPaidBy;
         $this->save();
+
+        // a company suspended for non-payment comes back once nothing is overdue
+        if (Schema::hasColumn('companies', 'suspended_at')) {
+            app(TenantLifecycle::class)->reactivateIfSettled((int) $this->company_id);
+        }
     }
 
     public function cancel(): void

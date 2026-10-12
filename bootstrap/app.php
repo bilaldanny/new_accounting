@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\ApprovalWorkflowGate;
 use App\Http\Middleware\DropArrayForScalarFields;
+use App\Http\Middleware\EnforceSecurity;
+use App\Http\Middleware\EnforceTenantPlan;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RestrictPortalUsers;
@@ -25,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [
             DropArrayForScalarFields::class,
             RestrictPortalUsers::class,
+            EnforceSecurity::class,
+            EnforceTenantPlan::class,
+            ApprovalWorkflowGate::class,
         ]);
 
         $middleware->redirectGuestsTo('/login');
@@ -33,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleAppearance::class,
             RestrictPortalUsers::class,
+            EnforceSecurity::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

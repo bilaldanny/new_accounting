@@ -56,7 +56,7 @@ final class RolePresets
             'view' => [
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',
-                '/cashflowforecast', '/loan', '/bankinstrument',
+                '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support',
             ],
             'exclude' => [],
             'approvals' => true,

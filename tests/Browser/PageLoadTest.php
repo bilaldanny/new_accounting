@@ -22,7 +22,7 @@ dataset('company pages', [
     'budgets' => ['/budget', 'Budgets', 'form'],
     'fixed asset approval' => ['/assetapproval', 'Fixed Asset Approval', 'form'],
     'bank reconciliation' => ['/bankreconciliation', 'Bank Reconciliation', 'form'],
-    'landed cost' => ['/landedcost', 'Landed Cost', 'table'],
+    'landed cost' => ['/landedcost', 'Landed Cost', null],
     'bulk price update' => ['/bulkpriceupdate', 'Bulk Price Update', 'form'],
     'warehouse stock report' => ['/report/warehouse-stock', 'Warehouse Stock', 'table'],
     'stock movement history' => ['/report/stock-movement-history', 'Stock Movement History', 'table'],
@@ -96,6 +96,15 @@ dataset('company pages', [
     'inter-branch transfers' => ['/interbranch', 'Inter-Branch Transfers', 'table'],
     'offline pos sales' => ['/posoffline', 'Offline POS Sales', 'table'],
     'offline pos terminal' => ['/sell/pos/offline', 'Offline POS', 'table'],
+    'approval center' => ['/approvalcenter', 'Approval Center', 'table'],
+    'tenant billing' => ['/tenant-billing', 'Subscription & Billing', 'table'],
+    'integrations' => ['/integrations', 'Integrations', 'table'],
+    'support tickets' => ['/support', 'Support Tickets', null],
+    'security center' => ['/security', 'Security Center', 'table'],
+    'lead allocation' => ['/leadallocation', 'Lead Allocation', 'table'],
+    'subscription billing' => ['/subscriptionbilling', 'Subscription Billing', 'table'],
+    'my notifications' => ['/my-notifications', 'My Notifications', null],
+    'dashboard insights' => ['/dashboard/insights', 'Dashboard Insights', 'table'],
 ]);
 
 dataset('platform pages', [

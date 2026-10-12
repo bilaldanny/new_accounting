@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * A discount rule for the Sell module: a percentage or a fixed amount off a sale, optionally behind a
@@ -121,7 +123,7 @@ class Discount extends Model
     /**
      * Why this rule cannot be used on a sale of $subtotal on $date, or null when it can.
      *
-     * @return 'inactive'|'not_started'|'expired'|'min_purchase'|null
+     * @return 'inactive'|'not_approved'|'not_started'|'expired'|'min_purchase'|null
      */
     public function rejectionReason(float $subtotal, CarbonInterface|string|null $date = null): ?string
     {
@@ -129,6 +131,7 @@ class Discount extends Model
 
         return match (true) {
             ! $this->is_active => 'inactive',
+            ($this->attributes['approval_status'] ?? 'approved') !== 'approved' => 'not_approved',
             $this->starts_at !== null && $day->lt($this->starts_at->copy()->startOfDay()) => 'not_started',
             $this->expires_at !== null && $day->gt($this->expires_at->copy()->startOfDay()) => 'expired',
             $subtotal < (float) $this->min_purchase_amount => 'min_purchase',
@@ -192,6 +195,13 @@ class Discount extends Model
         $discount->company_id = self::scopedCompanyId($request);
         $discount->fillDetails($request);
         $discount->is_active = $request->has('is_active') ? $request->boolean('is_active') : true;
+
+        // a company that put discount codes behind approval gets new codes as pending (see Approval Center)
+        if (Schema::hasColumn('discounts', 'approval_status') && Schema::hasTable('approval_settings')
+            && DB::table('approval_settings')->where('company_id', $discount->company_id)->value('discount_code_approval')) {
+            $discount->approval_status = 'pending';
+        }
+
         $discount->save();
 
         return $discount;

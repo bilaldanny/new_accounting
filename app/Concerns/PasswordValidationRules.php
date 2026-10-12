@@ -2,7 +2,9 @@
 
 namespace App\Concerns;
 
+use App\Rules\CompanyPasswordPolicy;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 
 trait PasswordValidationRules
@@ -14,7 +16,7 @@ trait PasswordValidationRules
      */
     protected function passwordRules(): array
     {
-        return ['required', 'string', Password::default(), 'confirmed'];
+        return ['required', 'string', Password::default(), 'confirmed', new CompanyPasswordPolicy(Auth::user()?->company_id === null ? null : (int) Auth::user()->company_id, Auth::user())];
     }
 
     /**
