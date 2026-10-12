@@ -32,4 +32,7 @@ return [
 
     'timeout_seconds' => (int) env('DB_BACKUP_TIMEOUT', 900),
 
+    // The mysql client used to restore a backup; empty derives it from the mysqldump path.
+    'restore_binary' => env('MYSQL_CLIENT_PATH'),
+
 ];

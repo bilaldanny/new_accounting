@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\Branch;
 use App\Services\ContactImporter;
+use App\Services\System\ImportHistory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,7 @@ trait ImportsContacts
             'allow_duplicates' => 'nullable|boolean',
             'company_id' => 'nullable|integer',
             'branch_id' => 'nullable|integer',
+            'file_name' => 'nullable|string|max:190',
         ]);
 
         $user = Auth::user();
@@ -43,6 +45,14 @@ trait ImportsContacts
             $request->boolean('dry_run'),
             $request->boolean('allow_duplicates'),
         );
+
+        if (! $result['dry_run'] && $result['ok']) {
+            app(ImportHistory::class)->record(
+                $companyId, $user?->id, $kind === 'supplier' ? 'suppliers' : 'customers',
+                array_values(array_filter(array_map(fn (array $row): ?int => $row['contact_id'] ?? null, $result['rows']))),
+                $result['summary'], 'file', $request->input('file_name'),
+            );
+        }
 
         $summary = $result['summary'];
         $label = $kind === 'supplier' ? 'supplier records' : 'customer records';

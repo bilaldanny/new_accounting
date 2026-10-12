@@ -326,7 +326,7 @@ class TenantLifecycle
      *
      * @return array<string, int>
      */
-    private function purge(int $companyId): array
+    public function purge(int $companyId): array
     {
         $deleted = [];
         $children = [

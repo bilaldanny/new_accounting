@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\CompanySetting;
+use App\Services\System\BusinessSettings;
 use App\Support\PublicBranding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -92,6 +93,8 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'setting' => $setting,
+            'numberFormat' => $user->company_id ? app(BusinessSettings::class)->all((int) $user->company_id)['number_format'] : BusinessSettings::DEFAULTS['number_format'],
+            'locale' => $user->company_id ? app(BusinessSettings::class)->all((int) $user->company_id)['language']['default'] : 'en',
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

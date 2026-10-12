@@ -1,4 +1,5 @@
 <script setup lang="ts">
+    import CustomFieldsPanel from '@/components/CustomFieldsPanel.vue';
     import { Head, router } from '@inertiajs/vue3';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
@@ -124,5 +125,6 @@
                 </TheForm>
             </div>
         </ProductFormChrome>
+        <CustomFieldsPanel v-if="pageReady" entity="product" :id="Number(recordId)" :can-edit="true" />
     </div>
 </template>

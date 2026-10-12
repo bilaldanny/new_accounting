@@ -16,6 +16,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { preferredLocale, setLocale } from '@/lang';
+import { setNumberFormat } from '@/utils/numberFormat';
 import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
 
 const VueformSsrStub = defineComponent({
@@ -269,12 +271,28 @@ router.on('start', () => {
     cleanupBootstrapModalArtifacts();
 });
 
+/** The company's number format and default language follow every page the server renders. */
+function applyCompanyPreferences(pageProps: Record<string, unknown> | undefined): void {
+    if (pageProps?.numberFormat) {
+        setNumberFormat(pageProps.numberFormat as Parameters<typeof setNumberFormat>[0]);
+    }
+
+    if (typeof pageProps?.locale === 'string') {
+        setLocale(preferredLocale(pageProps.locale));
+    }
+}
+
+router.on('navigate', (event) => {
+    applyCompanyPreferences(event.detail.page.props as Record<string, unknown>);
+});
+
 async function bootstrapClientApp(
     app: VueApp,
     el: Element | string,
     props: { initialPage?: { props?: Record<string, unknown> } },
 ): Promise<void> {
     await initializeClientLibraries();
+    applyCompanyPreferences(props.initialPage?.props);
 
     const updateCsrfToken = () => {
         if (typeof document === 'undefined') {

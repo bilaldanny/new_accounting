@@ -68,7 +68,7 @@ class ContactImporter
 
     /**
      * @param  array<string, mixed>  $row
-     * @return array{row: int, status: string, name: string, errors: list<string>, duplicate_of: ?string}
+     * @return array{row: int, status: string, name: string, errors: list<string>, duplicate_of: ?string, contact_id?: ?int}
      */
     private function importRow(string $kind, array $row, int $number, int $companyId, int $branchId, bool $allowDuplicates): array
     {
@@ -127,9 +127,12 @@ class ContactImporter
             'active' => true,
         ];
 
+        $createdId = null;
+
         try {
-            DB::transaction(function () use ($kind, $payload): void {
+            DB::transaction(function () use ($kind, $payload, &$createdId): void {
                 $contact = $kind === 'supplier' ? Contact::createSupplier($payload) : Contact::createCustomer($payload);
+                $createdId = (int) $contact->id;
                 $glId = $kind === 'supplier' ? $contact->supplier_gl_id : $contact->customer_gl_id;
 
                 if (round((float) $payload->opening_balance, 2) !== 0.0 && blank($glId)) {
@@ -149,6 +152,7 @@ class ContactImporter
         }
 
         $result['status'] = 'created';
+        $result['contact_id'] = $createdId;
 
         return $result;
     }

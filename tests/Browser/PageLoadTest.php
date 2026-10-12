@@ -98,6 +98,10 @@ dataset('company pages', [
     'offline pos terminal' => ['/sell/pos/offline', 'Offline POS', 'table'],
     'approval center' => ['/approvalcenter', 'Approval Center', 'table'],
     'document center' => ['/documentcenter', 'Document Center', null],
+    'business settings' => ['/businesssettings', 'Business Settings', null],
+    'setup wizard' => ['/setup', 'Setup Wizard', null],
+    'help center' => ['/help', 'Help Center', null],
+    'franchise overview' => ['/franchise', 'Franchise Overview', null],
     'analytics' => ['/analytics', 'Analytics', null],
     'report builder' => ['/reportbuilder', 'Report Builder', null],
     'comparative profit and loss' => ['/report/profit-loss-comparative', 'Comparative Profit & Loss', null],
@@ -122,6 +126,7 @@ dataset('platform pages', [
     'tenant directory' => ['/tenants', 'Tenant Directory', 'table'],
     'subscription invoices' => ['/subscriptioninvoices', 'Subscription Invoices', 'table'],
     'coupons' => ['/coupons', 'Coupons', 'table'],
+    'system center' => ['/systemcenter', 'System Center', '.nav-tabs'],
 ]);
 
 test('a company page opens with its heading and main element and without browser errors', function (string $path, string $heading, ?string $selector) {

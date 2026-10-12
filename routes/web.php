@@ -1527,6 +1527,11 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('security', fn () => Inertia::render('security/index'))->name('security');
     Route::get('analytics', fn () => Inertia::render('analytics/index'))->name('analytics');
     Route::get('documentcenter', fn () => Inertia::render('documentcenter/index'))->name('documentcenter');
+    Route::get('businesssettings', fn () => Inertia::render('businesssettings/index'))->name('businesssettings');
+    Route::get('setup', fn () => Inertia::render('setup/index'))->name('setup');
+    Route::get('help', fn () => Inertia::render('help/index'))->name('help');
+    Route::get('systemcenter', fn () => Inertia::render('systemcenter/index'))->name('systemcenter');
+    Route::get('franchise', fn () => Inertia::render('franchise/index'))->name('franchise');
     Route::get('reportbuilder', fn () => Inertia::render('reportbuilder/index'))->name('reportbuilder');
     Route::get('approvalcenter', fn () => Inertia::render('approvalcenter/index'))->name('approvalcenter');
     Route::get('saasadmin', fn () => Inertia::render('saasadmin/index'))->name('saasadmin');

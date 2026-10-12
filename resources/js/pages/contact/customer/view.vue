@@ -24,6 +24,7 @@
     import type { Component } from 'vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import ActivityTimeline from '@/components/ActivityTimeline.vue';
+    import CustomFieldsPanel from '@/components/CustomFieldsPanel.vue';
     import ContactDocuments from '../ContactDocuments.vue';
     import FiscalYearDateRange from '@/components/FiscalYearDateRange.vue';
     import Loader from '@/components/Loader.vue';
@@ -1049,6 +1050,7 @@
 
                         <div v-else-if="activeTab === 'documents'" class="customer-view-ledger">
                             <ContactDocuments kind="customer" :contact-id="contact.id" :can-manage="canManageDocuments" />
+                            <CustomFieldsPanel entity="contact" :id="contact.id" :can-edit="permissionPaths.includes('/customer/:id/edit')" />
                         </div>
 
                         <div v-else class="customer-view-empty">

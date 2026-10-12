@@ -1,0 +1,6 @@
+Name,Parent,Opening Balance,Address,Phone,Email
+Al Noor Traders,Sundry Debtors,"15,000.00 Dr",Shop 4 Main Bazaar,03001234567,alnoor@example.com
+Karachi Packaging,Sundry Creditors,"7,500.50 Cr",Site Area,03007654321,
+Zia Advance Customer,Sundry Debtors,"2,000.00 Cr",Lane 2,03005550000,
+Cash in Hand,Cash-in-Hand,"1,000.00 Dr",,,
+Rent Expense,Indirect Expenses,,,,

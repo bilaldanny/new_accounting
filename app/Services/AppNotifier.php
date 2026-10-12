@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Services\System\NotificationTemplates;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -31,6 +32,8 @@ class AppNotifier
         if ($user === null) {
             return;
         }
+
+        [$title, $body] = NotificationTemplates::apply($user->company_id === null ? null : (int) $user->company_id, $kind, $title, $body, $url);
 
         DB::table('app_notifications')->insert([
             'company_id' => $user->company_id, 'user_id' => $user->id, 'kind' => $kind, 'title' => mb_substr($title, 0, 160), 'body' => $body,
