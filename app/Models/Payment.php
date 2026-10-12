@@ -632,7 +632,7 @@ class Payment extends Model
      *
      * @throws ValidationException
      */
-    public static function createDocumentDiscount(Transaction $document, ChartOfAccount $discountAccount, float $amount, string $paidOn, string $note): self
+    public static function createDocumentDiscount(Transaction $document, ChartOfAccount $discountAccount, float $amount, string $paidOn, string $note, string $label = 'Early payment discount'): self
     {
         $amount = round($amount, 2);
 
@@ -675,7 +675,7 @@ class Payment extends Model
                 ['account' => $contactAccount, 'debit' => 0.0, 'credit' => $amount, 'contact_id' => $contact->id],
             ];
 
-        $journal = $ledger->postPayment($payment, $discountAccount, 'Early payment discount '.$document->invoice_no, $isPurchase ? 'PP' : 'SP', $lines);
+        $journal = $ledger->postPayment($payment, $discountAccount, $label.' '.$document->invoice_no, $isPurchase ? 'PP' : 'SP', $lines);
 
         $payment->t_account_id = $journal->id;
         $payment->save();

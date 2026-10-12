@@ -12,6 +12,7 @@ use App\Http\Controllers\AssetApprovalController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\BadDebtController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BankInstrumentController;
 use App\Http\Controllers\BankIssuerController;
@@ -1281,6 +1282,17 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('warehouse-tasks/{id}/progress', [WarehouseTaskController::class, 'progress'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/complete', [WarehouseTaskController::class, 'complete'])->whereNumber('id');
     Route::post('warehouse-tasks/{id}/cancel', [WarehouseTaskController::class, 'cancel'])->whereNumber('id');
+
+    Route::get('bad-debt/settings', [BadDebtController::class, 'settings']);
+    Route::put('bad-debt/settings', [BadDebtController::class, 'saveSettings']);
+    Route::get('bad-debt/invoices', [BadDebtController::class, 'invoices']);
+    Route::get('bad-debt/writeoffs', [BadDebtController::class, 'writeoffs']);
+    Route::post('bad-debt/writeoffs', [BadDebtController::class, 'request']);
+    Route::post('bad-debt/writeoffs/{id}/approve', [BadDebtController::class, 'approve'])->whereNumber('id');
+    Route::post('bad-debt/writeoffs/{id}/reject', [BadDebtController::class, 'reject'])->whereNumber('id');
+    Route::post('bad-debt/writeoffs/{id}/reverse', [BadDebtController::class, 'reverse'])->whereNumber('id');
+    Route::get('bad-debt/provision', [BadDebtController::class, 'provisionPreview']);
+    Route::post('bad-debt/provision', [BadDebtController::class, 'provision']);
 
     Route::get('journal-schedules', [JournalScheduleController::class, 'index']);
     Route::post('journal-schedules', [JournalScheduleController::class, 'store']);

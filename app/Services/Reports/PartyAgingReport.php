@@ -102,6 +102,35 @@ class PartyAgingReport
     }
 
     /**
+     * The open invoices of one side with what each still owes and how many days past due it is on the day: the rows the aging
+     * report is built from, for bad debt (allowance by bucket, write-off candidates) and dunning.
+     *
+     * @param  array{contact_id?: mixed, search?: ?string}  $filters
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function openInvoiceRows(string $kind, ?int $companyId, ?int $branchId, array $filters = [], ?string $endDate = null): Collection
+    {
+        $config = self::KINDS[$kind] ?? throw new InvalidArgumentException("Unknown aging report [{$kind}].");
+        $asOf = $this->asOf($endDate);
+
+        return $this->openInvoices($config, $companyId, $branchId, $filters, $asOf)->get()->map(function (stdClass $invoice) use ($asOf): array {
+            $days = $this->daysPastDue($invoice, $asOf);
+
+            return [
+                'id' => (int) $invoice->id,
+                'contact_id' => (int) $invoice->contact_id,
+                'contact_name' => TransactionListReport::contactName($invoice),
+                'invoice_no' => $invoice->invoice_no ?? null,
+                'transaction_date' => substr((string) $invoice->transaction_date, 0, 10),
+                'due_date' => self::dueDate((string) $invoice->transaction_date, $invoice->pay_term, $invoice->pay_type, $invoice->contact_pay_term, $invoice->contact_pay_type)->toDateString(),
+                'open_amount' => round((float) $invoice->open_amount, 2),
+                'days_past_due' => $days,
+                'bucket' => self::bucketFor($days),
+            ];
+        })->values();
+    }
+
+    /**
      * @param  Collection<int, array<string, mixed>>  $rows
      * @return array<string, float|int|string>
      */
@@ -223,6 +252,7 @@ class PartyAgingReport
             ->select([
                 't.id',
                 't.contact_id',
+                't.invoice_no',
                 't.transaction_date',
                 't.pay_term',
                 't.pay_type',
