@@ -2,11 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 
+// middleware() is the declared (group + route) middleware; gatherMiddleware() would also instantiate every controller, and the file
+// manager's raises memory_limit in its constructor, which fails once a full suite run is past 256 MB.
 it('rate limits every public route that has no sign-in', function () {
     $unprotected = [];
 
     foreach (Route::getRoutes() as $route) {
-        $middleware = array_map(fn ($m) => is_string($m) ? $m : 'closure', $route->gatherMiddleware());
+        $middleware = array_map(fn ($m) => is_string($m) ? $m : 'closure', $route->middleware());
         $uri = $route->uri();
 
         $isPublicTarget = preg_match('#^(api/(fetch(countries|states|cities|currencies|timezones)|branding|leadcapture)|api/storefront/|blog(/|$)|capture/|shop/|r/)#', $uri) === 1;
@@ -36,7 +38,7 @@ it('keeps every public API write route behind a signature, token or throttle', f
     expect($routes)->not->toBeEmpty();
 
     foreach ($routes as $route) {
-        $mw = $route->gatherMiddleware();
+        $mw = $route->middleware();
         expect(collect($mw)->contains(fn ($m) => is_string($m) && str_starts_with($m, 'throttle')))->toBeTrue($route->uri().' is not throttled');
     }
 });
