@@ -19,11 +19,14 @@
     const publish = reactive({ product_id: '' as number | '', price: '' as number | '' });
     const customer = reactive<Record<number, number | ''>>({});
     const canManage = computed(() => can('/storefront/manage'));
+    /** The settings form only appears once the saved settings are in, so a reply arriving late cannot overwrite what someone is typing. */
+    const settingsLoaded = ref(false);
     const shopUrl = computed(() => (settings.code ? `${window.location.origin}/shop/${settings.code}` : ''));
 
     async function load() {
         const s = (await run(() => window.axios.get('/api/storefront-admin/settings', { params: scope() })))?.data?.data;
         Object.assign(settings, { code: s?.code ?? '', enabled: Boolean(s?.enabled), title: s?.title ?? '', intro: s?.intro ?? '', default_contact_id: s?.default_contact_id ?? '' });
+        settingsLoaded.value = true;
         products.value = (await run(() => window.axios.get('/api/storefront-admin/products', { params: scope() })))?.data?.data ?? [];
         orders.value = (await run(() => window.axios.get('/api/storefront-admin/orders', { params: scope() })))?.data?.data ?? [];
     }
@@ -49,7 +52,7 @@
             <div class="col-lg-5">
                 <div class="border rounded p-3 mb-3">
                     <h6>Shop settings</h6>
-                    <div class="row g-2">
+                    <div v-if="settingsLoaded" class="row g-2">
                         <div class="col-6"><input v-model="settings.code" class="form-control form-control-sm" placeholder="shop-code" aria-label="Shop code" :disabled="! canManage" /></div>
                         <div class="col-6"><input v-model="settings.title" class="form-control form-control-sm" placeholder="Shop title" aria-label="Shop title" :disabled="! canManage" /></div>
                         <div class="col-12"><input v-model="settings.intro" class="form-control form-control-sm" placeholder="A line under the title" aria-label="Intro" :disabled="! canManage" /></div>
