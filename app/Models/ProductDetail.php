@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Support\Base64Upload;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\UploadedFile;
@@ -125,7 +126,7 @@ class ProductDetail extends Model
 
     protected static function saveImageFile(UploadedFile $file, string $name): string
     {
-        $filename = time().'.'.str_replace(' ', '', $name).'.'.$file->getClientOriginalExtension();
+        $filename = time().'.'.Base64Upload::safeName($name, 'variation').'.'.Base64Upload::publicExtensionFor($file);
         $file->move(Product::imageDirectory(), $filename);
 
         return $filename;

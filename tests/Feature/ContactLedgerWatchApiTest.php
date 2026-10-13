@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ContactLedgerWatch;
+use App\Models\Role;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -103,4 +104,15 @@ test('ledger watch cannot be saved for a contact the user cannot see', function 
     ])->assertNotFound();
 
     expect($linked['contact']->id)->toBeGreaterThan(0);
+});
+
+test('a user without customer, supplier or ledger menus cannot read or mark a party ledger', function () {
+    $linked = createLinkedLedgerContact('supplier');
+
+    $role = Role::query()->create(['name' => 'nomenus', 'company_id' => $linked['scope']['company_id'], 'is_active' => true]);
+    $user = createStaffUserForRole($role, ['company_id' => $linked['scope']['company_id'], 'branch_id' => $linked['scope']['branch_id']]);
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/fetchledger?contact_id='.$linked['contact']->id)->assertForbidden();
+    $this->postJson('/api/contact-ledger-watches', ['contact_id' => $linked['contact']->id])->assertForbidden();
 });

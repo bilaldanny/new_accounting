@@ -12,6 +12,8 @@ class PublicApiInvoiceController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/sell');
+
         $invoices = Transaction::query()
             ->visibleToCurrentUser()
             ->where('type', Transaction::TYPE_SELL)
@@ -26,6 +28,8 @@ class PublicApiInvoiceController extends Controller
 
     public function show($id): JsonResponse
     {
+        $this->authorizeMenuPermission('/sell');
+
         $invoice = Transaction::query()
             ->visibleToCurrentUser()
             ->where('type', Transaction::TYPE_SELL)

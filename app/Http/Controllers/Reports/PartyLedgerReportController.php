@@ -14,8 +14,22 @@ use Illuminate\Http\Request;
 
 class PartyLedgerReportController extends Controller
 {
+    /**
+     * The menus a party ledger is opened from: the customer and supplier pages and the ledger report.
+     */
+    private function authorizePartyLedger(): void
+    {
+        abort_unless(
+            hasAnyMenuPermission('/customer', '/supplier', '/report/ledger', '/report/account-ledger'),
+            403,
+            'You do not have permission to perform this action.'
+        );
+    }
+
     public function fetchLedger(Request $request, ContactLedger $ledger): JsonResponse
     {
+        $this->authorizePartyLedger();
+
         $request->validate([
             'contact_id' => 'required|integer',
             'company_id' => 'nullable|integer',
@@ -55,6 +69,8 @@ class PartyLedgerReportController extends Controller
 
     public function saveLedgerWatch(Request $request): JsonResponse
     {
+        $this->authorizePartyLedger();
+
         $validated = $request->validate([
             'contact_id' => ['required', 'integer'],
             'row_id' => ['nullable', 'string', 'max:64'],

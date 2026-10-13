@@ -538,7 +538,7 @@ class Transaction extends Model
 
     public static function saveImageFile(UploadedFile $file): string
     {
-        $filename = time().'.purchase.'.$file->getClientOriginalExtension();
+        $filename = time().'.purchase.'.Base64Upload::publicExtensionFor($file, true);
         $file->move(self::imageDirectory(), $filename);
 
         return $filename;
@@ -831,7 +831,7 @@ class Transaction extends Model
         if (is_object($request) && method_exists($request, 'hasFile')) {
             foreach (['billty_image', 'bilty_image'] as $field) {
                 if ($request->hasFile($field) && $request->file($field) instanceof UploadedFile) {
-                    $filename = time().'.billty.'.$request->file($field)->getClientOriginalExtension();
+                    $filename = time().'.billty.'.Base64Upload::publicExtensionFor($request->file($field), true);
                     $request->file($field)->move(self::billtyImageDirectory(), $filename);
 
                     return $filename;
@@ -840,19 +840,14 @@ class Transaction extends Model
         }
 
         if (is_string($image) && str_starts_with($image, 'data:image')) {
-            if (! preg_match('/^data:image\/(\w+);base64,/', $image, $matches)) {
+            $decoded = Base64Upload::decode($image);
+
+            if ($decoded === null) {
                 return $existing;
             }
 
-            $extension = $matches[1];
-            $imageData = base64_decode(substr($image, strpos($image, ',') + 1));
-
-            if ($imageData === false) {
-                return $existing;
-            }
-
-            $filename = time().'.billty.'.$extension;
-            file_put_contents(self::billtyImageDirectory().'/'.$filename, $imageData);
+            $filename = time().'.billty.'.$decoded['extension'];
+            file_put_contents(self::billtyImageDirectory().'/'.$filename, $decoded['binary']);
 
             return $filename;
         }

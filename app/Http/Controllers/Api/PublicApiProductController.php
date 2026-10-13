@@ -16,6 +16,8 @@ class PublicApiProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/product');
+
         $products = Product::query()
             ->visibleToCurrentUser()
             ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->search.'%'))
@@ -27,6 +29,8 @@ class PublicApiProductController extends Controller
 
     public function show($id): JsonResponse
     {
+        $this->authorizeMenuPermission('/product');
+
         $product = Product::query()->visibleToCurrentUser()->find($id);
 
         if ($product === null) {

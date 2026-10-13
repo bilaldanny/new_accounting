@@ -87,13 +87,13 @@ Route::middleware('guest')->group(function () {
 Route::get('r/{token}', [ReceiptShareController::class, 'show'])->middleware('throttle:60,1')->name('receipt.public');
 
 /* Public blog (published posts only, for everyone) */
-Route::get('blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('blog', [BlogController::class, 'index'])->middleware('throttle:120,1')->name('blog.index');
 Route::get('shop/{code}', [PublicStorefrontController::class, 'page'])->where('code', '[a-z0-9-]+')->middleware('throttle:60,1')->name('shop.public');
-Route::get('blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+Route::get('blog/{slug}', [BlogController::class, 'show'])->middleware('throttle:120,1')->name('blog.show');
 /* Public blog */
 
 /* Public Lead Capture Form (no auth — embeddable on an external site) */
-Route::get('capture/{code}', [PublicLeadCaptureController::class, 'show'])->name('leadcapture.show');
+Route::get('capture/{code}', [PublicLeadCaptureController::class, 'show'])->middleware('throttle:60,1')->name('leadcapture.show');
 /* Public Lead Capture Form */
 
 Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group(function () {

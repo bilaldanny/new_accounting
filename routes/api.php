@@ -227,15 +227,17 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 /* Extras */
-Route::post('fetchcountries', [CountryController::class, 'fetch']);
-Route::post('fetchstates', [StateController::class, 'fetch']);
-Route::post('fetchcities', [CityController::class, 'fetch']);
-Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
-Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
+Route::middleware('throttle:120,1')->group(function () {
+    Route::post('fetchcountries', [CountryController::class, 'fetch']);
+    Route::post('fetchstates', [StateController::class, 'fetch']);
+    Route::post('fetchcities', [CityController::class, 'fetch']);
+    Route::get('fetchcurrencies', [CurrencyController::class, 'fetch']);
+    Route::get('fetchtimezones', [TimezoneController::class, 'fetch']);
+});
 
 /* Public Lead Capture Form (no auth — embeddable on an external site) */
 Route::post('leadcapture', [PublicLeadCaptureController::class, 'store'])->middleware('throttle:lead-capture')->name('leadcapture.store');
-Route::get('branding', [TenantSelfServiceController::class, 'branding']);
+Route::get('branding', [TenantSelfServiceController::class, 'branding'])->middleware('throttle:60,1');
 Route::post('gateway/stripe/webhook/{company}', [IntegrationsController::class, 'stripeWebhook'])->whereNumber('company')->middleware('throttle:60,1');
 Route::post('hrm/device/punch', [HrmAttendanceController::class, 'devicePunch'])->middleware('throttle:120,1');
 Route::get('storefront/{code}', [PublicStorefrontController::class, 'catalog'])->where('code', '[a-z0-9-]+')->middleware('throttle:120,1');

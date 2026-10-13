@@ -339,7 +339,7 @@ class Company extends Model
 
     protected static function saveLogoFile(UploadedFile $file, string $companyName): string
     {
-        $filename = time().'.'.str_replace(' ', '', $companyName).'.'.$file->getClientOriginalExtension();
+        $filename = time().'.'.Base64Upload::safeName($companyName, 'company').'.'.Base64Upload::publicExtensionFor($file);
         $file->move(self::logoDirectory(), $filename);
 
         return $filename;
@@ -353,7 +353,7 @@ class Company extends Model
             return null;
         }
 
-        $filename = time().'.'.str_replace(' ', '', $companyName).'.'.$decoded['extension'];
+        $filename = time().'.'.Base64Upload::safeName($companyName, 'company').'.'.$decoded['extension'];
         file_put_contents(self::logoDirectory().'/'.$filename, $decoded['binary']);
 
         return $filename;

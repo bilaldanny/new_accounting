@@ -22,12 +22,15 @@ beforeEach(function () {
  * A company, its own staff user, and a plaintext API key for that user — the exact auth this new public
  * API reuses from "Settings > API Keys" (ApiKeyController), nothing new.
  */
-function papiKeyFor(string $code): array
+function papiKeyFor(string $code, array $paths = ['/product', '/customer', '/sell']): array
 {
     $company = Company::query()->create([
         'code' => $code, 'name' => 'Public API Co '.$code, 'is_active' => true, 'max_users' => 10, 'max_branches' => 2,
     ]);
     $role = Role::query()->create(['name' => 'companyadmin', 'company_id' => $company->id, 'is_active' => true]);
+    foreach ($paths as $path) {
+        grantMenuPermission($role->id, $path);
+    }
     $user = createStaffUserForRole($role, ['company_id' => $company->id]);
     $token = $user->createToken('test-key');
 
@@ -68,6 +71,21 @@ test('products/customers/invoices are readable with a valid API key, scoped to i
     $this->withToken($plainText)->getJson('/api/v1/invoices')
         ->assertSuccessful()
         ->assertJsonPath('data.0.invoice_no', 'INV-API-1');
+});
+
+test('a key only reads what its owner may open in the app', function () {
+    [, , $plainText] = papiKeyFor('CO-90007', []);
+
+    $this->withToken($plainText)->getJson('/api/v1/products')->assertForbidden();
+    $this->withToken($plainText)->getJson('/api/v1/customers')->assertForbidden();
+    $this->withToken($plainText)->getJson('/api/v1/invoices')->assertForbidden();
+});
+
+test('a key with only the product menu reads products and nothing else', function () {
+    [, , $productOnly] = papiKeyFor('CO-90008', ['/product']);
+
+    $this->withToken($productOnly)->getJson('/api/v1/products')->assertSuccessful();
+    $this->withToken($productOnly)->getJson('/api/v1/invoices')->assertForbidden();
 });
 
 test('a product from another company is not reachable by id', function () {

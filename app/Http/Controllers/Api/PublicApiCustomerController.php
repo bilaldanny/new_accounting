@@ -12,6 +12,8 @@ class PublicApiCustomerController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer');
+
         $customers = Contact::query()
             ->visibleToCurrentUser()
             ->customers()
@@ -24,6 +26,8 @@ class PublicApiCustomerController extends Controller
 
     public function show($id): JsonResponse
     {
+        $this->authorizeMenuPermission('/customer');
+
         $customer = Contact::query()->visibleToCurrentUser()->customers()->find($id);
 
         if ($customer === null) {

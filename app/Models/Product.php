@@ -292,7 +292,7 @@ class Product extends Model
 
     public static function saveImageFile(UploadedFile $file, string $name): string
     {
-        $filename = time().'.'.str_replace(' ', '', $name).'.'.$file->getClientOriginalExtension();
+        $filename = time().'.'.Base64Upload::safeName($name, 'product').'.'.Base64Upload::publicExtensionFor($file);
         $file->move(self::imageDirectory(), $filename);
 
         return $filename;
@@ -306,7 +306,7 @@ class Product extends Model
             return null;
         }
 
-        $filename = time().'.'.str_replace(' ', '', $name).'.'.$decoded['extension'];
+        $filename = time().'.'.Base64Upload::safeName($name, 'product').'.'.$decoded['extension'];
         file_put_contents(self::imageDirectory().'/'.$filename, $decoded['binary']);
 
         return $filename;
