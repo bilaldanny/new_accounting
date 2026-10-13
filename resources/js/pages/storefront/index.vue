@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref } from 'vue';
+    import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -52,7 +53,7 @@
                         <div class="col-6"><input v-model="settings.code" class="form-control form-control-sm" placeholder="shop-code" aria-label="Shop code" :disabled="! canManage" /></div>
                         <div class="col-6"><input v-model="settings.title" class="form-control form-control-sm" placeholder="Shop title" aria-label="Shop title" :disabled="! canManage" /></div>
                         <div class="col-12"><input v-model="settings.intro" class="form-control form-control-sm" placeholder="A line under the title" aria-label="Intro" :disabled="! canManage" /></div>
-                        <div class="col-6"><input v-model.number="settings.default_contact_id" type="number" class="form-control form-control-sm" placeholder="Default customer id" aria-label="Default customer id" :disabled="! canManage" /></div>
+                        <div class="col-6"><LookupSelect v-model="settings.default_contact_id" endpoint="/api/fetchcustomers" :params="scope()" placeholder="Default customer for orders" aria-label="Default customer" :disabled="! canManage" /></div>
                         <div class="col-6 form-check ps-4"><input id="shop-on" v-model="settings.enabled" type="checkbox" class="form-check-input" :disabled="! canManage" /><label class="form-check-label small" for="shop-on">Shop is open</label></div>
                     </div>
                     <button v-if="canManage" type="button" class="btn btn-dark btn-sm mt-2" @click="send('put', '/api/storefront-admin/settings', { ...settings }, 'Settings saved')">Save</button>
@@ -63,7 +64,7 @@
                 <div class="border rounded p-3">
                     <h6>Published products</h6>
                     <div v-if="canManage" class="d-flex gap-2 mb-2">
-                        <input v-model.number="publish.product_id" type="number" class="form-control form-control-sm" placeholder="Product id" aria-label="Product id" />
+                        <LookupSelect v-model="publish.product_id" endpoint="/api/fetchproducts" :params="scope()" placeholder="Product" aria-label="Product" />
                         <input v-model.number="publish.price" type="number" class="form-control form-control-sm" placeholder="Shop price (blank = list price)" aria-label="Shop price" />
                         <button type="button" class="btn btn-dark btn-sm" @click="send('post', '/api/storefront-admin/products', { ...publish, is_published: true }, 'Published')">Publish</button>
                     </div>
@@ -89,7 +90,7 @@
                             <td class="text-end">{{ money(o.total) }}</td><td class="text-capitalize">{{ o.status }}</td>
                             <td class="text-end">
                                 <template v-if="o.status === 'new' && canManage">
-                                    <input v-model.number="customer[o.id]" type="number" class="form-control form-control-sm d-inline-block mb-1" style="width: 7rem" placeholder="Customer id" aria-label="Customer id for the sale" />
+                                    <div class="d-inline-block mb-1" style="width: 12rem"><LookupSelect v-model="customer[o.id]" endpoint="/api/fetchcustomers" :params="scope()" placeholder="Customer" aria-label="Customer for the sale" /></div>
                                     <button type="button" class="btn btn-dark btn-sm ms-1" @click="send('post', `/api/storefront-admin/orders/${o.id}/convert`, { contact_id: customer[o.id] ?? '' }, 'Draft sale made')">Make sale</button>
                                     <button type="button" class="btn btn-outline-danger btn-sm ms-1" @click="send('post', `/api/storefront-admin/orders/${o.id}/reject`, {}, 'Order rejected')">Reject</button>
                                 </template>

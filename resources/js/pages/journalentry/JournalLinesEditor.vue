@@ -32,6 +32,16 @@
             type: Array as () => Array<{ id: number | string; text?: string; name?: string; code?: string }>,
             default: () => [],
         },
+        /** The company's open projects (empty = no column). */
+        projects: {
+            type: Array as () => Array<{ id: number | string; text: string }>,
+            default: () => [],
+        },
+        /** Foreign currencies with today's rate, only when multi-currency vouchers are on (empty = no column). */
+        currencies: {
+            type: Array as () => Array<{ id: number | string; text: string; rate: number }>,
+            default: () => [],
+        },
     });
 
     const emit = defineEmits<{
@@ -49,7 +59,14 @@
         account_name: '',
         account_nature: '',
         cost_center_id: '',
+        project_id: '',
+        currency_id: '',
+        foreign_amount: '',
+        exchange_rate: '',
     });
+    /** Which side a foreign amount is booked on when no base amount is typed. */
+    const foreignSide = ref<'debit' | 'credit'>('debit');
+    const columnCount = computed(() => 6 + (props.costCenters.length ? 1 : 0) + (props.projects.length ? 1 : 0) + (props.currencies.length ? 1 : 0));
     const editingIndex = ref<number | null>(null);
     const lineInputError = ref('');
 
@@ -104,6 +121,25 @@
         return found ? (found.text || `${found.code ?? ''} ${found.name ?? ''}`.trim()) : '—';
     }
 
+    function projectLabel(id: number | string | '' | null | undefined): string {
+        return props.projects.find((project) => String(project.id) === String(id))?.text ?? '—';
+    }
+
+    function currencyLabel(line: JournalLineRow): string {
+        const found = props.currencies.find((currency) => String(currency.id) === String(line.currency_id));
+
+        return found && Number(line.foreign_amount || 0) > 0 ? `${found.text} ${money(Number(line.foreign_amount))} @ ${line.exchange_rate}` : '—';
+    }
+
+    function onCurrencyChange() {
+        const found = props.currencies.find((currency) => String(currency.id) === String(draft.value.currency_id));
+        draft.value.exchange_rate = found ? found.rate : '';
+
+        if (! found) {
+            draft.value.foreign_amount = '';
+        }
+    }
+
     function resetDraft() {
         draft.value = {
             account_id: '',
@@ -114,7 +150,12 @@
             account_name: '',
             account_nature: '',
             cost_center_id: '',
+            project_id: '',
+            currency_id: '',
+            foreign_amount: '',
+            exchange_rate: '',
         };
+        foreignSide.value = 'debit';
         editingIndex.value = null;
         lineInputError.value = '';
     }
@@ -148,8 +189,17 @@
             return;
         }
 
-        const debit = Number(draft.value.debit || 0);
-        const credit = Number(draft.value.credit || 0);
+        let debit = Number(draft.value.debit || 0);
+        let credit = Number(draft.value.credit || 0);
+        const foreign = draft.value.currency_id ? Number(draft.value.foreign_amount || 0) : 0;
+        const rate = Number(draft.value.exchange_rate || 0);
+
+        // a foreign amount with no base amount typed: the base amount is the foreign amount over the rate (foreign units per base unit)
+        if (foreign > 0 && rate > 0 && debit <= 0 && credit <= 0) {
+            const base = Math.round((foreign / rate) * 100) / 100;
+
+            foreignSide.value === 'credit' ? credit = base : debit = base;
+        }
 
         if (debit <= 0 && credit <= 0) {
             lineInputError.value = 'Enter a debit or credit amount.';
@@ -198,6 +248,10 @@
             account_name: line.account_name,
             account_nature: line.account_nature,
             cost_center_id: line.cost_center_id ?? '',
+            project_id: line.project_id ?? '',
+            currency_id: line.currency_id ?? '',
+            foreign_amount: line.foreign_amount ?? '',
+            exchange_rate: line.exchange_rate ?? '',
         });
     }
 
@@ -217,6 +271,8 @@
                         <th>Account</th>
                         <th>Description</th>
                         <th v-if="costCenters.length">Cost center</th>
+                        <th v-if="projects.length">Project</th>
+                        <th v-if="currencies.length">Foreign currency</th>
                         <th class="is-amount is-debit-head">Debit{{ moneySuffix }}</th>
                         <th class="is-amount is-credit-head">Credit{{ moneySuffix }}</th>
                         <th class="is-action">Action</th>
@@ -224,7 +280,7 @@
                 </thead>
                 <tbody>
                     <tr v-if="lines.length === 0 && editingIndex === null">
-                        <td :colspan="costCenters.length ? 7 : 6" class="journal-lines__empty">
+                        <td :colspan="columnCount" class="journal-lines__empty">
                             <BookOpen class="journal-lines__empty-icon" />
                             <p>No account lines recorded</p>
                             <small>Select an account below, enter a debit or credit amount, then add the line to balance your ledger.</small>
@@ -247,6 +303,8 @@
                         </td>
                         <td class="journal-lines__desc">{{ line.description || '—' }}</td>
                         <td v-if="costCenters.length">{{ costCenterLabel(line.cost_center_id) }}</td>
+                        <td v-if="projects.length">{{ projectLabel(line.project_id) }}</td>
+                        <td v-if="currencies.length">{{ currencyLabel(line) }}</td>
                         <td class="is-amount is-debit">{{ Number(line.debit || 0) > 0 ? money(Number(line.debit)) : '—' }}</td>
                         <td class="is-amount is-credit">{{ Number(line.credit || 0) > 0 ? money(Number(line.credit)) : '—' }}</td>
                         <td class="is-action">
@@ -295,6 +353,25 @@
                                 <option v-for="center in costCenters" :key="center.id" :value="center.id">{{ center.text || `${center.code ?? ''} ${center.name ?? ''}` }}</option>
                             </select>
                         </td>
+                        <td v-if="projects.length">
+                            <select class="form-select" :disabled="disabled" v-model="draft.project_id" aria-label="Project">
+                                <option value="">No project</option>
+                                <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.text }}</option>
+                            </select>
+                        </td>
+                        <td v-if="currencies.length">
+                            <div class="d-flex gap-1">
+                                <select class="form-select" :disabled="disabled" v-model="draft.currency_id" aria-label="Foreign currency" @change="onCurrencyChange">
+                                    <option value="">Base currency</option>
+                                    <option v-for="currency in currencies" :key="currency.id" :value="currency.id">{{ currency.text }}</option>
+                                </select>
+                                <template v-if="draft.currency_id">
+                                    <input v-model="draft.foreign_amount" type="number" min="0" step="0.01" class="form-control text-end" :disabled="disabled" placeholder="Amount" aria-label="Foreign amount">
+                                    <input v-model="draft.exchange_rate" type="number" min="0" step="0.0001" class="form-control text-end" :disabled="disabled" placeholder="Rate" aria-label="Exchange rate">
+                                    <select v-model="foreignSide" class="form-select" :disabled="disabled" aria-label="Foreign amount side"><option value="debit">Dr</option><option value="credit">Cr</option></select>
+                                </template>
+                            </div>
+                        </td>
                         <td class="is-amount">
                             <input
                                 type="number"
@@ -329,7 +406,7 @@
                         </td>
                     </tr>
                     <tr v-if="lineInputError" class="journal-lines__error">
-                        <td :colspan="costCenters.length ? 7 : 6">
+                        <td :colspan="columnCount">
                             <div class="journal-lines__error-inner">
                                 <AlertCircle class="h-3.5 w-3.5" />
                                 <span>{{ lineInputError }}</span>
@@ -337,7 +414,7 @@
                         </td>
                     </tr>
                     <tr class="journal-lines__totals">
-                        <td :colspan="costCenters.length ? 4 : 3" class="journal-lines__total-label">Totals:</td>
+                        <td :colspan="columnCount - 3" class="journal-lines__total-label">Totals:</td>
                         <td class="is-amount is-debit">{{ currencySymbol ? `${currencySymbol} ${money(totalDebit)}` : money(totalDebit) }}</td>
                         <td class="is-amount is-credit">{{ currencySymbol ? `${currencySymbol} ${money(totalCredit)}` : money(totalCredit) }}</td>
                         <td class="is-action">

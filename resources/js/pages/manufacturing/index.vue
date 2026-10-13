@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref } from 'vue';
+    import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -307,14 +308,14 @@
         </section>
 
         <section v-if="tab === 'settings'">
-            <div class="alert alert-info small">Stock moves and costs are worked out for every work order. Ledger entries are made only when you switch posting on and map the six accounts below (chart of account ids).</div>
+            <div class="alert alert-info small">Stock moves and costs are worked out for every work order. Ledger entries are made only when you switch posting on and map the six accounts below.</div>
             <div class="row g-2 align-items-end">
                 <div class="col-md-3 form-check ms-2"><input id="mf-post" v-model="settings.posting_enabled" type="checkbox" class="form-check-input" :disabled="! canManage" /><label class="form-check-label small" for="mf-post">Post manufacturing to the ledger</label></div>
                 <div class="col-md-3 form-check"><input id="mf-qc" v-model="settings.require_qc_before_receipt" type="checkbox" class="form-check-input" :disabled="! canManage" /><label class="form-check-label small" for="mf-qc">Receive only what passed a quality check</label></div>
                 <div class="col-md-3 form-check"><input id="mf-over" v-model="settings.allow_over_issue" type="checkbox" class="form-check-input" :disabled="! canManage" /><label class="form-check-label small" for="mf-over">Allow issuing more than required</label></div>
                 <div v-for="slot in accountSlots" :key="slot" class="col-md-3">
-                    <label class="form-label small text-capitalize" :for="`mf-acc-${slot}`">{{ slot.replace(/_/g, ' ') }} account id</label>
-                    <input :id="`mf-acc-${slot}`" v-model.number="settings.accounts[slot]" type="number" class="form-control form-control-sm" :disabled="! canManage" />
+                    <label class="form-label small text-capitalize" :for="`mf-acc-${slot}`">{{ slot.replace(/_/g, ' ') }} account</label>
+                    <LookupSelect v-model="settings.accounts[slot]" endpoint="/api/fetchchildaccounts" :params="scope()" placeholder="Choose an account" :aria-label="`${slot.replace(/_/g, ' ')} account`" :disabled="! canManage" />
                 </div>
                 <div v-if="canManage" class="col-md-2"><button type="button" class="btn btn-dark btn-sm" @click="saveSettings">Save settings</button></div>
             </div>

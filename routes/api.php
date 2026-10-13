@@ -208,6 +208,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ValuationController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
+use App\Http\Controllers\VoucherOptionsController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseLocationController;
 use App\Http\Controllers\WarehouseTaskController;
@@ -1410,6 +1411,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('my-notifications/{id}/read', [MyNotificationsController::class, 'read'])->whereNumber('id');
     Route::get('dashboard-insights', [DashboardInsightsController::class, 'show']);
     Route::get('search', UniversalSearchController::class);
+    Route::get('voucher-options', VoucherOptionsController::class);
     Route::get('dashboard-tools/layout', [DashboardToolsController::class, 'layout']);
     Route::get('dashboard-tools/role-layouts', [DashboardToolsController::class, 'roleLayouts']);
     Route::put('dashboard-tools/role-layouts/{roleId}', [DashboardToolsController::class, 'saveRoleLayout'])->whereNumber('roleId');

@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useActiveFinancialYear from '@/composables/activeFinancialYear';
+    import useVoucherOptions from '@/composables/voucherOptions';
     import useCommons from '@/composables/common';
     import type { JournalAttachment, JournalLineRow } from '@/composables/journalentry';
     import { BookOpen, FileText, Paperclip, RefreshCw, UploadCloud } from '@lucide/vue';
@@ -74,6 +75,7 @@
 
     const { fetchCompany, fetchBranch, companiesdata, branchesdata } = useCommons();
     const { fiscalYear, fetchActiveFinancialYear, clampToFiscalYear } = useActiveFinancialYear();
+    const { projects: voucherProjects, currencies: voucherCurrencies, load: loadVoucherOptions } = useVoucherOptions(() => params.formData?.company_id || undefined);
 
     const accountsdata = ref<Array<{ id: number | string; text?: string; name?: string; code?: string; acc_nature?: string }>>([]);
     const costCentersdata = ref<Array<Record<string, any>>>([]);
@@ -200,6 +202,8 @@
         } catch {
             costCentersdata.value = [];
         }
+
+        await loadVoucherOptions();
     }
 
     async function loadVoucherNo(force = false) {
@@ -525,6 +529,8 @@
                 :lines="journalLines"
                 :accounts="accountsdata"
                 :cost-centers="costCentersdata"
+                :projects="voucherProjects"
+                :currencies="voucherCurrencies"
                 :disabled="!scopeReady"
                 :currency-symbol="authUser?.currency_symbol || ''"
                 @add="addLine"

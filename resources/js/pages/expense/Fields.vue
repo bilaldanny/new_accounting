@@ -2,6 +2,7 @@
     import { usePage } from '@inertiajs/vue3';
     import { BookOpen, FileText, Paperclip, ReceiptText, RefreshCw, UploadCloud } from '@lucide/vue';
     import { computed, onMounted, ref, watch } from 'vue';
+    import ProjectPicker from '@/components/ProjectPicker.vue';
     import useActiveFinancialYear from '@/composables/activeFinancialYear';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
@@ -111,13 +112,20 @@
     }
 
     function persistLines(lines: ExpenseLineRow[]) {
-        const next = lines.map((line) => ({ ...line }));
+        const projectId = params.formData?.project_id;
+        const next = lines.map((line) => ({ ...line, ...(projectId === undefined ? {} : { project_id: projectId }) }));
         const total = next.reduce((sum, line) => sum + Number(line.debit || 0), 0);
         persist({
             taccountdetails: next,
             total_amount: total,
             net_total: total,
         });
+    }
+
+    /** The optional project of the whole document: it is put on every line (the server checks it is the company's own). */
+    function setProject(value: number | string | '') {
+        persist({ project_id: value === '' ? null : value });
+        persistLines(expenseLines.value.map((line) => ({ ...line })));
     }
 
     function applyScopedDefaults() {
@@ -495,6 +503,14 @@
     </GroupElement>
 
     <GroupElement name="group_lines" :columns="colFull" :add-classes="ledgerCardClasses">
+        <StaticElement name="project_picker" :columns="colHalf">
+            <ProjectPicker
+                :model-value="params.formData?.project_id ?? expenseLines[0]?.project_id ?? ''"
+                :company-id="params.formData?.company_id || undefined"
+                @update:model-value="setProject"
+            />
+        </StaticElement>
+
         <StaticElement name="section_lines" :columns="colFull">
             <div class="product-form-section-head journal-card-head">
                 <div class="journal-card-head__lead">

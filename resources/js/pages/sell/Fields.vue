@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
     import { usePage } from '@inertiajs/vue3';
     import { Boxes, CalendarDays, ImagePlus, Truck } from '@lucide/vue';
+    import ProjectPicker from '@/components/ProjectPicker.vue';
     import WarehousePicker from '@/components/WarehousePicker.vue';
     import { computed, onMounted, ref, watch } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -231,7 +232,8 @@
     }
 
     function persistLines(lines: SellLineRow[]) {
-        const next = lines.map((line) => ({ ...line }));
+        const projectId = params.formData?.project_id;
+        const next = lines.map((line) => ({ ...line, ...(projectId === undefined ? {} : { project_id: projectId }) }));
         persist({
             selllines: next,
             total_item: next.length,
@@ -239,6 +241,13 @@
             net_sub_total: next.reduce((sum, line) => sum + toNumber(line.row_subtotal), 0),
         });
         recalculateTotals(next);
+    }
+
+
+    /** The optional project of the whole document: it is put on every line (the server checks it is the company's own). */
+    function setProject(value: number | string | '') {
+        persist({ project_id: value === '' ? null : value });
+        persistLines(sellLines.value.map((line) => ({ ...line })));
     }
 
     function pricedLine(line: SellLineRow): SellLineRow {
@@ -923,6 +932,14 @@
         :disabled="branchDisabled"
         rules="required"
     />
+
+    <StaticElement name="project_picker" :columns="colThird">
+        <ProjectPicker
+            :model-value="params.formData?.project_id ?? sellLines[0]?.project_id ?? ''"
+            :company-id="params.formData?.company_id || undefined"
+            @update:model-value="setProject"
+        />
+    </StaticElement>
 
     <StaticElement name="warehouse_id_picker" :columns="colThird">
         <WarehousePicker

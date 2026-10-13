@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from './apiEndpoints'
 import useCommons from "./common";
 
 export type ExpenseLineRow = {
+    project_id?: number | string | null;
     id?: number | string;
     account_id: number | string | '';
     code?: string;

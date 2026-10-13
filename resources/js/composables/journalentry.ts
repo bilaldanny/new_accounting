@@ -12,6 +12,11 @@ export type JournalLineRow = {
     debit: number | string;
     credit: number | string;
     cost_center_id?: number | string | '';
+    project_id?: number | string | '' | null;
+    /** Foreign currency of the line (only with multi-currency vouchers on): the debit / credit stay the base amount. */
+    currency_id?: number | string | '';
+    foreign_amount?: number | string | '';
+    exchange_rate?: number | string | '';
 };
 
 export type JournalAttachment = {

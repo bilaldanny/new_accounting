@@ -68,7 +68,7 @@
                 <div class="border rounded p-3">
                     <h6>Tag documents and vouchers</h6>
                     <div class="row g-2">
-                        <div class="col-12"><input v-model.number="tag.project_id" type="number" class="form-control form-control-sm" placeholder="Project id (empty clears the tag)" aria-label="Project id" /></div>
+                        <div class="col-12"><select v-model="tag.project_id" class="form-select form-select-sm" aria-label="Project"><option value="">No project (clears the tag)</option><option v-for="row in rows" :key="row.id" :value="row.id">{{ row.code }} - {{ row.name }}</option></select></div>
                         <div class="col-6"><input v-model="tag.transaction_ids" class="form-control form-control-sm" placeholder="Sale / purchase ids" aria-label="Sale or purchase ids" /></div>
                         <div class="col-6"><input v-model="tag.voucher_ids" class="form-control form-control-sm" placeholder="Voucher ids" aria-label="Voucher ids" /></div>
                         <div class="col-12"><button type="button" class="btn btn-outline-dark btn-sm" @click="applyTag">Apply tag</button></div>

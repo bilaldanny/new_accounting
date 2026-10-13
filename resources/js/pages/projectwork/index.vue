@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref } from 'vue';
+    import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -91,7 +92,7 @@
                         <div class="col-5"><input v-model="task.title" class="form-control form-control-sm" placeholder="Task" aria-label="Task title" /></div>
                         <div class="col-4"><select v-model="task.milestone_id" class="form-select form-select-sm" aria-label="Task milestone"><option value="">No milestone</option><option v-for="m in data.milestones" :key="m.id" :value="m.id">{{ m.name }}</option></select></div>
                         <div class="col-3"><input v-model.number="task.estimated_hours" type="number" class="form-control form-control-sm" placeholder="Hours" aria-label="Estimated hours" /></div>
-                        <div class="col-3"><input v-model.number="task.assignee_id" type="number" class="form-control form-control-sm" placeholder="User id" aria-label="Assignee id" /></div>
+                        <div class="col-3"><LookupSelect v-model="task.assignee_id" endpoint="/api/fetchusers" :params="scope()" placeholder="Assignee" aria-label="Assignee" /></div>
                         <div class="col-3"><input v-model="task.due_date" type="date" class="form-control form-control-sm" aria-label="Task due date" /></div>
                         <div class="col-2"><button type="button" class="btn btn-dark btn-sm" @click="send('post', '/tasks', clean({ ...task }), 'Task saved')">Add</button></div>
                     </div>

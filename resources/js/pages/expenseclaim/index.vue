@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref } from 'vue';
+    import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -82,7 +83,7 @@
                     </div>
                     <div v-for="(line, index) in form.lines" :key="index" class="row g-2 mb-1">
                         <div class="col-3"><input v-model="line.expense_date" type="date" class="form-control form-control-sm" aria-label="Expense date" /></div>
-                        <div class="col-2"><input v-model.number="line.account_id" type="number" class="form-control form-control-sm" placeholder="Account id" aria-label="Expense account id" /></div>
+                        <div class="col-2"><LookupSelect v-model="line.account_id" endpoint="/api/fetchchildaccounts" :params="scope()" placeholder="Expense account" aria-label="Expense account" /></div>
                         <div class="col-4"><input v-model="line.description" class="form-control form-control-sm" placeholder="Description" aria-label="Description" /></div>
                         <div class="col-2"><input v-model.number="line.amount" type="number" class="form-control form-control-sm" aria-label="Amount" /></div>
                         <div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm" @click="form.lines.splice(index, 1)">x</button></div>
@@ -118,7 +119,7 @@
                     </template>
                 </div>
                 <div v-if="detail.status === 'approved' && canPay" class="d-flex gap-2 mt-3">
-                    <input v-model.number="pay.payment_account_id" type="number" class="form-control form-control-sm" placeholder="Cash or bank account id" aria-label="Payment account id" />
+                    <div class="flex-grow-1"><LookupSelect v-model="pay.payment_account_id" endpoint="/api/fetchchildaccounts" :params="scope()" placeholder="Cash or bank account" aria-label="Payment account" /></div>
                     <input v-model="pay.paid_on" type="date" class="form-control form-control-sm" style="width: 10rem" aria-label="Paid on" />
                     <button type="button" class="btn btn-dark btn-sm" @click="act('/pay', { payment_account_id: pay.payment_account_id, paid_on: pay.paid_on || undefined }, 'Claim paid')">Pay</button>
                 </div>

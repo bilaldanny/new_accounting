@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref } from 'vue';
+    import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -92,7 +93,7 @@
                 <h6>New booking</h6>
                 <div class="row g-2">
                     <div class="col-md-3"><select v-model="bookForm.rental_item_id" class="form-select form-select-sm" aria-label="Rental item"><option value="">Item</option><option v-for="i in items.filter((x) => x.is_active)" :key="i.id" :value="i.id">{{ i.name }}</option></select></div>
-                    <div class="col-md-2"><input v-model.number="bookForm.contact_id" type="number" class="form-control form-control-sm" placeholder="Customer id" aria-label="Customer id" /></div>
+                    <div class="col-md-2"><LookupSelect v-model="bookForm.contact_id" endpoint="/api/fetchcustomers" :params="scope()" placeholder="Customer" aria-label="Customer" /></div>
                     <div class="col-md-1"><input v-model.number="bookForm.quantity" type="number" class="form-control form-control-sm" aria-label="Quantity" /></div>
                     <div class="col-md-2"><input v-model="bookForm.start_date" type="date" class="form-control form-control-sm" aria-label="Start date" /></div>
                     <div class="col-md-2"><input v-model="bookForm.end_date" type="date" class="form-control form-control-sm" aria-label="End date" /></div>
@@ -115,7 +116,7 @@
                 <h6>{{ b.booking_no }} - {{ b.status }}</h6>
                 <div v-if="b.status === 'reserved'" class="d-flex flex-wrap gap-2">
                     <input v-model.number="pickup.deposit" type="number" class="form-control form-control-sm" style="width: 9rem" :placeholder="'Deposit ' + b.deposit_amount" aria-label="Deposit received" />
-                    <input v-model.number="pickup.payment_account_id" type="number" class="form-control form-control-sm" style="width: 10rem" placeholder="Cash / bank account id" aria-label="Deposit account id" />
+                    <div style="width: 14rem"><LookupSelect v-model="pickup.payment_account_id" endpoint="/api/fetchchildaccounts" :params="scope()" placeholder="Cash / bank account" aria-label="Deposit account" /></div>
                     <button type="button" class="btn btn-dark btn-sm" @click="send(`/api/rental/bookings/${b.id}/pickup`, { deposit: pickup.deposit === '' ? undefined : pickup.deposit, payment_account_id: pickup.payment_account_id || undefined }, 'Picked up')">Pick up</button>
                     <button type="button" class="btn btn-outline-danger btn-sm" @click="send(`/api/rental/bookings/${b.id}/cancel`, {}, 'Booking cancelled')">Cancel booking</button>
                 </div>
@@ -123,7 +124,7 @@
                     <select v-model="giveBack.condition" class="form-select form-select-sm" style="width: 10rem" aria-label="Condition"><option value="good">Good</option><option value="minor_damage">Minor damage</option><option value="major_damage">Major damage</option></select>
                     <input v-model.number="giveBack.damage_charge" type="number" class="form-control form-control-sm" style="width: 9rem" placeholder="Damage charge" aria-label="Damage charge" />
                     <input v-model="giveBack.notes" class="form-control form-control-sm" style="width: 14rem" placeholder="Inspection notes" aria-label="Inspection notes" />
-                    <input v-model.number="giveBack.refund_account_id" type="number" class="form-control form-control-sm" style="width: 10rem" placeholder="Refund account id" aria-label="Refund account id" />
+                    <div style="width: 14rem"><LookupSelect v-model="giveBack.refund_account_id" endpoint="/api/fetchchildaccounts" :params="scope()" placeholder="Refund account" aria-label="Refund account" /></div>
                     <button type="button" class="btn btn-dark btn-sm" @click="doReturn(b.id)">Receive back</button>
                 </div>
                 <div v-if="result" class="small mt-2">
@@ -136,7 +137,7 @@
         <section v-if="tab === 'items'">
             <div v-if="canManage" class="border rounded p-3 mb-3">
                 <div class="row g-2">
-                    <div class="col-md-2"><input v-model.number="itemForm.product_id" type="number" class="form-control form-control-sm" placeholder="Product id" aria-label="Product id" /></div>
+                    <div class="col-md-2"><LookupSelect v-model="itemForm.product_id" endpoint="/api/fetchproducts" :params="scope()" placeholder="Product" aria-label="Product" /></div>
                     <div class="col-md-1"><input v-model.number="itemForm.units" type="number" class="form-control form-control-sm" aria-label="Units" /></div>
                     <div class="col-md-2"><input v-model.number="itemForm.daily_rate" type="number" class="form-control form-control-sm" placeholder="Daily rate" aria-label="Daily rate" /></div>
                     <div class="col-md-2"><input v-model.number="itemForm.deposit_amount" type="number" class="form-control form-control-sm" placeholder="Deposit per unit" aria-label="Deposit per unit" /></div>
@@ -151,12 +152,12 @@
         </section>
 
         <section v-if="tab === 'settings'">
-            <div class="alert alert-info small">Bookings, deposits and charges are worked out and kept on every booking. Ledger entries are made only when you switch posting on and map the four accounts below (chart of account ids).</div>
+            <div class="alert alert-info small">Bookings, deposits and charges are worked out and kept on every booking. Ledger entries are made only when you switch posting on and map the four accounts below (chart of accounts).</div>
             <div class="row g-2 align-items-end">
                 <div class="col-md-3 form-check ms-2"><input id="rn-post" v-model="settings.posting_enabled" type="checkbox" class="form-check-input" :disabled="! canManage" /><label class="form-check-label small" for="rn-post">Post rentals to the ledger</label></div>
                 <div v-for="slot in slots" :key="slot" class="col-md-3">
-                    <label class="form-label small text-capitalize" :for="`rn-acc-${slot}`">{{ slot.replace(/_/g, ' ') }} account id</label>
-                    <input :id="`rn-acc-${slot}`" v-model.number="settings.accounts[slot]" type="number" class="form-control form-control-sm" :disabled="! canManage" />
+                    <label class="form-label small text-capitalize" :for="`rn-acc-${slot}`">{{ slot.replace(/_/g, ' ') }} account</label>
+                    <LookupSelect v-model="settings.accounts[slot]" endpoint="/api/fetchchildaccounts" :params="scope()" placeholder="Choose an account" :aria-label="`${slot.replace(/_/g, ' ')} account`" :disabled="! canManage" />
                 </div>
                 <div v-if="canManage" class="col-md-2"><button type="button" class="btn btn-dark btn-sm" @click="send('/api/rental/settings', { ...settings }, 'Settings saved', 'put')">Save settings</button></div>
             </div>

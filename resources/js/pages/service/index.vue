@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import { computed, onMounted, reactive, ref } from 'vue';
+    import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -66,7 +67,7 @@
             <div class="row g-2">
                 <div class="col-md-2"><select v-model="form.type" class="form-select form-select-sm" aria-label="Type"><option v-for="t in meta.types" :key="t" :value="t">{{ t }}</option></select></div>
                 <div class="col-md-4"><input v-model="form.title" class="form-control form-control-sm" placeholder="What is the job about" aria-label="Job title" /></div>
-                <div class="col-md-2"><input v-model.number="form.contact_id" type="number" class="form-control form-control-sm" placeholder="Customer id" aria-label="Customer id" /></div>
+                <div class="col-md-2"><LookupSelect v-model="form.contact_id" endpoint="/api/fetchcustomers" :params="scope()" placeholder="Customer" aria-label="Customer" /></div>
                 <div class="col-md-2"><input v-model="form.item_description" class="form-control form-control-sm" placeholder="Item" aria-label="Item" /></div>
                 <div class="col-md-2"><input v-model="form.serial_no" class="form-control form-control-sm" placeholder="Serial no" aria-label="Serial no" /></div>
                 <div class="col-md-4"><input v-model="form.site_address" class="form-control form-control-sm" placeholder="Site address" aria-label="Site address" /></div>

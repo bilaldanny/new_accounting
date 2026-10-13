@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from './apiEndpoints'
 import useCommons from "./common";
 
 export type SellLineRow = {
+    project_id?: number | string | null;
     id?: number | string;
     product_id: number | string;
     variation_id: number | string;
