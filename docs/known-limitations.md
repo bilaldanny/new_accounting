@@ -39,6 +39,15 @@ policy, sessions); multi-branch and multi-company.
 | Invoice layout | You reorder blocks by dragging; you cannot place items at any position on the page. |
 | Machine and shift planning | Manufacturing plans quantities and dates, not machines or shifts. |
 
+## A new company's starting set-up
+
+* A new company starts with a ready chart of accounts, posting mappings, a financial year and the first item lists. Your accountant
+  should still review the chart and rename or add accounts to suit your business, and enter opening balances.
+* The balance sheet and the profit and loss statement can show different profit while you hold stock: the balance sheet uses the
+  ledger (purchases are posted as an expense when bought), the profit and loss statement deducts the value of the stock you still hold.
+  Both are internally balanced; ask us if you want the balance sheet to carry a stock line.
+* Journal entries wait for approval by default; switch this off in company settings if one person does the books.
+
 ## Connections we could not test against the real service
 
 The following are built and tested against recorded sample answers only. Before you depend on one, test it once with a real
