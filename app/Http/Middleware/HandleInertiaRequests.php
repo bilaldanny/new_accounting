@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\CompanySetting;
+use App\Models\Menu;
 use App\Services\System\BusinessSettings;
 use App\Support\PublicBranding;
 use Illuminate\Http\Request;
@@ -88,7 +89,7 @@ class HandleInertiaRequests extends Middleware
                     'created_at' => $user->created_at,
                     'email' => $user->email,
                     'profile_image' => $user->profile_photo_url ?? $user->profile_photo_path,
-                    'permissions' => $permissions,
+                    'permissions' => Menu::slimSidebarTree($permissions),
                     'permission_paths' => $user->getPermissionPaths(),
                 ] : null,
             ],

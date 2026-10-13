@@ -310,6 +310,39 @@ class Menu extends Model
     }
 
     /**
+     * The part of the sidebar tree the browser actually draws. The sidebar never renders a hidden item (the add / edit / approve
+     * permission rows) or anything below it, and reads only these columns, so everything else (timestamps, colours, audit ids, the
+     * hidden rows) is left out of the props sent with every page.
+     *
+     * @param  iterable<int, array<string, mixed>>  $tree
+     * @return list<array<string, mixed>>
+     */
+    public static function slimSidebarTree(iterable $tree): array
+    {
+        $slim = [];
+
+        foreach ($tree as $item) {
+            if (! empty($item['is_hidden'])) {
+                continue;
+            }
+
+            $row = [
+                'id' => $item['id'] ?? null, 'parent_id' => $item['parent_id'] ?? null, 'name' => $item['name'] ?? null, 'icon' => $item['icon'] ?? null,
+                'route_name' => $item['route_name'] ?? null, 'my_route' => $item['my_route'] ?? null, 'status' => $item['status'] ?? 0, 'type' => $item['type'] ?? null,
+                'is_hidden' => false,
+            ];
+
+            if (isset($item['children'])) {
+                $row['children'] = self::slimSidebarTree($item['children']);
+            }
+
+            $slim[] = $row;
+        }
+
+        return $slim;
+    }
+
+    /**
      * @param  list<int>  $permittedIds
      * @return array<string, mixed>|null
      */
