@@ -8,6 +8,7 @@ use App\Models\CompanySetting;
 use App\Models\Role;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\Company\CompanyBootstrap;
 use App\Support\RolePresets;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -81,6 +82,7 @@ class SelfSignup
             }
 
             RolePresets::sync((int) $company->id, (int) $branch->id);
+            app(CompanyBootstrap::class)->run($company, $branch, $role);
 
             return $user;
         });

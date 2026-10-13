@@ -5,9 +5,9 @@ namespace App\Services\System;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Company;
-use App\Models\FinancialYear;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Company\CompanyBootstrap;
 use App\Services\ContactImporter;
 use App\Services\SelfSignup;
 use Carbon\CarbonImmutable;
@@ -78,8 +78,7 @@ class PilotDemoCompany
 
         try {
             $this->signUp($password);
-            $this->openFinancialYear();
-            $this->buildChartOfAccounts();
+            $this->loadChartOfAccounts();
             $this->buildCatalogue();
             $this->buildContacts();
             $this->tradeForAMonth();
@@ -139,92 +138,19 @@ class PilotDemoCompany
         $this->admin = $user;
     }
 
-    private function openFinancialYear(): void
-    {
-        $startYear = $this->month->month >= 7 ? $this->month->year : $this->month->year - 1;
-
-        FinancialYear::query()->create([
-            'company_id' => $this->companyId, 'name' => "FY {$startYear}-".($startYear + 1), 'start_date' => "{$startYear}-07-01", 'end_date' => ($startYear + 1).'-06-30', 'status' => true,
-        ]);
-    }
-
     /**
-     * The groups and ledger accounts of a trading company, and the mapping of the posting keys to them. A new company gets only the six
-     * top level accounts and empty mappings, so the accountant normally builds this; the demo company starts with it done.
+     * The financial year, the chart of accounts, the mappings and the first units are made by the company bootstrap at sign-up (the
+     * same step the public registration and the Company page use); the demo only reads the account ids it posts to.
      */
-    private function buildChartOfAccounts(): void
+    private function loadChartOfAccounts(): void
     {
-        $top = ChartOfAccount::query()->where('company_id', $this->companyId)->where('branch_id', $this->branchId)->pluck('id', 'code');
+        $this->accounts = app(CompanyBootstrap::class)->accountIds($this->companyId, $this->branchId);
 
-        $group = function (string $key, string $code, string $name, int $parent, string $nature, bool $profitAndLoss) {
-            return $this->accounts[$key] = $this->account($code, $name, 'c', $parent, $nature, $profitAndLoss);
-        };
-        $leaf = function (string $key, string $code, string $name, int $parent, string $nature, bool $profitAndLoss = false) {
-            return $this->accounts[$key] = $this->account($code, $name, 't', $parent, $nature, $profitAndLoss);
-        };
-
-        $currentAssets = $group('current_assets', '210-00000', 'Current Assets', $top['200-00000'], 'dr', false);
-        $receivables = $group('receivables', '211-00000', 'Trade Receivables', $currentAssets, 'dr', false);
-        $cashAndBank = $group('cash_bank', '212-00000', 'Cash and Bank', $currentAssets, 'dr', false);
-        $leaf('cash', '212-00001', 'Cash in Hand', $cashAndBank, 'dr');
-        $leaf('bank', '212-00002', 'Meezan Bank Current Account', $cashAndBank, 'dr');
-        $inventory = $group('inventory_group', '213-00000', 'Inventory', $currentAssets, 'dr', false);
-        $leaf('inventory', '213-00001', 'Stock in Trade', $inventory, 'dr');
-        $taxAsset = $group('tax_asset_group', '214-00000', 'Taxes Recoverable', $currentAssets, 'dr', false);
-        $leaf('input_tax', '214-00001', 'Sales Tax Input', $taxAsset, 'dr');
-        $staff = $group('staff_group', '215-00000', 'Staff Receivables', $currentAssets, 'dr', false);
-        $leaf('staff_loans', '215-00001', 'Staff Loans and Advances', $staff, 'dr');
-
-        $currentLiabilities = $group('current_liabilities', '310-00000', 'Current Liabilities', $top['300-00000'], 'cr', false);
-        $payables = $group('payables', '311-00000', 'Trade Payables', $currentLiabilities, 'cr', false);
-        $taxLiabilities = $group('tax_liability_group', '312-00000', 'Taxes and Contributions Payable', $currentLiabilities, 'cr', false);
-        $leaf('output_tax', '312-00001', 'Sales Tax Output', $taxLiabilities, 'cr');
-        $leaf('income_tax_payable', '312-00002', 'Income Tax Payable (salaries)', $taxLiabilities, 'cr');
-        $leaf('statutory_payable', '312-00003', 'Statutory Contributions Payable', $taxLiabilities, 'cr');
-        $accrued = $group('accrued_group', '313-00000', 'Accrued Liabilities', $currentLiabilities, 'cr', false);
-        $leaf('salaries_payable', '313-00001', 'Salaries Payable', $accrued, 'cr');
-        $advances = $group('advances_group', '314-00000', 'Customer Advances', $currentLiabilities, 'cr', false);
-        $leaf('customer_advance', '314-00001', 'Advances from Customers', $advances, 'cr');
-
-        $capital = $group('capital_group', '110-00000', 'Capital and Reserves', $top['100-00000'], 'cr', false);
-        $leaf('capital', '110-00001', "Owner's Capital", $capital, 'cr');
-        $leaf('pnl', '110-00002', 'Retained Earnings', $capital, 'cr');
-
-        $salesGroup = $group('sales_group', '510-00000', 'Sales', $top['500-00000'], 'cr', true);
-        $leaf('local_sales', '510-00001', 'Local Sales', $salesGroup, 'cr', true);
-        $leaf('export_sales', '510-00002', 'Export Sales', $salesGroup, 'cr', true);
-
-        $cogs = $group('cogs_group', '610-00000', 'Cost of Sales', $top['600-00000'], 'dr', true);
-        $leaf('cogs', '610-00001', 'Cost of Goods Sold', $cogs, 'dr', true);
-        $leaf('purchases', '610-00002', 'Purchases', $cogs, 'dr', true);
-
-        $operating = $group('operating_group', '410-00000', 'Operating Expenses', $top['400-00000'], 'dr', true);
-        $leaf('salaries_expense', '410-00001', 'Salaries and Wages', $operating, 'dr', true);
-        $leaf('rent', '410-00002', 'Shop Rent', $operating, 'dr', true);
-        $leaf('utilities', '410-00003', 'Electricity and Utilities', $operating, 'dr', true);
-
-        $mapping = [
-            'equity' => $top['100-00000'], 'assets' => $top['200-00000'], 'liability' => $top['300-00000'], 'expenses' => $top['400-00000'], 'revenue' => $top['500-00000'],
-            'customer' => $receivables, 'supplier' => $payables, 'customeradvance' => $this->accounts['customer_advance'], 'bank' => $cashAndBank, 'cash' => $this->accounts['cash'],
-            'purchase' => $this->accounts['purchases'], 'importpurchase' => $this->accounts['purchases'], 'localpurchase' => $this->accounts['purchases'], 'inputtax' => $this->accounts['input_tax'],
-            'sale' => $this->accounts['local_sales'], 'localsales' => $this->accounts['local_sales'], 'exportsale' => $this->accounts['export_sales'], 'outputtax' => $this->accounts['output_tax'],
-            'pnl' => $this->accounts['pnl'],
-        ];
-
-        foreach ($mapping as $key => $accountId) {
-            DB::table('chart_of_account_mappings')->where('company_id', $this->companyId)->where('branch_id', $this->branchId)->where('key', $key)
-                ->update(['value' => (string) $accountId, 'updated_at' => now()]);
+        if (! isset($this->accounts['cash'], $this->accounts['bank'], $this->accounts['salaries_expense'])) {
+            throw new RuntimeException('The company bootstrap did not create the starting chart of accounts.');
         }
 
         $this->summary['accounts'] = ChartOfAccount::query()->where('company_id', $this->companyId)->count();
-    }
-
-    private function account(string $code, string $name, string $type, int $parent, string $nature, bool $profitAndLoss): int
-    {
-        return (int) ChartOfAccount::query()->create([
-            'company_id' => $this->companyId, 'branch_id' => $this->branchId, 'parent_id' => $parent, 'code' => $code, 'name' => $name, 'acc_type' => $type,
-            'acc_nature' => $nature, 'pl' => $profitAndLoss, 'bs' => ! $profitAndLoss, 'active' => true,
-        ])->id;
     }
 
     private function buildCatalogue(): void
@@ -232,6 +158,13 @@ class PilotDemoCompany
         $units = [];
 
         foreach (['Piece' => 'pc', 'Kilogram' => 'kg', 'Carton' => 'ctn'] as $name => $short) {
+            $existing = DB::table('units')->where('company_id', $this->companyId)->where('short_name', $short)->value('id');
+            $units[$short] = $existing !== null ? (int) $existing : null;
+
+            if ($existing !== null) {
+                continue;
+            }
+
             $units[$short] = (int) DB::table('units')->insertGetId(['company_id' => $this->companyId, 'name' => $name, 'short_name' => $short, 'active' => 1, 'created_at' => now(), 'updated_at' => now()]);
         }
 

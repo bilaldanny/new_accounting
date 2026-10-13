@@ -10,6 +10,9 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Company\CompanyBootstrap;
+use App\Services\SelfSignup;
+use App\Support\RolePresets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -144,8 +147,11 @@ class CompanyController extends Controller
             $company = Company::createCompany($request);
             CompanySetting::createCompanySettings($company->id, $request->string('name')->toString());
             $branch = Branch::createCompanyBranch($company->id);
-            $role = Role::createCompanyRole($company->id);
+            // the shared company admin role (the menu migrations keep it current), never an empty role of the company's own
+            $role = SelfSignup::companyAdminRole($company->id);
             User::createCompanyAdmin($request, $role->id, $company->id, $branch->id);
+            RolePresets::sync((int) $company->id, (int) $branch->id);
+            app(CompanyBootstrap::class)->run($company, $branch, $role);
             DB::commit();
         } catch (ValidationException $e) {
             DB::rollBack();

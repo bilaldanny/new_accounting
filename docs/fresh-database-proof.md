@@ -38,15 +38,48 @@ php artisan migrate:status | grep -i pending
 
 3. Check that no migration errors, then open the smoke URLs listed in `docs/deploy-runbook.md`.
 
-## Finding: a fresh database is not a usable install on its own
+## Setting up a new install
 
-`migrate:fresh --seed` succeeds, but the original pages (`/purchase`, `/sell`, `/customer`, `/hrm`, ...) have no rows in `menus`: those
-came from the legacy database dump, not from migrations (only the menus added by later migrations exist, 308 rows). A brand-new company
-also gets only the six top level accounts and empty account mappings, so the accountant builds the chart before the first sale.
+```bash
+php artisan migrate --force                 # all tables and the menus added since the first release
+php artisan install:baseline-menus          # the menu rows the original dump would have given (add --dry-run to count first)
+php artisan plans:seed-defaults             # optional: Starter / Growth / Business packages for the sign-up page
+```
 
-- A new install therefore needs the baseline `menus` / `permissions` data of the live database imported once.
-- The pilot demo company (`php artisan demo:pilot`) builds its own chart and mappings and is posted as the superadmin, so it works on a
-  fresh database too; its admin user still needs those baseline menus to open the screens.
+What `install:baseline-menus` does: for every menu path the code checks or serves that has no menu row yet
+(`database/data/baseline_menus.php`, 600 paths on a migrations-only database) it adds a row under the nearest existing parent, and it
+creates the shared `companyadmin` role if it is missing and gives it every company-level menu (never the platform menus: tenants,
+subscription plans, SaaS admin). It only adds; a menu that exists is never touched, so on a database that has the old dump it adds
+only what the dump never had. The names it gives are plain (taken from the path); the sidebar layout of an old install is better.
+
+After that, a company is created by public registration or on the Company page, and both now run the same `CompanyBootstrap` step:
+
+| Made for every new company | Source |
+|---|---|
+| company, first branch, settings row, withholding tax accounts | `Company::createCompany`, `Branch::createCompanyBranch` (unchanged) |
+| admin user on the shared `companyadmin` role | `SelfSignup::companyAdminRole` (the Company page used to create an empty role of its own) |
+| the starter staff roles (Accountant, Cashier, Sales Representative, Manager, Warehouse Keeper) | `RolePresets::sync` (the Company page did not run it) |
+| an open financial year (July to June) | `CompanyBootstrap` |
+| chart of accounts (33 groups and ledger accounts) and every posting key mapped (customer, supplier, bank, cash, purchase, sale, tax, profit and loss ...) | `CompanyBootstrap` |
+| first unit, brand, category, item type, so a product can be saved | `CompanyBootstrap` |
+
+`CompanyBootstrap` only fills what is absent: a company with any account beyond the top level (and the two withholding accounts) keeps
+its chart and mappings, a company with a financial year keeps it, and it is never run on an existing company by itself
+(`tests/Feature/CompanyBootstrapTest.php` guards both).
+
+### What stays manual
+
+- The accountant reviews the starting chart and renames or adds accounts; opening balances are entered by the accountant.
+- Tax rates, withholding rates and payroll statutory rates and tax slabs (the application ships none).
+- Banks, warehouses beyond the head office, price lists, users and their roles, document numbering and print layouts.
+- A new company starts with journal approval on: the journal is approved by someone with the approve menu before it is in the books.
+
+### Known report difference
+
+The balance sheet takes its "profit to date" from the ledger, and purchases post to the Purchases account (no inventory account is
+posted), so it differs from the profit and loss net profit by the change in stock value. Both are internally balanced (the sheet's
+difference line is 0.00). Aligning them needs an inventory line and an opening-stock equity entry; that is an owner decision (see
+`reports-decisions`).
 
 ## Pilot demo company
 
