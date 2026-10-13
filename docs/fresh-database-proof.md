@@ -37,3 +37,24 @@ php artisan migrate:status | grep -i pending
 ```
 
 3. Check that no migration errors, then open the smoke URLs listed in `docs/deploy-runbook.md`.
+
+## Finding: a fresh database is not a usable install on its own
+
+`migrate:fresh --seed` succeeds, but the original pages (`/purchase`, `/sell`, `/customer`, `/hrm`, ...) have no rows in `menus`: those
+came from the legacy database dump, not from migrations (only the menus added by later migrations exist, 308 rows). A brand-new company
+also gets only the six top level accounts and empty account mappings, so the accountant builds the chart before the first sale.
+
+- A new install therefore needs the baseline `menus` / `permissions` data of the live database imported once.
+- The pilot demo company (`php artisan demo:pilot`) builds its own chart and mappings and is posted as the superadmin, so it works on a
+  fresh database too; its admin user still needs those baseline menus to open the screens.
+
+## Pilot demo company
+
+```bash
+php artisan demo:pilot            # build DEMO-PILOT (does nothing if it already exists)
+php artisan demo:pilot --fresh    # remove it, then build it again
+php artisan demo:pilot --remove   # remove it
+```
+
+It only ever creates, finds or removes the company coded `DEMO-PILOT` and refuses to run when the environment is production unless
+`--force` is given. The admin password is printed once at the end of a build.
