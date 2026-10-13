@@ -189,7 +189,7 @@ test('a signed-in user who opens the home page is taken to the dashboard', funct
     $this->world();
 
     $this->browse(function (Browser $browser) {
-        $this->signIn($browser, $this->adminUser())->visit('/')->waitForLocation('/dashboard', 40);
+        $this->signIn($browser, $this->adminUser())->visit('/')->waitForLocation('/dashboard', 40)->waitUntilMissing('.dash-skel', 40);
     });
 });
 

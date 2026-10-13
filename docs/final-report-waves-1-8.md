@@ -8,9 +8,9 @@ SQLite file with the `APP_URL` guard of `tests/DuskTestCase.php`.
 
 | Check | Result |
 |---|---|
-| Pest, full suite (`php -d memory_limit=-1 vendor/bin/pest`) | **{{PEST_TESTS}} tests, {{PEST_PASSED}} passed, {{PEST_ASSERTIONS}} assertions** |
+| Pest, full suite (`php -d memory_limit=-1 vendor/bin/pest`) | **3,893 tests, 3,893 passed, 24,002 assertions** |
 | Pest tests added by this closeout | W1 11, W2 8, W3 17, W4 21, W5 17, W6 19, W7 22, W8 38 (manufacturing 17, service 7, rental 6, projects / claims / shop 8), W1b 13: 166 |
-| Dusk (real Chrome, throw-away SQLite, port 8099), full suite | {{DUSK}} |
+| Dusk (real Chrome, throw-away SQLite, port 8099), full suite | 176 tests in the full run: 173 passed, 1 skipped, 2 not green at first: `LandingTest` "Software Settings ..." (a real race: the previous test left the dashboard requests in flight; the test now waits for the dashboard to finish loading; the file passes, 9/9) and the page-load of "customer subscription plans" (a 30 s timeout that is known to flake and passes alone) |
 | `npm run build` | passes (rolldown, one chunk-size warning that was there before) |
 | Pint (`vendor/bin/pint --dirty`) | clean |
 
@@ -29,7 +29,7 @@ deleted or changed to pass.
 | `b29ba97` | Wave 8, part 1: manufacturing |
 | `92cd719` | Wave 8, part 2: repair and field service, the field app |
 | `5376d47` | Wave 8, part 3: rental, project work, expense claims, storefront |
-| {{COMMIT_1B}} | Wave 1b: dashboard rows left open, approval center gaps, drag and drop, product import history |
+| `e6f8fde` | Wave 1b: dashboard rows left open, approval center gaps, drag and drop, product import history |
 
 Each wave has `docs/closeout-wave<N>.md` (wave 8: `closeout-wave8.md`, wave 1b: `closeout-wave1b.md`) and `docs/PROGRESS.md` is current.
 
@@ -78,7 +78,20 @@ All 134 rows with their exact tracker names, status, the reason when it is not B
 
 | Module | Rows | Built | Partial | Not built |
 |---|---|---|---|---|
-{{TOTALS}}
+| 1. Dashboard & BI | 6 | 5 | 1 | 0 |
+| 8. CRM | 2 | 2 | 0 | 0 |
+| 11. Approval Center | 7 | 7 | 0 | 0 |
+| 12. Reports | 17 | 15 | 2 | 0 |
+| 13. Documents | 13 | 10 | 3 | 0 |
+| 14. User Mgmt & Security | 7 | 7 | 0 | 0 |
+| 15. Settings | 23 | 13 | 10 | 0 |
+| 16. Integrations | 6 | 1 | 5 | 0 |
+| 17. SaaS Billing | 10 | 8 | 2 | 0 |
+| 18. Customer Subscription | 3 | 2 | 1 | 0 |
+| 9. HRM & Payroll | 15 | 11 | 4 | 0 |
+| 10. Manufacturing | 10 | 10 | 0 | 0 |
+| 19. Advanced | 15 | 12 | 3 | 0 |
+| **All** | **134** | **103** | **31** | **0** |
 
 **Built** means built and proven by a test here. **Partial** means built, but a stated part cannot be proven without an outside
 account, device or live service, or was left out on purpose (reason on every row). **Not built**: none.
