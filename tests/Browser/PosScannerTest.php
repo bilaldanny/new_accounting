@@ -53,6 +53,22 @@ test('a scanned barcode adds its product, scanning again adds one more, and the 
         $browser->driver->getKeyboard()->sendKeys(WebDriverKeys::F2);
         $browser->waitUsing(10, 1, fn (): bool => (bool) $browser->driver->executeScript('return document.activeElement && document.activeElement.getAttribute("data-test") === "pos-search";'));
 
+        // + and - change the quantity of the line, Delete removes it, with no field focused
+        $browser->driver->executeScript('document.activeElement.blur();');
+        $browser->driver->getKeyboard()->sendKeys('+');
+        $browser->waitUsing(10, 1, fn (): bool => (string) $browser->driver->executeScript('return document.querySelector(".pos-qty-stepper input").value;') === '3');
+        $browser->driver->getKeyboard()->sendKeys('-');
+        $browser->waitUsing(10, 1, fn (): bool => (string) $browser->driver->executeScript('return document.querySelector(".pos-qty-stepper input").value;') === '2');
+        $browser->driver->getKeyboard()->sendKeys(WebDriverKeys::DELETE);
+        $browser->waitUsing(10, 1, fn (): bool => (int) $browser->driver->executeScript('return document.querySelectorAll(".pos-cart-line").length;') === 0);
+
+        // scanner settings: a longer minimum turns a short code into typing, not a scan
+        $browser->click('[data-test="pos-scanner-settings"]')->waitFor('[data-test="pos-scanner-panel"]', 10);
+        $browser->driver->executeScript('const i = document.getElementById("sc-min"); i.value = 30; i.dispatchEvent(new Event("input"));');
+        $browser->click('[data-test="pos-scanner-save"]')->waitUntilMissing('[data-test="pos-scanner-panel"]', 10);
+        expect($browser->driver->executeScript('return JSON.parse(localStorage.getItem("pos-scanner")).minLength;'))->toBe(30);
+        $browser->driver->executeScript('localStorage.removeItem("pos-scanner");');
+
         $this->assertNoBrowserErrors($browser);
     });
 });

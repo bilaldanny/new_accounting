@@ -482,8 +482,109 @@
     let scanBuffer = '';
     let lastKeyAt = 0;
 
+    /**
+     * Scanner behaviour of this till (a scanner belongs to the device, so it is kept in the browser): the shortest code taken for a scan,
+     * an optional prefix the scanner sends before the code and the key it ends with (Enter or Tab), how fast the keys must arrive, and the sounds.
+     */
+    type ScannerConfig = { minLength: number; prefix: string; suffix: 'Enter' | 'Tab'; timeoutMs: number; beep: boolean; camera: boolean };
+    const scannerDefaults: ScannerConfig = { minLength: 3, prefix: '', suffix: 'Enter', timeoutMs: 100, beep: true, camera: true };
+    const scanner = ref<ScannerConfig>({ ...scannerDefaults });
+    const showScannerSettings = ref(false);
+
+    try {
+        const saved = JSON.parse(window.localStorage.getItem('pos-scanner') ?? 'null');
+
+        if (saved && typeof saved === 'object') {
+            scanner.value = { ...scannerDefaults, ...saved };
+        }
+    } catch {
+        // storage blocked: the defaults are used
+    }
+
+    function saveScanner() {
+        scanner.value.minLength = Math.min(30, Math.max(1, Math.round(Number(scanner.value.minLength) || 3)));
+        scanner.value.timeoutMs = Math.min(1000, Math.max(20, Math.round(Number(scanner.value.timeoutMs) || 100)));
+        scanner.value.prefix = String(scanner.value.prefix ?? '').slice(0, 5);
+
+        try {
+            window.localStorage.setItem('pos-scanner', JSON.stringify(scanner.value));
+        } catch {
+            // not persisted
+        }
+
+        showScannerSettings.value = false;
+    }
+
+    /** The line + and - and Delete act on: the one clicked last, else the newest. */
+    const selectedLine = ref<number | null>(null);
+
+    function activeLine(): number {
+        const last = lines.value.length - 1;
+
+        return selectedLine.value !== null && selectedLine.value <= last ? selectedLine.value : last;
+    }
+
+    /** Camera fallback with the browser's own BarcodeDetector (no library): it is simply absent where the browser has none. */
+    const cameraSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+    const showCamera = ref(false);
+    const cameraVideo = ref<HTMLVideoElement | null>(null);
+    const cameraError = ref('');
+    let cameraStream: MediaStream | null = null;
+    let cameraTimer: number | undefined;
+
+    function stopCamera() {
+        window.clearInterval(cameraTimer);
+        cameraStream?.getTracks().forEach((track) => track.stop());
+        cameraStream = null;
+        showCamera.value = false;
+    }
+
+    async function startCamera() {
+        cameraError.value = '';
+        showCamera.value = true;
+
+        try {
+            const Detector = (window as unknown as { BarcodeDetector: new (options?: unknown) => { detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
+            const detector = new Detector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'] });
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            await nextTick();
+
+            if (cameraVideo.value) {
+                cameraVideo.value.srcObject = cameraStream;
+                await cameraVideo.value.play();
+            }
+
+            let busy = false;
+            cameraTimer = window.setInterval(async () => {
+                if (busy || ! cameraVideo.value) {
+                    return;
+                }
+
+                busy = true;
+
+                try {
+                    const found = await detector.detect(cameraVideo.value);
+
+                    if (found[0]?.rawValue) {
+                        await scanCode(found[0].rawValue);
+                    }
+                } catch {
+                    // a frame that cannot be read is skipped
+                } finally {
+                    busy = false;
+                }
+            }, 700);
+        } catch {
+            cameraError.value = 'The camera could not be opened. Allow camera access for this site and try again.';
+        }
+    }
+
     /** A short high tone for a scan that was added, a low one for a scan that was not (no sound where audio is not allowed). */
     function beep(ok: boolean) {
+        if (! scanner.value.beep) {
+            return;
+        }
+
         try {
             audioContext ??= new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
@@ -559,6 +660,7 @@
             addProduct(match);
         }
 
+        selectedLine.value = null;
         lastScan.value = { code, ok: true, text: `${match.product_name ?? match.name} added` };
         beep(true);
     }
@@ -592,20 +694,27 @@
                 showShortcuts.value = ! showShortcuts.value;
             },
             F2: () => focusSearch(true),
-            F4: () => customerSelect.value?.focus(),
-            F8: () => {
-                if (! saving.value) {
-                    void checkoutCash();
-                }
-            },
-            F9: () => {
+            F3: () => customerSelect.value?.focus(),
+            F4: () => {
                 if (! saving.value) {
                     void openPaymentModal('split');
                 }
             },
-            F10: () => {
+            F8: () => {
                 if (! saving.value) {
                     suspendSale();
+                }
+            },
+            F9: () => {
+                if (! saving.value && lines.value.length > 0 && window.confirm('Start a new sale? The cart will be cleared.')) {
+                    resetSale();
+                } else if (lines.value.length === 0) {
+                    focusSearch(true);
+                }
+            },
+            F10: () => {
+                if (! saving.value) {
+                    void checkoutCash();
                 }
             },
         };
@@ -617,27 +726,71 @@
             return;
         }
 
+        if (event.key === 'Escape' && ! document.querySelector('.modal.show')) {
+            if (showCamera.value) {
+                stopCamera();
+            } else if (showScannerSettings.value) {
+                showScannerSettings.value = false;
+            } else if (showShortcuts.value) {
+                showShortcuts.value = false;
+            } else if (productSearch.value !== '') {
+                productSearch.value = '';
+            }
+
+            return;
+        }
+
         if (event.ctrlKey || event.altKey || event.metaKey || (isTypingField(event.target) && event.target !== searchInput.value) || event.target === searchInput.value) {
             return;
         }
 
+        // + - and Delete work on the line being sold, away from any field
+        if (! document.querySelector('.modal.show') && lines.value.length > 0 && ! isTypingField(event.target)) {
+            const index = activeLine();
+
+            if (event.key === '+' || event.key === '=') {
+                event.preventDefault();
+                stepQuantity(index, 1);
+
+                return;
+            }
+
+            if (event.key === '-' || event.key === '_') {
+                event.preventDefault();
+                stepQuantity(index, -1);
+
+                return;
+            }
+
+            if (event.key === 'Delete') {
+                event.preventDefault();
+                removeLine(index);
+                selectedLine.value = null;
+
+                return;
+            }
+        }
+
         const now = Date.now();
 
-        if (now - lastKeyAt > 100) {
+        if (now - lastKeyAt > scanner.value.timeoutMs) {
             scanBuffer = '';
         }
 
         lastKeyAt = now;
 
-        if (event.key === 'Enter') {
-            if (scanBuffer.length >= 3) {
-                event.preventDefault();
-                const code = scanBuffer;
-                scanBuffer = '';
-                void scanCode(code);
+        if (event.key === scanner.value.suffix) {
+            let code = scanBuffer;
+            scanBuffer = '';
+
+            if (scanner.value.prefix !== '') {
+                code = code.startsWith(scanner.value.prefix) ? code.slice(scanner.value.prefix.length) : '';
             }
 
-            scanBuffer = '';
+            if (code.length >= scanner.value.minLength) {
+                event.preventDefault();
+                void scanCode(code);
+            }
 
             return;
         }
@@ -1280,6 +1433,7 @@
     });
 
     onBeforeUnmount(() => {
+        stopCamera();
         if (clockTimer) {
             clearInterval(clockTimer);
         }
@@ -1403,9 +1557,27 @@
                     <div class="pos-scan-status" data-test="pos-scan-status" role="status" aria-live="polite">
                         <span :class="lastScan ? (lastScan.ok ? 'text-success' : 'text-danger') : 'text-muted'">{{ lastScan ? lastScan.text : 'Scanner ready: scan a barcode at any time' }}</span>
                         <button type="button" class="btn btn-link btn-sm p-0 ms-2" @click="showShortcuts = ! showShortcuts">Keys (F1)</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-test="pos-scanner-settings" @click="showScannerSettings = ! showScannerSettings">Scanner settings</button>
+                        <button v-if="cameraSupported && scanner.camera" type="button" class="btn btn-link btn-sm p-0 ms-2" data-test="pos-camera" @click="startCamera">Scan with camera</button>
+                    </div>
+                    <div v-if="showScannerSettings" class="border rounded p-2 mb-2 small" data-test="pos-scanner-panel">
+                        <div class="row g-2">
+                            <div class="col-6"><label class="form-label mb-0" for="sc-min">Shortest code</label><input id="sc-min" v-model.number="scanner.minLength" type="number" min="1" max="30" class="form-control form-control-sm" /></div>
+                            <div class="col-6"><label class="form-label mb-0" for="sc-time">Key speed limit (ms)</label><input id="sc-time" v-model.number="scanner.timeoutMs" type="number" min="20" max="1000" class="form-control form-control-sm" /></div>
+                            <div class="col-6"><label class="form-label mb-0" for="sc-prefix">Prefix (optional)</label><input id="sc-prefix" v-model="scanner.prefix" type="text" maxlength="5" class="form-control form-control-sm" /></div>
+                            <div class="col-6"><label class="form-label mb-0" for="sc-suffix">Ends with</label><select id="sc-suffix" v-model="scanner.suffix" class="form-select form-select-sm"><option value="Enter">Enter</option><option value="Tab">Tab</option></select></div>
+                            <div class="col-6"><label class="form-check"><input v-model="scanner.beep" type="checkbox" class="form-check-input" /> Beep on scan</label></div>
+                            <div class="col-6"><label class="form-check"><input v-model="scanner.camera" type="checkbox" class="form-check-input" /> Camera button</label></div>
+                        </div>
+                        <button type="button" class="btn btn-dark btn-sm mt-2" data-test="pos-scanner-save" @click="saveScanner">Save</button>
+                    </div>
+                    <div v-if="showCamera" class="border rounded p-2 mb-2" data-test="pos-camera-panel">
+                        <video ref="cameraVideo" class="w-100" playsinline muted style="max-height: 14rem; background: #000" />
+                        <div v-if="cameraError" class="text-danger small">{{ cameraError }}</div>
+                        <button type="button" class="btn btn-outline-dark btn-sm mt-1" @click="stopCamera">Close camera</button>
                     </div>
                     <div v-if="showShortcuts" class="pos-shortcuts small border rounded p-2 mb-2" data-test="pos-shortcuts">
-                        <div><kbd>F2</kbd> search / scan &nbsp; <kbd>F4</kbd> customer &nbsp; <kbd>F8</kbd> cash sale &nbsp; <kbd>F9</kbd> payment &nbsp; <kbd>F10</kbd> park cart &nbsp; <kbd>F1</kbd> this help</div>
+                        <div><kbd>F2</kbd> search / scan &nbsp; <kbd>F3</kbd> customer &nbsp; <kbd>F4</kbd> payment &nbsp; <kbd>F8</kbd> hold &nbsp; <kbd>F9</kbd> new sale &nbsp; <kbd>F10</kbd> cash sale &nbsp; <kbd>+</kbd> <kbd>-</kbd> quantity &nbsp; <kbd>Del</kbd> remove line &nbsp; <kbd>Esc</kbd> cancel &nbsp; <kbd>F1</kbd> this help</div>
                         <div class="text-muted">A barcode scanner works anywhere on this page: it types the code and presses Enter. Same item twice adds one more.</div>
                     </div>
 
@@ -1417,7 +1589,7 @@
                         </div>
 
                         <div v-else class="pos-cart-lines">
-                            <div v-for="(line, index) in lines" :key="`${line.product_id}-${line.variation_id}-${index}`" class="pos-cart-line">
+                            <div v-for="(line, index) in lines" :key="`${line.product_id}-${line.variation_id}-${index}`" class="pos-cart-line" :class="{ 'pos-cart-line--selected': activeLine() === index }" @click="selectedLine = index">
                                 <span class="pos-cart-line__icon"><Package class="h-4 w-4" /></span>
 
                                 <div class="pos-cart-line__info">
@@ -1767,6 +1939,11 @@
 </template>
 
 <style scoped>
+.pos-cart-line--selected {
+    outline: 2px solid #0f766e;
+    outline-offset: -2px;
+    border-radius: 8px;
+}
 .pos-screen {
     display: flex;
     flex-direction: column;
