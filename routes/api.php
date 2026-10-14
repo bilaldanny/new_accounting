@@ -39,6 +39,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\ConsignmentController;
 use App\Http\Controllers\ConsumerController;
+use App\Http\Controllers\ContactActivityController;
 use App\Http\Controllers\ContactAttachmentController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactDuplicateController;
@@ -618,6 +619,10 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('/fetchsuppliers', [SupplierController::class, 'fetch']);
     Route::get('/fetchcontactdetail', [SupplierController::class, 'contactDetail']);
     Route::get('/fetchledger', [PartyLedgerReportController::class, 'fetchLedger']);
+    Route::get('/contacts/{id}/orders', [ContactActivityController::class, 'orders'])->whereNumber('id');
+    Route::get('/contacts/{id}/payments', [ContactActivityController::class, 'payments'])->whereNumber('id');
+    Route::get('/contacts/{id}/stock', [ContactActivityController::class, 'stock'])->whereNumber('id');
+    Route::get('/contacts/{id}/document-attachments', [ContactActivityController::class, 'attachments'])->whereNumber('id');
     Route::get('/fetchledger/pdf', [PartyLedgerReportController::class, 'statementPdf']);
     Route::post('/contact-ledger/send', [PartyLedgerReportController::class, 'sendStatement'])->middleware('throttle:30,1');
     Route::post('/contact-ledger-watches', [PartyLedgerReportController::class, 'saveLedgerWatch']);

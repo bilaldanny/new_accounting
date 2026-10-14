@@ -25,7 +25,9 @@
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import ActivityTimeline from '@/components/ActivityTimeline.vue';
     import CustomFieldsPanel from '@/components/CustomFieldsPanel.vue';
+    import ContactActivityPanel from '@/components/ContactActivityPanel.vue';
     import ContactDocuments from '../ContactDocuments.vue';
+    import LedgerStatementActions from '@/components/LedgerStatementActions.vue';
     import FiscalYearDateRange from '@/components/FiscalYearDateRange.vue';
     import Loader from '@/components/Loader.vue';
     import useActiveFinancialYear from '@/composables/activeFinancialYear';
@@ -955,6 +957,18 @@
                                 />
                             </div>
 
+                            <LedgerStatementActions
+                                class="supplier-view-ledger-send"
+                                :contact-id="scopeFilters.contact_id"
+                                :company-id="scopeFilters.company_id"
+                                :branch-id="scopeFilters.branch_id"
+                                :start-date="ledgerFilters.start_date"
+                                :end-date="ledgerFilters.end_date"
+                                :email="contact.email"
+                                :mobile="contact.mobile"
+                                :party-name="contact.business_name"
+                            />
+
                             <Loader v-if="ledgerLoading" message="Loading ledger…" :fields="4" />
 
                             <template v-else>
@@ -1093,6 +1107,18 @@
                         <div v-else-if="activeTab === 'documents'" class="supplier-view-ledger">
                             <ContactDocuments kind="supplier" :contact-id="contact.id" :can-manage="canManageDocuments" />
                             <CustomFieldsPanel entity="contact" :id="contact.id" :can-edit="permissionPaths.includes('/supplier/:id/edit')" />
+                        </div>
+
+                        <div v-else-if="activeTab === 'purchases'" class="supplier-view-ledger">
+                            <ContactActivityPanel mode="orders" kind="supplier" :contact-id="contact.id" :currency="currencyCode" />
+                        </div>
+
+                        <div v-else-if="activeTab === 'payments'" class="supplier-view-ledger">
+                            <ContactActivityPanel mode="payments" kind="supplier" :contact-id="contact.id" :currency="currencyCode" />
+                        </div>
+
+                        <div v-else-if="activeTab === 'stock'" class="supplier-view-ledger">
+                            <ContactActivityPanel mode="stock" kind="supplier" :contact-id="contact.id" :currency="currencyCode" />
                         </div>
 
                         <div v-else class="supplier-view-empty">
@@ -1419,7 +1445,7 @@
 
 .supplier-view-profile__stats {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
     gap: 0.625rem;
     padding-top: 2.25rem;
 }
@@ -1473,6 +1499,7 @@
 
 .supplier-view-stat__content {
     min-width: 0;
+    flex: 1;
 }
 
 .supplier-view-stat__label {
@@ -1486,7 +1513,10 @@
 
 .supplier-view-stat__value {
     display: block;
-    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(0.85rem, 1.1vw, 1rem);
     font-weight: 800;
     color: var(--app-text, #111827);
     font-variant-numeric: tabular-nums;
