@@ -486,6 +486,7 @@ return [
     '/reordersuggestion' => ['name' => 'Reordersuggestion', 'hidden' => false],
     '/reordersuggestion/add' => ['name' => 'Add Reordersuggestion', 'hidden' => true],
     '/report/expense' => ['name' => 'Report Expense', 'hidden' => false],
+    '/report/profit-loss' => ['name' => 'Profit and Loss', 'hidden' => false],
     '/reportbuilder' => ['name' => 'Reportbuilder', 'hidden' => false],
     '/reportbuilder/manage' => ['name' => 'Manage Reportbuilder', 'hidden' => true],
     '/rider' => ['name' => 'Rider', 'hidden' => false],

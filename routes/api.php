@@ -83,6 +83,7 @@ use App\Http\Controllers\FixedAssetTransferController;
 use App\Http\Controllers\ForeignCurrencyController;
 use App\Http\Controllers\FundTransferController;
 use App\Http\Controllers\GiftCardController;
+use App\Http\Controllers\HeaderToolsController;
 use App\Http\Controllers\HelpCenterController;
 use App\Http\Controllers\HrmAttendanceController;
 use App\Http\Controllers\HrmController;
@@ -1413,6 +1414,13 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('approval-center/discount-codes/{id}/{decision}', [ApprovalCenterController::class, 'decideDiscount'])->whereNumber('id');
 
     /* Wave 1 */
+    Route::get('header/clock', [HeaderToolsController::class, 'clock']);
+    Route::get('header/today-profit', [HeaderToolsController::class, 'today']);
+    Route::get('header/calendar', [HeaderToolsController::class, 'calendar']);
+    Route::get('header/todos', [HeaderToolsController::class, 'todos']);
+    Route::post('header/todos', [HeaderToolsController::class, 'addTodo']);
+    Route::post('header/todos/{id}/toggle', [HeaderToolsController::class, 'toggleTodo'])->whereNumber('id');
+    Route::delete('header/todos/{id}', [HeaderToolsController::class, 'deleteTodo'])->whereNumber('id');
     Route::get('my-notifications', [MyNotificationsController::class, 'index']);
     Route::post('my-notifications/read-all', [MyNotificationsController::class, 'readAll']);
     Route::post('my-notifications/{id}/read', [MyNotificationsController::class, 'read'])->whereNumber('id');

@@ -2,6 +2,7 @@
     import { Bell, Cog, HomeCircle, Menu, Power, Search, User } from '@boxicons/vue';
     import { Link, router, usePage } from '@inertiajs/vue3';
     import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+    import HeaderTools from '@/components/HeaderTools.vue';
     import useSidebarToggle from '@/composables/useSidebarToggle';
     import { dashboard, logout } from '@/routes';
 
@@ -239,6 +240,8 @@
                         <span class="erp-synced-badge__dot"></span>
                         ERP Synced
                     </span>
+
+                    <HeaderTools />
 
                     <div class="dropdown">
                         <button
