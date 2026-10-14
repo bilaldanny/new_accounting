@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Company\CompanyBootstrap;
 use App\Services\ContactImporter;
 use App\Services\SelfSignup;
+use App\Services\StockMovements;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
@@ -60,20 +61,35 @@ class PilotDemoCompany
     /** @var array<string, int> */
     private array $summary = [];
 
+    private string $code = self::CODE;
+
+    private string $adminEmail = self::ADMIN_EMAIL;
+
+    /**
+     * Set for a showcase company: name, address, username, catalogue, customers, suppliers and the volume (months, sales and purchases
+     * a month). Null is the pilot company with its single month, exactly as before.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $profile = null;
+
+    private CarbonImmutable $today;
+
     /**
      * @return array{created: bool, company_id: int, code: string, email: string, password: string|null, summary: array<string, int>}
      */
     public function build(?CarbonImmutable $today = null): array
     {
-        $existing = Company::query()->where('code', self::CODE)->first();
+        $existing = Company::query()->where('code', $this->code)->first();
 
         if ($existing !== null) {
-            return ['created' => false, 'company_id' => (int) $existing->id, 'code' => self::CODE, 'email' => self::ADMIN_EMAIL, 'password' => null, 'summary' => []];
+            return ['created' => false, 'company_id' => (int) $existing->id, 'code' => $this->code, 'email' => $this->adminEmail, 'password' => null, 'summary' => []];
         }
 
         $this->actor = User::query()->where('role_id', 1)->orderBy('id')->first()
             ?? throw new RuntimeException('The pilot demo is built as the platform superadmin, and there is none in this database.');
-        $this->month = ($today ?? CarbonImmutable::now())->subMonthNoOverflow()->startOfMonth();
+        $this->today = $today ?? CarbonImmutable::now();
+        $this->month = $this->today->subMonthNoOverflow()->startOfMonth();
         $password = Str::random(12).'aA9!';
 
         try {
@@ -81,9 +97,12 @@ class PilotDemoCompany
             $this->loadChartOfAccounts();
             $this->buildCatalogue();
             $this->buildContacts();
-            $this->tradeForAMonth();
+            $this->profile === null ? $this->tradeForAMonth() : $this->tradeGenerated();
             $this->runPayroll();
-            $this->produce();
+
+            if (isset($this->products['combo'])) {
+                $this->produce();
+            }
         } catch (\Throwable $e) {
             if (isset($this->companyId)) {
                 $this->purge($this->companyId);
@@ -92,15 +111,30 @@ class PilotDemoCompany
             throw $e;
         }
 
-        return ['created' => true, 'company_id' => $this->companyId, 'code' => self::CODE, 'email' => self::ADMIN_EMAIL, 'password' => $password, 'summary' => $this->summary];
+        return ['created' => true, 'company_id' => $this->companyId, 'code' => $this->code, 'email' => $this->adminEmail, 'password' => $password, 'summary' => $this->summary];
+    }
+
+    /**
+     * One of the showcase companies: its own name, people, catalogue and several months of trade (see ShowcaseDemoCompanies).
+     *
+     * @param  array<string, mixed>  $profile
+     * @return array{created: bool, company_id: int, code: string, email: string, password: string|null, summary: array<string, int>}
+     */
+    public function buildShowcase(array $profile, ?CarbonImmutable $today = null): array
+    {
+        $this->profile = $profile;
+        $this->code = (string) $profile['code'];
+        $this->adminEmail = (string) $profile['admin_email'];
+
+        return $this->build($today);
     }
 
     /**
      * Removes the pilot company with the same purge a cancelled tenant gets. Refuses anything that is not a demo company.
      */
-    public function remove(): bool
+    public function remove(?string $code = null): bool
     {
-        $company = Company::query()->where('code', self::CODE)->first();
+        $company = Company::query()->where('code', $code ?? $this->code)->first();
 
         if ($company === null || ! str_starts_with((string) $company->code, DemoCompany::PREFIX)) {
             return false;
@@ -128,12 +162,13 @@ class PilotDemoCompany
     private function signUp(string $password): void
     {
         $user = app(SelfSignup::class)->register([
-            'company_name' => 'Karachi Pilot Traders (demo)', 'company_email' => 'info@pilot.demo.invalid', 'company_phone' => '021-0000000', 'address' => 'Plot 12, Korangi Industrial Area, Karachi',
-            'ntn_no' => '0000000-0', 'first_name' => 'Pilot', 'last_name' => 'Admin', 'username' => 'pilot_admin', 'email' => self::ADMIN_EMAIL, 'password' => $password,
+            'company_name' => $this->profile['name'] ?? 'Karachi Pilot Traders (demo)', 'company_email' => $this->profile['company_email'] ?? 'info@pilot.demo.invalid', 'company_phone' => '021-0000000',
+            'address' => $this->profile['address'] ?? 'Plot 12, Korangi Industrial Area, Karachi', 'ntn_no' => '0000000-0', 'first_name' => $this->profile['admin_first'] ?? 'Pilot',
+            'last_name' => 'Admin', 'username' => $this->profile['username'] ?? 'pilot_admin', 'email' => $this->adminEmail, 'password' => $password,
         ]);
 
         $this->companyId = (int) $user->company_id;
-        DB::table('companies')->where('id', $this->companyId)->update(['code' => self::CODE, 'updated_at' => now()]);
+        DB::table('companies')->where('id', $this->companyId)->update(['code' => $this->code, 'updated_at' => now()]);
         $this->branchId = (int) ($user->branch_id ?: Branch::query()->where('company_id', $this->companyId)->value('id'));
         $this->admin = $user;
     }
@@ -169,7 +204,7 @@ class PilotDemoCompany
         }
 
         // key => [name, unit, purchase price, sell price]
-        $catalogue = [
+        $catalogue = $this->profile['catalogue'] ?? [
             'rice' => ['Super Kernel Basmati Rice 5 kg', 'pc', 1450, 1750],
             'sugar' => ['Refined Sugar 1 kg', 'pc', 150, 175],
             'oil' => ['Dalda Cooking Oil 5 L', 'pc', 2650, 2900],
@@ -187,7 +222,7 @@ class PilotDemoCompany
 
         foreach ($catalogue as $key => [$name, $unit, $buy, $sell]) {
             $sequence++;
-            $sku = sprintf('PLT-%03d', $sequence);
+            $sku = sprintf('%s-%03d', $this->profile['sku_prefix'] ?? 'PLT', $sequence);
             $productId = (int) DB::table('products')->insertGetId([
                 'company_id' => $this->companyId, 'unit_id' => $units[$unit], 'name' => $name, 'sku' => $sku, 'active' => 1, 'type' => 'single', 'created_at' => now(), 'updated_at' => now(),
             ]);
@@ -204,19 +239,19 @@ class PilotDemoCompany
     private function buildContacts(): void
     {
         $importer = app(ContactImporter::class);
-        $customers = [
+        $customers = $this->profile['customers'] ?? [
             ['Al-Madina Kiryana Store', 'Karachi, Saddar'], ['Bismillah General Store', 'Lahore, Model Town'], ['Hafiz Brothers Wholesale', 'Faisalabad, Ghulam Muhammad Abad'],
             ['Metro Mart Gulshan', 'Karachi, Gulshan-e-Iqbal'], ['Sana Departmental Store', 'Islamabad, G-9 Markaz'], ['Rehmat Traders', 'Multan, Hussain Agahi'],
         ];
-        $suppliers = [
+        $suppliers = $this->profile['suppliers'] ?? [
             ['Haji Abdul Rehman and Sons', 'Karachi, Jodia Bazaar'], ['Punjab Edible Oil Mills', 'Lahore, Sundar Industrial Estate'],
             ['Karachi Sugar Dealers', 'Karachi, Napier Road'], ['Packages and Cartons Company', 'Karachi, SITE Area'],
         ];
 
         foreach (['customer' => $customers, 'supplier' => $suppliers] as $kind => $rows) {
             $result = $importer->run($kind, array_map(fn (array $row, int $i): array => [
-                'business_name' => $row[0], 'mobile' => sprintf('0300%07d', ($kind === 'customer' ? 1000 : 2000) + $i), 'address' => $row[1],
-                'ntn_number' => sprintf('%07d-%d', ($kind === 'customer' ? 3000 : 4000) + $i, $i % 10), 'credit_limit' => $kind === 'customer' ? 500000 : 0, 'pay_term' => $kind === 'customer' ? 15 : 30, 'pay_type' => 'day',
+                'business_name' => $row[0], 'mobile' => sprintf('0300%07d', ($this->profile['seed'] ?? 0) * 10000 + ($kind === 'customer' ? 1000 : 2000) + $i), 'address' => $row[1],
+                'ntn_number' => sprintf('%07d-%d', ($kind === 'customer' ? 3000 : 4000) + $i, $i % 10), 'credit_limit' => $kind === 'customer' ? ($this->profile === null ? 500000 : 50000000) : 0, 'pay_term' => $kind === 'customer' ? 15 : 30, 'pay_type' => 'day',
             ], $rows, array_keys($rows)), $this->companyId, $this->branchId, false);
 
             if (! $result['ok']) {
@@ -285,6 +320,107 @@ class PilotDemoCompany
 
         $this->summary['purchases'] = count($purchaseIds);
         $this->summary['sales'] = count($saleIds);
+    }
+
+    /**
+     * Several months of purchases, sales, returns and payments, from the profile's volume. Deterministic for a company code (the same
+     * company is the same every time) and never past today; a sale only takes what is in stock, so the stock never goes below zero.
+     */
+    private function tradeGenerated(): void
+    {
+        mt_srand(crc32($this->code));
+
+        $months = max(1, (int) $this->profile['months']);
+        $salesPerMonth = max(1, (int) $this->profile['sales_per_month']);
+        $purchasesPerMonth = max(1, (int) $this->profile['purchases_per_month']);
+        $keys = array_keys(array_filter($this->products, fn (array $product): bool => $product['buy'] > 0 && $product['sell'] > 0));
+        $stock = array_fill_keys($keys, 0);
+        $purchases = 0;
+        $sales = 0;
+        $pick = fn (array $list): mixed => $list[mt_rand(0, count($list) - 1)];
+
+        for ($back = $months - 1; $back >= 0; $back--) {
+            $start = $this->today->startOfMonth()->subMonthsNoOverflow($back);
+            $lastDay = $back === 0 ? $this->today->day : $start->daysInMonth;
+            $date = fn (int $day): string => $start->addDays(min($day, $lastDay) - 1)->toDateString();
+            $monthPurchases = [];
+            $monthSales = [];
+
+            for ($i = 0; $i < $purchasesPerMonth; $i++) {
+                $items = [];
+
+                // a shop buys what it expects to sell: about 30 percent more than the sales of a month (about 12 pieces a sale), and
+                // fewer of an expensive item, so purchases and sales are the same order of money
+                $perItem = max(10, (int) round(3.25 * $salesPerMonth / $purchasesPerMonth));
+
+                foreach (array_slice($keys, 0, max(3, min(5, count($keys)))) as $unused) {
+                    $key = $pick($keys);
+                    $scale = min(1.0, 12000 / max(1.0, $this->products[$key]['buy']));
+                    $items[$key] = max(4, (int) round($perItem * mt_rand(70, 130) / 100 * $scale));
+                }
+
+                $supplier = $this->suppliers[$i % count($this->suppliers)];
+                $day = mt_rand(1, max(1, min(12, $lastDay)));
+                $id = $this->purchase($supplier, $date($day), $items);
+                $monthPurchases[] = $id;
+                $purchases++;
+
+                foreach ($items as $key => $quantity) {
+                    $stock[$key] += $quantity;
+                }
+
+                $roll = mt_rand(1, 100);
+                $share = $roll <= 70 ? 1.0 : 0.5;
+                $this->pay('/api/purchase-payments', $id, $supplier, round($this->documentTotal($id) * $share, 2), $date($day + 1), $roll % 2 === 0 ? 'cash' : 'bank_transfer');
+            }
+
+            for ($i = 0; $i < $salesPerMonth; $i++) {
+                $items = [];
+
+                for ($line = mt_rand(1, 4); $line > 0; $line--) {
+                    $key = $pick($keys);
+                    // dear items are sold a few at a time: a till sale of 600,000 would be no sale a shop makes
+                    $quantity = min(mt_rand(1, 12), max(1, intdiv(60000, (int) max(1, $this->products[$key]['sell']))), $stock[$key] - ($items[$key] ?? 0));
+
+                    if ($quantity > 0) {
+                        $items[$key] = ($items[$key] ?? 0) + $quantity;
+                    }
+                }
+
+                if ($items === []) {
+                    continue;
+                }
+
+                $customer = $this->customers[mt_rand(0, count($this->customers) - 1)];
+                $day = mt_rand(min(3, $lastDay), max(1, $lastDay));
+                $id = $this->sale($customer, $date($day), $items);
+                $monthSales[] = [$id, $customer];
+                $sales++;
+
+                foreach ($items as $key => $quantity) {
+                    $stock[$key] -= $quantity;
+                }
+
+                $roll = mt_rand(1, 100);
+
+                if ($roll <= 75) {
+                    $share = $roll <= 55 ? 1.0 : 0.5;
+                    $this->pay('/api/sell-payments', $id, $customer, round($this->documentTotal($id) * $share, 2), $date($day + mt_rand(0, 5)), $roll % 3 === 0 ? 'bank_transfer' : 'cash');
+                }
+            }
+
+            if ($monthSales !== []) {
+                [$saleId, $customer] = $monthSales[0];
+                $this->saleReturn($saleId, $customer, $date($lastDay));
+            }
+
+            if ($monthPurchases !== []) {
+                $this->purchaseReturn($monthPurchases[0], $this->suppliers[0], $date($lastDay));
+            }
+        }
+
+        $this->summary['purchases'] = $purchases;
+        $this->summary['sales'] = $sales;
     }
 
     /**
@@ -364,22 +500,22 @@ class PilotDemoCompany
 
     private function saleReturn(int $saleId, int $customer, string $date): void
     {
-        $line = DB::table('sell_lines')->where('transaction_id', $saleId)->orderBy('id')->first(['id']);
+        $line = DB::table('sell_lines')->where('transaction_id', $saleId)->orderBy('id')->first(['id', 'quantity']);
 
         $this->call('POST', '/api/sell-returns', [
             'company_id' => $this->companyId, 'branch_id' => $this->branchId, 'contact_id' => $customer, 'transaction_id' => $saleId, 'transaction_date' => $date,
-            'selllines' => [['id' => (int) $line->id, 'quantity_returned' => 2]],
+            'selllines' => [['id' => (int) $line->id, 'quantity_returned' => min(2, (float) $line->quantity)]],
         ]);
         $this->summary['sale_returns'] = ($this->summary['sale_returns'] ?? 0) + 1;
     }
 
     private function purchaseReturn(int $purchaseId, int $supplier, string $date): void
     {
-        $line = DB::table('purchase_lines')->where('transaction_id', $purchaseId)->orderBy('id')->first(['id']);
+        $line = DB::table('purchase_lines')->where('transaction_id', $purchaseId)->orderBy('id')->first(['id', 'quantity']);
 
         $this->call('POST', '/api/purchase-returns', [
             'company_id' => $this->companyId, 'branch_id' => $this->branchId, 'contact_id' => $supplier, 'transaction_id' => $purchaseId, 'transaction_date' => $date,
-            'purchaselines' => [['id' => (int) $line->id, 'quantity_returned' => 3]],
+            'purchaselines' => [['id' => (int) $line->id, 'quantity_returned' => min(3, (float) $line->quantity)]],
         ]);
         $note = (int) Transaction::query()->where('company_id', $this->companyId)->where('type', Transaction::TYPE_PURCHASE_RETURN)->max('id');
         $this->call('POST', "/api/purchase-return-approvals/{$note}/approve");
@@ -403,7 +539,9 @@ class PilotDemoCompany
 
     private function runPayroll(): void
     {
-        $period = $this->month->format('Y-m');
+        $periods = $this->profile === null
+            ? [$this->month->format('Y-m')]
+            : collect(range(1, max(1, (int) $this->profile['months'] - 1)))->map(fn (int $back): string => $this->today->startOfMonth()->subMonthsNoOverflow($back)->format('Y-m'))->reverse()->values()->all();
 
         $this->call('PUT', '/api/hrm/settings', ['posting_enabled' => true, 'accounts' => [
             'salary_expense' => $this->accounts['salaries_expense'], 'salary_payable' => $this->accounts['salaries_payable'], 'tax_payable' => $this->accounts['income_tax_payable'],
@@ -418,22 +556,33 @@ class PilotDemoCompany
         foreach ($staff as [$number, $first, $last, $title, $basic]) {
             $this->call('POST', '/api/hrm/employees', [
                 'employee_no' => $number, 'first_name' => $first, 'last_name' => $last, 'designation' => $title, 'employment_type' => 'permanent',
-                'join_date' => $this->month->subMonths(6)->toDateString(), 'bank_name' => 'Meezan Bank', 'bank_account' => 'PK00MEZN'.str_pad((string) (int) substr($number, 2), 14, '0', STR_PAD_LEFT),
+                'join_date' => $this->month->subMonths(6 + (int) ($this->profile['months'] ?? 0))->toDateString(), 'bank_name' => 'Meezan Bank', 'bank_account' => 'PK00MEZN'.str_pad((string) (int) substr($number, 2), 14, '0', STR_PAD_LEFT),
             ]);
             $employee = (int) DB::table('employees')->where('company_id', $this->companyId)->where('employee_no', $number)->value('id');
-            $this->call('POST', "/api/hrm/employees/{$employee}/salary", ['effective_from' => $this->month->subMonths(6)->toDateString(), 'basic' => $basic]);
+            $this->call('POST', "/api/hrm/employees/{$employee}/salary", ['effective_from' => $this->month->subMonths(6 + (int) ($this->profile['months'] ?? 0))->toDateString(), 'basic' => $basic]);
         }
 
-        $run = (int) ($this->call('POST', '/api/hrm/payroll', ['period' => $period])['data']['id'] ?? 0);
-        $this->call('POST', "/api/payroll-runs/{$run}/approve");
-        $this->call('POST', "/api/hrm/payroll/{$run}/post");
+        foreach ($periods as $period) {
+            $run = (int) ($this->call('POST', '/api/hrm/payroll', ['period' => $period])['data']['id'] ?? 0);
+            $this->call('POST', "/api/payroll-runs/{$run}/approve");
+            $this->call('POST', "/api/hrm/payroll/{$run}/post");
+        }
 
         $this->summary['employees'] = count($staff);
-        $this->summary['payroll_runs'] = 1;
+        $this->summary['payroll_runs'] = count($periods);
     }
 
     private function produce(): void
     {
+        // a showcase company may have sold its stock down: only produce what the shelves can supply
+        $needs = ['rice' => 5, 'oil' => 5, 'sugar' => 10, 'carton' => 5];
+
+        foreach ($needs as $key => $quantity) {
+            if (StockMovements::baseStock($this->products[$key]['product_id'], $this->products[$key]['variation_id'], $this->branchId) < $quantity) {
+                return;
+            }
+        }
+
         $bom = (int) ($this->call('POST', '/api/manufacturing/boms', [
             'product_id' => $this->products['combo']['product_id'], 'name' => 'Family Ration Combo', 'output_qty' => 1, 'items' => [
                 ['component_product_id' => $this->products['rice']['product_id'], 'quantity' => 1],

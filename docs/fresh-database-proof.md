@@ -91,3 +91,18 @@ php artisan demo:pilot --remove   # remove it
 
 It only ever creates, finds or removes the company coded `DEMO-PILOT` and refuses to run when the environment is production unless
 `--force` is given. The admin password is printed once at the end of a build.
+
+## Showcase companies (a busy platform)
+
+```bash
+php artisan demo:showcase                                   # 4 companies, 4 months, 30 sales and 10 purchases a month each
+php artisan demo:showcase --companies=6 --months=6 --sales=60 --purchases=15
+php artisan demo:showcase --fresh                            # remove the showcase companies, build again
+php artisan demo:showcase --remove
+```
+
+Up to six separate tenants (`DEMO-SHOW-1` to `-6`: a grocery, a mobile and electronics shop, a garments house, a pharmacy, ...), each with
+its own customers, suppliers and catalogue, months of purchases, sales, returns and payments (posted through the real API, dated up to
+today so the current month is partly filled), and a payroll run for every full past month. The default builds about 450 sales in under a
+minute. It never touches a real company, refuses production without `--force`, and a second run changes nothing. Each company's admin
+password is printed once.

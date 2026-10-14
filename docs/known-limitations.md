@@ -51,6 +51,17 @@ policy, sessions); multi-branch and multi-company.
   Mapping > Inventory; the balance sheet then shows that account and no stock line of its own.
 * Journal entries wait for approval by default; switch this off in company settings if one person does the books.
 
+## Keyboard use and printed designs
+
+* The keyboard works across the application for moving around and for the till: `/` or Ctrl+K searches, `g` then a letter opens a
+  page, `n` opens the add form, Ctrl+S saves, `?` lists the keys, and the point of sale has function keys and a barcode scanner. Forms
+  are filled with Tab and Shift+Tab. Some older screens (date pickers, a few drop-down lists from a component library) still need a
+  few clicks; tell us which ones you use most and we will cover them.
+* A barcode scanner must behave as a keyboard (almost all do: they type the code and press Enter). A scanner that needs its own driver
+  is not covered.
+* In a printed design, type codes such as `{invoice}`, `{customer}` and `{total}` into a Text block, the title, the terms or the footer
+  (the designer lists all of them). The line items table is chosen from the columns offered; free HTML is not accepted on purpose.
+
 ## Connections we could not test against the real service
 
 The following are built and tested against recorded sample answers only. Before you depend on one, test it once with a real
