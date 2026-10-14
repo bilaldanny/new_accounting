@@ -240,7 +240,7 @@ abstract class DuskTestCase extends BaseTestCase
                 continue;
             }
 
-            grantMenuPermission((int) $role->id, $path);
+            grantMenuPermission((int) $role->id, $path, '', true);
         }
 
         foreach (['user_permission_paths', 'user_menu_permissions', 'user_menu_permissions_tree'] as $key) {

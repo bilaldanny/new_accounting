@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-function grantMenuPermission(int $roleId, string $routePath, string $routeName = ''): int
+function grantMenuPermission(int $roleId, string $routePath, string $routeName = '', bool $hidden = false): int
 {
     $menuId = DB::table('menus')->insertGetId([
         'parent_id' => null,
@@ -17,7 +17,7 @@ function grantMenuPermission(int $roleId, string $routePath, string $routeName =
         'route_path' => $routePath,
         'menu_color' => '#000000',
         'sort_order' => 1,
-        'is_hidden' => 0,
+        'is_hidden' => $hidden ? 1 : 0,
         'is_active' => 1,
         'is_permission' => 1,
         'type' => 1,
