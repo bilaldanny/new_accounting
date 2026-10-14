@@ -250,7 +250,7 @@ class PilotDemoCompany
 
         foreach (['customer' => $customers, 'supplier' => $suppliers] as $kind => $rows) {
             $result = $importer->run($kind, array_map(fn (array $row, int $i): array => [
-                'business_name' => $row[0], 'mobile' => sprintf('0300%07d', ($this->profile['seed'] ?? 0) * 10000 + ($kind === 'customer' ? 1000 : 2000) + $i), 'address' => $row[1],
+                'business_name' => $row[0], 'email' => Str::slug($row[0]).'@'.Str::lower($this->code).'.demo.invalid', 'mobile' => sprintf('0300%07d', ($this->profile['seed'] ?? 0) * 10000 + ($kind === 'customer' ? 1000 : 2000) + $i), 'address' => $row[1],
                 'ntn_number' => sprintf('%07d-%d', ($kind === 'customer' ? 3000 : 4000) + $i, $i % 10), 'credit_limit' => $kind === 'customer' ? ($this->profile === null ? 500000 : 50000000) : 0, 'pay_term' => $kind === 'customer' ? 15 : 30, 'pay_type' => 'day',
             ], $rows, array_keys($rows)), $this->companyId, $this->branchId, false);
 

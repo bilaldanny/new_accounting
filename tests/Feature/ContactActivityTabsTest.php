@@ -12,7 +12,7 @@ uses(RefreshDatabase::class);
  * The tabs of a customer or supplier page besides the ledger: their documents with what was paid, the payments, the products traded, and
  * the files attached to those documents.
  */
-function catScope(): array
+function cactScope(): array
 {
     $scope = seedSellScope();
     $sale = createSellRecord($scope, ['invoice_no' => 'CAT-1', 'final_amount' => 1000, 'transaction_date' => '2026-09-10', 'attachment' => 'signed-invoice.pdf']);
@@ -26,7 +26,7 @@ function catScope(): array
 }
 
 test('a party lists its documents with paid and due, its payments and its products', function () {
-    $scope = catScope();
+    $scope = cactScope();
     Sanctum::actingAs(User::query()->findOrFail(1));
 
     $orders = $this->getJson('/api/contacts/'.$scope['contact_id'].'/orders')->assertOk();
@@ -45,7 +45,7 @@ test('a party lists its documents with paid and due, its payments and its produc
 });
 
 test('the files attached to the sales of a party are listed with a link', function () {
-    $scope = catScope();
+    $scope = cactScope();
     Sanctum::actingAs(User::query()->findOrFail(1));
 
     $files = collect($this->getJson('/api/contacts/'.$scope['contact_id'].'/document-attachments')->assertOk()->json('data'));
@@ -55,7 +55,7 @@ test('the files attached to the sales of a party are listed with a link', functi
 });
 
 test('a user reaches only the parties of their own company and only with a customer or supplier menu', function () {
-    $scope = catScope();
+    $scope = cactScope();
     $otherCompany = DB::table('companies')->insertGetId(['code' => 'CAT-OTHER', 'name' => 'Other', 'address' => 'x', 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()]);
 
     $role = Role::query()->create(['name' => 'viewer'.uniqid(), 'company_id' => $otherCompany, 'is_active' => true]);

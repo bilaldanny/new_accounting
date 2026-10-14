@@ -163,7 +163,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    padding: 0.25rem 0;
+    padding: 0.5rem 1.25rem 1.25rem;
 }
 
 .cap__head {

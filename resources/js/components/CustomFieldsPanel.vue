@@ -6,7 +6,7 @@
      * The custom fields (Document Center) of a customer, supplier or product: shown with their values and saved on their own, so the
      * record's own form is untouched. Nothing is shown when the company has defined no field for the record.
      */
-    const props = defineProps<{ entity: 'contact' | 'product'; id: number; canEdit: boolean }>();
+    const props = defineProps<{ entity: 'contact' | 'product'; id: number; canEdit: boolean; companyId?: number | string | null }>();
 
     type Field = { id: number; field_key: string; label: string; type: string; options: string[]; value: string | null; is_required: boolean };
 
@@ -14,7 +14,7 @@
     const fields = ref<Field[]>([]);
 
     async function load() {
-        const response = await run(() => window.axios.get(`/api/custom-values/${props.entity}/${props.id}`));
+        const response = await run(() => window.axios.get(`/api/custom-values/${props.entity}/${props.id}`, { params: props.companyId ? { company_id: props.companyId } : {} }));
         fields.value = response?.data?.data ?? [];
     }
 
@@ -25,7 +25,7 @@
             values[field.field_key] = field.value;
         }
 
-        const response = await run(() => window.axios.put(`/api/custom-values/${props.entity}/${props.id}`, { values }), 'Custom fields saved');
+        const response = await run(() => window.axios.put(`/api/custom-values/${props.entity}/${props.id}`, { values, ...(props.companyId ? { company_id: props.companyId } : {}) }), 'Custom fields saved');
         fields.value = response?.data?.data ?? fields.value;
     }
 

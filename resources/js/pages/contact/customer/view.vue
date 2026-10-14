@@ -1064,7 +1064,7 @@
 
                         <div v-else-if="activeTab === 'documents'" class="customer-view-ledger">
                             <ContactDocuments kind="customer" :contact-id="contact.id" :can-manage="canManageDocuments" />
-                            <CustomFieldsPanel entity="contact" :id="contact.id" :can-edit="permissionPaths.includes('/customer/:id/edit')" />
+                            <CustomFieldsPanel entity="contact" :id="contact.id" :company-id="contact.company_id" :can-edit="permissionPaths.includes('/customer/:id/edit')" />
                         </div>
 
                         <div v-else-if="activeTab === 'sales'" class="customer-view-ledger">
