@@ -87,7 +87,7 @@ test('the comparative profit and loss lines up two periods and matches the singl
     expect($summary['net_profit'])->toEqual($single['net_profit'])->and($summary['gross_profit'])->toEqual($single['gross_profit']);
 });
 
-test('the comparative balance sheet shows two days, stays balanced and carries stock as a memo line', function () {
+test('the comparative balance sheet shows two days and stays balanced; a company with no stock gets no stock lines', function () {
     $scope = w4Books();
     trpActAsSuperadmin();
 
@@ -101,7 +101,10 @@ test('the comparative balance sheet shows two days, stays balanced and carries s
 
     $cash = w4Row($rows, '212-00001');
     expect($cash)->toMatchArray(['current' => 2700.0, 'previous' => 1400.0, 'change' => 1300.0]);
-    expect(collect($rows)->contains(fn (array $row): bool => str_contains($row['name'], 'Inventory at cost')))->toBeTrue();
+    // Changed when the sheet began to carry stock as an asset: these books hold no stock at all, so there is no stock line (it used to
+    // be a memo line of 0.00 on every sheet) and every figure above is what it always was.
+    expect(collect($rows)->contains(fn (array $row): bool => $row['line'] === 'stock'))->toBeFalse()
+        ->and($summary['includes_stock'])->toBeFalse()->and($summary['inventory'])->toEqual(0);
 
     $single = $this->getJson('/api/reports/balance-sheet?'.http_build_query(['company_id' => $scope['company_id'], 'end_date' => '2026-09-30']))->json('summary');
     expect($summary['total_assets'])->toEqual($single['total_assets']);

@@ -43,7 +43,7 @@ account, device or live service (or left out, with the reason); Not built = not 
 | 11. Approval Center | Approval Delegation (during leave) | Built |  | W2 "a delegate acts for an approver who is away ..." |
 | 11. Approval Center | Approval History & Instant Notifications | Built | In-app and email notices; email not proven against live SMTP. | W2 "the inbox shows a user only what waits for them, ... approvers are notified once" |
 | 12. Reports | Profit & Loss (Comparative, Multi-Period) | Built |  | W4 "the comparative profit and loss lines up two periods ..." |
-| 12. Reports | Balance Sheet (Comparative, Multi-Period) | Built | Inventory at cost is a memo line outside the totals (no inventory account in the ledger). | W4 "the comparative balance sheet shows two days, stays balanced ..." |
+| 12. Reports | Balance Sheet (Comparative, Multi-Period) | Built | Closing stock is an asset line on each column (the day's costing method) and the profit is the P&L net profit; a stock brought forward line sits in equity when the year opened with stock; none of it when there is no stock or the company journals its stock. Periodic method only: no per-sale COGS is posted to the ledger. | W4 "the comparative balance sheet shows two days, stays balanced ..." |
 | 12. Reports | Cash Flow Statement (Direct & Indirect) | Built |  | W4 "the indirect cash flow reconciles to the direct method" |
 | 12. Reports | Sales by Customer/Product/Category/Salesperson/Branch/Warehouse/Payment Method | Built | Payment method is by payment date (a cash view). | W4 "sales by salesperson, warehouse and payment method net the returns ..." |
 | 12. Reports | Commission & Sales Target Reports | Built |  | W4 "the commission and target reports are the KPI statement of the month" |

@@ -70,6 +70,8 @@ class CompanyBootstrap
         'customer' => 'receivables', 'supplier' => 'payables', 'customeradvance' => 'customer_advance', 'bank' => 'cash_bank', 'cash' => 'cash',
         'purchase' => 'purchases', 'importpurchase' => 'purchases', 'localpurchase' => 'purchases', 'inputtax' => 'input_tax',
         'sale' => 'local_sales', 'localsales' => 'local_sales', 'exportsale' => 'export_sales', 'outputtax' => 'output_tax', 'pnl' => 'pnl',
+        // the account a company that journals its stock posts to; the balance sheet shows no stock line of its own once it has postings
+        'inventory' => 'inventory',
     ];
 
     private const TOP_LEVEL = ['100-00000', '200-00000', '300-00000', '400-00000', '500-00000', '600-00000'];

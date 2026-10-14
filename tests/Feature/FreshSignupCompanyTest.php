@@ -170,8 +170,11 @@ test('the first sale, purchase, return and journal of a new company work and its
 
     // trial balance and balance sheet balance; capital and cash are in them
     expect($trial->json('summary.is_balanced'))->toBeTrue()->and($sheet->json('summary.is_balanced'))->toBeTrue()
-        ->and((float) $sheet->json('summary.total_assets'))->toBe(52160.0)
-        ->and((float) $sheet->json('summary.total_liabilities'))->toBe(5000.0);
+        // changed when the sheet began to carry stock: assets were 52160 (the ledger) and are now 55360, the 3200 being the 32 bags left at
+        // cost 100; equity gained the same 3200 (the profit is now the P&L net profit 360 instead of the ledger's -2840)
+        ->and((float) $sheet->json('summary.total_assets'))->toBe(55360.0)
+        ->and((float) $sheet->json('summary.total_liabilities'))->toBe(5000.0)
+        ->and((float) $sheet->json('summary.profit'))->toBe(360.0);
 
     // 20 sold at 120 less the 2 returned = 2160 revenue; cost of goods = 5000 purchases less 32 bags left at 100
     $revenue = collect($profit->json('data.data'))->firstWhere('name', 'Total revenue');

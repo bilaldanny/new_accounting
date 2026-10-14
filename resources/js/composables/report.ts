@@ -943,7 +943,7 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
     },
     'balance-sheet': {
         title: 'Balance Sheet',
-        subtitle: 'Assets against liabilities and equity on the day, with the profit of the year to date in equity. That profit comes straight from the ledger, before the stock adjustment of the Profit & Loss. The difference must be zero.',
+        subtitle: 'Assets against liabilities and equity on the day. The closing stock (valued with the costing method in force that day) is an asset, and the profit of the year to date in equity is the Profit & Loss net profit, so the two statements agree. A company that already journals its stock shows the ledger account instead. The difference must be zero.',
         exportName: 'balance-sheet',
         filters: { requiresCompany: true, asOf: true },
         columns: [
@@ -985,7 +985,7 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
     },
     'balance-sheet-comparative': {
         title: 'Comparative Balance Sheet',
-        subtitle: 'The balance sheet on two days side by side (default: the same day one year earlier). Stock is not an account in the ledger, so the inventory at cost, valued with the method in force on each day, is a memo line outside the totals.',
+        subtitle: 'The balance sheet on two days side by side (default: the same day one year earlier). Each column carries the closing stock of its own day, valued with the costing method in force then, and the profit of the Profit & Loss.',
         exportName: 'comparative-balance-sheet',
         filters: { requiresCompany: true, asOf: true, compare: 'date' },
         columns: [
@@ -1000,8 +1000,8 @@ export const REPORTS: Record<ReportKey, ReportConfig> = {
             { key: 'total_assets', label: 'Total assets' },
             { key: 'total_assets_previous', label: 'Total assets (compared)' },
             { key: 'total_equity', label: 'Equity (with profit)' },
-            { key: 'inventory', label: 'Inventory at cost (memo)' },
-            { key: 'inventory_previous', label: 'Inventory (compared)' },
+            { key: 'inventory', label: 'Closing stock' },
+            { key: 'inventory_previous', label: 'Closing stock (compared)' },
             { key: 'difference', label: 'Difference', accent: true },
         ],
         searchPlaceholder: '',

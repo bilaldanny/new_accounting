@@ -2,7 +2,9 @@
 
 namespace App\Services\Reports;
 
+use App\Services\Valuation\ValuationMethod;
 use App\Support\AccountClass;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,6 +24,15 @@ use Illuminate\Support\Collection;
  * an unbalanced opening or an account outside the six classes shows up instead of being hidden. The
  * profit here includes any stored opening balance on a revenue, cost or expense account, which the
  * profit and loss report (postings of the period only) does not.
+ *
+ * Stock. Purchases post straight to the Purchases account and no inventory account is posted, so the ledger alone
+ * shows the stock as spent. The sheet therefore adds the closing stock (StockValuation on the day, the company's
+ * costing method of that day, the figure the Stock Report and the profit and loss use) as an asset line, and makes
+ * the profit the profit and loss's own (periodic method: cost of goods = opening stock + purchases - closing stock,
+ * from the start of the financial year to the day). The stock the year opened with was never an asset in the
+ * ledger either, so it is shown in equity as "Stock brought forward"; the three lines together add exactly the
+ * closing stock to both sides and the sheet still balances. A company with no stock, or one that already journals
+ * its stock (JournalledStock), gets no stock lines and the figures it always had.
  */
 class BalanceSheetReport
 {
@@ -31,6 +42,10 @@ class BalanceSheetReport
         'name' => 'name',
         'amount' => 'amount',
     ];
+
+    public const CLOSING_STOCK = 'Closing stock (inventory at cost)';
+
+    public const STOCK_BROUGHT_FORWARD = 'Stock brought forward (start of year)';
 
     /**
      * Class digit => [section key, heading, total label, credit-normal].
@@ -43,7 +58,12 @@ class BalanceSheetReport
         1 => ['key' => 'equity', 'heading' => 'Equity', 'total' => 'Total equity', 'credit' => true],
     ];
 
-    public function __construct(private readonly AccountFigures $figures) {}
+    public function __construct(
+        private readonly AccountFigures $figures,
+        private readonly StockValuation $stock,
+        private readonly JournalledStock $journalled,
+        private readonly ValuationMethod $methods,
+    ) {}
 
     /**
      * @param  array{end_date?: ?string}  $filters
@@ -63,9 +83,23 @@ class BalanceSheetReport
             ->mapWithKeys(fn (string $code): array => [$code => round((float) ($stored[$code] ?? 0) + (float) ($net[$code] ?? 0), 2)]);
         $names = $this->figures->names($companyId, $balances->keys());
 
-        $profit = round(-(float) $balances
+        $ledgerProfit = round(-(float) $balances
             ->filter(fn (float $balance, string $code): bool => in_array(AccountClass::of($code)['digit'] ?? 0, [4, 5, 6], true))
             ->sum(), 2);
+
+        // the stock the periodic method adds: closing stock on the day, and the stock the year opened with (the same day the profit and
+        // loss uses, so the sheet's profit is that statement's net profit)
+        $closing = ['value' => 0.0, 'uncosted' => 0];
+        $opening = ['value' => 0.0, 'uncosted' => 0];
+        $stockLines = false;
+
+        if (! $this->journalled->exists($companyId, $branchId)) {
+            $closing = $this->stock->at($companyId, $branchId, $asOf);
+            $opening = $this->stock->at($companyId, $branchId, Carbon::parse($yearStart ?? '2000-01-01')->subDay()->toDateString());
+            $stockLines = $closing['value'] != 0.0 || $opening['value'] != 0.0;
+        }
+
+        $profit = $stockLines ? round($ledgerProfit + $closing['value'] - $opening['value'], 2) : $ledgerProfit;
 
         $lines = [];
         $totals = [];
@@ -84,6 +118,16 @@ class BalanceSheetReport
             }
 
             $total = (float) $accounts->sum();
+
+            if ($stockLines && $digit === 2) {
+                $lines[] = ['line' => 'stock', 'section' => 'assets', 'code' => '', 'name' => self::CLOSING_STOCK, 'amount' => $closing['value']];
+                $total += $closing['value'];
+            }
+
+            if ($stockLines && $digit === 1 && $opening['value'] != 0.0) {
+                $lines[] = ['line' => 'stock', 'section' => 'equity', 'code' => '', 'name' => self::STOCK_BROUGHT_FORWARD, 'amount' => $opening['value']];
+                $total += $opening['value'];
+            }
 
             if ($digit === 1) {
                 $lines[] = ['line' => 'account', 'section' => 'equity', 'code' => '', 'name' => $profit >= 0 ? 'Profit for the year to date' : 'Loss for the year to date', 'amount' => $profit];
@@ -110,6 +154,12 @@ class BalanceSheetReport
                 'total_liabilities' => $totals['liabilities'],
                 'total_equity' => $totals['equity'],
                 'profit' => $profit,
+                'ledger_profit' => $ledgerProfit,
+                'includes_stock' => $stockLines,
+                'closing_stock' => $stockLines ? $closing['value'] : 0.0,
+                'opening_stock' => $stockLines ? $opening['value'] : 0.0,
+                'stock_method' => $this->methods->methodOn($companyId, $asOf)['method'],
+                'uncosted_stock' => $stockLines ? max($closing['uncosted'], $opening['uncosted']) : 0,
                 'total_liabilities_equity' => $liabilitiesAndEquity,
                 'difference' => $difference,
                 'is_balanced' => $difference == 0.0,

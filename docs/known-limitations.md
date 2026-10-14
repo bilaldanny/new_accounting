@@ -43,9 +43,12 @@ policy, sessions); multi-branch and multi-company.
 
 * A new company starts with a ready chart of accounts, posting mappings, a financial year and the first item lists. Your accountant
   should still review the chart and rename or add accounts to suit your business, and enter opening balances.
-* The balance sheet and the profit and loss statement can show different profit while you hold stock: the balance sheet uses the
-  ledger (purchases are posted as an expense when bought), the profit and loss statement deducts the value of the stock you still hold.
-  Both are internally balanced; ask us if you want the balance sheet to carry a stock line.
+* The balance sheet shows your closing stock as an asset (valued with your costing method on that day, the same figure as the Stock
+  Report) and its profit is the profit and loss statement's net profit, so the two agree. This is the periodic method: cost of goods
+  sold = opening stock + purchases - closing stock, worked out when you run a report. **A cost of goods sold entry is not posted to the
+  ledger for each sale** (no perpetual inventory): the ledger itself still shows purchases as an expense, so the trial balance and
+  the account ledger do not show a stock account. If you journal your stock to your own inventory account, map it under Account
+  Mapping > Inventory; the balance sheet then shows that account and no stock line of its own.
 * Journal entries wait for approval by default; switch this off in company settings if one person does the books.
 
 ## Connections we could not test against the real service

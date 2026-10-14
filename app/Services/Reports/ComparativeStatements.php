@@ -2,7 +2,6 @@
 
 namespace App\Services\Reports;
 
-use App\Services\Valuation\ValuationMethod;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -11,9 +10,10 @@ use Illuminate\Support\Collection;
  * (ProfitLossReport, BalanceSheetReport) so a figure here is always the figure there. A line is matched on its section, code and
  * name; an account that exists in only one of the two columns shows zero in the other.
  *
- * The profit and loss already values stock with the company's active costing method (CostSource, through StockValuation). The ledger has
- * no inventory account, so the balance sheet carries the stock as memo lines under the statement, valued with the method in force on each
- * of the two days, and does not add it to the totals (the statement keeps balancing exactly as the single-day sheet does).
+ * The profit and loss values stock with the company's active costing method (CostSource, through StockValuation). The ledger has no
+ * inventory account, so each balance sheet column carries the closing stock of its own day as an asset line, valued with the method in
+ * force on that day, and the stock brought forward in equity (see BalanceSheetReport); both columns balance, and a company with no stock
+ * or journalled stock gets no stock lines.
  */
 class ComparativeStatements
 {
@@ -29,14 +29,12 @@ class ComparativeStatements
 
     private const PROFIT_LOSS_SECTIONS = ['revenue' => 1, 'cogs' => 2, 'gross_profit' => 3, 'expenses' => 4, 'net_profit' => 5];
 
-    private const BALANCE_SHEET_SECTIONS = ['assets' => 1, 'liabilities' => 2, 'equity' => 3, 'liabilities_equity' => 4, 'difference' => 5, 'memo' => 6];
+    private const BALANCE_SHEET_SECTIONS = ['assets' => 1, 'liabilities' => 2, 'equity' => 3, 'liabilities_equity' => 4, 'difference' => 5];
 
     public function __construct(
         private readonly ProfitLossReport $profitLoss,
         private readonly BalanceSheetReport $balanceSheet,
         private readonly AccountFigures $figures,
-        private readonly StockValuation $stock,
-        private readonly ValuationMethod $methods,
     ) {}
 
     /**
@@ -99,16 +97,13 @@ class ComparativeStatements
         $previous = $this->balanceSheet->build($companyId, $branchId, ['end_date' => $other]);
         $rows = $this->merge($current['rows'], $previous['rows'], self::BALANCE_SHEET_SECTIONS);
 
-        $stockNow = $this->stock->at($companyId, $branchId, $asOf);
-        $stockThen = $this->stock->at($companyId, $branchId, $other);
-        $methodNow = $this->methods->methodOn($companyId, $asOf)['method'];
-        $methodThen = $this->methods->methodOn($companyId, $other)['method'];
-        $next = (int) $rows->max('id');
-
-        $rows->push($this->line(++$next, 'memo', 'header', '', 'Memo: stock, not an account in the ledger', null, null));
-        $rows->push($this->line(++$next, 'memo', 'stock', '', 'Inventory at cost ('.$methodNow.' / '.$methodThen.')', $stockNow['value'], $stockThen['value']));
-
-        $summary = ['as_of' => $asOf, 'compare_as_of' => $other, 'inventory' => $stockNow['value'], 'inventory_previous' => $stockThen['value'], 'inventory_method' => $methodNow, 'inventory_method_previous' => $methodThen];
+        $summary = [
+            'as_of' => $asOf, 'compare_as_of' => $other,
+            'inventory' => (float) $current['summary']['closing_stock'], 'inventory_previous' => (float) $previous['summary']['closing_stock'],
+            'inventory_method' => $current['summary']['stock_method'], 'inventory_method_previous' => $previous['summary']['stock_method'],
+            'includes_stock' => $current['summary']['includes_stock'] || $previous['summary']['includes_stock'],
+            'profit' => (float) $current['summary']['profit'], 'profit_previous' => (float) $previous['summary']['profit'],
+        ];
 
         foreach (['total_assets', 'total_liabilities', 'total_equity', 'difference'] as $key) {
             $summary[$key] = (float) $current['summary'][$key];

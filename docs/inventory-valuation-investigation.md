@@ -72,3 +72,9 @@ in SQL (it is a correlated subquery, so FIFO / LIFO would need a different shape
 4. Standard cost: per variation company-wide, or per branch?
 
 Until you answer, these two items stay **Not built** in the tracker.
+
+## Update: balance sheet stock line
+
+Built as the periodic presentation only (steps 1-4 never needed a ledger entry): the balance sheet adds the closing stock from `StockValuation`
+as an asset, the equity profit is the P&L net profit, and the stock the year opened with is shown in equity. The perpetual COGS posting
+(step 5) is still **not built** and still needs its own decision.

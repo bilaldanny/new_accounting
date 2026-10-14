@@ -97,9 +97,9 @@ locked-period refusals; preview then lock; a stale lock is ignored; permissions 
 
 Stated limits:
 
-* **Balance Sheet stock:** the balance sheet has no inventory line (the ledger holds no inventory account and none was added:
-  doing so changes every closed period, which the investigation said not to do by default). The stock figure on the Balance
-  Sheet therefore does not exist to be compared; the three that do exist are proven equal.
+* **Balance Sheet stock (updated after this closeout):** the balance sheet now carries the closing stock as an asset line and the
+  P&L's net profit in equity (see `docs/known-limitations.md`, `BalanceSheetStockTest`). Still no inventory account is posted and no
+  perpetual COGS entry exists: it is the periodic method computed in the reports, so closed periods were not restated.
 * The cost lock is written by the recalculation action, **not at the moment of sale** (hooking the sale save path would touch
   the posting path). Between recalculations a sale line is costed on demand by the same method, so reports still agree.
 * FIFO pools are per company and variation (like the average they replace); a transfer between branches moves no layer. A unit
@@ -220,7 +220,7 @@ check the `SM...` sid and a deliberately invalid number.
 
 ## Known limitations (all of them, in one place)
 
-1. Balance Sheet has no inventory line; no perpetual COGS posting (Task B).
+1. ~~Balance Sheet has no inventory line~~ (now carries closing stock); still no perpetual COGS posting (Task B).
 2. Sale-line cost locks are written by recalculation, not at the moment of sale (Task B).
 3. Multi-currency: voucher lines only, realised gain / loss only at settlement, no unrealised revaluation (Task C7).
 4. Project tag has no picker on the sale / purchase / expense forms (Task C8).
@@ -244,7 +244,7 @@ check the `SM...` sid and a deliberately invalid number.
 | Accounts | Project / job costing | Built (no form picker, limit 4) |
 | Accounts | Inter-company transactions & consolidation | Partial (branches of one company only) |
 | Inventory | Valuation methods (FIFO, Weighted Average, Standard; LIFO not offered) | Built |
-| Inventory | COGS calculation & recalculation engine | Built (limits 1-2) |
+| Inventory | COGS calculation & recalculation engine | Built as a report calculation (periodic COGS, per-line cost on demand, recalculation action); **no COGS or inventory posting to the ledger** (limit 1, 2) |
 | Sales | Offline POS | Built (limit 7) |
 | Sales | Shopify / WooCommerce integration | Partial (no live store) |
 | Sales | WhatsApp / SMS provider | Partial (no live account) |

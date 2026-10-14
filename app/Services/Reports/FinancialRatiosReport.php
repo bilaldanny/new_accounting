@@ -46,7 +46,8 @@ class FinancialRatiosReport
 
         $assets = (float) $sheet['total_assets'];
         $liabilities = (float) $sheet['total_liabilities'];
-        $equity = (float) $sheet['total_equity'] + (float) $sheet['profit'];
+        // total_equity already includes the year's profit (and the stock brought forward): adding the profit again counted it twice
+        $equity = (float) $sheet['total_equity'];
         $revenue = (float) $pl['revenue'];
 
         $percent = fn (float $part, float $whole): ?float => $whole != 0.0 ? round($part / $whole * 100, 2) : null;
