@@ -18,7 +18,7 @@
     type Field = { id: number; entity: string; field_key: string; label: string; type: string; options: string[]; is_required: boolean; show_on_print: boolean; is_active: boolean };
     type Meta = {
         doc_types: string[]; languages: string[]; papers: string[]; fonts: string[]; line_columns: string[]; blocks: Record<string, string[]>; events: string[]; channels: string[];
-        placeholders: string[]; triggers: string[]; entities: string[]; field_types: string[]; defaults: Record<string, Block[]>; default_branding: Record<string, string | number>;
+        placeholders: string[]; codes: { code: string; group: string; label: string }[]; triggers: string[]; entities: string[]; field_types: string[]; defaults: Record<string, Block[]>; default_branding: Record<string, string | number>;
     };
 
     const { companyId, isSuperadmin, scope, can, run } = useCloseout();
@@ -108,7 +108,32 @@
         [form.blocks[index], form.blocks[target]] = [form.blocks[target], form.blocks[index]];
     }
 
-    function propKind(name: string): 'bool' | 'text' | 'number' | 'align' | 'columns' | 'labels' | 'content' {
+    const copied = ref('');
+
+    async function copyCode(code: string) {
+        try {
+            await navigator.clipboard.writeText(code);
+        } catch {
+            // no clipboard permission: the code is shown on the button, it can be typed
+        }
+
+        copied.value = code;
+        window.setTimeout(() => {
+            copied.value = '';
+        }, 1500);
+    }
+
+    const codeGroups = computed(() => {
+        const groups: Record<string, { code: string; label: string }[]> = {};
+
+        for (const item of meta.value?.codes ?? []) {
+            (groups[item.group] ??= []).push(item);
+        }
+
+        return groups;
+    });
+
+    function propKind(name: string): 'bool' | 'text' | 'number' | 'align' | 'columns' | 'labels' | 'content' | 'size' {
         if (name.startsWith('show_') || name === 'bold') {
 return 'bool';
 }
@@ -128,6 +153,10 @@ return 'labels';
         if (name === 'content') {
 return 'content';
 }
+
+        if (name === 'size') {
+            return 'size';
+        }
 
         if (name === 'size_px' || name === 'height_mm') {
 return 'number';
@@ -281,6 +310,9 @@ return 'number';
                             <template v-else-if="propKind(name) === 'content'">
                                 <select v-model="block.props[name]" class="form-select form-select-sm"><option value="link">Share link</option><option value="invoice_no">Document number</option></select>
                             </template>
+                            <template v-else-if="propKind(name) === 'size'">
+                                <select v-model="block.props[name]" class="form-select form-select-sm" :aria-label="`Text size of block ${index + 1}`"><option value="small">Small</option><option value="normal">Normal</option><option value="large">Large</option><option value="xlarge">Extra large</option></select>
+                            </template>
                             <template v-else-if="propKind(name) === 'number'">
                                 <input v-model.number="block.props[name]" type="number" class="form-control form-control-sm" :aria-label="name" />
                             </template>
@@ -291,6 +323,17 @@ return 'number';
                     </div>
                     <div class="d-flex flex-wrap gap-1 mb-3">
                         <button v-for="type in addable" :key="type" type="button" class="btn btn-outline-secondary btn-sm py-0" @click="addBlock(type)">+ {{ type.replace('_', ' ') }}</button>
+                    </div>
+
+                    <h6>Codes</h6>
+                    <p class="small text-muted mb-1">Type these codes into a Text block, the title, the terms or the footer. Each one is replaced with the real value when the document prints (click a code to copy it).</p>
+                    <div class="border rounded p-2 mb-3" data-test="document-codes">
+                        <div v-for="(items, group) in codeGroups" :key="group" class="mb-1">
+                            <strong class="small me-1">{{ group }}:</strong>
+                            <button v-for="item in items" :key="item.code" type="button" class="btn btn-outline-secondary btn-sm py-0 me-1 mb-1" :title="item.label" @click="copyCode(item.code)">
+                                <code>{{ item.code }}</code><span v-if="copied === item.code" class="ms-1 text-success">copied</span>
+                            </button>
+                        </div>
                     </div>
 
                     <h6>Branding</h6>

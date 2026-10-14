@@ -39,6 +39,7 @@ class DocumentCenterController extends Controller
             'triggers' => DocumentReminders::TRIGGERS, 'entities' => CustomFields::ENTITIES, 'field_types' => CustomFields::TYPES,
             'defaults' => collect(DocumentBlocks::DOC_TYPES)->mapWithKeys(fn (string $type): array => [$type => DocumentBlocks::defaults($type)])->all(),
             'default_branding' => DocumentBlocks::defaultBranding(),
+            'codes' => collect(DocumentBlocks::CODES)->map(fn (array $row, string $code): array => ['code' => '{'.$code.'}', 'group' => $row[0], 'label' => $row[1]])->values()->all(),
         ]]);
     }
 

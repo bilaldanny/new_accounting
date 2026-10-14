@@ -596,3 +596,44 @@ test('printing, exporting, sending and previewing change nothing in the books or
     expect($snapshot())->toEqual($before);
     expect(Role::query()->count())->toBeGreaterThan(0);
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// codes a company types into its own invoice design
+
+test('codes typed into a text block, the title and the footer print the real facts of the document and never markup', function () {
+    $data = w5SampleData([
+        'party' => ['name' => '<script>alert(1)</script>Zeeshan & Sons', 'phone' => '0300-1234567'],
+        'totals' => ['subtotal' => 1000.0, 'tax' => 170.0, 'total' => 1170.0, 'paid' => 500.0, 'balance' => 670.0],
+    ]);
+    $blocks = [
+        ['type' => 'title', 'props' => ['text' => 'Tax Invoice {invoice}']],
+        ['type' => 'text', 'props' => ['text' => "Dear {customer} ({customer_phone}),\nTotal {total} = {amount_in_words}\nBalance {balance} due {due_date} {unknown_code}", 'size' => 'large', 'bold' => true]],
+        ['type' => 'footer', 'props' => ['text' => 'Thank you, {company} - {company_phone}']],
+    ];
+
+    $html = app(DocumentRenderer::class)->render(['blocks' => DocumentBlocks::normalise($blocks), 'branding' => [], 'paper' => 'a4', 'language' => 'en'], $data);
+
+    expect($html)->toContain('Tax Invoice INV-1')
+        ->and($html)->toContain('0300-1234567')
+        ->and($html)->toContain('Total 1,170.00 = ')
+        ->and($html)->toContain('Balance 670.00 due 2026-09-20 {unknown_code}')
+        ->and($html)->toContain('Thank you, Acme Traders - 042-111')
+        ->and($html)->toContain('font-size:125%')
+        // the value is data: the tag is shown as text, not run
+        ->and($html)->not->toContain('<script>alert(1)')
+        ->and($html)->toContain('&lt;script&gt;alert(1)&lt;/script&gt;Zeeshan &amp; Sons');
+});
+
+test('the designer is told every code it may offer, and the size of a text block is a fixed list', function () {
+    $scope = w5Scope();
+    Sanctum::actingAs(w5Staff($scope));
+
+    $codes = collect($this->getJson('/api/document-center/meta')->assertOk()->json('data.codes'))->pluck('code')->all();
+
+    expect($codes)->toContain('{invoice}', '{customer}', '{total}', '{amount_in_words}', '{company_ntn}', '{balance}')
+        ->and(count($codes))->toBe(count(DocumentBlocks::CODES));
+
+    expect(fn () => DocumentBlocks::normalise([['type' => 'text', 'props' => ['text' => 'x', 'size' => 'huge']]]))->not->toThrow(ValidationException::class);
+    $clean = DocumentBlocks::normalise([['type' => 'text', 'props' => ['text' => 'x', 'size' => 'huge']]]);
+    expect($clean[0]['props'])->not->toHaveKey('size');
+});

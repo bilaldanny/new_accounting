@@ -28,6 +28,26 @@ final class DocumentBlocks
     public const FONTS = ['sans' => 'Arial, Helvetica, sans-serif', 'serif' => 'Georgia, "Times New Roman", serif', 'mono' => '"Courier New", monospace', 'system' => 'system-ui, sans-serif'];
 
     /**
+     * The codes a company can type into any free text of a design (a Text block, Terms, Footer, the title) to print a fact of the
+     * document: `{invoice}` becomes the invoice number. Only these codes are replaced; anything else in braces stays as typed. The value
+     * is plain text and is escaped on output, so a code can never bring markup in.
+     *
+     * @var array<string, array{0: string, 1: string}> code => [group, what it prints]
+     */
+    public const CODES = [
+        'invoice' => ['Document', 'Document number'], 'date' => ['Document', 'Document date'], 'due_date' => ['Document', 'Due date'],
+        'status' => ['Document', 'Status'], 'reference' => ['Document', 'Supplier / customer reference'], 'note' => ['Document', 'Note on the document'],
+        'today' => ['Document', 'Date it is printed'], 'fbr_number' => ['Document', 'FBR invoice number (only when FBR issued one)'],
+        'customer' => ['Party', 'Customer / supplier name'], 'customer_address' => ['Party', 'Their address'], 'customer_phone' => ['Party', 'Their phone'],
+        'customer_email' => ['Party', 'Their email'], 'customer_ntn' => ['Party', 'Their NTN'], 'customer_strn' => ['Party', 'Their STRN'], 'ship_to' => ['Party', 'Shipping address'],
+        'company' => ['Your company', 'Company name'], 'company_address' => ['Your company', 'Address'], 'company_phone' => ['Your company', 'Phone'],
+        'company_email' => ['Your company', 'Email'], 'company_ntn' => ['Your company', 'NTN'], 'company_strn' => ['Your company', 'STRN'],
+        'subtotal' => ['Amounts', 'Subtotal before tax'], 'discount' => ['Amounts', 'Discount'], 'tax' => ['Amounts', 'Tax'], 'shipping' => ['Amounts', 'Shipping'],
+        'total' => ['Amounts', 'Grand total'], 'paid' => ['Amounts', 'Paid so far'], 'balance' => ['Amounts', 'Balance due'], 'previous_balance' => ['Amounts', 'Earlier balance of the customer'],
+        'amount_in_words' => ['Amounts', 'Grand total in words'], 'items' => ['Amounts', 'Number of lines'],
+    ];
+
+    /**
      * Block type => [property => rule]. Rules: bool, text:<max>, int:<min>:<max>, enum:<a|b>, columns, labels.
      *
      * @var array<string, array<string, string>>
@@ -38,7 +58,7 @@ final class DocumentBlocks
         'parties' => ['show_bill_to' => 'bool', 'show_ship_to' => 'bool', 'show_phone' => 'bool'],
         'lines' => ['columns' => 'columns', 'show_header' => 'bool'],
         'totals' => ['show_discount' => 'bool', 'show_tax' => 'bool', 'show_shipping' => 'bool', 'show_paid' => 'bool', 'show_balance' => 'bool', 'show_previous_balance' => 'bool'],
-        'text' => ['text' => 'text:1000', 'align' => 'enum:left|center|right', 'bold' => 'bool'],
+        'text' => ['text' => 'text:3000', 'align' => 'enum:left|center|right', 'bold' => 'bool', 'size' => 'enum:small|normal|large|xlarge'],
         'terms' => ['text' => 'text:2000'],
         'notes' => [],
         'custom_fields' => [],

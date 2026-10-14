@@ -2,6 +2,8 @@
 
 namespace App\Services\Documents;
 
+use App\Services\AmountInWords;
+
 /**
  * Turns a template (blocks + branding, both already normalised by DocumentBlocks) and a document's data (DocumentData) into one
  * standalone HTML page that prints on A4, A5 or a 58 / 80 mm thermal roll. Every value from the data is escaped on output; the only
@@ -112,7 +114,7 @@ class DocumentRenderer
 
             case 'title':
                 $doc = $data['doc'];
-                $label = (string) ($props['text'] ?? '') !== '' ? (string) $props['text'] : $word((string) $doc['type']);
+                $label = (string) ($props['text'] ?? '') !== '' ? $this->fill((string) $props['text'], $data) : $word((string) $doc['type']);
                 $html = '<div class="block '.$align.'"><h1>'.$this->e($label).'</h1>';
                 $facts = [];
 
@@ -242,7 +244,10 @@ class DocumentRenderer
             case 'text':
                 $text = (string) ($props['text'] ?? '');
 
-                return $text === '' ? '' : '<div class="block '.$align.'"'.(! empty($props['bold']) ? ' style="font-weight:bold"' : '').'>'.nl2br($this->e($this->fill($text, $data))).'</div>';
+                $size = ['small' => '85%', 'large' => '125%', 'xlarge' => '160%'][$props['size'] ?? 'normal'] ?? null;
+                $style = (! empty($props['bold']) ? 'font-weight:bold;' : '').($size !== null ? 'font-size:'.$size.';' : '');
+
+                return $text === '' ? '' : '<div class="block '.$align.'"'.($style !== '' ? ' style="'.$style.'"' : '').'>'.nl2br($this->e($this->fill($text, $data))).'</div>';
 
             case 'terms':
                 $text = (string) ($props['text'] ?? '') !== '' ? (string) $props['text'] : (string) ($data['terms'] ?? '');
@@ -306,15 +311,34 @@ class DocumentRenderer
     }
 
     /**
-     * Placeholders in free text: {invoice}, {customer}, {date}, {total}, {company}. Unknown ones are left as they are.
+     * The codes of DocumentBlocks::CODES in free text, e.g. {invoice}, {customer}, {total}. Unknown ones are left as they are.
      *
      * @param  array<string, mixed>  $data
      */
     private function fill(string $text, array $data): string
     {
+        if (! str_contains($text, '{')) {
+            return $text;
+        }
+
+        $doc = $data['doc'] ?? [];
+        $party = $data['party'] ?? [];
+        $company = $data['company'] ?? [];
+        $totals = $data['totals'] ?? [];
+        $money = fn (string $key): string => number_format((float) ($totals[$key] ?? 0), 2);
+
         return strtr($text, [
-            '{invoice}' => (string) ($data['doc']['number'] ?? ''), '{customer}' => (string) ($data['party']['name'] ?? ''), '{date}' => (string) ($data['doc']['date'] ?? ''),
-            '{total}' => number_format((float) ($data['totals']['total'] ?? 0), 2), '{company}' => (string) ($data['company']['name'] ?? ''),
+            '{invoice}' => (string) ($doc['number'] ?? ''), '{date}' => (string) ($doc['date'] ?? ''), '{due_date}' => (string) ($doc['due_date'] ?? ''),
+            '{status}' => (string) ($doc['status'] ?? ''), '{reference}' => (string) ($doc['reference'] ?? ''), '{note}' => (string) ($doc['note'] ?? ''),
+            '{today}' => now()->toDateString(), '{fbr_number}' => (string) ($data['fbr_number'] ?? ''),
+            '{customer}' => (string) ($party['name'] ?? ''), '{customer_address}' => (string) ($party['address'] ?? ''), '{customer_phone}' => (string) ($party['phone'] ?? ''),
+            '{customer_email}' => (string) ($party['email'] ?? ''), '{customer_ntn}' => (string) ($party['ntn'] ?? ''), '{customer_strn}' => (string) ($party['strn'] ?? ''),
+            '{ship_to}' => (string) ($data['ship_to'] ?? ''),
+            '{company}' => (string) ($company['name'] ?? ''), '{company_address}' => (string) ($company['address'] ?? ''), '{company_phone}' => (string) ($company['phone'] ?? ''),
+            '{company_email}' => (string) ($company['email'] ?? ''), '{company_ntn}' => (string) ($company['ntn'] ?? ''), '{company_strn}' => (string) ($company['strn'] ?? ''),
+            '{subtotal}' => $money('subtotal'), '{discount}' => $money('discount'), '{tax}' => $money('tax'), '{shipping}' => $money('shipping'), '{total}' => $money('total'),
+            '{paid}' => $money('paid'), '{balance}' => $money('balance'), '{previous_balance}' => $money('previous_balance'),
+            '{amount_in_words}' => AmountInWords::convert((float) ($totals['total'] ?? 0)), '{items}' => (string) count($data['lines'] ?? []),
         ]);
     }
 
