@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -87,15 +88,8 @@
 
         <div v-if="result" class="mt-4">
             <div class="alert py-2" :class="result.summary.failed ? 'alert-danger' : 'alert-success'">{{ result.message }}</div>
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Invoice ref</th><th>Result</th><th>Invoice</th><th class="text-end">Total</th><th>Problems</th></tr></thead>
-                <tbody>
-                    <tr v-for="invoice in result.invoices" :key="invoice.invoice_ref">
-                        <td>{{ invoice.invoice_ref }}</td><td class="text-capitalize">{{ invoice.status }}</td><td>{{ invoice.invoice_no }}</td>
-                        <td class="text-end">{{ invoice.total === null ? '' : money(invoice.total) }}</td><td class="small text-danger">{{ invoice.errors.join(' ') }}</td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Invoice ref' }, { key: 'c1', label: 'Result' }, { key: 'c2', label: 'Invoice' }, { key: 'c3', label: 'Total' }, { key: 'c4', label: 'Problems' }]" :rows="(result.invoices).map((invoice) => ({ __s: { invoice }, c0: (invoice.invoice_ref), c1: (invoice.status), c2: (invoice.invoice_no), c3: (invoice.total === null ? '' : money(invoice.total)), c4: (invoice.errors.join(' ')) }))" export-name="invoice-ref">
+</ClientTable>
         </div>
     </div></div></div>
 </template>

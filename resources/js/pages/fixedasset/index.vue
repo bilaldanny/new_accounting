@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -370,15 +371,8 @@
                 <button type="button" class="btn-close" aria-label="Close" @click="history = null" />
             </div>
             <p v-if="! history.events.length" class="text-muted mb-0">Nothing recorded yet.</p>
-            <table v-else class="table table-sm">
-                <thead><tr><th>Date</th><th>Event</th><th>Detail</th><th class="text-end">Amount</th><th>Voucher</th><th>Status</th></tr></thead>
-                <tbody>
-                    <tr v-for="event in history.events" :key="event.type + event.id">
-                        <td>{{ event.event_date }}</td><td>{{ eventLabels[event.type] ?? event.type }}</td><td>{{ event.description }}</td>
-                        <td class="text-end">{{ money(event.amount) }}</td><td>{{ event.voucher_no ?? '-' }}</td><td>{{ event.status }}{{ event.voucher_status && event.voucher_status !== 'approved' ? ' (voucher ' + event.voucher_status + ')' : '' }}</td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Event' }, { key: 'c2', label: 'Detail' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Voucher' }, { key: 'c5', label: 'Status' }]" :rows="(history.events).map((event) => ({ __s: { event }, c0: (event.event_date), c1: (eventLabels[event.type] ?? event.type), c2: (event.description), c3: (money(event.amount)), c4: (event.voucher_no ?? '-'), c5: `${event.status}${event.voucher_status && event.voucher_status !== 'approved' ? ' (voucher ' + event.voucher_status + ')' : ''}` }))" export-name="date">
+</ClientTable>
         </div>
     </div>
 

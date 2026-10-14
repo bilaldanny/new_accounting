@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -217,22 +218,13 @@
             </form>
             <p v-if="! rules.length" class="text-muted mb-0">No exemptions yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Name</th><th>Applies to</th><th>Tax</th><th>Certificate</th><th>Valid</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="rule in rules" :key="rule.id">
-                            <td>{{ rule.name }} <span v-if="! rule.is_active" class="badge bg-secondary">inactive</span></td>
-                            <td>{{ rule.scope === 'item' ? `Item: ${rule.product_name}` : `Party: ${rule.contact_name}` }}</td>
-                            <td>{{ rule.tax_name ?? 'Every tax' }}</td>
-                            <td>{{ rule.certificate_no ?? '-' }}</td>
-                            <td>{{ rule.valid_from ?? 'always' }} - {{ rule.valid_to ?? 'open' }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Applies to' }, { key: 'c2', label: 'Tax' }, { key: 'c3', label: 'Certificate' }, { key: 'c4', label: 'Valid' }, { key: 'c5', label: '' }]" :rows="(rules).map((rule) => ({ __s: { rule }, c0: '', c1: (rule.scope === 'item' ? `Item: ${rule.product_name}` : `Party: ${rule.contact_name}`), c2: (rule.tax_name ?? 'Every tax'), c3: (rule.certificate_no ?? '-'), c4: `${rule.valid_from ?? 'always'} - ${rule.valid_to ?? 'open'}`, c5: '' }))" export-name="name">
+<template #cell-c0="{ row: __m }"><template v-for="{ rule } in [__m.__s]" :key="0">{{ rule.name }} <span v-if="! rule.is_active" class="badge bg-secondary">inactive</span></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ rule } in [__m.__s]" :key="0">
                                 <button v-if="can('/taxexemption/:id/edit')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="edit(rule)">Edit</button>
                                 <button v-if="can('/taxexemption/delete') && ! rule.used" type="button" class="btn btn-outline-danger btn-sm" @click="remove(rule)">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
     </div>

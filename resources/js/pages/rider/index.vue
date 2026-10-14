@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -68,18 +69,11 @@
             <button v-if="editing !== null" type="button" class="btn btn-outline-dark btn-sm mt-3" @click="editing = null; form = blank()">Cancel</button>
         </div>
 
-        <table class="table table-sm align-middle">
-            <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Active</th><th></th></tr></thead>
-            <tbody>
-                <tr v-for="row in rows" :key="row.id">
-                    <td>{{ row.name }}</td><td>{{ row.phone }}</td><td>{{ row.vehicle_no }}</td><td>{{ row.is_active ? 'Yes' : 'No' }}</td>
-                    <td class="text-end text-nowrap">
+        <ClientTable empty-text="No riders."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Phone' }, { key: 'c2', label: 'Vehicle' }, { key: 'c3', label: 'Active' }, { key: 'c4', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.phone), c2: (row.vehicle_no), c3: (row.is_active ? 'Yes' : 'No'), c4: '' }))" export-name="name">
+<template #cell-c4="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                         <button v-if="can('/rider/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                         <button v-if="can('/rider/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                    </td>
-                </tr>
-                <tr v-if="! rows.length"><td colspan="5" class="text-center text-muted">No riders.</td></tr>
-            </tbody>
-        </table>
+                    </template></template>
+</ClientTable>
     </div></div></div>
 </template>

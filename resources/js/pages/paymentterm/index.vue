@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -115,36 +116,22 @@
             </div>
         </div>
 
-        <table class="table table-sm align-middle mb-4">
-            <thead><tr><th>Term</th><th class="text-end">Net days</th><th class="text-end">Discount</th><th class="text-end">Within</th><th class="text-end">Contacts</th><th></th></tr></thead>
-            <tbody>
-                <tr v-for="term in terms" :key="term.id">
-                    <td>{{ term.name }}<span v-if="! term.is_active" class="badge text-bg-secondary ms-1">off</span></td><td class="text-end">{{ term.net_days }}</td>
-                    <td class="text-end">{{ term.discount_percent }}%</td><td class="text-end">{{ term.discount_days }} d</td><td class="text-end">{{ term.contacts }}</td>
-                    <td class="text-end text-nowrap">
+        <ClientTable empty-text="No payment terms."  :columns="[{ key: 'c0', label: 'Term' }, { key: 'c1', label: 'Net days' }, { key: 'c2', label: 'Discount' }, { key: 'c3', label: 'Within' }, { key: 'c4', label: 'Contacts' }, { key: 'c5', label: '' }]" :rows="(terms).map((term) => ({ __s: { term }, c0: '', c1: (term.net_days), c2: `${term.discount_percent}%`, c3: `${term.discount_days} d`, c4: (term.contacts), c5: '' }))" export-name="term">
+<template #cell-c0="{ row: __m }"><template v-for="{ term } in [__m.__s]" :key="0">{{ term.name }}<span v-if="! term.is_active" class="badge text-bg-secondary ms-1">off</span></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ term } in [__m.__s]" :key="0">
                         <button v-if="can('/paymentterm/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(term)">Edit</button>
                         <button v-if="can('/paymentterm/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(term)">Delete</button>
-                    </td>
-                </tr>
-                <tr v-if="! terms.length"><td colspan="6" class="text-center text-muted">No payment terms.</td></tr>
-            </tbody>
-        </table>
+                    </template></template>
+</ClientTable>
 
         <h6>Discounts available today</h6>
         <div v-if="can('/paymentterm/discount')" class="d-flex align-items-center gap-2 mb-2">
             <label class="small" for="pd-account">Book the discount to account id</label>
             <input id="pd-account" v-model.number="discountAccount" type="number" class="form-control form-control-sm" style="width: 8rem" />
         </div>
-        <table class="table table-sm align-middle">
-            <thead><tr><th>Document</th><th>Party</th><th>Term</th><th>Until</th><th class="text-end">Balance</th><th class="text-end">Discount</th><th></th></tr></thead>
-            <tbody>
-                <tr v-for="row in eligible" :key="row.transaction_id">
-                    <td>{{ row.invoice_no }} <small class="text-muted text-capitalize">{{ row.type }}</small></td><td>{{ row.contact }}</td><td>{{ row.term }}</td><td>{{ row.discount_until }}</td>
-                    <td class="text-end">{{ money(row.remaining) }}</td><td class="text-end">{{ money(row.discount) }}</td>
-                    <td class="text-end"><button v-if="can('/paymentterm/discount')" type="button" class="btn btn-dark btn-sm" @click="takeDiscount(row)">Take discount</button></td>
-                </tr>
-                <tr v-if="! eligible.length"><td colspan="7" class="text-center text-muted">No document is inside a discount window.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable empty-text="No document is inside a discount window."  :columns="[{ key: 'c0', label: 'Document' }, { key: 'c1', label: 'Party' }, { key: 'c2', label: 'Term' }, { key: 'c3', label: 'Until' }, { key: 'c4', label: 'Balance' }, { key: 'c5', label: 'Discount' }, { key: 'c6', label: '' }]" :rows="(eligible).map((row) => ({ __s: { row }, c0: '', c1: (row.contact), c2: (row.term), c3: (row.discount_until), c4: (money(row.remaining)), c5: (money(row.discount)), c6: '' }))" export-name="document">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.invoice_no }} <small class="text-muted text-capitalize">{{ row.type }}</small></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button v-if="can('/paymentterm/discount')" type="button" class="btn btn-dark btn-sm" @click="takeDiscount(row)">Take discount</button></template></template>
+</ClientTable>
     </div></div></div>
 </template>

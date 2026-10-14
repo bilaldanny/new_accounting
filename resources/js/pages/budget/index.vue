@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -203,22 +204,15 @@
             </form>
             <p v-if="! budgets.length" class="text-muted mb-0">No budgets found.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Period</th><th>Branch</th><th>Cost center</th><th>Account</th><th class="text-end">Amount</th><th>Note</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="budget in budgets" :key="budget.id">
-                            <td>{{ budget.period }}</td><td>{{ budget.branch_name ?? 'Whole company' }}</td><td>{{ budget.cost_center_name ?? '-' }}</td><td>{{ budget.account_name ?? 'All expenses' }}</td>
-                            <td class="text-end">{{ money(budget.amount) }}</td><td>{{ budget.note ?? '' }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: 'Period' }, { key: 'c1', label: 'Branch' }, { key: 'c2', label: 'Cost center' }, { key: 'c3', label: 'Account' }, { key: 'c4', label: 'Amount' }, { key: 'c5', label: 'Note' }, { key: 'c6', label: '' }]" :rows="(budgets).map((budget) => ({ __s: { budget }, c0: (budget.period), c1: (budget.branch_name ?? 'Whole company'), c2: (budget.cost_center_name ?? '-'), c3: (budget.account_name ?? 'All expenses'), c4: (money(budget.amount)), c5: (budget.note ?? ''), c6: '' }))" export-name="period">
+<template #cell-c6="{ row: __m }"><template v-for="{ budget } in [__m.__s]" :key="0">
                                 <template v-if="! budget.deleted">
                                     <button v-if="can('/budget/:id/edit')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="edit(budget)">Edit</button>
                                     <button v-if="can('/budget/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(budget)">Delete</button>
                                 </template>
                                 <button v-else-if="can('/budget/restore')" type="button" class="btn btn-outline-primary btn-sm" @click="restore(budget)">Restore</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
     </div>

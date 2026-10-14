@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, Link, router, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -189,21 +190,10 @@
             <h6 class="mb-3">Statements</h6>
             <p v-if="! statements.length" class="text-muted mb-0">No statements yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr><th>Account</th><th>Period</th><th class="text-end">Closing</th><th>Matched</th><th>Status</th><th /></tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="statement in statements" :key="statement.id">
-                            <td>{{ statement.account_code }}</td>
-                            <td>{{ String(statement.statement_from).slice(0, 10) }} to {{ String(statement.statement_to).slice(0, 10) }}</td>
-                            <td class="text-end">{{ money(statement.closing_balance) }}</td>
-                            <td>{{ statement.matched_lines_count }} / {{ statement.lines_count }}</td>
-                            <td><span class="badge" :class="statement.status === 'reconciled' ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'">{{ statement.status }}</span></td>
-                            <td><Link :href="`/bankreconciliation/${statement.id}`" class="btn btn-outline-secondary btn-sm">Open</Link></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Account' }, { key: 'c1', label: 'Period' }, { key: 'c2', label: 'Closing' }, { key: 'c3', label: 'Matched' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: '' }]" :rows="(statements).map((statement) => ({ __s: { statement }, c0: (statement.account_code), c1: `${String(statement.statement_from).slice(0, 10)} to ${String(statement.statement_to).slice(0, 10)}`, c2: (money(statement.closing_balance)), c3: `${statement.matched_lines_count} / ${statement.lines_count}`, c4: '', c5: '' }))" export-name="account">
+<template #cell-c4="{ row: __m }"><template v-for="{ statement } in [__m.__s]" :key="0"><span class="badge" :class="statement.status === 'reconciled' ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'">{{ statement.status }}</span></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ statement } in [__m.__s]" :key="0"><Link :href="`/bankreconciliation/${statement.id}`" class="btn btn-outline-secondary btn-sm">Open</Link></template></template>
+</ClientTable>
             </div>
         </div>
     </div>

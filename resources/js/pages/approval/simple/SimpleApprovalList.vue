@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -103,17 +104,8 @@
             <div v-else-if="rows.length === 0" class="text-center py-4 text-muted">No pending records.</div>
 
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th v-for="column in columns" :key="column.key">{{ column.label }}</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="Number(row.id)">
-                            <td v-for="column in columns" :key="column.key">{{ row[column.key] ?? '-' }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: '{{ column.label }}' }, { key: 'c1', label: 'Action' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row[column.key] ?? '-'), c1: '' }))" export-name="column-label">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                                 <button
                                     v-if="canApprove"
                                     type="button"
@@ -132,10 +124,8 @@
                                 >
                                     Reject
                                 </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
 
                 <div v-if="lastPage > 1" class="d-flex gap-2 align-items-center">
                     <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="page <= 1" @click="goTo(page - 1)">Prev</button>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -110,19 +111,13 @@
                     <button type="button" class="btn btn-dark btn-sm mt-3 me-2" @click="save">Save layout</button>
                     <button v-if="editing !== null" type="button" class="btn btn-outline-dark btn-sm mt-3" @click="editing = null; form = blank()">Cancel</button>
 
-                    <table class="table table-sm align-middle mt-3">
-                        <thead><tr><th>Layout</th><th>Size</th><th></th></tr></thead>
-                        <tbody>
-                            <tr v-for="layout in layouts" :key="layout.id">
-                                <td>{{ layout.name }}<span v-if="layout.is_default" class="badge text-bg-secondary ms-1">default</span></td><td>{{ layout.width_mm }} x {{ layout.height_mm }} mm</td>
-                                <td class="text-end text-nowrap">
+                    <ClientTable empty-text="No layouts yet."  :columns="[{ key: 'c0', label: 'Layout' }, { key: 'c1', label: 'Size' }, { key: 'c2', label: '' }]" :rows="(layouts).map((layout) => ({ __s: { layout }, c0: '', c1: `${layout.width_mm} x ${layout.height_mm} mm`, c2: '' }))" export-name="layout">
+<template #cell-c0="{ row: __m }"><template v-for="{ layout } in [__m.__s]" :key="0">{{ layout.name }}<span v-if="layout.is_default" class="badge text-bg-secondary ms-1">default</span></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ layout } in [__m.__s]" :key="0">
                                     <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(layout)">Edit</button>
                                     <button type="button" class="btn btn-outline-danger btn-sm" @click="remove(layout)">Delete</button>
-                                </td>
-                            </tr>
-                            <tr v-if="! layouts.length"><td colspan="3" class="text-center text-muted">No layouts yet.</td></tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
             </div>
 

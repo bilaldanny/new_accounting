@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -110,22 +111,15 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Kind</th><th>Reference</th><th>Bank</th><th>Party</th><th class="text-end">Amount</th><th>Expires</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td class="text-capitalize">{{ row.kind === 'lc' ? 'LC' : 'Guarantee' }}</td><td>{{ row.reference_no }}</td><td>{{ row.bank_name }}</td><td>{{ row.contact_name }}</td>
-                        <td class="text-end">{{ money(row.amount) }} <small class="text-muted">{{ row.currency }}</small></td>
-                        <td>{{ row.expires_on?.slice(0, 10) }}<small v-if="row.days_to_expiry !== null && row.state === 'open'" class="text-muted ms-1">({{ row.days_to_expiry }} d)</small></td>
-                        <td><span class="badge" :class="{ 'text-bg-success': row.state === 'open', 'text-bg-danger': row.state === 'expired', 'text-bg-secondary': ! ['open', 'expired'].includes(row.state) }">{{ row.state }}</span></td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="Nothing registered."  :columns="[{ key: 'c0', label: 'Kind' }, { key: 'c1', label: 'Reference' }, { key: 'c2', label: 'Bank' }, { key: 'c3', label: 'Party' }, { key: 'c4', label: 'Amount' }, { key: 'c5', label: 'Expires' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.kind === 'lc' ? 'LC' : 'Guarantee'), c1: (row.reference_no), c2: (row.bank_name), c3: (row.contact_name), c4: '', c5: '', c6: '', c7: '' }))" export-name="kind">
+<template #cell-c4="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ money(row.amount) }} <small class="text-muted">{{ row.currency }}</small></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.expires_on?.slice(0, 10) }}<small v-if="row.days_to_expiry !== null && row.state === 'open'" class="text-muted ms-1">({{ row.days_to_expiry }} d)</small></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><span class="badge" :class="{ 'text-bg-success': row.state === 'open', 'text-bg-danger': row.state === 'expired', 'text-bg-secondary': ! ['open', 'expired'].includes(row.state) }">{{ row.state }}</span></template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="can('/bankinstrument/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                             <button v-if="can('/bankinstrument/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">Nothing registered.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

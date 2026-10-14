@@ -2057,6 +2057,11 @@ return
                                             </Teleport>
                                         </span>
 
+                                        <!-- A page can draw its own cell: <template #cell-<column key>="{ row, value }"> -->
+                                        <template v-else-if="$slots[`cell-${col.key}`]">
+                                            <slot :name="`cell-${col.key}`" :row="row" :value="row[col.data_column ?? col.key]" />
+                                        </template>
+
                                         <!-- Default data binding -->
                                         <span v-else>
                                             <a

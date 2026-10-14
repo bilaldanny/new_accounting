@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -132,32 +133,19 @@
                 <div v-if="can('/journalschedule/run')" class="col-auto"><button type="button" class="btn btn-dark btn-sm" @click="runNow">Run now</button></div>
             </div>
             <div v-for="item in blocked" :key="item.name + item.date" class="alert alert-warning py-2 small mb-2">{{ item.name }} stopped at {{ item.date }}: {{ item.reason }}</div>
-            <table class="table table-sm mb-0">
-                <thead><tr><th>Due</th><th>Schedule</th><th>Kind</th><th class="text-end">Amount</th><th>Voucher</th></tr></thead>
-                <tbody>
-                    <tr v-for="item in due" :key="item.schedule_id + item.date"><td>{{ item.date }}</td><td>{{ item.name }}</td><td class="text-capitalize">{{ item.kind }}</td><td class="text-end">{{ money(item.amount) }}</td><td>{{ item.auto_post ? 'posted' : 'pending approval' }}</td></tr>
-                    <tr v-if="! due.length"><td colspan="5" class="text-center text-muted">Nothing is due.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Nothing is due."  :columns="[{ key: 'c0', label: 'Due' }, { key: 'c1', label: 'Schedule' }, { key: 'c2', label: 'Kind' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Voucher' }]" :rows="(due).map((item) => ({ __s: { item }, c0: (item.date), c1: (item.name), c2: (item.kind), c3: (money(item.amount)), c4: (item.auto_post ? 'posted' : 'pending approval') }))" export-name="due">
+</ClientTable>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>Name</th><th>Kind</th><th>Frequency</th><th>Status</th><th>Runs</th><th>Last</th><th>Next</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.name }}<div v-if="row.blocked_reason" class="small text-danger">{{ row.blocked_reason }}</div></td>
-                        <td class="text-capitalize">{{ row.kind }}</td><td class="text-capitalize">{{ row.frequency }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td>{{ row.runs_count }}</td><td>{{ row.last_run_on ?? '-' }}</td><td>{{ row.next_due_on ?? '-' }}</td>
-                        <td v-if="can('/journalschedule/:id/edit')" class="text-end">
+            <ClientTable empty-text="No schedules yet."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Kind' }, { key: 'c2', label: 'Frequency' }, { key: 'c3', label: 'Status' }, { key: 'c4', label: 'Runs' }, { key: 'c5', label: 'Last' }, { key: 'c6', label: 'Next' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: (row.kind), c2: (row.frequency), c3: (row.status), c4: (row.runs_count), c5: (row.last_run_on ?? '-'), c6: (row.next_due_on ?? '-'), c7: '' }))" export-name="name">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.name }}<div v-if="row.blocked_reason" class="small text-danger">{{ row.blocked_reason }}</div></template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="row.status === 'active'" type="button" class="btn btn-outline-dark btn-sm me-1" @click="change(row, 'pause')">Pause</button>
                             <button v-if="row.status === 'paused'" type="button" class="btn btn-outline-dark btn-sm me-1" @click="change(row, 'resume')">Resume</button>
                             <button v-if="['active', 'paused'].includes(row.status)" type="button" class="btn btn-outline-danger btn-sm" @click="change(row, 'cancel')">Cancel</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No schedules yet.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

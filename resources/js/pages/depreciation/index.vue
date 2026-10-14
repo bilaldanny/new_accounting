@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -156,14 +157,8 @@
             <h6>Recently booked</h6>
             <p v-if="! booked.length" class="text-muted mb-0">Nothing booked yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm">
-                    <thead><tr><th>Month</th><th>Asset</th><th class="text-end">Depreciation</th><th class="text-end">Book value after</th><th>Voucher</th><th>Voucher status</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in booked" :key="row.id">
-                            <td>{{ row.period }}</td><td>{{ row.code }} {{ row.name }}</td><td class="text-end">{{ money(row.amount) }}</td><td class="text-end">{{ money(row.closing_book_value) }}</td><td>{{ row.voucher_no }}</td><td>{{ row.voucher_status }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Month' }, { key: 'c1', label: 'Asset' }, { key: 'c2', label: 'Depreciation' }, { key: 'c3', label: 'Book value after' }, { key: 'c4', label: 'Voucher' }, { key: 'c5', label: 'Voucher status' }]" :rows="(booked).map((row) => ({ __s: { row }, c0: (row.period), c1: `${row.code} ${row.name}`, c2: (money(row.amount)), c3: (money(row.closing_book_value)), c4: (row.voucher_no), c5: (row.voucher_status) }))" export-name="month">
+</ClientTable>
             </div>
         </div>
     </div>

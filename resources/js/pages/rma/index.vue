@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -100,38 +101,25 @@
                 <div class="col-md-2"><label class="form-label small" for="rma-po">Purchase id (optional)</label><input id="rma-po" v-model.number="form.transaction_id" type="number" class="form-control form-control-sm" /></div>
                 <div class="col-md-8"><label class="form-label small" for="rma-reason">Reason</label><input id="rma-reason" v-model="form.reason" class="form-control form-control-sm" /></div>
             </div>
-            <table class="table table-sm align-middle mt-3">
-                <thead><tr><th>Product id</th><th style="width: 9rem">Quantity</th><th>Defect</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(line, index) in lines" :key="index">
-                        <td><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></td>
-                        <td><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></td>
-                        <td><input v-model="line.defect" class="form-control form-control-sm" aria-label="Defect" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Product id' }, { key: 'c1', label: 'Quantity' }, { key: 'c2', label: 'Defect' }, { key: 'c3', label: '' }]" :rows="(lines).map((line, index) => ({ __s: { line, index }, c0: '', c1: '', c2: '', c3: '' }))" export-name="product-id">
+<template #cell-c0="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model="line.defect" class="form-control form-control-sm" aria-label="Defect" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="lines.push({ product_id: '', quantity: 1, defect: '' })">Add line</button>
             <button type="button" class="btn btn-dark btn-sm" @click="create">Request return</button>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>RMA</th><th>Supplier no.</th><th>Supplier</th><th>Items</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.rma_no }}</td><td>{{ row.supplier_rma_no }}</td><td>#{{ row.contact_id }}</td>
-                        <td>{{ (row.lines ?? []).map((line) => `${line.product?.name ?? ''} x ${line.quantity}`).join(', ') }}</td><td>{{ row.reason }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No return requests."  :columns="[{ key: 'c0', label: 'RMA' }, { key: 'c1', label: 'Supplier no.' }, { key: 'c2', label: 'Supplier' }, { key: 'c3', label: 'Items' }, { key: 'c4', label: 'Reason' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.rma_no), c1: (row.supplier_rma_no), c2: `#${row.contact_id}`, c3: ((row.lines ?? []).map((line) => `${line.product?.name ?? ''} x ${line.quantity}`).join(', ')), c4: (row.reason), c5: (row.status), c6: '' }))" export-name="rma">
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="can('/rma/:id/edit')">
                                 <button v-for="next in flow[row.status]" :key="next" type="button" class="btn btn-outline-dark btn-sm me-1 text-capitalize" @click="move(row, next)">{{ next }}</button>
                             </template>
                             <button v-if="row.status === 'requested' && can('/rma/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="7" class="text-center text-muted">No return requests.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

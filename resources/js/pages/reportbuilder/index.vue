@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -273,13 +274,8 @@
                     <h6>Result</h6>
                     <div v-if="! result" class="text-muted small">Preview or run a report to see its rows.</div>
                     <div v-else class="table-responsive">
-                        <table class="table table-sm">
-                            <thead><tr><th v-for="column in result.columns" :key="column.key" :class="{ 'text-end': column.type === 'number' }">{{ column.label }}</th></tr></thead>
-                            <tbody>
-                                <tr v-for="row in result.data" :key="String(row.id)"><td v-for="column in result.columns" :key="column.key" :class="{ 'text-end': column.type === 'number' }">{{ cell(row[column.key], column.type) }}</td></tr>
-                                <tr v-if="! result.data.length"><td :colspan="result.columns.length" class="text-muted">No rows.</td></tr>
-                            </tbody>
-                        </table>
+                        <ClientTable empty-text="No rows."  :columns="[{ key: 'c0', label: '{{ column.label }}' }]" :rows="(result.data).map((row) => ({ __s: { row }, c0: (cell(row[column.key], column.type)) }))" export-name="column-label">
+</ClientTable>
                         <div v-if="result.truncated" class="small text-warning">Only the first rows are shown; narrow the filters to see the rest.</div>
                     </div>
                 </div>

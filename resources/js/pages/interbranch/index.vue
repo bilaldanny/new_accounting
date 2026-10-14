@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -91,12 +92,8 @@
             <div class="row g-2 align-items-end mb-2">
                 <div class="col-auto"><label class="form-label small" for="ib-asof">Consolidated as of</label><input id="ib-asof" v-model="asOf" type="date" class="form-control form-control-sm" @change="load" /></div>
             </div>
-            <table class="table table-sm mb-2">
-                <thead><tr><th>Branch</th><th class="text-end">Due from branches</th><th class="text-end">Due to branches</th><th class="text-end">Net</th></tr></thead>
-                <tbody>
-                    <tr v-for="branch in branches" :key="branch.branch_id"><td>{{ branch.branch_name }}</td><td class="text-end">{{ money(branch.due_from_branches) }}</td><td class="text-end">{{ money(branch.due_to_branches) }}</td><td class="text-end">{{ money(branch.net) }}</td></tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Branch' }, { key: 'c1', label: 'Due from branches' }, { key: 'c2', label: 'Due to branches' }, { key: 'c3', label: 'Net' }]" :rows="(branches).map((branch) => ({ __s: { branch }, c0: (branch.branch_name), c1: (money(branch.due_from_branches)), c2: (money(branch.due_to_branches)), c3: (money(branch.net)) }))" export-name="branch">
+</ClientTable>
             <div v-if="consolidated" class="small">
                 Eliminated on consolidation: <strong>{{ money(consolidated.eliminated) }}</strong>.
                 Unmatched: <strong>{{ money(consolidated.unmatched) }}</strong>
@@ -105,16 +102,9 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>Date</th><th>From</th><th>To</th><th class="text-end">Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.transaction_date }}</td><td>{{ row.from_branch_id }}</td><td>{{ row.to_branch_id }}</td><td class="text-end">{{ money(row.amount) }}</td><td>{{ row.description }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end"><button v-if="row.status === 'posted' && can('/interbranch/reverse')" type="button" class="btn btn-outline-danger btn-sm" @click="reverse(row)">Reverse</button></td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="7" class="text-center text-muted">No transfers yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No transfers yet."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'From' }, { key: 'c2', label: 'To' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Description' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.transaction_date), c1: (row.from_branch_id), c2: (row.to_branch_id), c3: (money(row.amount)), c4: (row.description), c5: (row.status), c6: '' }))" export-name="date">
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button v-if="row.status === 'posted' && can('/interbranch/reverse')" type="button" class="btn btn-outline-danger btn-sm" @click="reverse(row)">Reverse</button></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

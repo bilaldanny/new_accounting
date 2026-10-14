@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -83,23 +84,15 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Product</th><th>Customer</th><th class="text-end">Quantity</th><th>Reference</th><th>Until</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.product?.name }} <span class="text-muted small">{{ row.product?.sku }}</span></td>
-                        <td>{{ row.contact?.business_name || row.contact?.first_name }}</td>
-                        <td class="text-end">{{ row.quantity }}</td><td>{{ row.reference }}</td><td>{{ row.expires_on }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No reservations."  :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Quantity' }, { key: 'c3', label: 'Reference' }, { key: 'c4', label: 'Until' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: (row.contact?.business_name || row.contact?.first_name), c2: (row.quantity), c3: (row.reference), c4: (row.expires_on), c5: (row.status), c6: '' }))" export-name="product">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.product?.name }} <span class="text-muted small">{{ row.product?.sku }}</span></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="row.status === 'active' && can('/stockreservation/:id/edit')">
                                 <button type="button" class="btn btn-dark btn-sm me-1" @click="close(row, 'fulfilled')">Fulfilled</button>
                                 <button type="button" class="btn btn-outline-danger btn-sm" @click="close(row, 'released')">Release</button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="7" class="text-center text-muted">No reservations.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

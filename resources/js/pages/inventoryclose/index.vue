@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -84,13 +85,8 @@
 
         <h6>History</h6>
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>When</th><th>Action</th><th>Through</th><th>Reason</th></tr></thead>
-                <tbody>
-                    <tr v-for="entry in history" :key="entry.id"><td>{{ entry.created_at.slice(0, 16).replace('T', ' ') }}</td><td class="text-capitalize">{{ entry.action }}</td><td>{{ entry.locked_through ?? 'open' }}</td><td>{{ entry.reason }}</td></tr>
-                    <tr v-if="! history.length"><td colspan="4" class="text-center text-muted">Never closed.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Never closed."  :columns="[{ key: 'c0', label: 'When' }, { key: 'c1', label: 'Action' }, { key: 'c2', label: 'Through' }, { key: 'c3', label: 'Reason' }]" :rows="(history).map((entry) => ({ __s: { entry }, c0: (entry.created_at.slice(0, 16).replace('T', ' ')), c1: (entry.action), c2: (entry.locked_through ?? 'open'), c3: (entry.reason) }))" export-name="when">
+</ClientTable>
         </div>
     </div></div></div>
 </template>

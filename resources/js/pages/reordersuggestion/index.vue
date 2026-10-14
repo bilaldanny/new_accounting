@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -56,20 +57,11 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th></th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Reorder point</th><th class="text-end">Daily sales</th><th class="text-end">Lead time</th><th style="width: 8rem">Order qty</th><th class="text-end">Last rate</th><th>Supplier</th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.product_id">
-                        <td><input v-model="row.selected" type="checkbox" :aria-label="`Order ${row.name}`" /></td>
-                        <td>{{ row.name }} <span class="text-muted small">{{ row.sku }}</span></td>
-                        <td class="text-end">{{ row.on_hand }}</td><td class="text-end">{{ row.reorder_point }}</td><td class="text-end">{{ row.avg_daily_sales }}</td><td class="text-end">{{ row.lead_time_days }} d</td>
-                        <td><input v-model.number="row.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Order quantity" /></td>
-                        <td class="text-end">{{ row.last_rate === null ? '-' : money(row.last_rate) }}</td>
-                        <td>{{ row.supplier_name ?? 'Choose when ordering' }}</td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="9" class="text-center text-muted">Nothing is below its reorder point. Set reorder levels on the product form.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Nothing is below its reorder point. Set reorder levels on the product form."  :columns="[{ key: 'c0', label: '' }, { key: 'c1', label: 'Product' }, { key: 'c2', label: 'On hand' }, { key: 'c3', label: 'Reorder point' }, { key: 'c4', label: 'Daily sales' }, { key: 'c5', label: 'Lead time' }, { key: 'c6', label: 'Order qty' }, { key: 'c7', label: 'Last rate' }, { key: 'c8', label: 'Supplier' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: '', c2: (row.on_hand), c3: (row.reorder_point), c4: (row.avg_daily_sales), c5: `${row.lead_time_days} d`, c6: '', c7: (row.last_rate === null ? '-' : money(row.last_rate)), c8: (row.supplier_name ?? 'Choose when ordering') }))" export-name="table">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><input v-model="row.selected" type="checkbox" :aria-label="`Order ${row.name}`" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.name }} <span class="text-muted small">{{ row.sku }}</span></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><input v-model.number="row.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Order quantity" /></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

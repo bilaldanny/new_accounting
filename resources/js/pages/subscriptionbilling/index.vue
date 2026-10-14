@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -76,12 +77,7 @@
             </div>
         </div>
 
-        <table class="table table-sm">
-            <thead><tr><th>When</th><th>Invoice</th><th>Reminder</th><th>Result</th></tr></thead>
-            <tbody>
-                <tr v-for="row in reminders" :key="row.id"><td>{{ row.created_at }}</td><td>{{ row.invoice_no }}</td><td class="text-capitalize">{{ row.kind.replace('_', ' ') }}</td><td class="text-capitalize">{{ row.status }}</td></tr>
-                <tr v-if="! reminders.length"><td colspan="4" class="text-center text-muted">No reminders sent yet.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable empty-text="No reminders sent yet."  :columns="[{ key: 'c0', label: 'When' }, { key: 'c1', label: 'Invoice' }, { key: 'c2', label: 'Reminder' }, { key: 'c3', label: 'Result' }]" :rows="(reminders).map((row) => ({ __s: { row }, c0: (row.created_at), c1: (row.invoice_no), c2: (row.kind.replace('_', ' ')), c3: (row.status) }))" export-name="when">
+</ClientTable>
     </div></div></div>
 </template>

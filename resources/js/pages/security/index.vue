@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -129,14 +130,9 @@
             <div class="col-md-7">
                 <div class="border rounded p-3">
                     <h6>Active sessions and devices</h6>
-                    <table class="table table-sm mb-0">
-                        <thead><tr><th>User</th><th>Device</th><th>IP</th><th>Last active</th><th></th></tr></thead>
-                        <tbody>
-                            <tr v-for="session in sessions" :key="session.id"><td>{{ session.email }}</td><td>{{ session.device }}</td><td>{{ session.ip }}</td><td>{{ session.last_activity }}</td>
-                                <td class="text-end"><button v-if="can('/security/manage')" type="button" class="btn btn-outline-danger btn-sm" @click="revoke(session)">End</button></td></tr>
-                            <tr v-if="! sessions.length"><td colspan="5" class="text-muted">No sessions recorded yet.</td></tr>
-                        </tbody>
-                    </table>
+                    <ClientTable empty-text="No sessions recorded yet."  :columns="[{ key: 'c0', label: 'User' }, { key: 'c1', label: 'Device' }, { key: 'c2', label: 'IP' }, { key: 'c3', label: 'Last active' }, { key: 'c4', label: '' }]" :rows="(sessions).map((session) => ({ __s: { session }, c0: (session.email), c1: (session.device), c2: (session.ip), c3: (session.last_activity), c4: '' }))" export-name="user">
+<template #cell-c4="{ row: __m }"><template v-for="{ session } in [__m.__s]" :key="0"><button v-if="can('/security/manage')" type="button" class="btn btn-outline-danger btn-sm" @click="revoke(session)">End</button></template></template>
+</ClientTable>
                 </div>
             </div>
         </div>
@@ -147,13 +143,8 @@
                 <select v-model="eventFilter" class="form-select form-select-sm" style="width: 10rem" aria-label="Event" @change="load"><option value="">All events</option><option>login</option><option>failed</option><option>logout</option><option>lockout</option><option>ip_blocked</option></select>
                 <button type="button" class="btn btn-outline-dark btn-sm" @click="exportLog">Export CSV</button>
             </div>
-            <table class="table table-sm mb-0">
-                <thead><tr><th>Time</th><th>Event</th><th>User</th><th>IP</th><th>Device</th></tr></thead>
-                <tbody>
-                    <tr v-for="event in events" :key="event.id"><td>{{ event.created_at }}</td><td class="text-capitalize">{{ event.event.replace('_', ' ') }}</td><td>{{ event.user_email ?? event.identity }}</td><td>{{ event.ip }}</td><td>{{ event.device }}</td></tr>
-                    <tr v-if="! events.length"><td colspan="5" class="text-muted">Nothing logged yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Nothing logged yet."  :columns="[{ key: 'c0', label: 'Time' }, { key: 'c1', label: 'Event' }, { key: 'c2', label: 'User' }, { key: 'c3', label: 'IP' }, { key: 'c4', label: 'Device' }]" :rows="(events).map((event) => ({ __s: { event }, c0: (event.created_at), c1: (event.event.replace('_', ' ')), c2: (event.user_email ?? event.identity), c3: (event.ip), c4: (event.device) }))" export-name="time">
+</ClientTable>
         </div>
 
         <div v-if="can('/security/privacy')" class="border rounded p-3">

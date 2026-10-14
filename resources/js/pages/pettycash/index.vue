@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -105,17 +106,10 @@
 
         <div class="row g-3">
             <div class="col-lg-5">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Fund</th><th class="text-end">Imprest</th><th class="text-end">Balance</th><th class="text-end">To replenish</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="fund in funds" :key="fund.id" :class="{ 'table-active': selected?.id === fund.id }">
-                            <td>{{ fund.name }}<span v-if="! fund.is_active" class="badge text-bg-secondary ms-1">off</span></td>
-                            <td class="text-end">{{ money(fund.imprest_amount) }}</td><td class="text-end">{{ money(fund.balance) }}</td><td class="text-end">{{ money(fund.to_replenish) }}</td>
-                            <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="open(fund)">Open</button></td>
-                        </tr>
-                        <tr v-if="! funds.length"><td colspan="5" class="text-center text-muted">No petty cash funds.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No petty cash funds."  :columns="[{ key: 'c0', label: 'Fund' }, { key: 'c1', label: 'Imprest' }, { key: 'c2', label: 'Balance' }, { key: 'c3', label: 'To replenish' }, { key: 'c4', label: '' }]" :rows="(funds).map((fund) => ({ __s: { fund }, c0: '', c1: (money(fund.imprest_amount)), c2: (money(fund.balance)), c3: (money(fund.to_replenish)), c4: '' }))" export-name="fund">
+<template #cell-c0="{ row: __m }"><template v-for="{ fund } in [__m.__s]" :key="0">{{ fund.name }}<span v-if="! fund.is_active" class="badge text-bg-secondary ms-1">off</span></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ fund } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="open(fund)">Open</button></template></template>
+</ClientTable>
             </div>
 
             <div v-if="selected" class="col-lg-7">
@@ -142,18 +136,10 @@
                     </div>
                 </div>
 
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Date</th><th>Type</th><th>Detail</th><th class="text-end">Amount</th><th>Voucher</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="entry in entries" :key="entry.id">
-                            <td>{{ entry.entry_date?.slice(0, 10) }}</td><td class="text-capitalize">{{ entry.entry_type }}</td>
-                            <td>{{ entry.payee }} {{ entry.description }} <small class="text-muted">{{ entry.receipt_no }} {{ entry.account }}</small></td>
-                            <td class="text-end">{{ money(entry.amount) }}</td><td class="text-capitalize">{{ entry.voucher_status }}</td>
-                            <td class="text-end"><button v-if="can('/pettycash/expense')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(entry)">Delete</button></td>
-                        </tr>
-                        <tr v-if="! entries.length"><td colspan="6" class="text-center text-muted">No entries.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No entries."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Type' }, { key: 'c2', label: 'Detail' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Voucher' }, { key: 'c5', label: '' }]" :rows="(entries).map((entry) => ({ __s: { entry }, c0: (entry.entry_date?.slice(0, 10)), c1: (entry.entry_type), c2: '', c3: (money(entry.amount)), c4: (entry.voucher_status), c5: '' }))" export-name="date">
+<template #cell-c2="{ row: __m }"><template v-for="{ entry } in [__m.__s]" :key="0">{{ entry.payee }} {{ entry.description }} <small class="text-muted">{{ entry.receipt_no }} {{ entry.account }}</small></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ entry } in [__m.__s]" :key="0"><button v-if="can('/pettycash/expense')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(entry)">Delete</button></template></template>
+</ClientTable>
             </div>
         </div>
     </div></div></div>

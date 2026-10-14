@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -82,31 +83,17 @@
 
         <div class="row g-3">
             <div class="col-lg-6">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Name</th><th>Code</th><th>Active</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.id">
-                            <td>{{ row.name }}</td><td>{{ row.code }}</td><td>{{ row.is_active ? 'Yes' : 'No' }}</td>
-                            <td class="text-end text-nowrap">
+                <ClientTable empty-text="No cashiers."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Code' }, { key: 'c2', label: 'Active' }, { key: 'c3', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.code), c2: (row.is_active ? 'Yes' : 'No'), c3: '' }))" export-name="name">
+<template #cell-c3="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                                 <button v-if="can('/cashier/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                                 <button v-if="can('/cashier/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                            </td>
-                        </tr>
-                        <tr v-if="! rows.length"><td colspan="4" class="text-center text-muted">No cashiers.</td></tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
             <div class="col-lg-6">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Cashier</th><th class="text-end">Today</th><th class="text-end">Day %</th><th class="text-end">Month</th><th class="text-end">Month %</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in performance" :key="row.id">
-                            <td>{{ row.name }}</td><td class="text-end">{{ money(row.today) }} <small class="text-muted">({{ row.today_sales }})</small></td>
-                            <td class="text-end">{{ row.daily_percent ?? '-' }}</td><td class="text-end">{{ money(row.month) }}</td><td class="text-end">{{ row.monthly_percent ?? '-' }}</td>
-                        </tr>
-                        <tr v-if="! performance.length"><td colspan="5" class="text-center text-muted">No activity.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No activity."  :columns="[{ key: 'c0', label: 'Cashier' }, { key: 'c1', label: 'Today' }, { key: 'c2', label: 'Day %' }, { key: 'c3', label: 'Month' }, { key: 'c4', label: 'Month %' }]" :rows="(performance).map((row) => ({ __s: { row }, c0: (row.name), c1: '', c2: (row.daily_percent ?? '-'), c3: (money(row.month)), c4: (row.monthly_percent ?? '-') }))" export-name="cashier">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ money(row.today) }} <small class="text-muted">({{ row.today_sales }})</small></template></template>
+</ClientTable>
             </div>
         </div>
     </div></div></div>

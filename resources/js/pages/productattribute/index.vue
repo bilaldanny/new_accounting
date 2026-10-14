@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -86,20 +87,13 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Name</th><th>Key</th><th>Type</th><th>Choices</th><th>Required</th><th>Active</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.name }}</td><td><code>{{ row.field_key }}</code></td><td class="text-capitalize">{{ row.type }}</td>
-                        <td>{{ (row.options ?? []).join(', ') }}</td><td>{{ row.is_required ? 'Yes' : '' }}</td><td>{{ row.is_active ? 'Yes' : 'No' }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No custom attributes yet."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Key' }, { key: 'c2', label: 'Type' }, { key: 'c3', label: 'Choices' }, { key: 'c4', label: 'Required' }, { key: 'c5', label: 'Active' }, { key: 'c6', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.name), c1: '', c2: (row.type), c3: ((row.options ?? []).join(', ')), c4: (row.is_required ? 'Yes' : ''), c5: (row.is_active ? 'Yes' : 'No'), c6: '' }))" export-name="name">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><code>{{ row.field_key }}</code></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="can('/productattribute/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                             <button v-if="can('/productattribute/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="7" class="text-center text-muted">No custom attributes yet.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

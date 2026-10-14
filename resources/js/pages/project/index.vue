@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref } from 'vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import useCloseout from '@/composables/closeout';
@@ -120,30 +121,11 @@
 
             <div v-if="loading" class="pj-empty">Loading...</div>
             <div v-else class="pj-table-wrap">
-                <table class="pj-table">
-                    <thead>
-                        <tr><th>Code</th><th>Project</th><th>Status</th><th class="num">Revenue</th><th class="num">Cost</th><th class="num">Margin</th><th class="num">Margin %</th><th class="num">Cost budget</th><th class="num">Over budget</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr v-if="! rows.length">
-                            <td colspan="9" class="pj-empty-cell">
-                                <strong>No projects yet</strong>
-                                <span>{{ isSuperadmin && companyId === '' ? 'Choose a company above to see its projects.' : 'Create a project above to start tracking its margin.' }}</span>
-                            </td>
-                        </tr>
-                        <tr v-for="row in rows" :key="row.id">
-                            <td><strong>{{ row.code }}</strong></td>
-                            <td>{{ row.name }}</td>
-                            <td><span class="pj-status">{{ row.status.replace('_', ' ') }}</span></td>
-                            <td class="num">{{ money(row.revenue) }}</td>
-                            <td class="num">{{ money(row.cost) }}</td>
-                            <td class="num" :class="Number(row.margin) < 0 ? 'pj-neg' : 'pj-pos'">{{ money(row.margin) }}</td>
-                            <td class="num">{{ row.margin_percent === null ? '-' : `${row.margin_percent}%` }}</td>
-                            <td class="num">{{ money(row.budget_cost) }}</td>
-                            <td class="num"><span v-if="row.cost_over_budget !== null && Number(row.cost_over_budget) > 0" class="pj-over">{{ money(row.cost_over_budget) }}</span><span v-else>-</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Code' }, { key: 'c1', label: 'Project' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: 'Revenue' }, { key: 'c4', label: 'Cost' }, { key: 'c5', label: 'Margin' }, { key: 'c6', label: 'Margin %' }, { key: 'c7', label: 'Cost budget' }, { key: 'c8', label: 'Over budget' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: (row.name), c2: '', c3: (money(row.revenue)), c4: (money(row.cost)), c5: (money(row.margin)), c6: (row.margin_percent === null ? '-' : `${row.margin_percent}%`), c7: (money(row.budget_cost)), c8: '' }))" export-name="code">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><strong>{{ row.code }}</strong></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><span class="pj-status">{{ row.status.replace('_', ' ') }}</span></template></template>
+<template #cell-c8="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><span v-if="row.cost_over_budget !== null && Number(row.cost_over_budget) > 0" class="pj-over">{{ money(row.cost_over_budget) }}</span><span v-else>-</span></template></template>
+</ClientTable>
             </div>
         </section>
     </div>

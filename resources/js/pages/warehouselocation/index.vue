@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -150,20 +151,13 @@
             </div>
             <p v-if="! locations.length" class="text-muted mb-0">No locations yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Warehouse</th><th>Path</th><th>Kind</th><th>Code</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="location in locations" :key="location.id">
-                            <td>{{ location.warehouse_name }}</td>
-                            <td>{{ location.path }} <span v-if="! location.active" class="badge bg-secondary">inactive</span></td>
-                            <td>{{ typeLabels[location.type] }}</td><td>{{ location.code }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: 'Warehouse' }, { key: 'c1', label: 'Path' }, { key: 'c2', label: 'Kind' }, { key: 'c3', label: 'Code' }, { key: 'c4', label: '' }]" :rows="(locations).map((location) => ({ __s: { location }, c0: (location.warehouse_name), c1: '', c2: (typeLabels[location.type]), c3: (location.code), c4: '' }))" export-name="warehouse">
+<template #cell-c1="{ row: __m }"><template v-for="{ location } in [__m.__s]" :key="0">{{ location.path }} <span v-if="! location.active" class="badge bg-secondary">inactive</span></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ location } in [__m.__s]" :key="0">
                                 <button v-if="can('/warehouselocation/:id/edit')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="edit(location)">Edit</button>
                                 <button v-if="can('/warehouselocation/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(location)">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
     </div>

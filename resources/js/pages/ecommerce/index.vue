@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -114,34 +115,21 @@
             <button v-if="editing !== null" type="button" class="btn btn-outline-dark btn-sm mt-3" @click="editing = null; form = blank()">Cancel</button>
         </div>
 
-        <table class="table table-sm align-middle">
-            <thead><tr><th>Name</th><th>Platform</th><th>Configured</th><th>Orders</th><th></th></tr></thead>
-            <tbody>
-                <tr v-for="row in rows" :key="row.id">
-                    <td>{{ row.name }}<span v-if="! row.is_active" class="badge text-bg-secondary ms-1">inactive</span></td><td class="text-capitalize">{{ row.platform }}</td><td>{{ row.configured ? 'Yes' : 'No' }}</td>
-                    <td><span v-for="(count, key) in row.orders" :key="key" class="me-2">{{ key }}: {{ count }}</span></td>
-                    <td class="text-end text-nowrap">
+        <ClientTable empty-text="No connections."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Platform' }, { key: 'c2', label: 'Configured' }, { key: 'c3', label: 'Orders' }, { key: 'c4', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: (row.platform), c2: (row.configured ? 'Yes' : 'No'), c3: '', c4: '' }))" export-name="name">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.name }}<span v-if="! row.is_active" class="badge text-bg-secondary ms-1">inactive</span></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><span v-for="(count, key) in row.orders" :key="key" class="me-2">{{ key }}: {{ count }}</span></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                         <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="showOrders(row)">Orders</button>
                         <button v-if="can('/ecommerce/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                         <button v-if="can('/ecommerce/sync')" type="button" class="btn btn-dark btn-sm" @click="sync(row)">Sync now</button>
-                    </td>
-                </tr>
-                <tr v-if="! rows.length"><td colspan="5" class="text-center text-muted">No connections.</td></tr>
-            </tbody>
-        </table>
+                    </template></template>
+</ClientTable>
 
         <div v-if="shown">
             <h6>Orders of {{ shown.name }}</h6>
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Order</th><th>Status</th><th>Sale</th><th>Error</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="order in orders" :key="order.id">
-                        <td>{{ order.external_id }}</td><td class="text-capitalize">{{ order.status }}</td><td>{{ order.transaction_id ? '#' + order.transaction_id : '' }}</td><td class="small text-danger">{{ order.error }}</td>
-                        <td class="text-end"><button v-if="order.status !== 'imported' && can('/ecommerce/sync')" type="button" class="btn btn-outline-dark btn-sm" @click="retry(order)">Retry</button></td>
-                    </tr>
-                    <tr v-if="! orders.length"><td colspan="5" class="text-center text-muted">No orders pulled yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No orders pulled yet."  :columns="[{ key: 'c0', label: 'Order' }, { key: 'c1', label: 'Status' }, { key: 'c2', label: 'Sale' }, { key: 'c3', label: 'Error' }, { key: 'c4', label: '' }]" :rows="(orders).map((order) => ({ __s: { order }, c0: (order.external_id), c1: (order.status), c2: (order.transaction_id ? '#' + order.transaction_id : ''), c3: (order.error), c4: '' }))" export-name="order">
+<template #cell-c4="{ row: __m }"><template v-for="{ order } in [__m.__s]" :key="0"><button v-if="order.status !== 'imported' && can('/ecommerce/sync')" type="button" class="btn btn-outline-dark btn-sm" @click="retry(order)">Retry</button></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

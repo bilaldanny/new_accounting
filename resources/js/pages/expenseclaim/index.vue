@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
@@ -93,13 +94,8 @@
                     <button type="button" class="btn btn-dark btn-sm ms-2" :disabled="! form.title || ! form.lines.length" @click="save">Save claim</button>
                 </div>
 
-                <table class="table table-sm">
-                    <thead><tr><th>Claim</th><th>Title</th><th>Date</th><th class="text-end">Total</th><th>Status</th></tr></thead>
-                    <tbody>
-                        <tr v-for="c in claims" :key="c.id" role="button" @click="show(c.id)"><td>{{ c.claim_no }}</td><td>{{ c.title }}</td><td>{{ String(c.claim_date).slice(0, 10) }}</td><td class="text-end">{{ money(c.total) }}</td><td class="text-capitalize">{{ c.status }}</td></tr>
-                        <tr v-if="! claims.length"><td colspan="5" class="text-center text-muted">No claims.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No claims."  :columns="[{ key: 'c0', label: 'Claim' }, { key: 'c1', label: 'Title' }, { key: 'c2', label: 'Date' }, { key: 'c3', label: 'Total' }, { key: 'c4', label: 'Status' }]" :rows="(claims).map((c) => ({ __s: { c }, c0: (c.claim_no), c1: (c.title), c2: (String(c.claim_date).slice(0, 10)), c3: (money(c.total)), c4: (c.status) }))" export-name="claim">
+</ClientTable>
             </div>
 
             <div v-if="detail" class="col-lg-6 border rounded p-3">

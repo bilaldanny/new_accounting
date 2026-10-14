@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -92,22 +93,14 @@
                 <div v-if="can('/dunning/send')" class="col-auto"><button type="button" class="btn btn-dark btn-sm" :disabled="! selected.length" @click="send">Send selected ({{ selected.length }})</button></div>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm mb-0">
-                    <thead><tr><th></th><th>Customer</th><th>Invoice</th><th>Due</th><th class="text-end">Days</th><th class="text-end">Owed</th><th>Level</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in candidates" :key="row.id">
-                            <td><input v-model="selected" type="checkbox" :value="row.id" :aria-label="`Select ${row.invoice_no}`" /></td>
-                            <td>{{ row.contact_name }}</td><td>{{ row.invoice_no }}</td><td>{{ row.due_date }}</td><td class="text-end">{{ row.days_past_due }}</td><td class="text-end">{{ money(row.open_amount) }}</td>
-                            <td>{{ row.level }}: {{ row.level_name }}</td><td class="text-capitalize">{{ row.case_status }}</td>
-                            <td v-if="can('/dunning/case')" class="text-end">
+                <ClientTable empty-text="No reminder is due."  :columns="[{ key: 'c0', label: '' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Invoice' }, { key: 'c3', label: 'Due' }, { key: 'c4', label: 'Days' }, { key: 'c5', label: 'Owed' }, { key: 'c6', label: 'Level' }, { key: 'c7', label: 'Status' }, { key: 'c8', label: '' }]" :rows="(candidates).map((row) => ({ __s: { row }, c0: '', c1: (row.contact_name), c2: (row.invoice_no), c3: (row.due_date), c4: (row.days_past_due), c5: (money(row.open_amount)), c6: `${row.level}: ${row.level_name}`, c7: (row.case_status), c8: '' }))" export-name="table">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><input v-model="selected" type="checkbox" :value="row.id" :aria-label="`Select ${row.invoice_no}`" /></template></template>
+<template #cell-c8="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                                 <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="setStatus(row, 'promised')">Promised</button>
                                 <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="setStatus(row, 'disputed')">Disputed</button>
                                 <button type="button" class="btn btn-outline-danger btn-sm" @click="setStatus(row, 'escalated')">Escalate</button>
-                            </td>
-                        </tr>
-                        <tr v-if="! candidates.length"><td colspan="9" class="text-center text-muted">No reminder is due.</td></tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
 
@@ -130,13 +123,8 @@
 
         <h6>History</h6>
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>When</th><th>Invoice id</th><th>Level</th><th>Channel</th><th>Result</th><th>Subject</th></tr></thead>
-                <tbody>
-                    <tr v-for="row in events" :key="row.id"><td>{{ row.created_at.slice(0, 16).replace('T', ' ') }}</td><td>{{ row.transaction_id }}</td><td>{{ row.level }}</td><td>{{ row.channel }}</td><td class="text-capitalize">{{ row.status.replace('_', ' ') }}</td><td>{{ row.subject }}</td></tr>
-                    <tr v-if="! events.length"><td colspan="6" class="text-center text-muted">Nothing sent yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Nothing sent yet."  :columns="[{ key: 'c0', label: 'When' }, { key: 'c1', label: 'Invoice id' }, { key: 'c2', label: 'Level' }, { key: 'c3', label: 'Channel' }, { key: 'c4', label: 'Result' }, { key: 'c5', label: 'Subject' }]" :rows="(events).map((row) => ({ __s: { row }, c0: (row.created_at.slice(0, 16).replace('T', ' ')), c1: (row.transaction_id), c2: (row.level), c3: (row.channel), c4: (row.status.replace('_', ' ')), c5: (row.subject) }))" export-name="when">
+</ClientTable>
         </div>
     </div></div></div>
 </template>

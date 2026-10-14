@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -99,18 +100,11 @@
 
         <div class="row g-3">
             <div :class="open ? 'col-lg-6' : 'col-12'">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Loan</th><th class="text-end">Principal</th><th class="text-end">Outstanding</th><th>Next due</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="loan in rows" :key="loan.id">
-                            <td>{{ loan.name }}<small class="text-muted d-block">{{ loan.lender }}</small></td><td class="text-end">{{ money(loan.principal) }}</td>
-                            <td class="text-end">{{ money(loan.outstanding_principal) }}</td><td>{{ loan.next_due_on?.slice(0, 10) }} <small class="text-muted">{{ loan.next_amount === null ? '' : money(loan.next_amount) }}</small></td>
-                            <td class="text-capitalize">{{ loan.status }}</td>
-                            <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(loan)">Schedule</button></td>
-                        </tr>
-                        <tr v-if="! rows.length"><td colspan="6" class="text-center text-muted">No loans.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No loans."  :columns="[{ key: 'c0', label: 'Loan' }, { key: 'c1', label: 'Principal' }, { key: 'c2', label: 'Outstanding' }, { key: 'c3', label: 'Next due' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: '' }]" :rows="(rows).map((loan) => ({ __s: { loan }, c0: '', c1: (money(loan.principal)), c2: (money(loan.outstanding_principal)), c3: '', c4: (loan.status), c5: '' }))" export-name="loan">
+<template #cell-c0="{ row: __m }"><template v-for="{ loan } in [__m.__s]" :key="0">{{ loan.name }}<small class="text-muted d-block">{{ loan.lender }}</small></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ loan } in [__m.__s]" :key="0">{{ loan.next_due_on?.slice(0, 10) }} <small class="text-muted">{{ loan.next_amount === null ? '' : money(loan.next_amount) }}</small></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ loan } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(loan)">Schedule</button></template></template>
+</ClientTable>
             </div>
             <div v-if="open" class="col-lg-6">
                 <div class="d-flex align-items-center gap-2 mb-2">
@@ -120,15 +114,9 @@
                         <button type="button" class="btn btn-dark btn-sm" @click="pay()">Pay next instalment</button>
                     </template>
                 </div>
-                <table class="table table-sm">
-                    <thead><tr><th>#</th><th>Due</th><th class="text-end">Principal</th><th class="text-end">Interest</th><th class="text-end">Total</th><th>Paid</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in open.schedule" :key="row.id">
-                            <td>{{ row.number }}</td><td>{{ row.due_on?.slice(0, 10) }}</td><td class="text-end">{{ money(row.principal) }}</td><td class="text-end">{{ money(row.interest) }}</td><td class="text-end">{{ money(row.total) }}</td>
-                            <td>{{ row.paid_on?.slice(0, 10) }} <small class="text-muted text-capitalize">{{ row.voucher_status }}</small></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: '#' }, { key: 'c1', label: 'Due' }, { key: 'c2', label: 'Principal' }, { key: 'c3', label: 'Interest' }, { key: 'c4', label: 'Total' }, { key: 'c5', label: 'Paid' }]" :rows="(open.schedule).map((row) => ({ __s: { row }, c0: (row.number), c1: (row.due_on?.slice(0, 10)), c2: (money(row.principal)), c3: (money(row.interest)), c4: (money(row.total)), c5: '' }))" export-name="table">
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.paid_on?.slice(0, 10) }} <small class="text-muted text-capitalize">{{ row.voucher_status }}</small></template></template>
+</ClientTable>
             </div>
         </div>
     </div></div></div>

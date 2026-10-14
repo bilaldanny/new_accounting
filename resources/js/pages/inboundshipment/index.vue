@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -70,21 +71,15 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Shipment</th><th>Purchase</th><th>Carrier / tracking</th><th>Container</th><th>Shipped</th><th>ETA</th><th>Arrived</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id" :class="{ 'table-warning': row.is_late }">
-                        <td>{{ row.shipment_no }}</td><td>#{{ row.transaction_id }}</td><td>{{ row.carrier }} <span class="text-muted small">{{ row.tracking_no }}</span></td><td>{{ row.container_no }}</td>
-                        <td>{{ row.shipped_on }}</td><td>{{ row.eta }}<span v-if="row.is_late" class="badge bg-warning text-dark ms-1">Late</span></td><td>{{ row.arrived_on }}</td><td class="text-capitalize">{{ row.status.replace('_', ' ') }}</td>
-                        <td class="text-end">
+            <ClientTable empty-text="No shipments."  :columns="[{ key: 'c0', label: 'Shipment' }, { key: 'c1', label: 'Purchase' }, { key: 'c2', label: 'Carrier / tracking' }, { key: 'c3', label: 'Container' }, { key: 'c4', label: 'Shipped' }, { key: 'c5', label: 'ETA' }, { key: 'c6', label: 'Arrived' }, { key: 'c7', label: 'Status' }, { key: 'c8', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.shipment_no), c1: `#${row.transaction_id}`, c2: '', c3: (row.container_no), c4: (row.shipped_on), c5: '', c6: (row.arrived_on), c7: (row.status.replace('_', ' ')), c8: '' }))" export-name="shipment">
+<template #cell-c2="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.carrier }} <span class="text-muted small">{{ row.tracking_no }}</span></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.eta }}<span v-if="row.is_late" class="badge bg-warning text-dark ms-1">Late</span></template></template>
+<template #cell-c8="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <select v-if="can('/inboundshipment/:id/edit')" class="form-select form-select-sm" style="width: auto; display: inline-block" :value="row.status" aria-label="Status" @change="setStatus(row, ($event.target as HTMLSelectElement).value)">
                                 <option v-for="status in statuses" :key="status" :value="status">{{ status.replace('_', ' ') }}</option>
                             </select>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="9" class="text-center text-muted">No shipments.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

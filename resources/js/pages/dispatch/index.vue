@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -59,17 +60,12 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th><th>Address</th><th>Rider</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="sale in sales" :key="sale.id">
-                        <td>{{ sale.invoice_no }}</td><td>{{ sale.customer }}</td><td>{{ sale.date }}</td><td class="text-end">{{ money(sale.amount) }}</td><td>{{ sale.address }}</td>
-                        <td>{{ sale.rider ?? '-' }}</td>
-                        <td>
+            <ClientTable empty-text="Nothing to dispatch."  :columns="[{ key: 'c0', label: 'Invoice' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Date' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Address' }, { key: 'c5', label: 'Rider' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(sales).map((sale) => ({ __s: { sale }, c0: (sale.invoice_no), c1: (sale.customer), c2: (sale.date), c3: (money(sale.amount)), c4: (sale.address), c5: (sale.rider ?? '-'), c6: '', c7: '' }))" export-name="invoice">
+<template #cell-c6="{ row: __m }"><template v-for="{ sale } in [__m.__s]" :key="0">
                             <span class="text-capitalize">{{ sale.dispatch_status }}</span>
                             <span v-if="sale.held_by_layaway" class="badge text-bg-warning ms-1">held: layaway</span>
-                        </td>
-                        <td class="text-end text-nowrap">
+                        </template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ sale } in [__m.__s]" :key="0">
                             <template v-if="can('/dispatch/assign') && ! sale.held_by_layaway">
                                 <select v-model="chosen[sale.id]" class="form-select form-select-sm d-inline-block me-1" style="width: 10rem" :aria-label="`Rider for ${sale.invoice_no}`">
                                     <option value="">Rider...</option><option v-for="rider in riders" :key="rider.id" :value="rider.id">{{ rider.name }}</option>
@@ -81,11 +77,8 @@
                                     <button v-if="['assigned', 'out'].includes(sale.dispatch_status)" type="button" class="btn btn-outline-danger btn-sm" @click="move(sale, 'failed')">Failed</button>
                                 </template>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="! sales.length"><td colspan="8" class="text-center text-muted">Nothing to dispatch.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

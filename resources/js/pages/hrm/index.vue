@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, router, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -218,16 +219,9 @@
                 </div>
             </div>
 
-            <table class="table table-sm">
-                <thead><tr><th>No</th><th>Name</th><th>Designation</th><th>Department</th><th>Shift</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="e in employees" :key="e.id">
-                        <td>{{ e.employee_no }}</td><td>{{ e.first_name }} {{ e.last_name }}</td><td>{{ e.designation }}</td><td>{{ e.department ?? '-' }}</td><td>{{ e.shift ?? '-' }}</td><td class="text-capitalize">{{ e.status }}</td>
-                        <td class="text-end"><button v-if="canManage" type="button" class="btn btn-outline-dark btn-sm" @click="edit(e)">Edit</button></td>
-                    </tr>
-                    <tr v-if="! employees.length"><td colspan="7" class="text-center text-muted">No employees yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No employees yet."  :columns="[{ key: 'c0', label: 'No' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Designation' }, { key: 'c3', label: 'Department' }, { key: 'c4', label: 'Shift' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(employees).map((e) => ({ __s: { e }, c0: (e.employee_no), c1: `${e.first_name} ${e.last_name}`, c2: (e.designation), c3: (e.department ?? '-'), c4: (e.shift ?? '-'), c5: (e.status), c6: '' }))" export-name="no">
+<template #cell-c6="{ row: __m }"><template v-for="{ e } in [__m.__s]" :key="0"><button v-if="canManage" type="button" class="btn btn-outline-dark btn-sm" @click="edit(e)">Edit</button></template></template>
+</ClientTable>
 
             <h6 class="mt-4">Organisation</h6>
             <ul class="small">
@@ -281,29 +275,18 @@
             </div>
 
             <h6>Leave requests</h6>
-            <table class="table table-sm">
-                <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="l in leaves" :key="l.id">
-                        <td>{{ l.employee_no }} {{ l.first_name }}</td><td>{{ l.leave_type }}</td><td>{{ String(l.from_date).slice(0, 10) }}</td><td>{{ String(l.to_date).slice(0, 10) }}</td><td>{{ l.days }}</td><td class="text-capitalize">{{ l.status }}</td>
-                        <td class="text-end">
+            <ClientTable empty-text="No leave requests."  :columns="[{ key: 'c0', label: 'Employee' }, { key: 'c1', label: 'Type' }, { key: 'c2', label: 'From' }, { key: 'c3', label: 'To' }, { key: 'c4', label: 'Days' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(leaves).map((l) => ({ __s: { l }, c0: `${l.employee_no} ${l.first_name}`, c1: (l.leave_type), c2: (String(l.from_date).slice(0, 10)), c3: (String(l.to_date).slice(0, 10)), c4: (l.days), c5: (l.status), c6: '' }))" export-name="employee">
+<template #cell-c6="{ row: __m }"><template v-for="{ l } in [__m.__s]" :key="0">
                             <template v-if="l.status === 'pending' && canLeaveApprove">
                                 <button type="button" class="btn btn-outline-success btn-sm me-1" @click="decideLeave(l.id, 'approve')">Approve</button>
                                 <button type="button" class="btn btn-outline-danger btn-sm" @click="decideLeave(l.id, 'reject')">Reject</button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="! leaves.length"><td colspan="7" class="text-center text-muted">No leave requests.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
 
             <h6 class="mt-3">Attendance of this month</h6>
-            <table class="table table-sm">
-                <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th>Status</th><th>Late</th><th>Overtime</th><th>Source</th></tr></thead>
-                <tbody>
-                    <tr v-for="a in attendance.slice(0, 100)" :key="a.id"><td>{{ String(a.work_date).slice(0, 10) }}</td><td>{{ a.employee_no }} {{ a.first_name }}</td><td>{{ a.check_in }}</td><td>{{ a.check_out }}</td><td>{{ a.status }}</td><td>{{ a.late_minutes }}</td><td>{{ a.overtime_minutes }}</td><td>{{ a.source }}</td></tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Employee' }, { key: 'c2', label: 'In' }, { key: 'c3', label: 'Out' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: 'Late' }, { key: 'c6', label: 'Overtime' }, { key: 'c7', label: 'Source' }]" :rows="(attendance.slice(0, 100)).map((a) => ({ __s: { a }, c0: (String(a.work_date).slice(0, 10)), c1: `${a.employee_no} ${a.first_name}`, c2: (a.check_in), c3: (a.check_out), c4: (a.status), c5: (a.late_minutes), c6: (a.overtime_minutes), c7: (a.source) }))" export-name="date">
+</ClientTable>
         </section>
 
         <section v-if="tab === 'payroll'">
@@ -334,16 +317,9 @@
                 </div>
             </div>
 
-            <table class="table table-sm">
-                <thead><tr><th>Month</th><th>Status</th><th class="text-end">Employees</th><th class="text-end">Gross</th><th class="text-end">Net</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="r in runs" :key="r.id">
-                        <td>{{ r.period }}</td><td class="text-capitalize">{{ r.status }}</td><td class="text-end">{{ r.totals.employees ?? 0 }}</td><td class="text-end">{{ money(r.totals.gross) }}</td><td class="text-end">{{ money(r.totals.net) }}</td>
-                        <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="openRun(r.id)">Open</button></td>
-                    </tr>
-                    <tr v-if="! runs.length"><td colspan="6" class="text-center text-muted">No payroll prepared yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No payroll prepared yet."  :columns="[{ key: 'c0', label: 'Month' }, { key: 'c1', label: 'Status' }, { key: 'c2', label: 'Employees' }, { key: 'c3', label: 'Gross' }, { key: 'c4', label: 'Net' }, { key: 'c5', label: '' }]" :rows="(runs).map((r) => ({ __s: { r }, c0: (r.period), c1: (r.status), c2: (r.totals.employees ?? 0), c3: (money(r.totals.gross)), c4: (money(r.totals.net)), c5: '' }))" export-name="month">
+<template #cell-c5="{ row: __m }"><template v-for="{ r } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="openRun(r.id)">Open</button></template></template>
+</ClientTable>
 
             <div v-if="current" class="border rounded p-3">
                 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
@@ -357,22 +333,14 @@
                         <button type="button" class="btn btn-outline-dark btn-sm" @click="bankFile('ibft')">Bank file (IBFT layout)</button>
                     </template>
                 </div>
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>No</th><th>Employee</th><th class="text-end">Gross</th><th class="text-end">Attendance</th><th class="text-end">Deductions</th><th class="text-end">Tax</th><th class="text-end">Loan</th><th class="text-end">Net</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="l in current.lines" :key="l.id">
-                            <td>{{ l.employee_no }}</td><td>{{ l.name }}</td><td class="text-end">{{ money(l.gross) }}</td><td class="text-end">{{ money(l.attendance_deduction) }}</td><td class="text-end">{{ money(l.statutory_employee) }}</td><td class="text-end">{{ money(l.tax) }}</td><td class="text-end">{{ money(l.loan_deduction) }}</td><td class="text-end">{{ money(l.net) }}</td>
-                            <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="payslip(l.id)">Payslip</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'No' }, { key: 'c1', label: 'Employee' }, { key: 'c2', label: 'Gross' }, { key: 'c3', label: 'Attendance' }, { key: 'c4', label: 'Deductions' }, { key: 'c5', label: 'Tax' }, { key: 'c6', label: 'Loan' }, { key: 'c7', label: 'Net' }, { key: 'c8', label: '' }]" :rows="(current.lines).map((l) => ({ __s: { l }, c0: (l.employee_no), c1: (l.name), c2: (money(l.gross)), c3: (money(l.attendance_deduction)), c4: (money(l.statutory_employee)), c5: (money(l.tax)), c6: (money(l.loan_deduction)), c7: (money(l.net)), c8: '' }))" export-name="no">
+<template #cell-c8="{ row: __m }"><template v-for="{ l } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="payslip(l.id)">Payslip</button></template></template>
+</ClientTable>
             </div>
 
             <h6 class="mt-4">Loans and advances</h6>
-            <table class="table table-sm">
-                <thead><tr><th>Employee</th><th>Kind</th><th class="text-end">Amount</th><th class="text-end">Instalment</th><th class="text-end">Balance</th><th>Status</th></tr></thead>
-                <tbody><tr v-for="l in loans" :key="l.id"><td>{{ l.employee_no }} {{ l.first_name }}</td><td>{{ l.kind }}</td><td class="text-end">{{ money(l.amount) }}</td><td class="text-end">{{ money(l.installment) }}</td><td class="text-end">{{ money(l.balance) }}</td><td>{{ l.status }}</td></tr></tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Employee' }, { key: 'c1', label: 'Kind' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Instalment' }, { key: 'c4', label: 'Balance' }, { key: 'c5', label: 'Status' }]" :rows="(loans).map((l) => ({ __s: { l }, c0: `${l.employee_no} ${l.first_name}`, c1: (l.kind), c2: (money(l.amount)), c3: (money(l.installment)), c4: (money(l.balance)), c5: (l.status) }))" export-name="employee">
+</ClientTable>
         </section>
 
         <section v-if="tab === 'setup'">
@@ -447,21 +415,11 @@
             </div>
 
             <h6>Statutory rates in force</h6>
-            <table class="table table-sm">
-                <thead><tr><th>Code</th><th>Name</th><th>Side</th><th>Basis</th><th class="text-end">%</th><th class="text-end">Fixed</th><th>From</th></tr></thead>
-                <tbody>
-                    <tr v-for="r in rates" :key="r.id"><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.side }}</td><td>{{ r.basis }}</td><td class="text-end">{{ r.rate_percent }}</td><td class="text-end">{{ r.fixed_amount }}</td><td>{{ String(r.effective_from).slice(0, 10) }}</td></tr>
-                    <tr v-if="! rates.length"><td colspan="7" class="text-center text-muted">No statutory rate entered: none is deducted.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No statutory rate entered: none is deducted."  :columns="[{ key: 'c0', label: 'Code' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Side' }, { key: 'c3', label: 'Basis' }, { key: 'c4', label: '%' }, { key: 'c5', label: 'Fixed' }, { key: 'c6', label: 'From' }]" :rows="(rates).map((r) => ({ __s: { r }, c0: (r.code), c1: (r.name), c2: (r.side), c3: (r.basis), c4: (r.rate_percent), c5: (r.fixed_amount), c6: (String(r.effective_from).slice(0, 10)) }))" export-name="code">
+</ClientTable>
             <h6>Income tax slabs</h6>
-            <table class="table table-sm">
-                <thead><tr><th>From (annual)</th><th>To</th><th class="text-end">Fixed</th><th class="text-end">%</th><th>Effective</th></tr></thead>
-                <tbody>
-                    <tr v-for="s in slabs" :key="s.id"><td>{{ s.annual_from }}</td><td>{{ s.annual_to ?? 'no limit' }}</td><td class="text-end">{{ s.fixed_amount }}</td><td class="text-end">{{ s.rate_percent }}</td><td>{{ String(s.effective_from).slice(0, 10) }}</td></tr>
-                    <tr v-if="! slabs.length"><td colspan="5" class="text-center text-muted">No tax slab entered: no income tax is deducted.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No tax slab entered: no income tax is deducted."  :columns="[{ key: 'c0', label: 'From (annual)' }, { key: 'c1', label: 'To' }, { key: 'c2', label: 'Fixed' }, { key: 'c3', label: '%' }, { key: 'c4', label: 'Effective' }]" :rows="(slabs).map((s) => ({ __s: { s }, c0: (s.annual_from), c1: (s.annual_to ?? 'no limit'), c2: (s.fixed_amount), c3: (s.rate_percent), c4: (String(s.effective_from).slice(0, 10)) }))" export-name="from-annual">
+</ClientTable>
             <div class="small text-muted">{{ components.length }} salary component(s), {{ shifts.length }} shift(s).</div>
         </section>
     </div></div></div>

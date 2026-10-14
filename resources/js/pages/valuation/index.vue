@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -134,29 +135,16 @@
             <div v-if="preview" class="mt-3">
                 <div class="small mb-2">{{ preview.summary.lines }} lines, {{ preview.summary.changed }} change, {{ preview.summary.uncosted }} without a cost. Before {{ money(preview.summary.cost_before) }}, after {{ money(preview.summary.cost_after) }}, difference {{ money(preview.summary.difference) }}.</div>
                 <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead><tr><th>Date</th><th>Invoice</th><th>Product</th><th class="text-end">Qty</th><th class="text-end">Before</th><th class="text-end">After</th><th class="text-end">Difference</th></tr></thead>
-                        <tbody>
-                            <tr v-for="line in preview.lines" :key="line.sell_line_id">
-                                <td>{{ line.date }}</td><td>{{ line.invoice_no }}</td><td>{{ line.product }}</td><td class="text-end">{{ line.base_quantity }}</td>
-                                <td class="text-end">{{ line.current_cost === null ? '-' : money(line.current_cost) }}</td><td class="text-end">{{ line.new_cost === null ? '-' : money(line.new_cost) }}</td>
-                                <td class="text-end">{{ line.difference === null ? '-' : money(line.difference) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Invoice' }, { key: 'c2', label: 'Product' }, { key: 'c3', label: 'Qty' }, { key: 'c4', label: 'Before' }, { key: 'c5', label: 'After' }, { key: 'c6', label: 'Difference' }]" :rows="(preview.lines).map((line) => ({ __s: { line }, c0: (line.date), c1: (line.invoice_no), c2: (line.product), c3: (line.base_quantity), c4: (line.current_cost === null ? '-' : money(line.current_cost)), c5: (line.new_cost === null ? '-' : money(line.new_cost)), c6: (line.difference === null ? '-' : money(line.difference)) }))" export-name="date">
+</ClientTable>
                 </div>
             </div>
         </div>
 
         <h6>Method history</h6>
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>From</th><th>Method</th><th>Note</th></tr></thead>
-                <tbody>
-                    <tr v-for="change in history" :key="change.id"><td>{{ change.effective_from }}</td><td class="text-capitalize">{{ change.method }}</td><td>{{ change.note }}</td></tr>
-                    <tr v-if="! history.length"><td colspan="3" class="text-center text-muted">Never changed: weighted average.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Never changed: weighted average."  :columns="[{ key: 'c0', label: 'From' }, { key: 'c1', label: 'Method' }, { key: 'c2', label: 'Note' }]" :rows="(history).map((change) => ({ __s: { change }, c0: (change.effective_from), c1: (change.method), c2: (change.note) }))" export-name="from">
+</ClientTable>
         </div>
     </div></div></div>
 </template>

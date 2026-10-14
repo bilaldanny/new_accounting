@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -232,15 +233,9 @@
                 </p>
                 <p v-if="! serials.length" class="text-muted mb-0">No serial numbers yet. Mark a product as serial tracked, then receive it or register serials here.</p>
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Serial / IMEI</th><th>Product</th><th>Status</th><th>Branch</th><th>Last movement</th><th /></tr></thead>
-                        <tbody>
-                            <tr v-for="serial in serials" :key="serial.id">
-                                <td>{{ serial.serial_no }}</td><td>{{ serial.product_name }}</td><td>{{ STATUS_LABELS[serial.status] ?? serial.status }}</td><td>{{ serial.branch_name ?? '-' }}</td><td>{{ serial.last_moved_at ?? '-' }}</td>
-                                <td class="text-nowrap"><button v-if="serial.status === 'in_stock' && can('/stocktracking/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="writeOffSerial(serial)">Write off</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Serial / IMEI' }, { key: 'c1', label: 'Product' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: 'Branch' }, { key: 'c4', label: 'Last movement' }, { key: 'c5', label: '' }]" :rows="(serials).map((serial) => ({ __s: { serial }, c0: (serial.serial_no), c1: (serial.product_name), c2: (STATUS_LABELS[serial.status] ?? serial.status), c3: (serial.branch_name ?? '-'), c4: (serial.last_moved_at ?? '-'), c5: '' }))" export-name="serial-imei">
+<template #cell-c5="{ row: __m }"><template v-for="{ serial } in [__m.__s]" :key="0"><button v-if="serial.status === 'in_stock' && can('/stocktracking/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="writeOffSerial(serial)">Write off</button></template></template>
+</ClientTable>
                 </div>
             </template>
 
@@ -258,16 +253,10 @@
 
                 <p v-if="! batches.length" class="text-muted mb-0">No batches in stock. Mark a product as batch tracked, then receive it or register a batch here.</p>
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Product</th><th>Batch</th><th>Branch</th><th>Expires</th><th class="text-end">In stock</th><th>Status</th><th /></tr></thead>
-                        <tbody>
-                            <tr v-for="batch in batches" :key="`${batch.batch_id}-${batch.branch_id}`">
-                                <td>{{ batch.product_name }}</td><td>{{ batch.batch_no }}</td><td>{{ batch.branch_name }}</td><td>{{ batch.expiry_date ?? '-' }}</td><td class="text-end">{{ batch.qty }}</td>
-                                <td><span :class="batch.expiry_state === 'expired' ? 'text-danger' : (batch.expiry_state === 'expiring' ? 'text-warning' : '')">{{ EXPIRY_LABELS[batch.expiry_state] }}</span></td>
-                                <td class="text-nowrap"><button v-if="can('/stocktracking/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="writeOffBatch(batch)">Write off</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'Batch' }, { key: 'c2', label: 'Branch' }, { key: 'c3', label: 'Expires' }, { key: 'c4', label: 'In stock' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(batches).map((batch) => ({ __s: { batch }, c0: (batch.product_name), c1: (batch.batch_no), c2: (batch.branch_name), c3: (batch.expiry_date ?? '-'), c4: (batch.qty), c5: '', c6: '' }))" export-name="product">
+<template #cell-c5="{ row: __m }"><template v-for="{ batch } in [__m.__s]" :key="0"><span :class="batch.expiry_state === 'expired' ? 'text-danger' : (batch.expiry_state === 'expiring' ? 'text-warning' : '')">{{ EXPIRY_LABELS[batch.expiry_state] }}</span></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ batch } in [__m.__s]" :key="0"><button v-if="can('/stocktracking/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="writeOffBatch(batch)">Write off</button></template></template>
+</ClientTable>
                 </div>
             </template>
         </div>

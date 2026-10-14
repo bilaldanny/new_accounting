@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -79,27 +80,14 @@
 
         <div class="row g-3">
             <div class="col-lg-8">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Date</th><th>Tax</th><th>Period</th><th>Challan</th><th>Bank</th><th class="text-end">Amount</th><th>Voucher</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.id">
-                            <td>{{ row.paid_on?.slice(0, 10) }}</td><td>{{ row.tax_type }}</td><td>{{ row.period }}</td><td>{{ row.challan_no }}</td><td>{{ row.bank_name }}</td>
-                            <td class="text-end">{{ money(row.amount) }}</td><td class="text-capitalize">{{ row.voucher_status }}</td>
-                            <td class="text-end"><button v-if="can('/taxpayment/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button></td>
-                        </tr>
-                        <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No tax payments.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No tax payments."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Tax' }, { key: 'c2', label: 'Period' }, { key: 'c3', label: 'Challan' }, { key: 'c4', label: 'Bank' }, { key: 'c5', label: 'Amount' }, { key: 'c6', label: 'Voucher' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.paid_on?.slice(0, 10)), c1: (row.tax_type), c2: (row.period), c3: (row.challan_no), c4: (row.bank_name), c5: (money(row.amount)), c6: (row.voucher_status), c7: '' }))" export-name="date">
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button v-if="can('/taxpayment/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button></template></template>
+</ClientTable>
             </div>
             <div class="col-lg-4">
                 <h6>By tax</h6>
-                <table class="table table-sm">
-                    <thead><tr><th>Tax</th><th class="text-end">Payments</th><th class="text-end">Total</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in summary" :key="row.tax_type"><td>{{ row.tax_type }}</td><td class="text-end">{{ row.payments }}</td><td class="text-end">{{ money(row.total) }}</td></tr>
-                        <tr v-if="! summary.length"><td colspan="3" class="text-center text-muted">-</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="-"  :columns="[{ key: 'c0', label: 'Tax' }, { key: 'c1', label: 'Payments' }, { key: 'c2', label: 'Total' }]" :rows="(summary).map((row) => ({ __s: { row }, c0: (row.tax_type), c1: (row.payments), c2: (money(row.total)) }))" export-name="tax">
+</ClientTable>
             </div>
         </div>
     </div></div></div>

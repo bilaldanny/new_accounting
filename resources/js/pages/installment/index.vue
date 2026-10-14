@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -90,28 +91,15 @@
 
         <div class="row g-3">
             <div :class="open ? 'col-lg-7' : 'col-12'">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Sale</th><th>Kind</th><th class="text-end">Total</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th class="text-end">Overdue</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.id">
-                            <td>#{{ row.transaction_id }}</td><td class="text-capitalize">{{ row.kind }}</td><td class="text-end">{{ money(row.total_amount) }}</td>
-                            <td class="text-end">{{ money(row.paid) }}</td><td class="text-end">{{ money(row.balance) }}</td><td class="text-end">{{ money(row.overdue_amount) }}</td>
-                            <td class="text-capitalize">{{ row.status }}</td>
-                            <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(row)">Open</button></td>
-                        </tr>
-                        <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No plans.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No plans."  :columns="[{ key: 'c0', label: 'Sale' }, { key: 'c1', label: 'Kind' }, { key: 'c2', label: 'Total' }, { key: 'c3', label: 'Paid' }, { key: 'c4', label: 'Balance' }, { key: 'c5', label: 'Overdue' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: `#${row.transaction_id}`, c1: (row.kind), c2: (money(row.total_amount)), c3: (money(row.paid)), c4: (money(row.balance)), c5: (money(row.overdue_amount)), c6: (row.status), c7: '' }))" export-name="sale">
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(row)">Open</button></template></template>
+</ClientTable>
             </div>
             <div v-if="open" class="col-lg-5">
                 <div class="border rounded p-3">
                     <h6>Plan for sale #{{ open.plan.transaction_id }} <span class="text-muted text-capitalize">({{ open.plan.kind }}, {{ open.plan.status }})</span></h6>
-                    <table class="table table-sm">
-                        <thead><tr><th>#</th><th>Due</th><th class="text-end">Amount</th><th class="text-end">Paid</th><th>Status</th></tr></thead>
-                        <tbody>
-                            <tr v-for="row in open.schedule" :key="row.number"><td>{{ row.number }}</td><td>{{ row.due_on }}</td><td class="text-end">{{ money(row.amount) }}</td><td class="text-end">{{ money(row.paid) }}</td><td class="text-capitalize">{{ row.status }}</td></tr>
-                        </tbody>
-                    </table>
+                    <ClientTable  :columns="[{ key: 'c0', label: '#' }, { key: 'c1', label: 'Due' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Paid' }, { key: 'c4', label: 'Status' }]" :rows="(open.schedule).map((row) => ({ __s: { row }, c0: (row.number), c1: (row.due_on), c2: (money(row.amount)), c3: (money(row.paid)), c4: (row.status) }))" export-name="table">
+</ClientTable>
                     <div v-if="open.plan.status === 'active' && can('/installment/pay')" class="row g-2">
                         <div class="col-6"><label class="form-label small" for="ip-amount">Amount</label><input id="ip-amount" v-model.number="payment.amount" type="number" min="0" step="any" class="form-control form-control-sm" /></div>
                         <div class="col-6"><label class="form-label small" for="ip-date">Paid on</label><input id="ip-date" v-model="payment.paid_on" type="date" class="form-control form-control-sm" /></div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -65,17 +66,12 @@
                 <div class="col-md-2"><label class="form-label small" for="wo-date">Date</label><input id="wo-date" v-model="form.date" type="date" class="form-control form-control-sm" /></div>
                 <div class="col-md-5"><label class="form-label small" for="wo-note">Note</label><input id="wo-note" v-model="form.note" class="form-control form-control-sm" /></div>
             </div>
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Product id</th><th>Variation id (optional)</th><th style="width: 10rem">Quantity</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(line, index) in lines" :key="index">
-                        <td><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></td>
-                        <td><input v-model.number="line.variation_id" type="number" class="form-control form-control-sm" aria-label="Variation id" /></td>
-                        <td><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Product id' }, { key: 'c1', label: 'Variation id (optional)' }, { key: 'c2', label: 'Quantity' }, { key: 'c3', label: '' }]" :rows="(lines).map((line, index) => ({ __s: { line, index }, c0: '', c1: '', c2: '', c3: '' }))" export-name="product-id">
+<template #cell-c0="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.variation_id" type="number" class="form-control form-control-sm" aria-label="Variation id" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="lines.push({ product_id: '', variation_id: '', quantity: 1 })">Add line</button>
             <button type="button" class="btn btn-dark btn-sm" @click="save">Write off</button>
         </div>
@@ -84,16 +80,8 @@
             <option value="all">All reasons</option><option v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</option>
         </select>
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Date</th><th>Reason</th><th class="text-end">Quantity</th><th class="text-end">Value</th><th>Adjustment</th><th>Note</th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.created_at.slice(0, 10) }}</td><td>{{ labels[row.reason] }}</td><td class="text-end">{{ row.total_quantity }}</td>
-                        <td class="text-end">{{ row.total_value === null ? '-' : money(row.total_value) }}</td><td>#{{ row.adjustment_id }}</td><td>{{ row.note }}</td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="6" class="text-center text-muted">Nothing written off.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Nothing written off."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Reason' }, { key: 'c2', label: 'Quantity' }, { key: 'c3', label: 'Value' }, { key: 'c4', label: 'Adjustment' }, { key: 'c5', label: 'Note' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.created_at.slice(0, 10)), c1: (labels[row.reason]), c2: (row.total_quantity), c3: (row.total_value === null ? '-' : money(row.total_value)), c4: `#${row.adjustment_id}`, c5: (row.note) }))" export-name="date">
+</ClientTable>
         </div>
     </div></div></div>
 </template>

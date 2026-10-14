@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -97,16 +98,9 @@
         <div class="row g-3">
             <div class="col-lg-6">
                 <h6>Customers with a balance</h6>
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Customer</th><th class="text-end">Balance</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.contact_id">
-                            <td>{{ row.customer }}</td><td class="text-end">{{ money(row.balance) }}</td>
-                            <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="lookup = row.contact_id; show(row.contact_id)">History</button></td>
-                        </tr>
-                        <tr v-if="! rows.length"><td colspan="3" class="text-center text-muted">No store credit outstanding.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No store credit outstanding."  :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Balance' }, { key: 'c2', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.customer), c1: (money(row.balance)), c2: '' }))" export-name="customer">
+<template #cell-c2="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="lookup = row.contact_id; show(row.contact_id)">History</button></template></template>
+</ClientTable>
             </div>
             <div class="col-lg-6">
                 <h6>History <span v-if="balance !== null" class="text-muted">(balance {{ money(balance) }})</span></h6>
@@ -114,13 +108,8 @@
                     <input v-model.number="lookup" type="number" class="form-control" placeholder="Customer id" aria-label="Customer id" />
                     <button type="button" class="btn btn-outline-dark" @click="show(lookup)">Show</button>
                 </div>
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="text-end">Amount</th></tr></thead>
-                    <tbody>
-                        <tr v-for="entry in entries" :key="entry.id"><td>{{ entry.created_at?.slice(0, 10) }}</td><td class="text-capitalize">{{ entry.entry_type }}</td><td>{{ entry.reference }}</td><td class="text-end">{{ money(entry.amount) }}</td></tr>
-                        <tr v-if="! entries.length"><td colspan="4" class="text-center text-muted">Pick a customer.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="Pick a customer."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Type' }, { key: 'c2', label: 'Reference' }, { key: 'c3', label: 'Amount' }]" :rows="(entries).map((entry) => ({ __s: { entry }, c0: (entry.created_at?.slice(0, 10)), c1: (entry.entry_type), c2: (entry.reference), c3: (money(entry.amount)) }))" export-name="date">
+</ClientTable>
             </div>
         </div>
     </div></div></div>

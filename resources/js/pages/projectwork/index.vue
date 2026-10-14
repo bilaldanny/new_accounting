@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
@@ -71,20 +72,13 @@
                         <input v-model.number="milestone.amount" type="number" class="form-control form-control-sm" style="width: 8rem" placeholder="Amount" aria-label="Milestone amount" />
                         <button type="button" class="btn btn-dark btn-sm" @click="send('post', '/milestones', clean({ ...milestone }), 'Milestone saved')">Add</button>
                     </div>
-                    <table class="table table-sm">
-                        <thead><tr><th>Milestone</th><th>Due</th><th class="text-end">Amount</th><th>Tasks</th><th>Status</th><th></th></tr></thead>
-                        <tbody>
-                            <tr v-for="m in data.milestones" :key="m.id" :class="{ 'table-warning': m.overdue }">
-                                <td>{{ m.name }}</td><td>{{ m.due_date ? String(m.due_date).slice(0, 10) : '-' }}</td><td class="text-end">{{ money(m.amount) }}</td><td>{{ m.tasks_done }}/{{ m.tasks }}</td><td class="text-capitalize">{{ m.status }}</td>
-                                <td class="text-end">
+                    <ClientTable empty-text="No milestones yet."  :columns="[{ key: 'c0', label: 'Milestone' }, { key: 'c1', label: 'Due' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Tasks' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: '' }]" :rows="(data.milestones).map((m) => ({ __s: { m }, c0: (m.name), c1: (m.due_date ? String(m.due_date).slice(0, 10) : '-'), c2: (money(m.amount)), c3: `${m.tasks_done}/${m.tasks}`, c4: (m.status), c5: '' }))" export-name="milestone">
+<template #cell-c5="{ row: __m }"><template v-for="{ m } in [__m.__s]" :key="0">
                                     <button v-if="m.status === 'pending'" type="button" class="btn btn-outline-dark btn-sm" @click="send('post', `/milestones/${m.id}/status`, { status: 'done' }, 'Milestone done')">Done</button>
                                     <button v-if="m.status === 'done'" type="button" class="btn btn-outline-dark btn-sm" @click="send('post', `/milestones/${m.id}/status`, { status: 'billed' }, 'Milestone billed')">Billed</button>
                                     <button v-if="canManage" type="button" class="btn btn-outline-danger btn-sm ms-1" @click="send('delete', `/milestones/${m.id}`, {}, 'Deleted')">x</button>
-                                </td>
-                            </tr>
-                            <tr v-if="! data.milestones.length"><td colspan="6" class="text-center text-muted">No milestones yet.</td></tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
 
                 <div class="col-lg-6">
@@ -97,21 +91,14 @@
                         <div class="col-3"><input v-model="task.due_date" type="date" class="form-control form-control-sm" aria-label="Task due date" /></div>
                         <div class="col-2"><button type="button" class="btn btn-dark btn-sm" @click="send('post', '/tasks', clean({ ...task }), 'Task saved')">Add</button></div>
                     </div>
-                    <table class="table table-sm">
-                        <thead><tr><th>Task</th><th>Who</th><th>Hours</th><th>Status</th><th></th></tr></thead>
-                        <tbody>
-                            <tr v-for="t in data.tasks" :key="t.id" :class="{ 'table-warning': t.overdue }">
-                                <td>{{ t.title }}</td><td>{{ t.assignee || '-' }}</td><td>{{ t.spent_hours }} / {{ t.estimated_hours }}</td><td class="text-capitalize">{{ t.status }}</td>
-                                <td class="text-end">
+                    <ClientTable empty-text="No tasks yet."  :columns="[{ key: 'c0', label: 'Task' }, { key: 'c1', label: 'Who' }, { key: 'c2', label: 'Hours' }, { key: 'c3', label: 'Status' }, { key: 'c4', label: '' }]" :rows="(data.tasks).map((t) => ({ __s: { t }, c0: (t.title), c1: (t.assignee || '-'), c2: `${t.spent_hours} / ${t.estimated_hours}`, c3: (t.status), c4: '' }))" export-name="task">
+<template #cell-c4="{ row: __m }"><template v-for="{ t } in [__m.__s]" :key="0">
                                     <button v-if="t.status !== 'doing' && t.status !== 'done'" type="button" class="btn btn-outline-dark btn-sm" @click="send('post', `/tasks/${t.id}/status`, { status: 'doing' })">Start</button>
                                     <button v-if="t.status !== 'done'" type="button" class="btn btn-outline-dark btn-sm ms-1" @click="send('post', `/tasks/${t.id}/status`, { status: 'done' }, 'Task done')">Done</button>
                                     <button v-if="t.status !== 'done'" type="button" class="btn btn-outline-dark btn-sm ms-1" @click="send('post', `/tasks/${t.id}/status`, { add_hours: 1 })">+1 h</button>
                                     <button v-if="canManage" type="button" class="btn btn-outline-danger btn-sm ms-1" @click="send('delete', `/tasks/${t.id}`, {}, 'Deleted')">x</button>
-                                </td>
-                            </tr>
-                            <tr v-if="! data.tasks.length"><td colspan="5" class="text-center text-muted">No tasks yet.</td></tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
             </div>
         </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -103,19 +104,12 @@
         <div class="row g-3">
             <div class="col-lg-5">
                 <h6>Routes</h6>
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Name</th><th>Day</th><th>Stops</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in routes" :key="row.id">
-                            <td>{{ row.name }}</td><td>{{ row.weekday === null ? 'Any' : days[row.weekday] }}</td><td>{{ row.stops.length }}</td>
-                            <td class="text-end text-nowrap">
+                <ClientTable empty-text="No routes."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Day' }, { key: 'c2', label: 'Stops' }, { key: 'c3', label: '' }]" :rows="(routes).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.weekday === null ? 'Any' : days[row.weekday]), c2: (row.stops.length), c3: '' }))" export-name="name">
+<template #cell-c3="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                                 <button v-if="can('/salesroute/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                                 <button v-if="can('/salesroute/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                            </td>
-                        </tr>
-                        <tr v-if="! routes.length"><td colspan="4" class="text-center text-muted">No routes.</td></tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
             <div class="col-lg-7">
                 <div class="d-flex align-items-center gap-2 mb-2">

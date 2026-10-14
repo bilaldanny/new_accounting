@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -124,19 +125,8 @@
                 Saving changes the average cost used by stock valuation and item profit. It posts nothing to the ledger: book the freight bill with an expense or payment voucher as usual.
             </p>
 
-            <table class="table table-sm">
-                <thead><tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Line value</th><th class="text-end">Landed cost</th><th class="text-end">Landed unit cost</th></tr></thead>
-                <tbody>
-                    <tr v-for="line in detail.lines" :key="line.id">
-                        <td>{{ line.product }}</td>
-                        <td class="text-end">{{ line.quantity }}</td>
-                        <td class="text-end">{{ money(line.purchase_rate) }}</td>
-                        <td class="text-end">{{ money(line.line_value) }}</td>
-                        <td class="text-end">{{ money(line.landed_cost) }}</td>
-                        <td class="text-end fw-bold">{{ line.landed_unit_cost === null ? '-' : money(line.landed_unit_cost) }}</td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Item' }, { key: 'c1', label: 'Qty' }, { key: 'c2', label: 'Rate' }, { key: 'c3', label: 'Line value' }, { key: 'c4', label: 'Landed cost' }, { key: 'c5', label: 'Landed unit cost' }]" :rows="(detail.lines).map((line) => ({ __s: { line }, c0: (line.product), c1: (line.quantity), c2: (money(line.purchase_rate)), c3: (money(line.line_value)), c4: (money(line.landed_cost)), c5: (line.landed_unit_cost === null ? '-' : money(line.landed_unit_cost)) }))" export-name="item">
+</ClientTable>
         </div>
     </div>
 
@@ -148,17 +138,9 @@
             </form>
             <p v-if="! purchases.length" class="text-muted mb-0">No purchases found.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Purchase</th><th>Supplier</th><th>Date</th><th>Status</th><th class="text-end">Amount</th><th class="text-end">Landed costs</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="purchase in purchases" :key="purchase.id">
-                            <td>{{ purchase.invoice_no }}</td><td>{{ purchase.supplier }}</td><td>{{ purchase.transaction_date }}</td><td>{{ purchase.status }}</td>
-                            <td class="text-end">{{ money(purchase.final_amount) }}</td>
-                            <td class="text-end">{{ money(purchase.landed_total) }}</td>
-                            <td><button type="button" class="btn btn-outline-secondary btn-sm" @click="open(purchase.id)">{{ canEdit ? 'Costs' : 'View' }}</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Purchase' }, { key: 'c1', label: 'Supplier' }, { key: 'c2', label: 'Date' }, { key: 'c3', label: 'Status' }, { key: 'c4', label: 'Amount' }, { key: 'c5', label: 'Landed costs' }, { key: 'c6', label: '' }]" :rows="(purchases).map((purchase) => ({ __s: { purchase }, c0: (purchase.invoice_no), c1: (purchase.supplier), c2: (purchase.transaction_date), c3: (purchase.status), c4: (money(purchase.final_amount)), c5: (money(purchase.landed_total)), c6: '' }))" export-name="purchase">
+<template #cell-c6="{ row: __m }"><template v-for="{ purchase } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-secondary btn-sm" @click="open(purchase.id)">{{ canEdit ? 'Costs' : 'View' }}</button></template></template>
+</ClientTable>
             </div>
         </div>
     </div>

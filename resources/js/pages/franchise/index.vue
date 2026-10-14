@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -35,13 +36,9 @@
         <div v-if="loaded && !groups.length" class="text-muted">You are not the owner of a company group.</div>
         <div v-for="group in groups" :key="group.id" class="border rounded p-3 mb-3">
             <h6>{{ group.name }} <span class="text-muted small">{{ group.month }}</span></h6>
-            <table class="table table-sm mb-0">
-                <thead><tr><th>Company</th><th>Status</th><th class="text-end">Branches</th><th class="text-end">Net sales</th><th class="text-end">Net purchases</th></tr></thead>
-                <tbody>
-                    <tr v-for="company in group.companies" :key="company.company_id"><td>{{ company.name }} <span class="text-muted small">{{ company.code }}</span></td><td>{{ company.status }}</td><td class="text-end">{{ company.branches }}</td><td class="text-end">{{ money(company.net_sales) }} {{ company.currency }}</td><td class="text-end">{{ money(company.net_purchases) }} {{ company.currency }}</td></tr>
-                    <tr v-if="group.totals" class="fw-bold"><td colspan="3">Total ({{ group.totals.currency }})</td><td class="text-end">{{ money(group.totals.net_sales) }}</td><td class="text-end">{{ money(group.totals.net_purchases) }}</td></tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Company' }, { key: 'c1', label: 'Status' }, { key: 'c2', label: 'Branches' }, { key: 'c3', label: 'Net sales' }, { key: 'c4', label: 'Net purchases' }]" :rows="(group.companies).map((company) => ({ __s: { company }, c0: '', c1: (company.status), c2: (company.branches), c3: `${money(company.net_sales)} ${company.currency}`, c4: `${money(company.net_purchases)} ${company.currency}` }))" export-name="company">
+<template #cell-c0="{ row: __m }"><template v-for="{ company } in [__m.__s]" :key="0">{{ company.name }} <span class="text-muted small">{{ company.code }}</span></template></template>
+</ClientTable>
             <div v-if="!group.totals" class="small text-muted mt-2">The companies keep their books in different currencies, so no total is shown.</div>
         </div>
     </div></div></div>

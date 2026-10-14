@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
@@ -129,33 +130,16 @@
                     {{ group.match_value }}
                 </div>
 
-                <table class="table table-sm mb-2">
-                    <thead>
-                        <tr>
-                            <th>Keep</th>
-                            <th>Contact</th>
-                            <th>Email</th>
-                            <th>Mobile</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="contact in group.contacts" :key="contact.id">
-                            <td>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Keep' }, { key: 'c1', label: 'Contact' }, { key: 'c2', label: 'Email' }, { key: 'c3', label: 'Mobile' }, { key: 'c4', label: 'Status' }]" :rows="(group.contacts).map((contact) => ({ __s: { contact }, c0: '', c1: (contactLabel(contact)), c2: (contact.email || '-'), c3: (contact.mobile || '-'), c4: (contact.active ? 'Active' : 'Inactive') }))" export-name="keep">
+<template #cell-c0="{ row: __m }"><template v-for="{ contact } in [__m.__s]" :key="0">
                                 <input
                                     type="radio"
                                     :name="`keep-${index}`"
                                     :value="contact.id"
                                     v-model="selectedKeep[index]"
                                 >
-                            </td>
-                            <td>{{ contactLabel(contact) }}</td>
-                            <td>{{ contact.email || '-' }}</td>
-                            <td>{{ contact.mobile || '-' }}</td>
-                            <td>{{ contact.active ? 'Active' : 'Inactive' }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
 
                 <button
                     type="button"

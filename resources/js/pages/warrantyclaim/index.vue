@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -90,18 +91,11 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Claim</th><th>Product</th><th>Customer</th><th>Issue</th><th>Claimed</th><th>Warranty</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.claim_no }}<div v-if="row.serial_no" class="text-muted small">{{ row.serial_no }}</div></td>
-                        <td>{{ row.product?.name }}</td>
-                        <td>{{ row.contact?.business_name || row.contact?.first_name }}</td>
-                        <td>{{ row.issue }}</td>
-                        <td>{{ row.claimed_on }}</td>
-                        <td>{{ row.in_warranty ? 'In warranty' : 'Expired' }}<div v-if="row.warranty_expires_on" class="text-muted small">{{ row.warranty_expires_on }}</div></td>
-                        <td class="text-capitalize">{{ row.status.replace('_', ' ') }}<div v-if="row.resolution" class="text-muted small">{{ row.resolution }}</div></td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No claims."  :columns="[{ key: 'c0', label: 'Claim' }, { key: 'c1', label: 'Product' }, { key: 'c2', label: 'Customer' }, { key: 'c3', label: 'Issue' }, { key: 'c4', label: 'Claimed' }, { key: 'c5', label: 'Warranty' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: (row.product?.name), c2: (row.contact?.business_name || row.contact?.first_name), c3: (row.issue), c4: (row.claimed_on), c5: '', c6: '', c7: '' }))" export-name="claim">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.claim_no }}<div v-if="row.serial_no" class="text-muted small">{{ row.serial_no }}</div></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.in_warranty ? 'In warranty' : 'Expired' }}<div v-if="row.warranty_expires_on" class="text-muted small">{{ row.warranty_expires_on }}</div></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.status.replace('_', ' ') }}<div v-if="row.resolution" class="text-muted small">{{ row.resolution }}</div></template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="can('/warrantyclaim/:id/edit')">
                                 <button v-if="row.status === 'open'" type="button" class="btn btn-outline-dark btn-sm me-1" @click="move(row, 'in_review')">Review</button>
                                 <button v-if="['open', 'in_review'].includes(row.status)" type="button" class="btn btn-dark btn-sm me-1" @click="move(row, 'approved')">Approve</button>
@@ -109,11 +103,8 @@
                                 <button v-if="row.status === 'approved'" type="button" class="btn btn-dark btn-sm me-1" @click="move(row, 'resolved')">Resolve</button>
                             </template>
                             <button v-if="can('/warrantyclaim/delete')" type="button" class="btn btn-link btn-sm text-danger" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No claims.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -75,13 +76,8 @@
             <div v-for="branch in preview.statement.branches" :key="branch.branch_id" class="mb-3">
                 <strong>{{ branch.branch_name ?? 'Branch ' + branch.branch_id }}</strong>
                 <span class="text-muted"> to {{ branch.retained_earnings?.name ?? 'no retained earnings account mapped' }}: {{ money(branch.net_result) }}</span>
-                <table class="table table-sm mt-1">
-                    <thead><tr><th>Account</th><th class="text-end">Year balance</th><th>Closing entry</th><th class="text-end">Amount</th></tr></thead>
-                    <tbody>
-                        <tr v-for="line in branch.lines" :key="line.code"><td>{{ line.code }} {{ line.name }}</td><td class="text-end">{{ money(line.balance) }}</td><td class="text-uppercase">{{ line.closing_side }}</td><td class="text-end">{{ money(line.closing_amount) }}</td></tr>
-                        <tr v-if="! branch.lines.length"><td colspan="4" class="text-center text-muted">No revenue or cost accounts moved.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No revenue or cost accounts moved."  :columns="[{ key: 'c0', label: 'Account' }, { key: 'c1', label: 'Year balance' }, { key: 'c2', label: 'Closing entry' }, { key: 'c3', label: 'Amount' }]" :rows="(branch.lines).map((line) => ({ __s: { line }, c0: `${line.code} ${line.name}`, c1: (money(line.balance)), c2: (line.closing_side), c3: (money(line.closing_amount)) }))" export-name="account">
+</ClientTable>
             </div>
 
             <p class="small text-muted">The closing is a record: no entry is posted to the ledger, because the rollover already carries the result into the new year's opening balances.</p>
@@ -89,12 +85,7 @@
         </div>
 
         <h6>Closings</h6>
-        <table class="table table-sm">
-            <thead><tr><th>Year</th><th>New year</th><th>Closed on</th><th class="text-end">Result</th></tr></thead>
-            <tbody>
-                <tr v-for="closing in closings" :key="closing.id"><td>{{ closing.from_year }}</td><td>{{ closing.to_year }}</td><td>{{ closing.closed_on?.slice(0, 10) }}</td><td class="text-end">{{ money(closing.net_result) }}</td></tr>
-                <tr v-if="! closings.length"><td colspan="4" class="text-center text-muted">No year has been closed here yet.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable empty-text="No year has been closed here yet."  :columns="[{ key: 'c0', label: 'Year' }, { key: 'c1', label: 'New year' }, { key: 'c2', label: 'Closed on' }, { key: 'c3', label: 'Result' }]" :rows="(closings).map((closing) => ({ __s: { closing }, c0: (closing.from_year), c1: (closing.to_year), c2: (closing.closed_on?.slice(0, 10)), c3: (money(closing.net_result)) }))" export-name="year">
+</ClientTable>
     </div></div></div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
@@ -101,17 +102,9 @@
                     <div class="col-md-2"><button type="button" class="btn btn-dark btn-sm" @click="send('/api/rental/bookings', { ...bookForm }, 'Booked')">Book</button></div>
                 </div>
             </div>
-            <table class="table table-sm">
-                <thead><tr><th>Booking</th><th>Item</th><th>Customer</th><th>Dates</th><th class="text-end">Rent</th><th class="text-end">Deposit</th><th class="text-end">Due</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="b in bookings" :key="b.id">
-                        <td>{{ b.booking_no }}</td><td>{{ b.item }} x {{ b.quantity }}</td><td>{{ b.customer ?? '-' }}</td><td>{{ String(b.start_date).slice(0, 10) }} - {{ String(b.end_date).slice(0, 10) }}</td>
-                        <td class="text-end">{{ money(b.rent_amount) }}</td><td class="text-end">{{ money(b.deposit_received || b.deposit_amount) }}</td><td class="text-end">{{ money(b.amount_due) }}</td><td class="text-capitalize">{{ b.status }}</td>
-                        <td class="text-end"><button v-if="canBook && ['reserved', 'out'].includes(b.status)" type="button" class="btn btn-outline-dark btn-sm" @click="active = b.id; result = null">Handle</button></td>
-                    </tr>
-                    <tr v-if="! bookings.length"><td colspan="9" class="text-center text-muted">No bookings yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No bookings yet."  :columns="[{ key: 'c0', label: 'Booking' }, { key: 'c1', label: 'Item' }, { key: 'c2', label: 'Customer' }, { key: 'c3', label: 'Dates' }, { key: 'c4', label: 'Rent' }, { key: 'c5', label: 'Deposit' }, { key: 'c6', label: 'Due' }, { key: 'c7', label: 'Status' }, { key: 'c8', label: '' }]" :rows="(bookings).map((b) => ({ __s: { b }, c0: (b.booking_no), c1: `${b.item} x ${b.quantity}`, c2: (b.customer ?? '-'), c3: `${String(b.start_date).slice(0, 10)} - ${String(b.end_date).slice(0, 10)}`, c4: (money(b.rent_amount)), c5: (money(b.deposit_received || b.deposit_amount)), c6: (money(b.amount_due)), c7: (b.status), c8: '' }))" export-name="booking">
+<template #cell-c8="{ row: __m }"><template v-for="{ b } in [__m.__s]" :key="0"><button v-if="canBook && ['reserved', 'out'].includes(b.status)" type="button" class="btn btn-outline-dark btn-sm" @click="active = b.id; result = null">Handle</button></template></template>
+</ClientTable>
 
             <div v-for="b in bookings.filter((x) => x.id === active)" :key="b.id" class="border rounded p-3">
                 <h6>{{ b.booking_no }} - {{ b.status }}</h6>
@@ -146,10 +139,8 @@
                     <div class="col-md-2"><button type="button" class="btn btn-dark btn-sm" @click="send('/api/rental/items', { ...itemForm }, 'Rental item saved')">Save item</button></div>
                 </div>
             </div>
-            <table class="table table-sm">
-                <thead><tr><th>Item</th><th class="text-end">Units</th><th class="text-end">Daily rate</th><th class="text-end">Deposit</th><th class="text-end">Late fee / day</th></tr></thead>
-                <tbody><tr v-for="i in items" :key="i.id"><td>{{ i.name }}</td><td class="text-end">{{ i.units }}</td><td class="text-end">{{ money(i.daily_rate) }}</td><td class="text-end">{{ money(i.deposit_amount) }}</td><td class="text-end">{{ money(i.late_fee_per_day) }}</td></tr></tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Item' }, { key: 'c1', label: 'Units' }, { key: 'c2', label: 'Daily rate' }, { key: 'c3', label: 'Deposit' }, { key: 'c4', label: 'Late fee / day' }]" :rows="(items).map((i) => ({ __s: { i }, c0: (i.name), c1: (i.units), c2: (money(i.daily_rate)), c3: (money(i.deposit_amount)), c4: (money(i.late_fee_per_day)) }))" export-name="item">
+</ClientTable>
         </section>
 
         <section v-if="tab === 'settings'">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
     import { parseSpreadsheetFile, writeImportWorkbook } from '@/composables/importHelpers';
@@ -89,17 +90,12 @@
             </div>
             <div class="mb-2"><label class="form-label small" for="os-file">Import from a spreadsheet (sku, quantity, unit_cost)</label><input id="os-file" ref="fileInput" type="file" accept=".xlsx,.xls,.csv" class="form-control form-control-sm" @change="pickFile" /></div>
 
-            <table class="table table-sm align-middle">
-                <thead><tr><th>SKU or barcode</th><th style="width: 10rem">Quantity</th><th style="width: 10rem">Unit cost</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(row, index) in rows" :key="index">
-                        <td><input v-model="row.sku" class="form-control form-control-sm" aria-label="SKU" /></td>
-                        <td><input v-model.number="row.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></td>
-                        <td><input v-model.number="row.unit_cost" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Unit cost" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="rows.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'SKU or barcode' }, { key: 'c1', label: 'Quantity' }, { key: 'c2', label: 'Unit cost' }, { key: 'c3', label: '' }]" :rows="(rows).map((row, index) => ({ __s: { row, index }, c0: '', c1: '', c2: '', c3: '' }))" export-name="sku-or-barcode">
+<template #cell-c0="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model="row.sku" class="form-control form-control-sm" aria-label="SKU" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model.number="row.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model.number="row.unit_cost" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Unit cost" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="rows.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="rows.push({ sku: '', quantity: '', unit_cost: '' })">Add row</button>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="submit(true)">Check</button>
             <button type="button" class="btn btn-dark btn-sm" @click="submit(false)">Save opening stock</button>
@@ -108,13 +104,8 @@
 
         <h6>Opening stock entries</h6>
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Number</th><th>Date</th><th>Branch</th><th class="text-end">Lines</th><th>Note</th></tr></thead>
-                <tbody>
-                    <tr v-for="entry in entries" :key="entry.id"><td>{{ entry.invoice_no }}</td><td>{{ entry.transaction_date }}</td><td>{{ entry.branch_id }}</td><td class="text-end">{{ entry.total_item }}</td><td>{{ entry.additional_note }}</td></tr>
-                    <tr v-if="! entries.length"><td colspan="5" class="text-center text-muted">No opening stock entered yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No opening stock entered yet."  :columns="[{ key: 'c0', label: 'Number' }, { key: 'c1', label: 'Date' }, { key: 'c2', label: 'Branch' }, { key: 'c3', label: 'Lines' }, { key: 'c4', label: 'Note' }]" :rows="(entries).map((entry) => ({ __s: { entry }, c0: (entry.invoice_no), c1: (entry.transaction_date), c2: (entry.branch_id), c3: (entry.total_item), c4: (entry.additional_note) }))" export-name="number">
+</ClientTable>
         </div>
     </div></div></div>
 </template>

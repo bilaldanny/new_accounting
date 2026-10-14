@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -180,19 +181,13 @@
             </form>
             <p v-if="! centers.length" class="text-muted mb-0">No cost centers yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Under</th><th>Branch</th><th>Department</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="center in centers" :key="center.id">
-                            <td>{{ center.code }}</td><td>{{ center.name }} <span v-if="! center.active" class="badge bg-secondary">inactive</span></td>
-                            <td>{{ center.type === 'profit' ? 'Profit' : 'Cost' }}</td><td>{{ center.parent_name ?? '-' }}</td><td>{{ center.branch_name ?? '-' }}</td><td>{{ center.department_name ?? '-' }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: 'Code' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Type' }, { key: 'c3', label: 'Under' }, { key: 'c4', label: 'Branch' }, { key: 'c5', label: 'Department' }, { key: 'c6', label: '' }]" :rows="(centers).map((center) => ({ __s: { center }, c0: (center.code), c1: '', c2: (center.type === 'profit' ? 'Profit' : 'Cost'), c3: (center.parent_name ?? '-'), c4: (center.branch_name ?? '-'), c5: (center.department_name ?? '-'), c6: '' }))" export-name="code">
+<template #cell-c1="{ row: __m }"><template v-for="{ center } in [__m.__s]" :key="0">{{ center.name }} <span v-if="! center.active" class="badge bg-secondary">inactive</span></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ center } in [__m.__s]" :key="0">
                                 <button v-if="can('/costcenter/:id/edit')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="edit(center)">Edit</button>
                                 <button v-if="can('/costcenter/delete') && ! center.used" type="button" class="btn btn-outline-danger btn-sm" @click="remove(center)">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
     </div>

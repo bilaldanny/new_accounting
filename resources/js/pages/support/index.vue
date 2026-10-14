@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -63,13 +64,9 @@
 
         <div class="row g-3">
             <div class="col-md-6">
-                <table class="table table-sm">
-                    <thead><tr><th>Subject</th><th v-if="isSuperadmin">Company</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="ticket in tickets" :key="ticket.id"><td>{{ ticket.subject }}</td><td v-if="isSuperadmin">{{ ticket.company }}</td><td class="text-capitalize">{{ ticket.status }}</td><td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(ticket)">Open</button></td></tr>
-                        <tr v-if="! tickets.length"><td colspan="4" class="text-center text-muted">No tickets.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No tickets."  :columns="[{ key: 'c0', label: 'Subject' }, { key: 'c1', label: 'Company' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: '' }]" :rows="(tickets).map((ticket) => ({ __s: { ticket }, c0: (ticket.subject), c1: (ticket.company), c2: (ticket.status), c3: '' }))" export-name="subject">
+<template #cell-c3="{ row: __m }"><template v-for="{ ticket } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(ticket)">Open</button></template></template>
+</ClientTable>
             </div>
             <div v-if="open" class="col-md-6">
                 <div class="border rounded p-3">

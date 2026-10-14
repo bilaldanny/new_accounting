@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -99,17 +100,11 @@
 
         <div v-if="open" class="border rounded p-3 mb-4">
             <div class="d-flex justify-content-between"><h6>{{ open.task_no }} <span class="text-muted text-capitalize">({{ open.type }}, {{ open.status.replace('_', ' ') }})</span></h6><button type="button" class="btn btn-link btn-sm" @click="open = null">Close</button></div>
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Product</th><th class="text-end">To do</th><th style="width: 9rem">Done</th><th v-if="open.type === 'putaway'" style="width: 9rem">Location id</th><th>Note</th></tr></thead>
-                <tbody>
-                    <tr v-for="line in open.lines" :key="line.id">
-                        <td>{{ line.product?.name }}</td><td class="text-end">{{ line.quantity }}</td>
-                        <td><input v-model.number="line.quantity_done" type="number" min="0" :max="line.quantity" step="any" class="form-control form-control-sm" aria-label="Done" /></td>
-                        <td v-if="open.type === 'putaway'"><input v-model.number="line.location_id" type="number" class="form-control form-control-sm" aria-label="Location id" /></td>
-                        <td><input v-model="line.note" class="form-control form-control-sm" aria-label="Note" /></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'To do' }, { key: 'c2', label: 'Done' }, { key: 'c3', label: 'Location id' }, { key: 'c4', label: 'Note' }]" :rows="(open.lines).map((line) => ({ __s: { line }, c0: (line.product?.name), c1: (line.quantity), c2: '', c3: '', c4: '' }))" export-name="product">
+<template #cell-c2="{ row: __m }"><template v-for="{ line } in [__m.__s]" :key="0"><input v-model.number="line.quantity_done" type="number" min="0" :max="line.quantity" step="any" class="form-control form-control-sm" aria-label="Done" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ line } in [__m.__s]" :key="0"><input v-model.number="line.location_id" type="number" class="form-control form-control-sm" aria-label="Location id" /></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ line } in [__m.__s]" :key="0"><input v-model="line.note" class="form-control form-control-sm" aria-label="Note" /></template></template>
+</ClientTable>
             <template v-if="can('/warehousetask/:id/edit') && ! ['done', 'cancelled'].includes(open.status)">
                 <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="save">Save progress</button>
                 <button type="button" class="btn btn-dark btn-sm me-2" @click="complete(false)">Complete</button>
@@ -119,17 +114,9 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>List</th><th>Type</th><th>Document</th><th class="text-end">Lines</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.task_no }}</td><td class="text-capitalize">{{ row.type }}</td><td>{{ row.transaction_id }}</td><td class="text-end">{{ row.lines_count }}</td>
-                        <td class="text-capitalize">{{ row.status.replace('_', ' ') }}</td>
-                        <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(row)">Open</button></td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="6" class="text-center text-muted">No lists.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No lists."  :columns="[{ key: 'c0', label: 'List' }, { key: 'c1', label: 'Type' }, { key: 'c2', label: 'Document' }, { key: 'c3', label: 'Lines' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.task_no), c1: (row.type), c2: (row.transaction_id), c3: (row.lines_count), c4: (row.status.replace('_', ' ')), c5: '' }))" export-name="list">
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="show(row)">Open</button></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

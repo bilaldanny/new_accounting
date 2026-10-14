@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -105,50 +106,31 @@
                 <div class="col-auto"><input v-model="asOf" type="date" class="form-control form-control-sm" aria-label="As of" @change="showPreview" /></div>
                 <div v-if="can('/baddebt/provision')" class="col-auto"><button type="button" class="btn btn-dark btn-sm" :disabled="! preview?.ready" @click="provision">Set allowance</button></div>
             </div>
-            <table v-if="preview" class="table table-sm mb-0">
-                <thead><tr><th>Bucket</th><th class="text-end">Owed</th><th class="text-end">Rate %</th><th class="text-end">Allowance</th></tr></thead>
-                <tbody>
-                    <tr v-for="(bucket, key) in preview.buckets" :key="key"><td>{{ key }}</td><td class="text-end">{{ money(bucket.amount) }}</td><td class="text-end">{{ bucket.rate }}</td><td class="text-end">{{ money(bucket.required) }}</td></tr>
-                    <tr class="fw-semibold"><td>Required</td><td colspan="2" class="text-end">Held now {{ money(preview.existing) }}</td><td class="text-end">{{ money(preview.required) }} (change {{ money(preview.change) }})</td></tr>
-                </tbody>
-            </table>
+            <ClientTable v-if="preview" :columns="[{ key: 'c0', label: 'Bucket' }, { key: 'c1', label: 'Owed' }, { key: 'c2', label: 'Rate %' }, { key: 'c3', label: 'Allowance' }]" :rows="(preview.buckets).map((bucket, key) => ({ __s: { bucket, key }, c0: (key), c1: (money(bucket.amount)), c2: (bucket.rate), c3: (money(bucket.required)) }))" export-name="bucket">
+</ClientTable>
         </div>
 
         <h6>Overdue invoices</h6>
         <div class="table-responsive mb-4">
-            <table class="table table-sm">
-                <thead><tr><th>Customer</th><th>Invoice</th><th>Due</th><th class="text-end">Days</th><th class="text-end">Owed</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="invoice in invoices" :key="invoice.id">
-                        <td>{{ invoice.contact_name }}</td><td>{{ invoice.invoice_no }}</td><td>{{ invoice.due_date }}</td><td class="text-end">{{ invoice.days_past_due }}</td><td class="text-end">{{ money(invoice.open_amount) }}</td>
-                        <td v-if="can('/baddebt/add')" class="text-end">
+            <ClientTable empty-text="No overdue invoices."  :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Invoice' }, { key: 'c2', label: 'Due' }, { key: 'c3', label: 'Days' }, { key: 'c4', label: 'Owed' }, { key: 'c5', label: '' }]" :rows="(invoices).map((invoice) => ({ __s: { invoice }, c0: (invoice.contact_name), c1: (invoice.invoice_no), c2: (invoice.due_date), c3: (invoice.days_past_due), c4: (money(invoice.open_amount)), c5: '' }))" export-name="customer">
+<template #cell-c5="{ row: __m }"><template v-for="{ invoice } in [__m.__s]" :key="0">
                             <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="request(invoice, 'direct')">Write off</button>
                             <button type="button" class="btn btn-outline-secondary btn-sm" @click="request(invoice, 'allowance')">Against allowance</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! invoices.length"><td colspan="6" class="text-center text-muted">No overdue invoices.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
 
         <h6>Write-offs</h6>
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>Date</th><th>Invoice id</th><th class="text-end">Amount</th><th>Method</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in writeoffs" :key="row.id">
-                        <td>{{ row.written_off_on }}</td><td>{{ row.transaction_id }}</td><td class="text-end">{{ money(row.amount) }}</td><td class="text-capitalize">{{ row.method }}</td><td>{{ row.reason }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end">
+            <ClientTable empty-text="None yet."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Invoice id' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Method' }, { key: 'c4', label: 'Reason' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(writeoffs).map((row) => ({ __s: { row }, c0: (row.written_off_on), c1: (row.transaction_id), c2: (money(row.amount)), c3: (row.method), c4: (row.reason), c5: (row.status), c6: '' }))" export-name="date">
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="row.status === 'pending' && can('/baddebt/approve')">
                                 <button type="button" class="btn btn-dark btn-sm me-1" @click="decide(row, 'approve')">Approve</button>
                                 <button type="button" class="btn btn-outline-danger btn-sm" @click="decide(row, 'reject')">Reject</button>
                             </template>
                             <button v-if="row.status === 'posted' && can('/baddebt/reverse')" type="button" class="btn btn-outline-danger btn-sm" @click="decide(row, 'reverse')">Reverse</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! writeoffs.length"><td colspan="7" class="text-center text-muted">None yet.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

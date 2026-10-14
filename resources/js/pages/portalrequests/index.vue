@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, Link, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import useCommons from '@/composables/common';
@@ -146,16 +147,9 @@
         <Loader v-if="loading" message="Loading requests…" />
 
         <div v-else class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead>
-                    <tr><th>Reference</th><th>From</th><th>Type</th><th>Details</th><th>Date</th><th>Status</th><th></th></tr>
-                </thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.reference }}</td>
-                        <td>{{ row.contact_name }} <span class="text-muted small">{{ row.contact_code }}</span></td>
-                        <td class="text-capitalize">{{ row.kind }}</td>
-                        <td>
+            <ClientTable empty-text="Nothing here."  :columns="[{ key: 'c0', label: 'Reference' }, { key: 'c1', label: 'From' }, { key: 'c2', label: 'Type' }, { key: 'c3', label: 'Details' }, { key: 'c4', label: 'Date' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.reference), c1: '', c2: (row.kind), c3: '', c4: (row.created_at ? row.created_at.slice(0, 10) : ''), c5: '', c6: '' }))" export-name="reference">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.contact_name }} <span class="text-muted small">{{ row.contact_code }}</span></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="row.kind === 'bill'">
                                 Bill {{ row.bill_no }} dated {{ row.bill_date }} for {{ money(row.amount) }}
                                 <button v-if="row.has_file" type="button" class="btn btn-link btn-sm py-0" @click="openDocument(row)">File</button>
@@ -163,22 +157,18 @@
                             <template v-else>{{ row.lines.map((line) => `${line.name} x ${line.quantity}`).join(', ') }}</template>
                             <div v-if="row.note" class="text-muted small">{{ row.note }}</div>
                             <div v-if="row.review_note" class="small">Reply: {{ row.review_note }}</div>
-                        </td>
-                        <td>{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</td>
-                        <td class="text-capitalize">
+                        </template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             {{ row.status }}
                             <Link v-if="row.transaction_id" :href="`/sell/${row.transaction_id}/view`" class="ms-1 small">Open document</Link>
-                        </td>
-                        <td class="text-end text-nowrap">
+                        </template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="row.status === 'pending' && canApprove">
                                 <button type="button" class="btn btn-dark btn-sm me-1" :disabled="busy === row.id" @click="approve(row)">Approve</button>
                                 <button type="button" class="btn btn-outline-danger btn-sm" :disabled="busy === row.id" @click="reject(row)">Reject</button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="7" class="text-center text-muted">Nothing here.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div>
     </div></div></div>

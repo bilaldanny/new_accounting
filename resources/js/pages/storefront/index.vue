@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
@@ -84,25 +85,17 @@
 
             <div class="col-lg-7">
                 <h6>Orders</h6>
-                <table class="table table-sm">
-                    <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th class="text-end">Total</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="o in orders" :key="o.id">
-                            <td>{{ o.order_no }}</td>
-                            <td>{{ o.customer_name }}<div class="small text-muted">{{ o.phone }} {{ o.address }}</div></td>
-                            <td class="small"><div v-for="l in o.items" :key="l.product_id + '-' + l.variation_id">{{ l.name }} x {{ l.quantity }}</div></td>
-                            <td class="text-end">{{ money(o.total) }}</td><td class="text-capitalize">{{ o.status }}</td>
-                            <td class="text-end">
+                <ClientTable empty-text="No orders yet."  :columns="[{ key: 'c0', label: 'Order' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Items' }, { key: 'c3', label: 'Total' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: '' }]" :rows="(orders).map((o) => ({ __s: { o }, c0: (o.order_no), c1: '', c2: '', c3: (money(o.total)), c4: (o.status), c5: '' }))" export-name="order">
+<template #cell-c1="{ row: __m }"><template v-for="{ o } in [__m.__s]" :key="0">{{ o.customer_name }}<div class="small text-muted">{{ o.phone }} {{ o.address }}</div></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ o } in [__m.__s]" :key="0"><div v-for="l in o.items" :key="l.product_id + '-' + l.variation_id">{{ l.name }} x {{ l.quantity }}</div></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ o } in [__m.__s]" :key="0">
                                 <template v-if="o.status === 'new' && canManage">
                                     <div class="d-inline-block mb-1" style="width: 12rem"><LookupSelect v-model="customer[o.id]" endpoint="/api/fetchcustomers" :params="scope()" placeholder="Customer" aria-label="Customer for the sale" /></div>
                                     <button type="button" class="btn btn-dark btn-sm ms-1" @click="send('post', `/api/storefront-admin/orders/${o.id}/convert`, { contact_id: customer[o.id] ?? '' }, 'Draft sale made')">Make sale</button>
                                     <button type="button" class="btn btn-outline-danger btn-sm ms-1" @click="send('post', `/api/storefront-admin/orders/${o.id}/reject`, {}, 'Order rejected')">Reject</button>
                                 </template>
-                            </td>
-                        </tr>
-                        <tr v-if="! orders.length"><td colspan="6" class="text-center text-muted">No orders yet.</td></tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
     </div></div></div>

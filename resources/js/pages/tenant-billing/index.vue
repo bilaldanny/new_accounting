@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -98,22 +99,12 @@
         </div>
 
         <h6>Invoices</h6>
-        <table class="table table-sm mb-4">
-            <thead><tr><th>No</th><th>Period</th><th class="text-end">Add-ons</th><th class="text-end">Total</th><th>Due</th><th>Status</th></tr></thead>
-            <tbody>
-                <tr v-for="invoice in data.invoices" :key="invoice.id"><td>{{ invoice.invoice_no }}</td><td>{{ invoice.period_start }} to {{ invoice.period_end }}</td><td class="text-end">{{ money(invoice.addons_amount) }}</td><td class="text-end">{{ money(invoice.total_amount) }}</td><td>{{ invoice.due_date }}</td><td class="text-capitalize">{{ invoice.status }}</td></tr>
-                <tr v-if="! data.invoices.length"><td colspan="6" class="text-center text-muted">No invoices yet.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable empty-text="No invoices yet."  :columns="[{ key: 'c0', label: 'No' }, { key: 'c1', label: 'Period' }, { key: 'c2', label: 'Add-ons' }, { key: 'c3', label: 'Total' }, { key: 'c4', label: 'Due' }, { key: 'c5', label: 'Status' }]" :rows="(data.invoices).map((invoice) => ({ __s: { invoice }, c0: (invoice.invoice_no), c1: `${invoice.period_start} to ${invoice.period_end}`, c2: (money(invoice.addons_amount)), c3: (money(invoice.total_amount)), c4: (invoice.due_date), c5: (invoice.status) }))" export-name="no">
+</ClientTable>
 
         <h6>Usage (last 30 days)</h6>
-        <table class="table table-sm mb-4">
-            <thead><tr><th>Day</th><th class="text-end">Users</th><th class="text-end">Products</th><th class="text-end">Invoices this month</th><th class="text-end">Storage MB</th></tr></thead>
-            <tbody>
-                <tr v-for="point in data.usage.points.slice(-10)" :key="point.day"><td>{{ point.day }}</td><td class="text-end">{{ point.users }}</td><td class="text-end">{{ point.products }}</td><td class="text-end">{{ point.invoices_month }}</td><td class="text-end">{{ point.storage_mb }}</td></tr>
-                <tr v-if="! data.usage.points.length"><td colspan="5" class="text-center text-muted">Usage is recorded once a day.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable  :columns="[{ key: 'c0', label: 'Day' }, { key: 'c1', label: 'Users' }, { key: 'c2', label: 'Products' }, { key: 'c3', label: 'Invoices this month' }, { key: 'c4', label: 'Storage MB' }]" :rows="(data.usage.points.slice(-10)).map((point) => ({ __s: { point }, c0: (point.day), c1: (point.users), c2: (point.products), c3: (point.invoices_month), c4: (point.storage_mb) }))" export-name="day">
+</ClientTable>
 
         <div v-if="can('/tenant-billing/manage')" class="row g-3">
             <div class="col-md-6">

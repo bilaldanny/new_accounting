@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -74,17 +75,11 @@
 
         <div v-if="selected" class="border rounded p-3 mb-4">
             <div class="d-flex justify-content-between"><h6>{{ selected.name }}</h6><button type="button" class="btn btn-link btn-sm" @click="selected = null">Close</button></div>
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Component product id</th><th>Name</th><th style="width: 10rem">Quantity per unit</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(row, index) in components" :key="index">
-                        <td><input v-model.number="row.component_product_id" type="number" class="form-control form-control-sm" aria-label="Component product id" /></td>
-                        <td>{{ row.name }}</td>
-                        <td><input v-model.number="row.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="components.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Component product id' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Quantity per unit' }, { key: 'c3', label: '' }]" :rows="(components).map((row, index) => ({ __s: { row, index }, c0: '', c1: (row.name), c2: '', c3: '' }))" export-name="component-product-id">
+<template #cell-c0="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model.number="row.component_product_id" type="number" class="form-control form-control-sm" aria-label="Component product id" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model.number="row.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="components.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="components.push({ component_product_id: '', component_variation_id: null, quantity: 1 })">Add component</button>
             <button v-if="can('/productbom/:id/edit')" type="button" class="btn btn-dark btn-sm" @click="save">Save components</button>
 
@@ -105,16 +100,9 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Product</th><th>SKU</th><th>Item type</th><th class="text-end">Components</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in products" :key="row.id">
-                        <td>{{ row.name }}</td><td>{{ row.sku }}</td><td class="text-capitalize">{{ (row.behaviour ?? 'inventory').replace('_', ' ') }}</td><td class="text-end">{{ row.component_count }}</td>
-                        <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="open(row)">Open</button></td>
-                    </tr>
-                    <tr v-if="! products.length"><td colspan="5" class="text-center text-muted">No products with components yet. Tick the box above to pick any product.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No products with components yet. Tick the box above to pick any product."  :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'SKU' }, { key: 'c2', label: 'Item type' }, { key: 'c3', label: 'Components' }, { key: 'c4', label: '' }]" :rows="(products).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.sku), c2: ((row.behaviour ?? 'inventory').replace('_', ' ')), c3: (row.component_count), c4: '' }))" export-name="product">
+<template #cell-c4="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="open(row)">Open</button></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

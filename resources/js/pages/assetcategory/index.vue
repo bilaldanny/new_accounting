@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -224,23 +225,13 @@
             </div>
             <p v-if="! categories.length" class="text-muted mb-0">No categories yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Name</th><th>Method</th><th class="text-end">Life (months)</th><th class="text-end">Rate</th><th>Asset account</th><th>Accumulated depreciation</th><th>Expense</th><th class="text-end">Assets</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="category in categories" :key="category.id">
-                            <td>{{ category.name }} <span v-if="! category.active" class="badge bg-secondary">inactive</span></td>
-                            <td>{{ methodLabels[category.method] }}</td>
-                            <td class="text-end">{{ category.useful_life_months ?? '-' }}</td>
-                            <td class="text-end">{{ category.rate ?? '-' }}</td>
-                            <td>{{ category.asset_account }}</td><td>{{ category.accumulated_account }}</td><td>{{ category.expense_account }}</td>
-                            <td class="text-end">{{ category.asset_count }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Method' }, { key: 'c2', label: 'Life (months)' }, { key: 'c3', label: 'Rate' }, { key: 'c4', label: 'Asset account' }, { key: 'c5', label: 'Accumulated depreciation' }, { key: 'c6', label: 'Expense' }, { key: 'c7', label: 'Assets' }, { key: 'c8', label: '' }]" :rows="(categories).map((category) => ({ __s: { category }, c0: '', c1: (methodLabels[category.method]), c2: (category.useful_life_months ?? '-'), c3: (category.rate ?? '-'), c4: (category.asset_account), c5: (category.accumulated_account), c6: (category.expense_account), c7: (category.asset_count), c8: '' }))" export-name="name">
+<template #cell-c0="{ row: __m }"><template v-for="{ category } in [__m.__s]" :key="0">{{ category.name }} <span v-if="! category.active" class="badge bg-secondary">inactive</span></template></template>
+<template #cell-c8="{ row: __m }"><template v-for="{ category } in [__m.__s]" :key="0">
                                 <button v-if="can('/assetcategory/:id/edit')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="edit(category)">Edit</button>
                                 <button v-if="can('/assetcategory/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(category)">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </template></template>
+</ClientTable>
             </div>
         </div>
     </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, reactive, ref } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -144,17 +145,9 @@
         <div class="card-body">
             <p class="mb-2">{{ summary.total }} variation(s) match; {{ summary.will_change }} would change; {{ summary.skipped }} skipped (no current value to adjust). Showing the first {{ rows.length }}.</p>
             <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Product</th><th>SKU</th><th class="text-end">Now</th><th class="text-end">After</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.id" :class="{ 'text-muted': row.skipped }">
-                            <td>{{ row.product_name }}<span v-if="row.variation_name"> - {{ row.variation_name }}</span></td>
-                            <td>{{ row.sku }}</td>
-                            <td class="text-end">{{ money(row.old_price) }}</td>
-                            <td class="text-end fw-bold">{{ row.skipped ? 'skipped' : money(row.new_price) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'SKU' }, { key: 'c2', label: 'Now' }, { key: 'c3', label: 'After' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: '', c1: (row.sku), c2: (money(row.old_price)), c3: (row.skipped ? 'skipped' : money(row.new_price)) }))" export-name="product">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.product_name }}<span v-if="row.variation_name"> - {{ row.variation_name }}</span></template></template>
+</ClientTable>
             </div>
         </div>
     </div>

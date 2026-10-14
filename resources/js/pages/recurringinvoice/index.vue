@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -98,40 +99,28 @@
                     <select id="ri-post" v-model="form.post_as" class="form-select form-select-sm"><option value="draft">Draft</option><option value="final">Final invoice</option></select>
                 </div>
             </div>
-            <table class="table table-sm align-middle mt-3">
-                <thead><tr><th>Product id</th><th style="width: 9rem">Quantity</th><th style="width: 10rem">Unit price</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(line, index) in lines" :key="index">
-                        <td><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></td>
-                        <td><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></td>
-                        <td><input v-model.number="line.unit_price" type="number" min="0" step="any" class="form-control form-control-sm" placeholder="List price" aria-label="Unit price" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Product id' }, { key: 'c1', label: 'Quantity' }, { key: 'c2', label: 'Unit price' }, { key: 'c3', label: '' }]" :rows="(lines).map((line, index) => ({ __s: { line, index }, c0: '', c1: '', c2: '', c3: '' }))" export-name="product-id">
+<template #cell-c0="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.unit_price" type="number" min="0" step="any" class="form-control form-control-sm" placeholder="List price" aria-label="Unit price" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="lines.push({ product_id: '', quantity: 1, unit_price: '' })">Add line</button>
             <button type="button" class="btn btn-dark btn-sm" @click="create">Save schedule</button>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Name</th><th>Customer</th><th>Repeats</th><th>Next run</th><th>Runs</th><th>Makes</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.name }}</td><td>{{ row.contact_name }}</td><td>every {{ row.interval }} {{ row.frequency }}</td><td>{{ row.next_run_on?.slice(0, 10) }}</td>
-                        <td>{{ row.runs }}<span v-if="row.max_runs"> / {{ row.max_runs }}</span></td><td class="text-capitalize">{{ row.post_as }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No recurring invoices."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Repeats' }, { key: 'c3', label: 'Next run' }, { key: 'c4', label: 'Runs' }, { key: 'c5', label: 'Makes' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.contact_name), c2: `every ${row.interval} ${row.frequency}`, c3: (row.next_run_on?.slice(0, 10)), c4: '', c5: (row.post_as), c6: (row.status), c7: '' }))" export-name="name">
+<template #cell-c4="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.runs }}<span v-if="row.max_runs"> / {{ row.max_runs }}</span></template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="can('/recurringinvoice/:id/edit') && row.status !== 'ended'">
                                 <button v-if="row.status === 'active'" type="button" class="btn btn-outline-dark btn-sm me-1" @click="setStatus(row, 'paused')">Pause</button>
                                 <button v-else type="button" class="btn btn-outline-dark btn-sm me-1" @click="setStatus(row, 'active')">Resume</button>
                                 <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="setStatus(row, 'ended')">End</button>
                             </template>
                             <button v-if="can('/recurringinvoice/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No recurring invoices.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

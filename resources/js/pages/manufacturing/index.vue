@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
@@ -144,17 +145,10 @@
                 </div>
             </div>
 
-            <table class="table table-sm">
-                <thead><tr><th>Work order</th><th>Product</th><th>Status</th><th class="text-end">Planned</th><th class="text-end">Produced</th><th class="text-end">Unit cost</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="o in orders" :key="o.id">
-                        <td>{{ o.wo_no }}</td><td>{{ o.product }} <span class="text-muted">v{{ o.bom_version }}</span></td><td class="text-capitalize">{{ o.status.replace('_', ' ') }}</td>
-                        <td class="text-end">{{ o.planned_qty }}</td><td class="text-end">{{ o.produced_qty }}</td><td class="text-end">{{ o.fg_unit_cost === null ? '-' : money(o.fg_unit_cost) }}</td>
-                        <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="openOrder(o.id)">Open</button></td>
-                    </tr>
-                    <tr v-if="! orders.length"><td colspan="7" class="text-center text-muted">No work orders yet.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No work orders yet."  :columns="[{ key: 'c0', label: 'Work order' }, { key: 'c1', label: 'Product' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: 'Planned' }, { key: 'c4', label: 'Produced' }, { key: 'c5', label: 'Unit cost' }, { key: 'c6', label: '' }]" :rows="(orders).map((o) => ({ __s: { o }, c0: (o.wo_no), c1: '', c2: (o.status.replace('_', ' ')), c3: (o.planned_qty), c4: (o.produced_qty), c5: (o.fg_unit_cost === null ? '-' : money(o.fg_unit_cost)), c6: '' }))" export-name="work-order">
+<template #cell-c1="{ row: __m }"><template v-for="{ o } in [__m.__s]" :key="0">{{ o.product }} <span class="text-muted">v{{ o.bom_version }}</span></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ o } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="openOrder(o.id)">Open</button></template></template>
+</ClientTable>
 
             <div v-if="current" class="border rounded p-3">
                 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
@@ -214,10 +208,8 @@
                     </div>
                 </div>
 
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>Material</th><th class="text-end">Required</th><th class="text-end">Issued</th></tr></thead>
-                    <tbody><tr v-for="m in current.materials" :key="m.id"><td>{{ m.name }}</td><td class="text-end">{{ m.required_qty }}</td><td class="text-end">{{ m.issued_qty }}</td></tr></tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Material' }, { key: 'c1', label: 'Required' }, { key: 'c2', label: 'Issued' }]" :rows="(current.materials).map((m) => ({ __s: { m }, c0: (m.name), c1: (m.required_qty), c2: (m.issued_qty) }))" export-name="material">
+</ClientTable>
                 <div v-if="current.receipts.length" class="small mt-2">
                     Received: <span v-for="r in current.receipts" :key="r.id" class="me-3">{{ r.name }} {{ r.quantity }} ({{ r.kind }}) at {{ money(r.unit_cost) }}</span>
                 </div>
@@ -227,13 +219,9 @@
         <section v-if="tab === 'boms'">
             <div class="row g-3">
                 <div class="col-lg-6">
-                    <table class="table table-sm">
-                        <thead><tr><th>Product</th><th>Version</th><th>Status</th><th></th></tr></thead>
-                        <tbody>
-                            <tr v-for="b in boms" :key="b.id"><td>{{ b.product }}</td><td>v{{ b.version }}</td><td class="text-capitalize">{{ b.status }}</td><td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="openBom(b.id)">Open</button></td></tr>
-                            <tr v-if="! boms.length"><td colspan="4" class="text-center text-muted">No bill of materials yet.</td></tr>
-                        </tbody>
-                    </table>
+                    <ClientTable empty-text="No bill of materials yet."  :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'Version' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: '' }]" :rows="(boms).map((b) => ({ __s: { b }, c0: (b.product), c1: `v${b.version}`, c2: (b.status), c3: '' }))" export-name="product">
+<template #cell-c3="{ row: __m }"><template v-for="{ b } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="openBom(b.id)">Open</button></template></template>
+</ClientTable>
                     <div v-if="bomDetail" class="border rounded p-3 small">
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             <strong>{{ bomDetail.name }} v{{ bomDetail.version }}</strong> <span class="badge text-bg-secondary text-capitalize">{{ bomDetail.status }}</span>
@@ -291,21 +279,12 @@
                     <div class="col-md-2"><button type="button" class="btn btn-dark btn-sm" @click="send('post', '/api/manufacturing/plans', { ...planForm }, 'Plan saved')">Save plan</button></div>
                 </div>
             </div>
-            <table class="table table-sm">
-                <thead><tr><th>Week</th><th>Product</th><th class="text-end">Planned</th><th class="text-end">On work orders</th><th class="text-end">Produced</th><th class="text-end">Still to cover</th></tr></thead>
-                <tbody>
-                    <tr v-for="p in plans" :key="p.id"><td>{{ p.period_start }}</td><td>{{ p.product }}</td><td class="text-end">{{ p.planned_qty }}</td><td class="text-end">{{ p.work_order_qty }}</td><td class="text-end">{{ p.produced_qty }}</td><td class="text-end">{{ p.to_cover }}</td></tr>
-                    <tr v-if="! plans.length"><td colspan="6" class="text-center text-muted">No production plan for the next eight weeks.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No production plan for the next eight weeks."  :columns="[{ key: 'c0', label: 'Week' }, { key: 'c1', label: 'Product' }, { key: 'c2', label: 'Planned' }, { key: 'c3', label: 'On work orders' }, { key: 'c4', label: 'Produced' }, { key: 'c5', label: 'Still to cover' }]" :rows="(plans).map((p) => ({ __s: { p }, c0: (p.period_start), c1: (p.product), c2: (p.planned_qty), c3: (p.work_order_qty), c4: (p.produced_qty), c5: (p.to_cover) }))" export-name="week">
+</ClientTable>
             <h6>Material requirements for what is still to cover</h6>
             <div v-if="withoutBom.length" class="alert alert-warning py-1 small">No active BOM: {{ withoutBom.join(', ') }}</div>
-            <table class="table table-sm">
-                <thead><tr><th>Material</th><th class="text-end">Required</th><th class="text-end">On hand</th><th class="text-end">Shortage</th></tr></thead>
-                <tbody>
-                    <tr v-for="m in materials" :key="m.product_id + '-' + m.variation_id" :class="{ 'table-warning': m.shortage > 0 }"><td>{{ m.name }}</td><td class="text-end">{{ m.required }}</td><td class="text-end">{{ m.on_hand }}</td><td class="text-end">{{ m.shortage }}</td></tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Material' }, { key: 'c1', label: 'Required' }, { key: 'c2', label: 'On hand' }, { key: 'c3', label: 'Shortage' }]" :rows="(materials).map((m) => ({ __s: { m }, c0: (m.name), c1: (m.required), c2: (m.on_hand), c3: (m.shortage) }))" export-name="material">
+</ClientTable>
         </section>
 
         <section v-if="tab === 'settings'">

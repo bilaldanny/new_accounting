@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -68,17 +69,9 @@
 
         <h6>Stock held for suppliers</h6>
         <div class="table-responsive mb-4">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Supplier</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Sold, not settled</th><th class="text-end">Owed</th><th>Since</th></tr></thead>
-                <tbody>
-                    <tr v-for="row in stock" :key="row.product_id">
-                        <td>{{ row.supplier_name }}</td><td>{{ row.name }} <span class="text-muted small">{{ row.sku }}</span></td>
-                        <td class="text-end">{{ row.on_hand }}</td><td class="text-end">{{ row.sold_unsettled }}</td><td class="text-end">{{ money(row.owed) }}</td><td>{{ row.unsettled_from ?? 'start' }}</td>
-                    </tr>
-                    <tr v-if="! stock.length"><td colspan="6" class="text-center text-muted">No consignment products. Set a product's ownership to consignment and name its supplier.</td></tr>
-                    <tr v-else class="fw-semibold"><td colspan="4" class="text-end">Total owed</td><td class="text-end">{{ money(owed) }}</td><td></td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No consignment products. Set a product's ownership to consignment and name its supplier."  :columns="[{ key: 'c0', label: 'Supplier' }, { key: 'c1', label: 'Product' }, { key: 'c2', label: 'On hand' }, { key: 'c3', label: 'Sold, not settled' }, { key: 'c4', label: 'Owed' }, { key: 'c5', label: 'Since' }]" :rows="(stock).map((row) => ({ __s: { row }, c0: (row.supplier_name), c1: '', c2: (row.on_hand), c3: (row.sold_unsettled), c4: (money(row.owed)), c5: (row.unsettled_from ?? 'start') }))" export-name="supplier">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.name }} <span class="text-muted small">{{ row.sku }}</span></template></template>
+</ClientTable>
         </div>
 
         <div v-if="can('/consignment/add')" class="border rounded p-3 mb-4">
@@ -94,20 +87,12 @@
 
         <h6>Settlements</h6>
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Number</th><th>Period</th><th class="text-end">Amount</th><th>Status</th><th>Reference</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in settlements" :key="row.id">
-                        <td>{{ row.settlement_no }}</td><td>{{ row.period_from }} to {{ row.period_to }}</td><td class="text-end">{{ money(row.total_amount) }}</td>
-                        <td class="text-capitalize">{{ row.status }}</td><td>{{ row.reference }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No settlements yet."  :columns="[{ key: 'c0', label: 'Number' }, { key: 'c1', label: 'Period' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Status' }, { key: 'c4', label: 'Reference' }, { key: 'c5', label: '' }]" :rows="(settlements).map((row) => ({ __s: { row }, c0: (row.settlement_no), c1: `${row.period_from} to ${row.period_to}`, c2: (money(row.total_amount)), c3: (row.status), c4: (row.reference), c5: '' }))" export-name="number">
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="row.status === 'draft' && can('/consignment/:id/edit')" type="button" class="btn btn-dark btn-sm me-1" @click="settle(row)">Mark settled</button>
                             <button v-if="row.status === 'draft' && can('/consignment/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! settlements.length"><td colspan="6" class="text-center text-muted">No settlements yet.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

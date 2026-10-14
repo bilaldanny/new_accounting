@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -102,21 +103,13 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Cheque</th><th>Direction</th><th>Party</th><th>Bank</th><th class="text-end">Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.cheque_no }}</td><td class="text-capitalize">{{ row.direction }}</td><td>{{ row.contact_name }}</td><td>{{ row.bank_name }}</td>
-                        <td class="text-end">{{ money(row.amount) }}</td><td>{{ row.due_date }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No cheques."  :columns="[{ key: 'c0', label: 'Cheque' }, { key: 'c1', label: 'Direction' }, { key: 'c2', label: 'Party' }, { key: 'c3', label: 'Bank' }, { key: 'c4', label: 'Amount' }, { key: 'c5', label: 'Due' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.cheque_no), c1: (row.direction), c2: (row.contact_name), c3: (row.bank_name), c4: (money(row.amount)), c5: (row.due_date), c6: (row.status), c7: '' }))" export-name="cheque">
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <template v-if="can('/chequemanagement/:id/edit')">
                                 <button v-for="next in flow[row.status]" :key="next" type="button" class="btn btn-sm me-1 text-capitalize" :class="next === 'bounced' ? 'btn-outline-danger' : 'btn-outline-dark'" @click="move(row, next)">{{ next }}</button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No cheques.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

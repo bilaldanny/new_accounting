@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -71,13 +72,8 @@
             </div>
         </div>
 
-        <table class="table table-sm mb-4">
-            <thead><tr><th>Kind</th><th>Provider</th><th>Credentials</th><th>Status</th></tr></thead>
-            <tbody>
-                <tr v-for="account in accounts" :key="account.id"><td class="text-capitalize">{{ account.kind }}</td><td>{{ account.provider }}</td><td>{{ account.has_credentials ? 'stored (hidden)' : 'missing' }}</td><td>{{ account.is_active ? 'on' : 'off' }}</td></tr>
-                <tr v-if="! accounts.length"><td colspan="4" class="text-center text-muted">No integration is set up.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable empty-text="No integration is set up."  :columns="[{ key: 'c0', label: 'Kind' }, { key: 'c1', label: 'Provider' }, { key: 'c2', label: 'Credentials' }, { key: 'c3', label: 'Status' }]" :rows="(accounts).map((account) => ({ __s: { account }, c0: (account.kind), c1: (account.provider), c2: (account.has_credentials ? 'stored (hidden)' : 'missing'), c3: (account.is_active ? 'on' : 'off') }))" export-name="kind">
+</ClientTable>
 
         <div class="border rounded p-3">
             <h6>API reference</h6>

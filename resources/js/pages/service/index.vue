@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
@@ -90,16 +91,8 @@
 
         <div class="row g-3">
             <div class="col-lg-7">
-                <table class="table table-sm">
-                    <thead><tr><th>Job</th><th>Type</th><th>Title</th><th>Customer</th><th>Technician</th><th>When</th><th>Status</th></tr></thead>
-                    <tbody>
-                        <tr v-for="j in jobs" :key="j.id" role="button" @click="show(j.id)">
-                            <td>{{ j.job_no }}</td><td class="text-capitalize">{{ j.type }}</td><td>{{ j.title }}</td><td>{{ j.customer ?? '-' }}</td>
-                            <td>{{ j.technician_first ? j.technician_first + ' ' + (j.technician_last ?? '') : '-' }}</td><td>{{ j.scheduled_at ?? '-' }}</td><td class="text-capitalize">{{ j.status.replace('_', ' ') }}</td>
-                        </tr>
-                        <tr v-if="! jobs.length"><td colspan="7" class="text-center text-muted">No jobs.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No jobs."  :columns="[{ key: 'c0', label: 'Job' }, { key: 'c1', label: 'Type' }, { key: 'c2', label: 'Title' }, { key: 'c3', label: 'Customer' }, { key: 'c4', label: 'Technician' }, { key: 'c5', label: 'When' }, { key: 'c6', label: 'Status' }]" :rows="(jobs).map((j) => ({ __s: { j }, c0: (j.job_no), c1: (j.type), c2: (j.title), c3: (j.customer ?? '-'), c4: (j.technician_first ? j.technician_first + ' ' + (j.technician_last ?? '') : '-'), c5: (j.scheduled_at ?? '-'), c6: (j.status.replace('_', ' ')) }))" export-name="job">
+</ClientTable>
             </div>
 
             <div v-if="detail" class="col-lg-5 border rounded p-3">

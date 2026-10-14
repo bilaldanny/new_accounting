@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -82,19 +83,11 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Purchase</th><th>LC</th><th>Bill of lading</th><th>Customs</th><th>Currency</th><th class="text-end">Foreign total</th><th class="text-end">Local equivalent</th><th class="text-end">Difference</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.transaction_id">
-                        <td>{{ row.invoice_no }}</td><td>{{ row.lc_no }} <span class="text-muted small">{{ row.lc_bank }}</span></td><td>{{ row.bl_no }}</td>
-                        <td>{{ row.customs_ref }} <span class="text-muted small">{{ row.customs_cleared_on }}</span></td><td>{{ row.currency_code }} {{ row.exchange_rate }}</td>
-                        <td class="text-end">{{ row.foreign_total === null ? '-' : money(row.foreign_total) }}</td><td class="text-end">{{ row.local_equivalent === null ? '-' : money(row.local_equivalent) }}</td>
-                        <td class="text-end">{{ row.variance === null ? '-' : money(row.variance) }}</td>
-                        <td class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="open(row.transaction_id)">Open</button></td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="9" class="text-center text-muted">No import details yet. Enter a purchase id above.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="No import details yet. Enter a purchase id above."  :columns="[{ key: 'c0', label: 'Purchase' }, { key: 'c1', label: 'LC' }, { key: 'c2', label: 'Bill of lading' }, { key: 'c3', label: 'Customs' }, { key: 'c4', label: 'Currency' }, { key: 'c5', label: 'Foreign total' }, { key: 'c6', label: 'Local equivalent' }, { key: 'c7', label: 'Difference' }, { key: 'c8', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.invoice_no), c1: '', c2: (row.bl_no), c3: '', c4: `${row.currency_code} ${row.exchange_rate}`, c5: (row.foreign_total === null ? '-' : money(row.foreign_total)), c6: (row.local_equivalent === null ? '-' : money(row.local_equivalent)), c7: (row.variance === null ? '-' : money(row.variance)), c8: '' }))" export-name="purchase">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.lc_no }} <span class="text-muted small">{{ row.lc_bank }}</span></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.customs_ref }} <span class="text-muted small">{{ row.customs_cleared_on }}</span></template></template>
+<template #cell-c8="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="open(row.transaction_id)">Open</button></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

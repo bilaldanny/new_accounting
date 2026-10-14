@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -88,36 +89,23 @@
                 <div class="col-md-2"><label class="form-label small" for="sp-amount">Amount paid</label><input id="sp-amount" v-model.number="form.amount" type="number" min="0" step="any" class="form-control form-control-sm" /></div>
                 <div class="col-md-2 d-flex align-items-end"><label class="small"><input v-model="form.keep_advance" type="checkbox" class="me-1" />Keep the rest as advance</label></div>
             </div>
-            <table class="table table-sm align-middle mt-3">
-                <thead><tr><th>Bill (purchase id)</th><th style="width: 12rem">Amount</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(row, index) in allocations" :key="index">
-                        <td><input v-model.number="row.transaction_id" type="number" class="form-control form-control-sm" aria-label="Bill id" /></td>
-                        <td><input v-model.number="row.amount" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Amount" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="allocations.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Bill (purchase id)' }, { key: 'c1', label: 'Amount' }, { key: 'c2', label: '' }]" :rows="(allocations).map((row, index) => ({ __s: { row, index }, c0: '', c1: '', c2: '' }))" export-name="bill-purchase-id">
+<template #cell-c0="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model.number="row.transaction_id" type="number" class="form-control form-control-sm" aria-label="Bill id" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><input v-model.number="row.amount" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Amount" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ row, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="allocations.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="allocations.push({ transaction_id: '', amount: 0 })">Add bill</button>
             <button type="button" class="btn btn-dark btn-sm" @click="save">Pay</button>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Reference</th><th>Supplier</th><th>Paid on</th><th class="text-end">Amount</th><th class="text-end">Bills</th><th class="text-end">Advance left</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.reference }}</td><td>#{{ row.contact_id }}</td><td>{{ row.paid_on }}</td><td class="text-end">{{ money(row.amount) }}</td>
-                        <td class="text-end">{{ row.allocations_count }}</td><td class="text-end">{{ money(row.advance_remaining) }}</td><td class="text-capitalize">{{ row.status }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No supplier payments yet."  :columns="[{ key: 'c0', label: 'Reference' }, { key: 'c1', label: 'Supplier' }, { key: 'c2', label: 'Paid on' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Bills' }, { key: 'c5', label: 'Advance left' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.reference), c1: `#${row.contact_id}`, c2: (row.paid_on), c3: (money(row.amount)), c4: (row.allocations_count), c5: (money(row.advance_remaining)), c6: (row.status), c7: '' }))" export-name="reference">
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="row.status === 'completed' && row.advance_remaining > 0 && can('/supplierpayment/add')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="useAdvance(row)">Use advance</button>
                             <button v-if="row.status === 'completed' && row.advance_remaining > 0 && can('/supplierpayment/refund')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="refundAdvance(row)">Refund advance</button>
                             <button v-if="row.status === 'completed' && can('/supplierpayment/reverse')" type="button" class="btn btn-outline-danger btn-sm" @click="reverse(row)">Reverse</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No supplier payments yet.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

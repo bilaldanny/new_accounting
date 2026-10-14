@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -78,13 +79,8 @@
             </div>
         </div>
 
-        <table class="table table-sm">
-            <thead><tr><th>Priority</th><th>Name</th><th>Strategy</th><th>Source</th><th>Branch</th><th>Pool</th><th></th></tr></thead>
-            <tbody>
-                <tr v-for="rule in rules" :key="rule.id"><td>{{ rule.priority }}</td><td>{{ rule.name }}</td><td class="text-capitalize">{{ rule.strategy.replace('_', ' ') }}</td><td>{{ rule.lead_source_id ?? '-' }}</td><td>{{ rule.branch_id ?? '-' }}</td><td>{{ rule.user_ids.join(', ') }}</td>
-                    <td class="text-end"><button v-if="can('/leads/:id/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(rule)">Remove</button></td></tr>
-                <tr v-if="! rules.length"><td colspan="7" class="text-center text-muted">No allocation rules: new leads stay unassigned.</td></tr>
-            </tbody>
-        </table>
+        <ClientTable empty-text="No allocation rules: new leads stay unassigned."  :columns="[{ key: 'c0', label: 'Priority' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Strategy' }, { key: 'c3', label: 'Source' }, { key: 'c4', label: 'Branch' }, { key: 'c5', label: 'Pool' }, { key: 'c6', label: '' }]" :rows="(rules).map((rule) => ({ __s: { rule }, c0: (rule.priority), c1: (rule.name), c2: (rule.strategy.replace('_', ' ')), c3: (rule.lead_source_id ?? '-'), c4: (rule.branch_id ?? '-'), c5: (rule.user_ids.join(', ')), c6: '' }))" export-name="priority">
+<template #cell-c6="{ row: __m }"><template v-for="{ rule } in [__m.__s]" :key="0"><button v-if="can('/leads/:id/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(rule)">Remove</button></template></template>
+</ClientTable>
     </div></div></div>
 </template>

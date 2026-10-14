@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -76,37 +77,23 @@
                     <label class="small"><input v-model="form.is_active" type="checkbox" class="me-1" />Active</label>
                 </div>
             </div>
-            <table class="table table-sm align-middle mt-3">
-                <thead><tr><th>Level</th><th>Name</th><th>Role id (empty: any approver)</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(level, index) in form.levels" :key="index">
-                        <td>{{ index + 1 }}</td>
-                        <td><input v-model="level.label" class="form-control form-control-sm" aria-label="Level name" /></td>
-                        <td><input v-model.number="level.role_id" type="number" class="form-control form-control-sm" aria-label="Role id" /></td>
-                        <td class="text-end"><button v-if="form.levels.length > 1" type="button" class="btn btn-link btn-sm text-danger" @click="form.levels.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Level' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Role id (empty: any approver)' }, { key: 'c3', label: '' }]" :rows="(form.levels).map((level, index) => ({ __s: { level, index }, c0: (index + 1), c1: '', c2: '', c3: '' }))" export-name="level">
+<template #cell-c1="{ row: __m }"><template v-for="{ level, index } in [__m.__s]" :key="0"><input v-model="level.label" class="form-control form-control-sm" aria-label="Level name" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ level, index } in [__m.__s]" :key="0"><input v-model.number="level.role_id" type="number" class="form-control form-control-sm" aria-label="Role id" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ level, index } in [__m.__s]" :key="0"><button v-if="form.levels.length > 1" type="button" class="btn btn-link btn-sm text-danger" @click="form.levels.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button v-if="form.levels.length < 5" type="button" class="btn btn-outline-dark btn-sm me-2" @click="form.levels.push({ label: `Level ${form.levels.length + 1}`, role_id: '' })">Add level</button>
             <button type="button" class="btn btn-dark btn-sm" @click="save">{{ editing === null ? 'Add rule' : 'Save changes' }}</button>
             <button v-if="editing !== null" type="button" class="btn btn-link btn-sm" @click="editing = null; form = blank()">Cancel</button>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Rule</th><th class="text-end">From</th><th class="text-end">Up to</th><th>Levels</th><th>Active</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="rule in rows" :key="rule.id">
-                        <td>{{ rule.name }}</td><td class="text-end">{{ money(rule.min_amount) }}</td><td class="text-end">{{ rule.max_amount === null ? 'no limit' : money(rule.max_amount) }}</td>
-                        <td>{{ rule.levels.map((level) => level.label).join(' > ') }}</td><td>{{ rule.is_active ? 'Yes' : 'No' }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No rules: every purchase is approved in one step."  :columns="[{ key: 'c0', label: 'Rule' }, { key: 'c1', label: 'From' }, { key: 'c2', label: 'Up to' }, { key: 'c3', label: 'Levels' }, { key: 'c4', label: 'Active' }, { key: 'c5', label: '' }]" :rows="(rows).map((rule) => ({ __s: { rule }, c0: (rule.name), c1: (money(rule.min_amount)), c2: (rule.max_amount === null ? 'no limit' : money(rule.max_amount)), c3: (rule.levels.map((level) => level.label).join(' > ')), c4: (rule.is_active ? 'Yes' : 'No'), c5: '' }))" export-name="rule">
+<template #cell-c5="{ row: __m }"><template v-for="{ rule } in [__m.__s]" :key="0">
                             <button v-if="can('/purchaseapprovalrule/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(rule)">Edit</button>
                             <button v-if="can('/purchaseapprovalrule/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(rule)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="6" class="text-center text-muted">No rules: every purchase is approved in one step.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

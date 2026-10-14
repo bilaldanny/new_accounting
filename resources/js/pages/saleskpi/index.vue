@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -101,13 +102,8 @@
                     <div class="col-3"><input v-model.number="target.target_amount" type="number" min="0" step="any" class="form-control form-control-sm" placeholder="Amount" aria-label="Target amount" /></div>
                     <div class="col-12"><button type="button" class="btn btn-dark btn-sm" @click="saveTarget">Save target</button></div>
                 </div>
-                <table class="table table-sm">
-                    <thead><tr><th>For</th><th>Id</th><th class="text-end">Target</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in targets" :key="row.id"><td class="text-capitalize">{{ row.subject_type }}</td><td>{{ row.subject_id }}</td><td class="text-end">{{ money(row.target_amount) }}</td></tr>
-                        <tr v-if="! targets.length"><td colspan="3" class="text-center text-muted">No targets set.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No targets set."  :columns="[{ key: 'c0', label: 'For' }, { key: 'c1', label: 'Id' }, { key: 'c2', label: 'Target' }]" :rows="(targets).map((row) => ({ __s: { row }, c0: (row.subject_type), c1: (row.subject_id), c2: (money(row.target_amount)) }))" export-name="for">
+</ClientTable>
             </div>
             <div class="col-lg-6">
                 <h6>Commission tiers</h6>
@@ -118,16 +114,9 @@
                     <div class="col-4"><input v-model.number="tier.rate_percent" type="number" min="0" step="any" class="form-control form-control-sm" placeholder="Rate %" aria-label="Rate" /></div>
                     <div class="col-12"><button type="button" class="btn btn-dark btn-sm" @click="saveTier">Add tier</button></div>
                 </div>
-                <table class="table table-sm">
-                    <thead><tr><th>Agent</th><th class="text-end">Threshold</th><th class="text-end">Rate %</th><th></th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in tiers" :key="row.id">
-                            <td>{{ row.commission_agent_id ?? 'All agents' }}</td><td class="text-end">{{ money(row.threshold_amount) }}</td><td class="text-end">{{ row.rate_percent }}</td>
-                            <td class="text-end"><button v-if="can('/saleskpi/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="removeTier(row)">Delete</button></td>
-                        </tr>
-                        <tr v-if="! tiers.length"><td colspan="4" class="text-center text-muted">No tiers.</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable empty-text="No tiers."  :columns="[{ key: 'c0', label: 'Agent' }, { key: 'c1', label: 'Threshold' }, { key: 'c2', label: 'Rate %' }, { key: 'c3', label: '' }]" :rows="(tiers).map((row) => ({ __s: { row }, c0: (row.commission_agent_id ?? 'All agents'), c1: (money(row.threshold_amount)), c2: (row.rate_percent), c3: '' }))" export-name="agent">
+<template #cell-c3="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><button v-if="can('/saleskpi/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="removeTier(row)">Delete</button></template></template>
+</ClientTable>
             </div>
         </div>
     </div></div></div>

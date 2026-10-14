@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -108,24 +109,13 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Name</th><th>Applies to</th><th class="text-end">Discount</th><th class="text-end">Min qty</th><th>Dates</th><th>Priority</th><th>Active</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.name }}</td>
-                        <td class="text-capitalize">{{ row.scope }} <span class="text-muted small">{{ row.target_name }}</span></td>
-                        <td class="text-end">{{ row.discount_type === 'percent' ? `${row.value}%` : row.value }}</td>
-                        <td class="text-end">{{ row.min_quantity ?? '' }}</td>
-                        <td>{{ [row.starts_on, row.ends_on].filter(Boolean).join(' to ') }}</td>
-                        <td>{{ row.priority }}</td><td>{{ row.is_active ? 'Yes' : 'No' }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No rules yet."  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Applies to' }, { key: 'c2', label: 'Discount' }, { key: 'c3', label: 'Min qty' }, { key: 'c4', label: 'Dates' }, { key: 'c5', label: 'Priority' }, { key: 'c6', label: 'Active' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.name), c1: '', c2: (row.discount_type === 'percent' ? `${row.value}%` : row.value), c3: (row.min_quantity ?? ''), c4: ([row.starts_on, row.ends_on].filter(Boolean).join(' to ')), c5: (row.priority), c6: (row.is_active ? 'Yes' : 'No'), c7: '' }))" export-name="name">
+<template #cell-c1="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.scope }} <span class="text-muted small">{{ row.target_name }}</span></template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="can('/productdiscountrule/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="edit(row)">Edit</button>
                             <button v-if="can('/productdiscountrule/delete')" type="button" class="btn btn-outline-danger btn-sm" @click="remove(row)">Delete</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No rules yet.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

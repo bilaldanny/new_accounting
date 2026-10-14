@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -228,25 +229,9 @@
             <h6 class="mb-3">Shift history</h6>
             <p v-if="! history.length" class="text-muted mb-0">No shifts yet.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr><th>#</th><th>Cashier</th><th>Branch</th><th>Opened</th><th>Closed</th><th>Status</th><th class="text-end">Expected</th><th class="text-end">Counted</th><th class="text-end">Variance</th><th /></tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="shift in history" :key="shift.id">
-                            <td>{{ shift.id }}</td>
-                            <td>{{ shift.cashier }}</td>
-                            <td>{{ shift.branch_name }}</td>
-                            <td>{{ shift.opened_at }}</td>
-                            <td>{{ shift.closed_at ?? '-' }}</td>
-                            <td>{{ shift.status }}</td>
-                            <td class="text-end">{{ shift.expected_cash === null ? '-' : money(shift.expected_cash) }}</td>
-                            <td class="text-end">{{ shift.counted_cash === null ? '-' : money(shift.counted_cash) }}</td>
-                            <td class="text-end">{{ shift.variance === null ? '-' : money(shift.variance) }}</td>
-                            <td><button type="button" class="btn btn-outline-secondary btn-sm" @click="view(shift)">{{ shift.status === 'open' ? 'X report' : 'Z report' }}</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: '#' }, { key: 'c1', label: 'Cashier' }, { key: 'c2', label: 'Branch' }, { key: 'c3', label: 'Opened' }, { key: 'c4', label: 'Closed' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: 'Expected' }, { key: 'c7', label: 'Counted' }, { key: 'c8', label: 'Variance' }, { key: 'c9', label: '' }]" :rows="(history).map((shift) => ({ __s: { shift }, c0: (shift.id), c1: (shift.cashier), c2: (shift.branch_name), c3: (shift.opened_at), c4: (shift.closed_at ?? '-'), c5: (shift.status), c6: (shift.expected_cash === null ? '-' : money(shift.expected_cash)), c7: (shift.counted_cash === null ? '-' : money(shift.counted_cash)), c8: (shift.variance === null ? '-' : money(shift.variance)), c9: '' }))" export-name="table">
+<template #cell-c9="{ row: __m }"><template v-for="{ shift } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-secondary btn-sm" @click="view(shift)">{{ shift.status === 'open' ? 'X report' : 'Z report' }}</button></template></template>
+</ClientTable>
             </div>
         </div>
     </div>

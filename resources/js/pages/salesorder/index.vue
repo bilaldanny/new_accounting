@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -71,38 +72,25 @@
                 <div class="col-md-4"><label class="form-label small" for="so-note">Note</label><input id="so-note" v-model="form.note" class="form-control form-control-sm" /></div>
                 <div class="col-md-2 d-flex align-items-end"><label class="form-check-label small"><input v-model="form.as_draft" type="checkbox" class="form-check-input me-1" />Save as draft</label></div>
             </div>
-            <table class="table table-sm align-middle mt-3">
-                <thead><tr><th>Product id</th><th style="width: 9rem">Quantity</th><th style="width: 10rem">Unit price</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="(line, index) in lines" :key="index">
-                        <td><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></td>
-                        <td><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></td>
-                        <td><input v-model.number="line.unit_price" type="number" min="0" step="any" class="form-control form-control-sm" placeholder="List price" aria-label="Unit price" /></td>
-                        <td class="text-end"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Product id' }, { key: 'c1', label: 'Quantity' }, { key: 'c2', label: 'Unit price' }, { key: 'c3', label: '' }]" :rows="(lines).map((line, index) => ({ __s: { line, index }, c0: '', c1: '', c2: '', c3: '' }))" export-name="product-id">
+<template #cell-c0="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.product_id" type="number" class="form-control form-control-sm" aria-label="Product id" /></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.quantity" type="number" min="0" step="any" class="form-control form-control-sm" aria-label="Quantity" /></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><input v-model.number="line.unit_price" type="number" min="0" step="any" class="form-control form-control-sm" placeholder="List price" aria-label="Unit price" /></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ line, index } in [__m.__s]" :key="0"><button type="button" class="btn btn-link btn-sm text-danger" @click="lines.splice(index, 1)">Remove</button></template></template>
+</ClientTable>
             <button type="button" class="btn btn-outline-dark btn-sm me-2" @click="lines.push({ product_id: '', quantity: 1, unit_price: '' })">Add line</button>
             <button type="button" class="btn btn-dark btn-sm" @click="create">Save order</button>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th class="text-end">Total</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.order_no }}</td><td>{{ row.contact_name }}</td><td>{{ row.order_date }}</td><td class="text-end">{{ money(row.total) }}</td>
-                        <td class="text-capitalize">{{ row.status.replace('_', ' ') }}</td>
-                        <td class="text-end text-nowrap">
+            <ClientTable empty-text="No sales orders."  :columns="[{ key: 'c0', label: 'Order' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Date' }, { key: 'c3', label: 'Total' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.order_no), c1: (row.contact_name), c2: (row.order_date), c3: (money(row.total)), c4: (row.status.replace('_', ' ')), c5: '' }))" export-name="order">
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="row.status === 'draft' && can('/salesorder/:id/edit')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="act(row, 'submit')">Submit</button>
                             <button v-if="row.status === 'pending_approval' && can('/salesorder/approve')" type="button" class="btn btn-outline-dark btn-sm me-1" @click="act(row, 'approve')">Approve</button>
                             <button v-if="['confirmed', 'partially_invoiced'].includes(row.status) && can('/salesorder/invoice')" type="button" class="btn btn-dark btn-sm me-1" @click="act(row, 'invoice')">Invoice</button>
                             <button v-if="! ['invoiced', 'cancelled', 'partially_invoiced'].includes(row.status) && can('/salesorder/:id/edit')" type="button" class="btn btn-outline-danger btn-sm" @click="act(row, 'cancel')">Cancel</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="6" class="text-center text-muted">No sales orders.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

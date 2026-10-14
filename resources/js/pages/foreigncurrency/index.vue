@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -132,17 +133,9 @@
 
         <h6>Open foreign-currency lines</h6>
         <div class="table-responsive">
-            <table class="table table-sm">
-                <thead><tr><th>Voucher</th><th>Date</th><th>Party</th><th>Side</th><th class="text-end">Foreign</th><th class="text-end">Open</th><th class="text-end">Rate</th><th class="text-end">Base</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="line in open" :key="line.id">
-                        <td>{{ line.voucher_no }}</td><td>{{ line.voucher_date }}</td><td>{{ line.contact }}</td><td class="text-capitalize">{{ line.side }}</td>
-                        <td class="text-end">{{ money(line.foreign_amount) }} {{ line.currency_code }}</td><td class="text-end">{{ money(line.open_foreign) }}</td><td class="text-end">{{ line.exchange_rate }}</td><td class="text-end">{{ money(line.base_amount) }}</td>
-                        <td v-if="can('/foreigncurrency/settle')" class="text-end"><button type="button" class="btn btn-outline-dark btn-sm" @click="settle(line)">Settle</button></td>
-                    </tr>
-                    <tr v-if="! open.length"><td colspan="9" class="text-center text-muted">Nothing open in a foreign currency.</td></tr>
-                </tbody>
-            </table>
+            <ClientTable empty-text="Nothing open in a foreign currency."  :columns="[{ key: 'c0', label: 'Voucher' }, { key: 'c1', label: 'Date' }, { key: 'c2', label: 'Party' }, { key: 'c3', label: 'Side' }, { key: 'c4', label: 'Foreign' }, { key: 'c5', label: 'Open' }, { key: 'c6', label: 'Rate' }, { key: 'c7', label: 'Base' }, { key: 'c8', label: '' }]" :rows="(open).map((line) => ({ __s: { line }, c0: (line.voucher_no), c1: (line.voucher_date), c2: (line.contact), c3: (line.side), c4: `${money(line.foreign_amount)} ${line.currency_code}`, c5: (money(line.open_foreign)), c6: (line.exchange_rate), c7: (money(line.base_amount)), c8: '' }))" export-name="voucher">
+<template #cell-c8="{ row: __m }"><template v-for="{ line } in [__m.__s]" :key="0"><button type="button" class="btn btn-outline-dark btn-sm" @click="settle(line)">Settle</button></template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>

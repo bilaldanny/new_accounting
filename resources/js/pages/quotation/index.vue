@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -48,28 +49,21 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Quotation</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th><th>Valid until</th><th>Proforma</th><th>State</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.id">
-                        <td>{{ row.invoice_no }}</td><td>{{ row.contact_name }}</td><td>{{ row.transaction_date }}</td><td class="text-end">{{ money(row.final_amount) }}</td>
-                        <td><input v-model="row.valid_until" type="date" class="form-control form-control-sm" :disabled="! can('/quotation/:id/edit') || row.state === 'converted'" :aria-label="`Valid until ${row.invoice_no}`" /></td>
-                        <td><input v-model="row.is_proforma" type="checkbox" class="form-check-input" :disabled="! can('/quotation/:id/edit') || row.state === 'converted'" :aria-label="`Proforma ${row.invoice_no}`" /></td>
-                        <td>
+            <ClientTable empty-text="No quotations."  :columns="[{ key: 'c0', label: 'Quotation' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Date' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: 'Valid until' }, { key: 'c5', label: 'Proforma' }, { key: 'c6', label: 'State' }, { key: 'c7', label: '' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.invoice_no), c1: (row.contact_name), c2: (row.transaction_date), c3: (money(row.final_amount)), c4: '', c5: '', c6: '', c7: '' }))" export-name="quotation">
+<template #cell-c4="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><input v-model="row.valid_until" type="date" class="form-control form-control-sm" :disabled="! can('/quotation/:id/edit') || row.state === 'converted'" :aria-label="`Valid until ${row.invoice_no}`" /></template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0"><input v-model="row.is_proforma" type="checkbox" class="form-check-input" :disabled="! can('/quotation/:id/edit') || row.state === 'converted'" :aria-label="`Proforma ${row.invoice_no}`" /></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <span class="badge" :class="{ 'text-bg-success': row.state === 'open', 'text-bg-danger': row.state === 'expired', 'text-bg-secondary': row.state === 'converted' }">{{ row.state }}</span>
                             <span v-if="row.converted_to" class="small text-muted ms-1">{{ row.converted_to.type }} #{{ row.converted_to.id }}</span>
-                        </td>
-                        <td class="text-end text-nowrap">
+                        </template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                             <button v-if="can('/quotation/:id/edit') && row.state !== 'converted'" type="button" class="btn btn-outline-dark btn-sm me-1" @click="save(row)">Save</button>
                             <template v-if="can('/quotation/convert') && row.state === 'open'">
                                 <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="convert(row, 'order')">To sales order</button>
                                 <button type="button" class="btn btn-dark btn-sm" @click="convert(row, 'invoice')">To invoice</button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="8" class="text-center text-muted">No quotations.</td></tr>
-                </tbody>
-            </table>
+                        </template></template>
+</ClientTable>
         </div>
     </div></div></div>
 </template>
