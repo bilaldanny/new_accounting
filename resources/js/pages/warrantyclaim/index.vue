@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -71,7 +72,7 @@
 
     <div class="container-fluid py-3">
         <div class="d-flex flex-wrap gap-2 mb-3">
-            <div v-if="isSuperadmin" style="width: 10rem"><input v-model.number="companyId" type="number" class="form-control form-control-sm" placeholder="Company id" aria-label="Company id" @change="load" /></div>
+            <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <select v-model="status" class="form-select form-select-sm" style="width: auto" aria-label="Status" @change="load">
                 <option value="all">All</option><option value="open">Open</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="resolved">Resolved</option>
             </select>

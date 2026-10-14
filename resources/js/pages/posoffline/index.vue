@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -47,7 +48,7 @@
     <Head title="Offline POS Sales" />
 
     <div class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div class="mb-3">
             <select v-model="status" class="form-select form-select-sm" style="width: 14rem" aria-label="Status" @change="load">
                 <option value="">All</option><option value="conflict">Waiting for review</option><option value="failed">Failed</option><option value="synced">Posted</option><option value="discarded">Discarded</option>

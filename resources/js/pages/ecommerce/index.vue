@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -91,7 +92,7 @@
         <div class="alert alert-info py-2 small">Shopify and WooCommerce connections use their REST APIs and have not been verified against a live store from here; use the mock platform to rehearse the flow.</div>
 
         <div class="d-flex flex-wrap gap-2 mb-3">
-            <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+            <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         </div>
 
         <div v-if="can('/ecommerce/add') || (editing !== null && can('/ecommerce/:id/edit'))" class="border rounded p-3 mb-4">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -60,7 +61,7 @@
     <Head title="Subscription & Billing" />
 
     <div v-if="data" class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <div v-if="data.company.tenant_status === 'suspended'" class="alert alert-danger py-2">This account is suspended: {{ data.company.suspension_reason }}. Paying the overdue invoice reactivates it.</div>
 

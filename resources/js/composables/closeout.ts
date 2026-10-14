@@ -43,7 +43,14 @@ export default function useCloseout() {
 
             return result;
         } catch (error: unknown) {
-            Notify(errorMessage(error), 'alert');
+            const message = errorMessage(error);
+
+            // a superadmin who has not chosen a company yet is told by the company picker on the page; a pop-up for it on every load is noise
+            if (isSuperadmin.value && companyId.value === '' && /^choose a company/i.test(message)) {
+                return null;
+            }
+
+            Notify(message, 'alert');
 
             return null;
         }

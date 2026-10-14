@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, onUnmounted, reactive, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -152,7 +153,7 @@
     <Head title="My Jobs" />
 
     <div class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div v-if="offline" class="alert alert-warning py-2 small">You are offline: this is the list as it was when you last had a connection.</div>
 
         <div class="row g-3">

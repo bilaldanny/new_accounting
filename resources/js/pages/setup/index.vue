@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -35,7 +36,7 @@
     <Head title="Setup Wizard" />
 
     <div class="container-fluid py-3" style="max-width: 46rem">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <div v-if="wizard">
             <div class="progress mb-1" role="progressbar" :aria-valuenow="percent" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-dark" :style="{ width: `${percent}%` }" /></div>

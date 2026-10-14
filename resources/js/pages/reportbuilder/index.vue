@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -183,7 +184,7 @@
     <Head title="Report Builder" />
 
     <div class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="loadAll" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="loadAll" />
 
         <ul class="nav nav-tabs mb-3">
             <li class="nav-item"><button type="button" class="nav-link" :class="{ active: tab === 'builder' }" @click="tab = 'builder'">Builder</button></li>

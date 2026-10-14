@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import LookupSelect from '@/components/LookupSelect.vue';
     import useCloseout from '@/composables/closeout';
@@ -46,7 +47,7 @@
     <Head title="Milestones and Tasks" />
 
     <div class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="loadProjects" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="loadProjects" />
         <select v-model="projectId" class="form-select form-select-sm mb-3" style="width: 22rem" aria-label="Project" @change="load">
             <option value="">Choose a project</option>
             <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>

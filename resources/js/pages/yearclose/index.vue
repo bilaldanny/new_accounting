@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -54,7 +55,7 @@
 
     <div class="container-fluid py-3">
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-end">
-            <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+            <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <div>
                 <label class="form-label small" for="yc-from">Closing year</label>
                 <select id="yc-from" v-model="form.from_year_id" class="form-select form-select-sm"><option value="">Choose...</option><option v-for="year in years" :key="year.id" :value="year.id">{{ year.name }}</option></select>

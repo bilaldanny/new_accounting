@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -119,7 +120,7 @@
     <Head title="Approval Center" />
 
     <div class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <ul class="nav nav-tabs mb-3">
             <li v-for="item in ['inbox', 'outbox', 'history', 'workflows', 'delegation', 'discounts']" :key="item" class="nav-item">

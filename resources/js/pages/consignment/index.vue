@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -63,7 +64,7 @@
     <Head title="Consignment Stock" />
 
     <div class="container-fluid py-3">
-        <div v-if="isSuperadmin" class="mb-3" style="width: 12rem"><input v-model.number="companyId" type="number" class="form-control form-control-sm" placeholder="Company id" aria-label="Company id" @change="load" /></div>
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <h6>Stock held for suppliers</h6>
         <div class="table-responsive mb-4">

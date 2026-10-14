@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
     import { currentLocale, rememberLocale } from '@/lang';
@@ -177,7 +178,7 @@
     <Head title="Business Settings" />
 
     <div class="container-fluid py-3">
-        <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm mb-3" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+        <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <ul class="nav nav-tabs mb-3">
             <li v-for="item in [['general', 'General'], ['notifications', 'Notifications'], ['branches', 'Branches'], ['rates', 'Exchange rates'], ['retention', 'Retention'], ['data', 'Import and export']]" :key="item[0]" class="nav-item">

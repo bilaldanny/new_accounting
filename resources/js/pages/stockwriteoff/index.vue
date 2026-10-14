@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -47,7 +48,7 @@
 
     <div class="container-fluid py-3">
         <div class="d-flex flex-wrap gap-3 mb-3">
-            <input v-if="isSuperadmin" v-model.number="companyId" type="number" class="form-control form-control-sm" style="width: 10rem" placeholder="Company id" aria-label="Company id" @change="load" />
+            <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <div v-for="(label, key) in labels" :key="key" class="border rounded px-3 py-2">
                 <div class="small text-muted">{{ label }}</div>
                 <div class="fw-semibold">{{ byReason[key]?.quantity ?? 0 }} units, {{ money(byReason[key]?.value ?? 0) }}</div>
