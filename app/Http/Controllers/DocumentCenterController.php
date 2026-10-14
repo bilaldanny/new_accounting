@@ -11,6 +11,11 @@ use App\Services\Documents\DocumentReminders;
 use App\Services\Documents\DocumentRenderer;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Documents\MessageTemplates;
+use App\Services\Documents\TemplateCode\CssSanitizer;
+use App\Services\Documents\TemplateCode\LogicLessTemplate;
+use App\Services\Documents\TemplateCode\ReadyMadeTemplates;
+use App\Services\Documents\TemplateCode\TemplateCodeData;
+use App\Services\Documents\TemplateCode\TemplateCodeRenderer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +44,8 @@ class DocumentCenterController extends Controller
             'triggers' => DocumentReminders::TRIGGERS, 'entities' => CustomFields::ENTITIES, 'field_types' => CustomFields::TYPES,
             'defaults' => collect(DocumentBlocks::DOC_TYPES)->mapWithKeys(fn (string $type): array => [$type => DocumentBlocks::defaults($type)])->all(),
             'default_branding' => DocumentBlocks::defaultBranding(),
+            'code_placeholders' => collect(TemplateCodeData::PLACEHOLDERS)->map(fn (array $row, string $name): array => ['name' => $name, 'group' => $row[0], 'label' => $row[1]])->values()->all(),
+            'code_templates' => ReadyMadeTemplates::all(),
             'codes' => collect(DocumentBlocks::CODES)->map(fn (array $row, string $code): array => ['code' => '{'.$code.'}', 'group' => $row[0], 'label' => $row[1]])->values()->all(),
         ]]);
     }
@@ -60,9 +67,22 @@ class DocumentCenterController extends Controller
         $companyId = $this->scopeCompanyId($request);
         $data = $request->validate([
             'name' => 'required|string|min:2|max:120', 'doc_type' => ['required', Rule::in(DocumentBlocks::DOC_TYPES)], 'language' => ['nullable', Rule::in(DocumentBlocks::LANGUAGES)],
-            'paper' => ['nullable', Rule::in(DocumentBlocks::PAPERS)], 'branch_id' => 'nullable|integer', 'blocks' => 'required|array|min:1|max:'.DocumentBlocks::MAX_BLOCKS,
+            'paper' => ['nullable', Rule::in(DocumentBlocks::PAPERS)], 'branch_id' => 'nullable|integer', 'blocks' => 'required_unless:mode,code|nullable|array|max:'.DocumentBlocks::MAX_BLOCKS,
             'branding' => 'nullable|array', 'is_default' => 'nullable|boolean', 'is_active' => 'nullable|boolean', 'company_id' => 'nullable|integer',
+            'mode' => ['nullable', Rule::in(['blocks', 'code'])], 'code_html' => 'nullable|string|max:'.LogicLessTemplate::MAX_BYTES, 'code_css' => 'nullable|string|max:'.CssSanitizer::MAX_BYTES,
         ]);
+
+        $isCode = ($data['mode'] ?? 'blocks') === 'code';
+
+        if ($isCode) {
+            try {
+                app(TemplateCodeRenderer::class)->validate((string) ($data['code_html'] ?? ''));
+            } catch (\InvalidArgumentException $e) {
+                throw ValidationException::withMessages(['code_html' => [$e->getMessage()]]);
+            }
+
+            $data['blocks'] = $data['blocks'] ?? DocumentBlocks::defaults($data['doc_type']);
+        }
 
         $branchId = isset($data['branch_id']) ? (int) $data['branch_id'] : null;
 
@@ -71,6 +91,7 @@ class DocumentCenterController extends Controller
         }
 
         $row = app(DocumentTemplates::class)->prepare($data);
+        $row += ['mode' => $isCode ? 'code' : 'blocks', 'code_html' => $isCode ? (string) ($data['code_html'] ?? '') : null, 'code_css' => $isCode ? (string) ($data['code_css'] ?? '') : null];
 
         if ($id === null) {
             $id = (int) DB::table('document_templates')->insertGetId($row + [
@@ -83,11 +104,67 @@ class DocumentCenterController extends Controller
             DB::table('document_templates')->where('id', $id)->update($row + ['branch_id' => $branchId, 'is_active' => (bool) ($data['is_active'] ?? true), 'updated_at' => now()]);
         }
 
+        if ($isCode) {
+            $this->keepVersion($companyId, $id, (string) ($data['code_html'] ?? ''), (string) ($data['code_css'] ?? ''));
+        }
+
         if ((bool) ($data['is_default'] ?? false)) {
             app(DocumentTemplates::class)->makeDefault($id);
         }
 
         return response()->json(['message' => 'Successfully Saved', 'data' => $this->presentTemplate(DB::table('document_templates')->find($id))], 201);
+    }
+
+    /**
+     * Checks template code without saving: parse errors and the placeholders it uses.
+     */
+    public function validateCode(Request $request): JsonResponse
+    {
+        $this->authorizeMenuPermission('/documentcenter');
+        $data = $request->validate(['code_html' => 'required|string|max:'.LogicLessTemplate::MAX_BYTES, 'code_css' => 'nullable|string|max:'.CssSanitizer::MAX_BYTES]);
+
+        try {
+            $names = app(TemplateCodeRenderer::class)->validate($data['code_html']);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['valid' => false, 'message' => $e->getMessage()]);
+        }
+
+        $known = array_keys(TemplateCodeData::PLACEHOLDERS);
+        $unknown = array_values(array_filter($names, fn (string $name): bool => $name !== '.' && ! in_array($name, $known, true) && ! in_array('#'.$name, $known, true)));
+
+        return response()->json(['valid' => true, 'placeholders' => $names, 'unknown' => $unknown]);
+    }
+
+    public function versions(Request $request, int $id): JsonResponse
+    {
+        $this->authorizeMenuPermission('/documentcenter');
+        $companyId = $this->scopeCompanyId($request);
+        abort_unless(DB::table('document_templates')->where('company_id', $companyId)->where('id', $id)->exists(), 404);
+
+        return response()->json(['data' => DB::table('document_template_versions')->where('company_id', $companyId)->where('template_id', $id)->orderByDesc('id')->limit(10)
+            ->get(['id', 'created_at', 'saved_by'])->all()]);
+    }
+
+    public function versionCode(Request $request, int $id, int $versionId): JsonResponse
+    {
+        $this->authorizeMenuPermission('/documentcenter');
+        $row = DB::table('document_template_versions')->where('company_id', $this->scopeCompanyId($request))->where('template_id', $id)->where('id', $versionId)->first();
+        abort_if($row === null, 404);
+
+        return response()->json(['data' => ['code_html' => (string) $row->code_html, 'code_css' => (string) $row->code_css]]);
+    }
+
+    private function keepVersion(int $companyId, int $templateId, string $html, string $css): void
+    {
+        $last = DB::table('document_template_versions')->where('template_id', $templateId)->orderByDesc('id')->first();
+
+        if ($last !== null && $last->code_html === $html && $last->code_css === $css) {
+            return;
+        }
+
+        DB::table('document_template_versions')->insert(['company_id' => $companyId, 'template_id' => $templateId, 'code_html' => $html, 'code_css' => $css, 'saved_by' => Auth::id(), 'created_at' => now()]);
+        $keep = DB::table('document_template_versions')->where('template_id', $templateId)->orderByDesc('id')->limit(10)->pluck('id')->all();
+        DB::table('document_template_versions')->where('template_id', $templateId)->whereNotIn('id', $keep)->delete();
     }
 
     public function makeDefault(Request $request, int $id): JsonResponse
@@ -119,7 +196,8 @@ class DocumentCenterController extends Controller
         $companyId = $this->scopeCompanyId($request);
         $data = $request->validate([
             'doc_type' => ['required', Rule::in(DocumentBlocks::DOC_TYPES)], 'language' => ['nullable', Rule::in(DocumentBlocks::LANGUAGES)], 'paper' => ['nullable', Rule::in(DocumentBlocks::PAPERS)],
-            'blocks' => 'required|array|min:1|max:'.DocumentBlocks::MAX_BLOCKS, 'branding' => 'nullable|array', 'transaction_id' => 'nullable|integer', 'company_id' => 'nullable|integer',
+            'blocks' => 'required_unless:mode,code|nullable|array|max:'.DocumentBlocks::MAX_BLOCKS, 'branding' => 'nullable|array', 'transaction_id' => 'nullable|integer', 'company_id' => 'nullable|integer',
+            'mode' => ['nullable', Rule::in(['blocks', 'code'])], 'code_html' => 'nullable|string|max:'.LogicLessTemplate::MAX_BYTES, 'code_css' => 'nullable|string|max:'.CssSanitizer::MAX_BYTES,
         ]);
 
         $transaction = null;
@@ -132,6 +210,11 @@ class DocumentCenterController extends Controller
 
         $documentData = $transaction !== null ? app(DocumentData::class)->forTransaction($transaction) : $this->sample($data['doc_type']);
         $documentData['doc']['type'] = $data['doc_type'];
+
+        if (($data['mode'] ?? 'blocks') === 'code') {
+            return response()->json(['html' => app(DocumentRenderer::class)->renderCode((string) ($data['code_html'] ?? ''), (string) ($data['code_css'] ?? ''), $documentData)]);
+        }
+
         $html = app(DocumentRenderer::class)->render([
             'blocks' => DocumentBlocks::normalise($data['blocks']), 'branding' => DocumentBlocks::normaliseBranding($data['branding'] ?? []),
             'paper' => $data['paper'] ?? 'a4', 'language' => $data['language'] ?? 'en',
@@ -324,6 +407,7 @@ class DocumentCenterController extends Controller
             'id' => (int) $row->id, 'name' => $row->name, 'doc_type' => $row->doc_type, 'language' => $row->language, 'paper' => $row->paper, 'branch_id' => $row->branch_id,
             'is_default' => (bool) $row->is_default, 'is_active' => (bool) $row->is_active, 'blocks' => json_decode((string) $row->blocks, true),
             'branding' => json_decode((string) $row->branding, true) ?: DocumentBlocks::defaultBranding(),
+            'mode' => ($row->mode ?? 'blocks') === 'code' ? 'code' : 'blocks', 'code_html' => (string) ($row->code_html ?? ''), 'code_css' => (string) ($row->code_css ?? ''),
         ];
     }
 

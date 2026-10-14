@@ -22,7 +22,7 @@ class DocumentTemplates
     }
 
     /**
-     * @return array{id: int|null, name: string, blocks: list<array{type: string, props: array<string, mixed>}>, branding: array<string, string|int>, paper: string, language: string, source: string}
+     * @return array{mode?: string, code_html?: string, code_css?: string, id: int|null, name: string, blocks: list<array{type: string, props: array<string, mixed>}>, branding: array<string, string|int>, paper: string, language: string, source: string}
      */
     public function resolve(int $companyId, ?int $branchId, string $docType, ?string $language = null, ?int $templateId = null): array
     {
@@ -51,7 +51,7 @@ class DocumentTemplates
         if ($row === null) {
             return [
                 'id' => null, 'name' => 'Built-in design', 'blocks' => DocumentBlocks::defaults($docType), 'branding' => DocumentBlocks::defaultBranding(),
-                'paper' => 'a4', 'language' => $language ?? 'en', 'source' => 'built-in',
+                'paper' => 'a4', 'language' => $language ?? 'en', 'source' => 'built-in', 'mode' => 'blocks', 'code_html' => '', 'code_css' => '',
             ];
         }
 
@@ -59,6 +59,7 @@ class DocumentTemplates
             'id' => (int) $row->id, 'name' => (string) $row->name, 'blocks' => DocumentBlocks::normalise(json_decode((string) $row->blocks, true)),
             'branding' => DocumentBlocks::normaliseBranding(json_decode((string) $row->branding, true) ?: []), 'paper' => (string) $row->paper,
             'language' => $language ?? (string) $row->language, 'source' => 'template',
+            'mode' => ($row->mode ?? 'blocks') === 'code' ? 'code' : 'blocks', 'code_html' => (string) ($row->code_html ?? ''), 'code_css' => (string) ($row->code_css ?? ''),
         ];
     }
 

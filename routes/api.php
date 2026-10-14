@@ -1595,6 +1595,9 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('document-templates', [DocumentCenterController::class, 'templates']);
     Route::post('document-templates', [DocumentCenterController::class, 'saveTemplate']);
     Route::post('document-templates/preview', [DocumentCenterController::class, 'preview']);
+    Route::post('document-templates/code/validate', [DocumentCenterController::class, 'validateCode']);
+    Route::get('document-templates/{id}/versions', [DocumentCenterController::class, 'versions'])->whereNumber('id');
+    Route::get('document-templates/{id}/versions/{versionId}', [DocumentCenterController::class, 'versionCode'])->whereNumber(['id', 'versionId']);
     Route::put('document-templates/{id}', [DocumentCenterController::class, 'saveTemplate'])->whereNumber('id');
     Route::post('document-templates/{id}/default', [DocumentCenterController::class, 'makeDefault'])->whereNumber('id');
     Route::delete('document-templates/{id}', [DocumentCenterController::class, 'deleteTemplate'])->whereNumber('id');

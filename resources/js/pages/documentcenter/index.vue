@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
     import CompanyPicker from '@/components/CompanyPicker.vue';
-    import { computed, onMounted, reactive, ref } from 'vue';
+    import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -13,13 +13,14 @@
     });
 
     type Block = { type: string; props: Record<string, unknown> };
-    type Template = { id: number; name: string; doc_type: string; language: string; paper: string; branch_id: number | null; is_default: boolean; is_active: boolean; blocks: Block[]; branding: Record<string, string | number> };
+    type Template = { id: number; name: string; doc_type: string; language: string; paper: string; branch_id: number | null; is_default: boolean; is_active: boolean; blocks: Block[]; branding: Record<string, string | number>; mode?: 'blocks' | 'code'; code_html?: string; code_css?: string };
     type Message = { id: number; name: string; event: string; channel: string; language: string; subject: string | null; body: string; is_default: boolean; is_active: boolean };
     type Rule = { id: number; name: string; trigger: string; days: number; repeat_every_days: number | null; max_sends: number; channel: string; language: string; message_template_id: number | null; is_active: boolean; last_run_at: string | null };
     type Field = { id: number; entity: string; field_key: string; label: string; type: string; options: string[]; is_required: boolean; show_on_print: boolean; is_active: boolean };
     type Meta = {
         doc_types: string[]; languages: string[]; papers: string[]; fonts: string[]; line_columns: string[]; blocks: Record<string, string[]>; events: string[]; channels: string[];
         placeholders: string[]; codes: { code: string; group: string; label: string }[]; triggers: string[]; entities: string[]; field_types: string[]; defaults: Record<string, Block[]>; default_branding: Record<string, string | number>;
+        code_placeholders: { name: string; group: string; label: string }[]; code_templates: { key: string; name: string; doc_type: string; paper: string; html: string; css: string }[];
     };
 
     const { companyId, isSuperadmin, scope, can, run } = useCloseout();
@@ -35,7 +36,7 @@
     const delivery = reactive({ auto_send_sale: false, channel: 'email', language: 'en' });
     const previewHtml = ref('');
 
-    const blank = (): Template => ({ id: 0, name: '', doc_type: 'invoice', language: 'en', paper: 'a4', branch_id: null, is_default: false, is_active: true, blocks: [], branding: {} });
+    const blank = (): Template => ({ id: 0, name: '', doc_type: 'invoice', language: 'en', paper: 'a4', branch_id: null, is_default: false, is_active: true, blocks: [], branding: {}, mode: 'blocks', code_html: '', code_css: '' });
     const form = reactive<Template>(blank());
     const message = reactive<Message>({ id: 0, name: '', event: 'invoice_created', channel: 'email', language: 'en', subject: '', body: '', is_default: false, is_active: true });
     const rule = reactive({ id: 0, name: '', trigger: 'after_due', days: 1, repeat_every_days: 7 as number | null, max_sends: 3, channel: 'email', language: 'en', message_template_id: null as number | null, is_active: true });
@@ -68,8 +69,14 @@
     }
 
     function editTemplate(item: Template) {
-        Object.assign(form, JSON.parse(JSON.stringify(item)));
+        Object.assign(form, blank(), JSON.parse(JSON.stringify(item)));
         previewHtml.value = '';
+        codeMessage.value = null;
+        void loadVersions();
+
+        if (form.mode === 'code') {
+            void preview();
+        }
     }
 
     function changeType() {
@@ -172,12 +179,116 @@ return 'number';
     }
 
     async function preview() {
-        const response = await run(() => window.axios.post('/api/document-templates/preview', { ...scope(), doc_type: form.doc_type, language: form.language, paper: form.paper, blocks: form.blocks, branding: form.branding }));
+        const body = form.mode === 'code'
+            ? { ...scope(), doc_type: form.doc_type, language: form.language, paper: form.paper, mode: 'code', code_html: form.code_html, code_css: form.code_css }
+            : { ...scope(), doc_type: form.doc_type, language: form.language, paper: form.paper, blocks: form.blocks, branding: form.branding };
+        const response = await run(() => window.axios.post('/api/document-templates/preview', body));
         previewHtml.value = response?.data?.html ?? '';
     }
 
+    /** Template code editor: placeholders, ready-made codes, validation, live preview and the last ten saved versions. */
+    const codeHtmlBox = ref<HTMLTextAreaElement | null>(null);
+    const codeMessage = ref<{ ok: boolean; text: string } | null>(null);
+    const versions = ref<{ id: number; created_at: string }[]>([]);
+    let previewTimer: number | undefined;
+
+    const placeholderGroups = computed(() => {
+        const groups: Record<string, { name: string; label: string }[]> = {};
+
+        for (const item of meta.value?.code_placeholders ?? []) {
+            (groups[item.group] ??= []).push(item);
+        }
+
+        return groups;
+    });
+
+    function insertPlaceholder(name: string) {
+        const text = name.startsWith('#') ? `{{${name}}}{{/${name.slice(1)}}}` : `{{${name}}}`;
+        const box = codeHtmlBox.value;
+        const value = form.code_html ?? '';
+        const start = box?.selectionStart ?? value.length;
+        const end = box?.selectionEnd ?? value.length;
+
+        form.code_html = value.slice(0, start) + text + value.slice(end);
+        window.setTimeout(() => {
+            box?.focus();
+            box?.setSelectionRange(start + text.length, start + text.length);
+        }, 0);
+    }
+
+    function useReadyMade(key: string) {
+        const item = meta.value?.code_templates.find((entry) => entry.key === key);
+
+        if (!item) {
+            return;
+        }
+
+        form.mode = 'code';
+        form.code_html = item.html;
+        form.code_css = item.css;
+        form.doc_type = item.doc_type;
+        form.paper = item.paper;
+
+        if (!form.name.trim()) {
+            form.name = item.name;
+        }
+
+        codeMessage.value = null;
+        void preview();
+    }
+
+    async function validateCode() {
+        try {
+            const response = await window.axios.post('/api/document-templates/code/validate', { ...scope(), code_html: form.code_html || ' ', code_css: form.code_css });
+            const data = response.data;
+
+            if (!data.valid) {
+                codeMessage.value = { ok: false, text: data.message };
+            } else if (data.unknown?.length) {
+                codeMessage.value = { ok: false, text: `Unknown placeholder: ${data.unknown.join(', ')}` };
+            } else {
+                codeMessage.value = { ok: true, text: `Valid. ${data.placeholders.length} placeholders used.` };
+            }
+        } catch {
+            codeMessage.value = { ok: false, text: 'Could not validate the template.' };
+        }
+    }
+
+    function schedulePreview() {
+        window.clearTimeout(previewTimer);
+        previewTimer = window.setTimeout(() => {
+            if (form.mode === 'code') {
+                void preview();
+            }
+        }, 600);
+    }
+
+    async function loadVersions() {
+        versions.value = [];
+
+        if (!form.id || form.mode !== 'code') {
+            return;
+        }
+
+        const response = await run(() => window.axios.get(`/api/document-templates/${form.id}/versions`, { params: scope() }));
+        versions.value = response?.data?.data ?? [];
+    }
+
+    async function restoreVersion(id: number) {
+        const response = await run(() => window.axios.get(`/api/document-templates/${form.id}/versions/${id}`, { params: scope() }));
+
+        if (response?.data?.data) {
+            form.code_html = response.data.data.code_html;
+            form.code_css = response.data.data.code_css;
+            void preview();
+        }
+    }
+
     async function saveTemplate(makeDefault = false) {
-        const body = { ...scope(), name: form.name, doc_type: form.doc_type, language: form.language, paper: form.paper, branch_id: form.branch_id, blocks: form.blocks, branding: form.branding, is_default: makeDefault || form.is_default, is_active: form.is_active };
+        const body = {
+            ...scope(), name: form.name, doc_type: form.doc_type, language: form.language, paper: form.paper, branch_id: form.branch_id, blocks: form.blocks, branding: form.branding,
+            is_default: makeDefault || form.is_default, is_active: form.is_active, mode: form.mode ?? 'blocks', code_html: form.mode === 'code' ? form.code_html : null, code_css: form.mode === 'code' ? form.code_css : null,
+        };
         const response = form.id
             ? await run(() => window.axios.put(`/api/document-templates/${form.id}`, body), 'Template saved')
             : await run(() => window.axios.post('/api/document-templates', body), 'Template saved');
@@ -256,6 +367,8 @@ return 'number';
         await load();
     }
 
+    watch(() => [form.code_html, form.code_css], schedulePreview);
+
     onMounted(load);
 </script>
 
@@ -283,6 +396,38 @@ return 'number';
                         <div class="col-4"><label class="form-label small" for="dc-paper">Paper</label><select id="dc-paper" v-model="form.paper" class="form-select form-select-sm"><option v-for="p in meta.papers" :key="p" :value="p">{{ p }}</option></select></div>
                     </div>
 
+                    <div class="btn-group btn-group-sm mt-3" role="group" aria-label="Design mode">
+                        <button type="button" class="btn" :class="form.mode === 'code' ? 'btn-outline-dark' : 'btn-dark'" data-test="mode-blocks" @click="form.mode = 'blocks'">Block designer</button>
+                        <button type="button" class="btn" :class="form.mode === 'code' ? 'btn-dark' : 'btn-outline-dark'" data-test="mode-code" @click="form.mode = 'code'">Code editor</button>
+                    </div>
+
+                    <div v-if="form.mode === 'code'" class="mt-3" data-test="code-editor">
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <select class="form-select form-select-sm" aria-label="Ready-made template" data-test="ready-made" @change="useReadyMade(($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                                <option value="">Use a ready-made template...</option>
+                                <option v-for="t in meta.code_templates" :key="t.key" :value="t.key">{{ t.name }}</option>
+                            </select>
+                        </div>
+                        <label class="form-label small" for="code-html">HTML (placeholders in double curly braces; no script, form or external files)</label>
+                        <textarea id="code-html" ref="codeHtmlBox" v-model="form.code_html" class="form-control form-control-sm font-monospace" rows="12" spellcheck="false" maxlength="102400" />
+                        <label class="form-label small mt-2" for="code-css">CSS</label>
+                        <textarea id="code-css" v-model="form.code_css" class="form-control form-control-sm font-monospace" rows="7" spellcheck="false" maxlength="61440" />
+                        <div v-if="codeMessage" class="small mt-1" :class="codeMessage.ok ? 'text-success' : 'text-danger'" role="status">{{ codeMessage.text }}</div>
+                        <h6 class="mt-3">Placeholders</h6>
+                        <p class="small text-muted mb-1">Click to insert at the cursor. Inside a lines block use the line fields.</p>
+                        <div class="border rounded p-2" data-test="code-placeholders" style="max-height: 14rem; overflow: auto">
+                            <div v-for="(items, group) in placeholderGroups" :key="group" class="mb-1">
+                                <strong class="small me-1">{{ group }}:</strong>
+                                <button v-for="item in items" :key="item.name" type="button" class="btn btn-outline-secondary btn-sm py-0 me-1 mb-1" :title="item.label" @click="insertPlaceholder(item.name)"><code>{{ item.name }}</code></button>
+                            </div>
+                        </div>
+                        <div v-if="versions.length" class="mt-3">
+                            <h6>Versions (last 10)</h6>
+                            <button v-for="v in versions" :key="v.id" type="button" class="btn btn-outline-secondary btn-sm py-0 me-1 mb-1" @click="restoreVersion(v.id)">{{ String(v.created_at).slice(0, 16) }}</button>
+                        </div>
+                    </div>
+
+                    <template v-if="form.mode !== 'code'">
                     <h6 class="mt-3">Blocks</h6>
                     <div
                         v-for="(block, index) in form.blocks" :key="index" class="border rounded p-2 mb-2" :class="{ 'border-primary': dragOver === index && dragFrom !== index, 'opacity-50': dragFrom === index }"
@@ -348,11 +493,13 @@ return 'number';
                         <div class="col-6"><label class="form-label small" for="br-border">Border</label><select id="br-border" v-model="form.branding.border_style" class="form-select form-select-sm"><option value="none">None</option><option value="thin">Thin</option><option value="box">Box</option></select></div>
                         <div class="col-6"><label class="form-label small" for="br-table">Table</label><select id="br-table" v-model="form.branding.table_style" class="form-select form-select-sm"><option value="plain">Plain</option><option value="striped">Striped</option><option value="grid">Grid</option></select></div>
                     </div>
+                    </template>
 
                     <div class="d-flex gap-2 mt-3">
                         <button id="dc-preview" type="button" class="btn btn-outline-dark btn-sm" @click="preview">Preview</button>
-                        <button v-if="canManage" type="button" class="btn btn-dark btn-sm" :disabled="form.name.trim().length < 2 || !form.blocks.length" @click="saveTemplate(false)">Save</button>
-                        <button v-if="canManage" type="button" class="btn btn-outline-dark btn-sm" :disabled="form.name.trim().length < 2 || !form.blocks.length" @click="saveTemplate(true)">Save as default</button>
+                        <button v-if="form.mode === 'code'" type="button" class="btn btn-outline-dark btn-sm" data-test="validate-code" @click="validateCode">Validate</button>
+                        <button v-if="canManage" type="button" class="btn btn-dark btn-sm" :disabled="form.name.trim().length < 2 || (form.mode !== 'code' && !form.blocks.length)" @click="saveTemplate(false)">Save</button>
+                        <button v-if="canManage" type="button" class="btn btn-outline-dark btn-sm" :disabled="form.name.trim().length < 2 || (form.mode !== 'code' && !form.blocks.length)" @click="saveTemplate(true)">Save as default</button>
                     </div>
                 </div>
 

@@ -3,6 +3,8 @@
 namespace App\Services\Documents;
 
 use App\Services\AmountInWords;
+use App\Services\Documents\TemplateCode\TemplateCodeData;
+use App\Services\Documents\TemplateCode\TemplateCodeRenderer;
 
 /**
  * Turns a template (blocks + branding, both already normalised by DocumentBlocks) and a document's data (DocumentData) into one
@@ -18,6 +20,10 @@ class DocumentRenderer
      */
     public function render(array $template, array $data, bool $autoPrint = false): string
     {
+        if (($template['mode'] ?? 'blocks') === 'code') {
+            return $this->renderCode((string) ($template['code_html'] ?? ''), (string) ($template['code_css'] ?? ''), $data);
+        }
+
         $language = in_array($template['language'], DocumentBlocks::LANGUAGES, true) ? $template['language'] : 'en';
         $branding = DocumentBlocks::normaliseBranding($template['branding'] ?? []);
         $paper = in_array($template['paper'], DocumentBlocks::PAPERS, true) ? $template['paper'] : 'a4';
@@ -35,6 +41,29 @@ class DocumentRenderer
             .'<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">'
             .'<title>'.$this->e($title).'</title><style>'.$this->css($branding, $paper).'</style></head><body><main class="doc">'
             .$body.'</main>'.($autoPrint ? '<script>window.addEventListener("load",function(){window.print();});</script>' : '').'</body></html>';
+    }
+
+    /**
+     * A company-written template: logic-less placeholders, sanitized HTML and CSS, no script. Serve it with
+     * TemplateCodeRenderer::securityHeaders().
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function renderCode(string $html, string $css, array $data): string
+    {
+        $renderer = app(TemplateCodeRenderer::class);
+        $logo = (string) ($data['company']['logo_url'] ?? '');
+        $qr = null;
+
+        if (! empty($data['share_url'])) {
+            $qr = 'data:image/svg+xml;base64,'.base64_encode(QrCode::svg((string) $data['share_url'], 160));
+        }
+
+        try {
+            return $renderer->render($html, $css, TemplateCodeData::from($data), $logo === '' ? [] : [$logo], $qr);
+        } catch (\InvalidArgumentException $e) {
+            return '<!DOCTYPE html><html><body><p>'.$this->e($e->getMessage()).'</p></body></html>';
+        }
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Services\Documents\DocumentData;
 use App\Services\Documents\DocumentRenderer;
 use App\Services\Documents\DocumentTemplates;
+use App\Services\Documents\TemplateCode\TemplateCodeRenderer;
 use App\Services\MessageDispatcher;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -109,7 +110,7 @@ class ReceiptShareController extends Controller
             $data = app(DocumentData::class)->forTransaction($sale, route('receipt.public', ['token' => $token]));
             $data['doc']['type'] = 'receipt';
 
-            return response(app(DocumentRenderer::class)->render($template, $data), 200, ['Content-Type' => 'text/html; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff']);
+            return response(app(DocumentRenderer::class)->render($template, $data), 200, ['Content-Type' => 'text/html; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff'] + (($template['mode'] ?? 'blocks') === 'code' ? TemplateCodeRenderer::securityHeaders() : []));
         }
 
         $lines = DB::table('sell_lines')

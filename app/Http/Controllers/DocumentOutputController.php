@@ -11,6 +11,7 @@ use App\Services\Documents\DocumentDelivery;
 use App\Services\Documents\DocumentRenderer;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Documents\MessageTemplates;
+use App\Services\Documents\TemplateCode\TemplateCodeRenderer;
 use App\Services\Documents\XlsxWriter;
 use App\Support\Base64Upload;
 use Illuminate\Http\JsonResponse;
@@ -58,6 +59,10 @@ class DocumentOutputController extends Controller
         $data = app(DocumentData::class)->forTransaction($transaction);
         $data['doc']['type'] = $docType;
         $html = app(DocumentRenderer::class)->render($template, $data, $request->boolean('print'));
+
+        if (($template['mode'] ?? 'blocks') === 'code') {
+            return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8'] + TemplateCodeRenderer::securityHeaders());
+        }
 
         return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff', 'Content-Security-Policy' => "default-src 'none'; img-src * data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"]);
     }
