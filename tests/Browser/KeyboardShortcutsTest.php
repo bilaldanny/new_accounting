@@ -35,6 +35,20 @@ test('the whole application can be moved around with the keyboard', function () 
         duskKeys($browser, 'g', 'c');
         $browser->waitUsing(20, 1, fn (): bool => str_contains((string) $browser->driver->getCurrentURL(), '/customer'));
 
+        // rows of the table: arrow keys move between them, the focus ring is the browser's own focus-visible outline
+        $browser->waitUsing(20, 1, fn (): bool => (int) $browser->driver->executeScript('return document.querySelectorAll(".admin-data-row").length;') >= 1);
+        $rows = (int) $browser->driver->executeScript('return document.querySelectorAll(".admin-data-row").length;');
+        $browser->driver->executeScript('document.querySelector(".admin-data-row").focus();');
+
+        if ($rows >= 2) {
+            duskKeys($browser, WebDriverKeys::ARROW_DOWN);
+            expect($browser->driver->executeScript('return Array.from(document.querySelectorAll(".admin-data-row")).indexOf(document.activeElement);'))->toBe(1);
+            duskKeys($browser, WebDriverKeys::ARROW_UP);
+            expect($browser->driver->executeScript('return Array.from(document.querySelectorAll(".admin-data-row")).indexOf(document.activeElement);'))->toBe(0);
+        }
+
+        $browser->driver->executeScript('document.activeElement.blur();');
+
         // n: the add form of the page
         $browser->waitFor('.page-content', 20);
         $browser->waitUsing(20, 1, fn (): bool => (bool) $browser->driver->executeScript('return Array.from(document.querySelectorAll(".page-content a, .page-content button")).some(e => /^\s*add\b/i.test(e.textContent || "") && e.offsetParent !== null);'));

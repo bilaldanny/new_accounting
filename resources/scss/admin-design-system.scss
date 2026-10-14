@@ -6666,3 +6666,25 @@ body:has(.product-form-page) .back-to-top {
     letter-spacing: 0.035em;
     text-transform: uppercase;
 }
+
+/* Keyboard use: a visible focus ring on everything that can be reached with Tab, and on the rows of a table */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 2px;
+}
+
+.admin-data-row:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: -2px;
+    background: rgba(20, 184, 166, 0.08);
+}
+
+.sidebar-wrapper a:focus-visible,
+.sidebar a:focus-visible {
+    outline-offset: -2px;
+}

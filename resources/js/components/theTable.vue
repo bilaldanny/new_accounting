@@ -1127,6 +1127,49 @@ return
         document.removeEventListener('click', handleClickOutside)
     })
 
+    /**
+     * Keyboard use of a row: Up / Down / Home / End move between rows, Enter presses the row's first action (open, view or edit), Space
+     * ticks the row's checkbox. Keys typed inside a field or button of the row are left alone.
+     */
+    function onRowKeydown(event: KeyboardEvent) {
+        const row = event.currentTarget as HTMLElement;
+
+        if (event.target !== row) {
+            return;
+        }
+
+        const rows = Array.from(row.parentElement?.querySelectorAll<HTMLElement>(':scope > tr.admin-data-row') ?? []);
+        const index = rows.indexOf(row);
+        const focusAt = (target: number) => {
+            event.preventDefault();
+            rows[Math.max(0, Math.min(rows.length - 1, target))]?.focus();
+        };
+
+        if (event.key === 'ArrowDown') {
+            focusAt(index + 1);
+        } else if (event.key === 'ArrowUp') {
+            focusAt(index - 1);
+        } else if (event.key === 'Home') {
+            focusAt(0);
+        } else if (event.key === 'End') {
+            focusAt(rows.length - 1);
+        } else if (event.key === 'Enter') {
+            const actions = Array.from(row.querySelectorAll<HTMLElement>('td.admin-col-action a[href], td.admin-col-action button, a[href], button'));
+            const preferred = actions.find((element) => /view|open|edit/i.test(`${element.getAttribute('title') ?? ''} ${element.getAttribute('aria-label') ?? ''} ${element.textContent ?? ''}`)) ?? actions[0];
+
+            if (preferred) {
+                event.preventDefault();
+                preferred.click();
+            }
+        } else if (event.key === ' ') {
+            const box = row.querySelector<HTMLInputElement>('input[type="checkbox"]');
+
+            if (box) {
+                event.preventDefault();
+                box.click();
+            }
+        }
+    }
 </script>
 
 <template>
@@ -1299,7 +1342,7 @@ return
 
             <!-- Table Container -->
             <div class="modern-table-container">
-                <table class="table table-hover dataTable admin-data-table" style="width:100%">
+                <table class="table table-hover dataTable admin-data-table" style="width:100%" role="grid" aria-label="Records">
                     <thead>
                         <tr role="row">
                             <th
@@ -1469,6 +1512,9 @@ return
                                 :key="row.id != null ? row.id : `row-${rowIndex}`"
                                 class="admin-data-row"
                                 :class="{ 'admin-row--selected': tableData.state?.edit_ids?.includes(row.id) }"
+                                tabindex="0"
+                                :aria-rowindex="rowIndex + 1"
+                                @keydown="onRowKeydown"
                             >
                                     <td
                                         v-for="(col, colIndex) in visibleColumns"

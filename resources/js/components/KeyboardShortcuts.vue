@@ -86,6 +86,19 @@
 
         const key = event.key.toLowerCase();
 
+        // Up / Down walk the links of the sidebar while one of them has the focus
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.target instanceof HTMLElement && event.target.closest('.sidebar-wrapper, .sidebar')) {
+            const links = Array.from(document.querySelectorAll<HTMLElement>('.sidebar-wrapper a[href], .sidebar a[href], .sidebar-wrapper [role="button"], .sidebar [role="button"]')).filter(visible);
+            const here = links.indexOf(event.target.closest('a, [role="button"]') as HTMLElement);
+
+            if (here >= 0) {
+                event.preventDefault();
+                links[Math.max(0, Math.min(links.length - 1, here + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+            }
+
+            return;
+        }
+
         if ((event.ctrlKey || event.metaKey) && key === 'k') {
             event.preventDefault();
             focusSearch();
