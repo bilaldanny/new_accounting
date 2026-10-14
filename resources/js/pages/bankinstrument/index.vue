@@ -78,7 +78,7 @@
 <template>
     <Head title="Guarantees & Letters of Credit" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <select v-model="filter.kind" class="form-select form-select-sm" style="width: auto" aria-label="Kind" @change="load"><option value="">All kinds</option><option value="guarantee">Guarantees</option><option value="lc">Letters of credit</option></select>
@@ -127,5 +127,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

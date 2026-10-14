@@ -50,7 +50,7 @@
 <template>
     <Head title="Support Tickets" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div v-if="! isSuperadmin" class="border rounded p-3 mb-4">
             <h6>New ticket</h6>
             <div class="row g-2">
@@ -81,5 +81,5 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div></div></div>
 </template>

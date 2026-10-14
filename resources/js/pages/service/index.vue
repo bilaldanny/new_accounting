@@ -60,7 +60,7 @@
 <template>
     <Head title="Service and Field Jobs" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <div v-if="canManage" class="border rounded p-3 mb-3">
@@ -124,5 +124,5 @@
                 <a class="btn btn-outline-dark btn-sm" :href="`/api/service/jobs/${detail.id}/report`" target="_blank" rel="noopener">Service report</a>
             </div>
         </div>
-    </div>
+    </div></div></div>
 </template>

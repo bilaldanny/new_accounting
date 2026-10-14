@@ -93,7 +93,7 @@
 <template>
     <Head title="Security Center" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <div v-if="settings" class="border rounded p-3 mb-4">
@@ -167,5 +167,5 @@
             <pre v-if="exported" class="small border rounded p-2" style="max-height: 16rem; overflow: auto">{{ exported }}</pre>
             <table class="table table-sm mb-0"><tbody><tr v-for="item in requests" :key="item.id"><td>{{ item.created_at }}</td><td class="text-capitalize">{{ item.kind }}</td><td>{{ item.subject_type }} #{{ item.subject_id }}</td></tr></tbody></table>
         </div>
-    </div>
+    </div></div></div>
 </template>

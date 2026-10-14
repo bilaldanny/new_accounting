@@ -57,7 +57,7 @@
 <template>
     <Head title="Lead Allocation" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div v-if="message" class="alert alert-info py-2 small">{{ message }}</div>
 
@@ -86,5 +86,5 @@
                 <tr v-if="! rules.length"><td colspan="7" class="text-center text-muted">No allocation rules: new leads stay unassigned.</td></tr>
             </tbody>
         </table>
-    </div>
+    </div></div></div>
 </template>

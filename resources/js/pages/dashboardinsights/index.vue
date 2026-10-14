@@ -168,7 +168,7 @@
 <template>
     <Head title="Dashboard Insights" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div class="row g-2 align-items-end mb-3">
             <div class="col-auto"><label class="form-label small" for="di-from">From</label><input id="di-from" v-model="from" type="date" class="form-control form-control-sm" @change="load" /></div>
@@ -268,5 +268,5 @@
             </div>
             <div v-if="! roleLayouts.length" class="text-muted small">This company has no roles yet.</div>
         </div>
-    </div>
+    </div></div></div>
 </template>

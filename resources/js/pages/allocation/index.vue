@@ -42,7 +42,7 @@
 <template>
     <Head title="Advance Allocation" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-end">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" />
             <select v-model="form.role" class="form-select form-select-sm" style="width: auto" aria-label="Customer or supplier"><option value="customer">Customer</option><option value="supplier">Supplier</option></select>
@@ -91,5 +91,5 @@
             </div>
         </div>
         <p v-else class="text-muted">Choose a customer or supplier to see their advances and open documents.</p>
-    </div>
+    </div></div></div>
 </template>

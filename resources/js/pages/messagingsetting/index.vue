@@ -43,7 +43,7 @@
 <template>
     <Head title="Messaging Settings" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="alert alert-info py-2 small">
             Receipts go by WhatsApp or SMS only through a provider you configure here. The "webhook" provider posts the recipient and the message as JSON to your endpoint
             (for example a gateway or a Zapier hook). With no provider the receipt link is still created but nothing is sent.
@@ -75,5 +75,5 @@
             </div>
             <button v-if="can('/messagingsetting/edit')" type="button" class="btn btn-dark btn-sm mt-3" @click="save(row)">Save</button>
         </div>
-    </div>
+    </div></div></div>
 </template>

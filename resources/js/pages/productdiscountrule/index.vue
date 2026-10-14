@@ -72,7 +72,7 @@
 <template>
     <Head title="Product Discount Rules" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div v-if="isSuperadmin" class="mb-3" style="max-width: 14rem">
             <label class="form-label small" for="rule-company">Company id</label>
             <input id="rule-company" v-model.number="companyId" type="number" class="form-control form-control-sm" @change="load" />
@@ -127,5 +127,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

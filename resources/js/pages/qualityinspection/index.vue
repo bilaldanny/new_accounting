@@ -55,7 +55,7 @@
 <template>
     <Head title="Quality Inspection" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <div v-if="can('/qualityinspection/add')" class="border rounded p-3 mb-4">
@@ -92,5 +92,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

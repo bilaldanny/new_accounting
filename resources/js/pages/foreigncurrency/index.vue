@@ -81,7 +81,7 @@
 <template>
     <Head title="Foreign Currency" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div v-if="! installed" class="alert alert-warning small">The multi-currency tables are not installed on this database yet.</div>
 
@@ -144,5 +144,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

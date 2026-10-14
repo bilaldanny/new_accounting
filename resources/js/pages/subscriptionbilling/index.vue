@@ -47,7 +47,7 @@
 <template>
     <Head title="Subscription Billing" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div class="row g-3 mb-4">
             <div class="col-md-5">
@@ -83,5 +83,5 @@
                 <tr v-if="! reminders.length"><td colspan="4" class="text-center text-muted">No reminders sent yet.</td></tr>
             </tbody>
         </table>
-    </div>
+    </div></div></div>
 </template>

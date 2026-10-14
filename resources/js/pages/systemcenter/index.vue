@@ -140,7 +140,7 @@
 <template>
     <Head title="System Center" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <ul class="nav nav-tabs mb-3">
             <li v-for="item in [['logs', 'Logs'], ['backups', 'Backups'], ['push', 'Push keys'], ['demo', 'Demo companies'], ['groups', 'Franchise groups'], ['help', 'Help articles'], ['retention', 'Retention']]" :key="item[0]" class="nav-item">
                 <button type="button" class="nav-link" :class="{ active: tab === item[0] }" @click="tab = item[0] as typeof tab">{{ item[1] }}</button>
@@ -233,5 +233,5 @@
             <button type="button" class="btn btn-dark btn-sm mb-3" @click="saveRule">Save rule</button>
             <div v-for="r in retention" :key="r.entity" class="small border-bottom py-1">{{ r.entity }} - {{ r.keep_days }} days {{ r.archive ? '(archived)' : '' }}</div>
         </div>
-    </div>
+    </div></div></div>
 </template>

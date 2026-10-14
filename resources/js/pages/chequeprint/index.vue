@@ -84,7 +84,7 @@
 <template>
     <Head title="Cheque Printing" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-2 mb-3 d-print-none">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         </div>
@@ -152,7 +152,7 @@
             <span class="cheque-sheet__field" :style="{ left: sheet.layout.words_x + 'mm', top: sheet.layout.words_y + 'mm' }">{{ sheet.amount_words }}</span>
             <span class="cheque-sheet__field" :style="{ left: sheet.layout.amount_x + 'mm', top: sheet.layout.amount_y + 'mm' }">{{ sheet.amount_figures }}</span>
         </div>
-    </div>
+    </div></div></div>
 </template>
 
 <style scoped>

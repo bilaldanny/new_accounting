@@ -55,7 +55,7 @@
 <template>
     <Head title="Integrations" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div class="alert alert-warning py-2 small">These adapters are built to the providers' published documentation and tested against recorded responses; none has been used against a live account yet. Try each with a test account first.</div>
 
@@ -85,5 +85,5 @@
             <a class="btn btn-outline-dark btn-sm" href="/api/docs/postman" target="_blank">Postman collection</a>
             <div class="small text-muted mt-2">Generated from the routes. Sign in first; use an API key as the bearer token.</div>
         </div>
-    </div>
+    </div></div></div>
 </template>

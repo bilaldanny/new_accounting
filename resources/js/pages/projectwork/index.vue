@@ -46,7 +46,7 @@
 <template>
     <Head title="Milestones and Tasks" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="loadProjects" />
         <select v-model="projectId" class="form-select form-select-sm mb-3" style="width: 22rem" aria-label="Project" @change="load">
             <option value="">Choose a project</option>
@@ -116,5 +116,5 @@
             </div>
         </div>
         <div v-else class="text-muted">Choose a project to see its plan.</div>
-    </div>
+    </div></div></div>
 </template>

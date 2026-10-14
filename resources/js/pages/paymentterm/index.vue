@@ -82,7 +82,7 @@
 <template>
     <Head title="Payment Terms" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-2 mb-3">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         </div>
@@ -146,5 +146,5 @@
                 <tr v-if="! eligible.length"><td colspan="7" class="text-center text-muted">No document is inside a discount window.</td></tr>
             </tbody>
         </table>
-    </div>
+    </div></div></div>
 </template>

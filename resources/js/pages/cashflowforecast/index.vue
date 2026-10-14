@@ -32,7 +32,7 @@
 <template>
     <Head title="Cash Flow Forecast" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <label class="small" for="cf-weeks">Weeks ahead</label>
@@ -63,5 +63,5 @@
                 <li v-for="note in data.notes" :key="note">{{ note }}</li>
             </ul>
         </div>
-    </div>
+    </div></div></div>
 </template>

@@ -46,7 +46,7 @@
 <template>
     <Head title="Damage, Expired & Wastage" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-3 mb-3">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <div v-for="(label, key) in labels" :key="key" class="border rounded px-3 py-2">
@@ -95,5 +95,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

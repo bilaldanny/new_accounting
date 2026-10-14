@@ -31,7 +31,7 @@
 <template>
     <Head title="Franchise Overview" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div v-if="loaded && !groups.length" class="text-muted">You are not the owner of a company group.</div>
         <div v-for="group in groups" :key="group.id" class="border rounded p-3 mb-3">
             <h6>{{ group.name }} <span class="text-muted small">{{ group.month }}</span></h6>
@@ -44,5 +44,5 @@
             </table>
             <div v-if="!group.totals" class="small text-muted mt-2">The companies keep their books in different currencies, so no total is shown.</div>
         </div>
-    </div>
+    </div></div></div>
 </template>

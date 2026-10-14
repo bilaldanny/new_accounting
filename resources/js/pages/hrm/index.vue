@@ -179,7 +179,7 @@
 <template>
     <Head title="HR and Payroll" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <div v-if="expiring.length" class="alert alert-warning py-2 small">
@@ -464,5 +464,5 @@
             </table>
             <div class="small text-muted">{{ components.length }} salary component(s), {{ shifts.length }} shift(s).</div>
         </section>
-    </div>
+    </div></div></div>
 </template>

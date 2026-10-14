@@ -38,7 +38,7 @@
 <template>
     <Head title="Help Center" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="row g-3">
             <div class="col-lg-4">
                 <form class="d-flex gap-2 mb-2" @submit.prevent="load">
@@ -60,5 +60,5 @@
                 <div v-else class="text-muted">Choose an article.</div>
             </div>
         </div>
-    </div>
+    </div></div></div>
 </template>

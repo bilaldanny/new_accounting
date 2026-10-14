@@ -51,7 +51,7 @@
 <template>
     <Head title="Inbound Shipments" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-3 mb-3">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <label class="small align-self-center"><input v-model="lateOnly" type="checkbox" class="me-1" @change="load" />Late only (ETA passed, not arrived)</label>
@@ -86,5 +86,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

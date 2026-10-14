@@ -72,7 +72,7 @@
 <template>
     <Head title="Recurring Invoices" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex flex-wrap gap-2 mb-3">
             <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
             <select v-model="status" class="form-select form-select-sm" style="width: auto" aria-label="Status" @change="load">
@@ -133,5 +133,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

@@ -75,7 +75,7 @@
 <template>
     <Head title="SaaS Admin" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div v-if="result" class="alert alert-info py-2 small">{{ result }}</div>
 
         <div class="d-flex gap-2 mb-4">
@@ -124,5 +124,5 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div></div></div>
 </template>

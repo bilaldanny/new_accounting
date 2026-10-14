@@ -88,7 +88,7 @@
 <template>
     <Head title="E-commerce Sync" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="alert alert-info py-2 small">Shopify and WooCommerce connections use their REST APIs and have not been verified against a live store from here; use the mock platform to rehearse the flow.</div>
 
         <div class="d-flex flex-wrap gap-2 mb-3">
@@ -143,5 +143,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

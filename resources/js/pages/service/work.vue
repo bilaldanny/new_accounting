@@ -152,7 +152,7 @@
 <template>
     <Head title="My Jobs" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
         <div v-if="offline" class="alert alert-warning py-2 small">You are offline: this is the list as it was when you last had a connection.</div>
 
@@ -194,5 +194,5 @@
                 <a class="btn btn-link btn-sm px-0 mt-2" :href="`/api/service/jobs/${detail.id}/report`" target="_blank" rel="noopener">Service report</a>
             </div>
         </div>
-    </div>
+    </div></div></div>
 </template>

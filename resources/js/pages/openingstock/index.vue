@@ -76,7 +76,7 @@
 <template>
     <Head title="Opening Stock" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div v-if="can('/openingstock/add')" class="border rounded p-3 mb-4">
             <div class="row g-2 mb-2">
                 <div v-if="isSuperadmin" class="col-md-2"><label class="form-label small" for="os-company">Company id</label><input id="os-company" v-model.number="companyId" type="number" class="form-control form-control-sm" /></div>
@@ -116,5 +116,5 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div></div></div>
 </template>

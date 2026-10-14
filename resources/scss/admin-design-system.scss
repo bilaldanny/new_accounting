@@ -6547,3 +6547,95 @@ body:has(.product-form-page) .back-to-top {
         }
     }
 }
+
+/*
+ * The ad hoc pages (HR, manufacturing, rental, projects, approvals ...) share the list page shell of the Menus screen: the same card,
+ * padding, table header, tabs and buttons, so every screen reads as one application.
+ */
+.admin-list-page--simple .admin-list-card__body {
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.admin-list-page--simple .admin-list-card__body > * + * {
+    margin-top: 0;
+}
+
+.admin-list-page--simple .nav-tabs {
+    gap: 0.4rem;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.admin-list-page--simple .nav-tabs .nav-link {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475467;
+    background: transparent;
+}
+
+.admin-list-page--simple .nav-tabs .nav-link:hover {
+    background: rgba(25, 150, 131, 0.08);
+}
+
+.admin-list-page--simple .nav-tabs .nav-link.active {
+    color: #fff;
+    background: linear-gradient(135deg, #199683, #0f766e);
+    box-shadow: 0 6px 16px rgba(15, 118, 110, 0.22);
+}
+
+.admin-list-page--simple .border.rounded,
+.admin-list-page--simple .border.rounded-3 {
+    border-color: var(--app-border) !important;
+    border-radius: var(--app-radius-lg) !important;
+    background: var(--app-card);
+}
+
+.admin-list-page--simple h6 {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.admin-list-page--simple .btn-dark {
+    border: 0;
+    border-radius: 999px;
+    padding-inline: 1.1rem;
+    background: linear-gradient(135deg, #199683, #0f766e);
+    box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+}
+
+.admin-list-page--simple .btn-outline-dark,
+.admin-list-page--simple .btn-outline-secondary {
+    border-radius: 999px;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.admin-list-page--simple .btn-outline-dark:hover,
+.admin-list-page--simple .btn-outline-secondary:hover {
+    background: rgba(25, 150, 131, 0.08);
+    border-color: #199683;
+    color: #0f766e;
+}
+
+.admin-list-page--simple .form-control-sm,
+.admin-list-page--simple .form-select-sm {
+    border-radius: 0.6rem;
+    border-color: #dbe4ee;
+}
+
+.admin-list-page--simple .form-control-sm:focus,
+.admin-list-page--simple .form-select-sm:focus {
+    border-color: #199683;
+    box-shadow: 0 0 0 3px rgba(25, 150, 131, 0.14);
+}
+
+.admin-list-page--simple .table tbody tr:hover > * {
+    background: rgba(25, 150, 131, 0.04);
+}
+
+.admin-list-page--simple .table-responsive {
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-lg);
+}

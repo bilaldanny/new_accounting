@@ -183,7 +183,7 @@
 <template>
     <Head title="Report Builder" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="loadAll" />
 
         <ul class="nav nav-tabs mb-3">
@@ -330,5 +330,5 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div></div></div>
 </template>

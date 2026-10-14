@@ -39,7 +39,7 @@
 <template>
     <Head title="My Notifications" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <div class="d-flex align-items-center gap-3 mb-3">
             <span class="small">{{ unread }} unread</span>
             <button type="button" class="btn btn-outline-dark btn-sm" :disabled="! unread" @click="markAll">Mark all as read</button>
@@ -58,5 +58,5 @@
             </div>
             <div v-if="! rows.length" class="list-group-item text-muted text-center">Nothing yet.</div>
         </div>
-    </div>
+    </div></div></div>
 </template>

@@ -118,16 +118,18 @@
             </header>
 
             <div v-if="loading" class="pj-empty">Loading...</div>
-            <div v-else-if="! rows.length" class="pj-empty">
-                <strong>No projects yet</strong>
-                <span>{{ isSuperadmin && companyId === '' ? 'Choose a company above to see its projects.' : 'Create a project above to start tracking its margin.' }}</span>
-            </div>
             <div v-else class="pj-table-wrap">
                 <table class="pj-table">
                     <thead>
                         <tr><th>Code</th><th>Project</th><th>Status</th><th class="num">Revenue</th><th class="num">Cost</th><th class="num">Margin</th><th class="num">Margin %</th><th class="num">Cost budget</th><th class="num">Over budget</th></tr>
                     </thead>
                     <tbody>
+                        <tr v-if="! rows.length">
+                            <td colspan="9" class="pj-empty-cell">
+                                <strong>No projects yet</strong>
+                                <span>{{ isSuperadmin && companyId === '' ? 'Choose a company above to see its projects.' : 'Create a project above to start tracking its margin.' }}</span>
+                            </td>
+                        </tr>
                         <tr v-for="row in rows" :key="row.id">
                             <td><strong>{{ row.code }}</strong></td>
                             <td>{{ row.name }}</td>
@@ -355,6 +357,17 @@
     background: #fee2e2;
     color: #b91c1c;
     font-weight: 700;
+}
+
+.pj-empty-cell {
+    padding: 1.6rem 1rem !important;
+    text-align: center;
+    color: #64748b;
+}
+
+.pj-empty-cell strong {
+    display: block;
+    color: #0f172a;
 }
 
 .pj-empty {

@@ -65,7 +65,7 @@
 <template>
     <Head title="Rental" />
 
-    <div class="container-fluid py-3">
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
 
         <ul class="nav nav-tabs mb-3">
@@ -163,5 +163,5 @@
                 <div v-if="canManage" class="col-md-2"><button type="button" class="btn btn-dark btn-sm" @click="send('/api/rental/settings', { ...settings }, 'Settings saved', 'put')">Save settings</button></div>
             </div>
         </section>
-    </div>
+    </div></div></div>
 </template>
