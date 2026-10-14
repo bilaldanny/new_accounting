@@ -136,11 +136,27 @@
         router.visit(hit.url);
     }
 
+    const activeHit = ref(-1);
+
+    function moveHit(by: 1 | -1) {
+        const count = searchResults.value.length;
+
+        if (count === 0) {
+            return;
+        }
+
+        activeHit.value = (activeHit.value + by + count) % count;
+    }
+
     function searchEnter() {
         if (searchResults.value.length > 0) {
-            goToHit(searchResults.value[0]);
+            goToHit(searchResults.value[activeHit.value >= 0 ? activeHit.value : 0]);
         }
     }
+
+    watch(searchResults, () => {
+        activeHit.value = -1;
+    });
 
     const closeSearch = (event: MouseEvent) => {
         if (! (event.target as HTMLElement | null)?.closest('.topbar-search')) {
@@ -200,14 +216,16 @@
                             aria-label="Search"
                             autocomplete="off"
                             @keydown.enter.prevent="searchEnter"
+                            @keydown.down.prevent="moveHit(1)"
+                            @keydown.up.prevent="moveHit(-1)"
                             @keydown.esc="searchOpen = false"
                             @focus="searchOpen = true"
                         >
                         <ul v-if="searchOpen && searchQuery.trim().length >= 2" class="dropdown-menu show topbar-search__results" style="position: absolute; top: 100%; left: 0; min-width: 22rem; max-height: 22rem; overflow: auto" data-test="search-results">
                             <li v-if="searchBusy" class="dropdown-item-text small text-muted">Searching...</li>
                             <li v-else-if="! searchResults.length" class="dropdown-item-text small text-muted">Nothing found</li>
-                            <li v-for="hit in searchResults" :key="hit.group + hit.url + hit.label">
-                                <a class="dropdown-item d-flex justify-content-between gap-3" :href="hit.url" @click.prevent="goToHit(hit)">
+                            <li v-for="(hit, hitIndex) in searchResults" :key="hit.group + hit.url + hit.label">
+                                <a class="dropdown-item d-flex justify-content-between gap-3" :class="{ active: hitIndex === activeHit }" :href="hit.url" @click.prevent="goToHit(hit)">
                                     <span>{{ hit.label }} <small class="text-muted">{{ hit.hint }}</small></span>
                                     <small class="text-muted">{{ hit.group }}</small>
                                 </a>
