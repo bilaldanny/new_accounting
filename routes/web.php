@@ -12,6 +12,7 @@ use App\Http\Controllers\ReceiptShareController;
 use App\Http\Controllers\Reports\AnalyticsReportController;
 use App\Http\Controllers\Reports\FinancialReportController;
 use App\Http\Controllers\Reports\LedgerReportController;
+use App\Http\Controllers\Reports\PartyLedgerReportController;
 use App\Http\Controllers\Reports\PartyReportController;
 use App\Http\Controllers\Reports\ProductReportController;
 use App\Http\Controllers\Reports\StockReportController;
@@ -85,6 +86,9 @@ Route::middleware('guest')->group(function () {
 
 /* A receipt shared by link: only the receipt of that one sale, by an unguessable token, for 30 days */
 Route::get('r/{token}', [ReceiptShareController::class, 'show'])->middleware('throttle:60,1')->name('receipt.public');
+
+/* A party account statement as a PDF, from the link in the email / WhatsApp message (signed, expires) */
+Route::get('ledger-statement', [PartyLedgerReportController::class, 'publicStatement'])->middleware('throttle:60,1')->name('ledger.statement.public');
 
 /* Public blog (published posts only, for everyone) */
 Route::get('blog', [BlogController::class, 'index'])->middleware('throttle:120,1')->name('blog.index');

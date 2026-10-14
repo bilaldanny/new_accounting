@@ -618,6 +618,8 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::get('/fetchsuppliers', [SupplierController::class, 'fetch']);
     Route::get('/fetchcontactdetail', [SupplierController::class, 'contactDetail']);
     Route::get('/fetchledger', [PartyLedgerReportController::class, 'fetchLedger']);
+    Route::get('/fetchledger/pdf', [PartyLedgerReportController::class, 'statementPdf']);
+    Route::post('/contact-ledger/send', [PartyLedgerReportController::class, 'sendStatement'])->middleware('throttle:30,1');
     Route::post('/contact-ledger-watches', [PartyLedgerReportController::class, 'saveLedgerWatch']);
     /* Supplier */
 
