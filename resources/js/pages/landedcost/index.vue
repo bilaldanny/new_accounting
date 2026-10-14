@@ -93,6 +93,7 @@
 
 <template>
     <Head title="Landed Cost" />
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
 
     <div v-if="detail" class="card mb-3">
         <div class="card-body">
@@ -161,4 +162,5 @@
             </div>
         </div>
     </div>
+    </div></div></div>
 </template>

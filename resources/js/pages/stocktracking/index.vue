@@ -184,6 +184,7 @@
 
 <template>
     <Head title="Serials & Batches" />
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
 
     <div v-if="isSuperadmin" class="card mb-3">
         <div class="card-body">
@@ -271,4 +272,5 @@
             </template>
         </div>
     </div>
+    </div></div></div>
 </template>

@@ -90,6 +90,7 @@
 
 <template>
     <Head title="Approval" />
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
 
     <div class="card">
         <div class="card-body">
@@ -144,4 +145,5 @@
             </div>
         </div>
     </div>
+    </div></div></div>
 </template>

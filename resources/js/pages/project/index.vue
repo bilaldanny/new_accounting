@@ -67,6 +67,7 @@
 
 <template>
     <Head title="Projects" />
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
 
     <div class="container-fluid py-3 pj">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
@@ -146,6 +147,7 @@
             </div>
         </section>
     </div>
+    </div></div></div>
 </template>
 
 <style scoped>

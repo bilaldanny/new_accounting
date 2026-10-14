@@ -131,6 +131,7 @@
 
 <template>
     <Head title="Portal Requests" />
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
 
     <div class="container-fluid py-3">
         <div class="d-flex gap-2 mb-3">
@@ -180,4 +181,5 @@
             </table>
         </div>
     </div>
+    </div></div></div>
 </template>

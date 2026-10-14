@@ -6639,3 +6639,30 @@ body:has(.product-form-page) .back-to-top {
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius-lg);
 }
+
+/* pages that were a stack of loose cards: inside the shell the cards lose their own frame, so there is one card, not boxes in a box */
+.admin-list-page--simple .admin-list-card__body > .card,
+.admin-list-page--simple .admin-list-card__body > .card.mb-3 {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    margin-bottom: 1rem !important;
+}
+
+.admin-list-page--simple .admin-list-card__body > .card > .card-body {
+    padding: 0;
+}
+
+.admin-list-page--simple .admin-list-card__body > .container-fluid {
+    padding: 0 !important;
+    max-width: none !important;
+}
+
+.admin-list-page--simple .table:not(.table-sm) thead th {
+    background: #f8fafc;
+    color: #475467;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}

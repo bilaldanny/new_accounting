@@ -24,7 +24,7 @@ test('a job is made, assigned, opened on the technician page and signed on the p
             ->screenshot('wave8-service-board')
             ->visit('/service/work')
             ->waitForText('JOB-00001', 30)
-            ->click('.container-fluid [role="button"]')
+            ->click('.admin-list-page [role="button"]')
             ->waitFor('canvas[aria-label="Signature pad"]', 20);
 
         $browser->script("const c = document.querySelector('canvas'); const r = c.getBoundingClientRect(); const fire = (t, x, y) => c.dispatchEvent(new PointerEvent(t, { clientX: r.left + x, clientY: r.top + y, bubbles: true })); fire('pointerdown', 20, 20); fire('pointermove', 80, 60); fire('pointermove', 140, 30); fire('pointerup', 140, 30);");

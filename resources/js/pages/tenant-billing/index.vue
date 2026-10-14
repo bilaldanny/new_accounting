@@ -59,9 +59,14 @@
 
 <template>
     <Head title="Subscription & Billing" />
+    <div class="admin-list-page admin-list-page--simple"><div class="admin-list-card"><div class="admin-list-card__body admin-list-table">
 
-    <div v-if="data" class="container-fluid py-3">
+    <div class="container-fluid py-3">
         <CompanyPicker v-if="isSuperadmin" v-model="companyId" @change="load" />
+        <div v-if="! data" class="text-center text-muted py-5">
+            <strong class="d-block">{{ isSuperadmin && companyId === '' ? 'Choose a company above to see its plan and invoices.' : 'The billing overview could not be loaded.' }}</strong>
+        </div>
+        <template v-if="data">
 
         <div v-if="data.company.tenant_status === 'suspended'" class="alert alert-danger py-2">This account is suspended: {{ data.company.suspension_reason }}. Paying the overdue invoice reactivates it.</div>
 
@@ -151,5 +156,7 @@
                 </div>
             </div>
         </div>
+        </template>
     </div>
+    </div></div></div>
 </template>
