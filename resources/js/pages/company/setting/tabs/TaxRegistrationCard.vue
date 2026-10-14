@@ -22,6 +22,8 @@
     const registration = reactive({ ntn_no: '', strn_no: '', has_password: false, has_api_token: false, credentials_complete: false });
     const submissions = ref<Array<Record<string, any>>>([]);
     const busy = ref(false);
+    /** The form only appears once the saved settings are in, so the reply cannot overwrite what was just ticked or typed. */
+    const loaded = ref(false);
 
     function errorText(error: unknown): string {
         if (window.axios.isAxiosError(error)) {
@@ -57,6 +59,8 @@
             submissions.value = (await window.axios.get('/api/fbr-submissions', { params })).data?.data?.data ?? [];
         } catch (error: unknown) {
             Notify(errorText(error), 'alert');
+        } finally {
+            loaded.value = true;
         }
     }
 
@@ -92,7 +96,7 @@
                 <small class="d-block text-muted">Kept on the company record (Company &gt; edit) and printed on the sales invoice when Invoice Settings allow it.</small>
             </p>
 
-            <form class="row g-3" @submit.prevent="save">
+            <form v-if="loaded" class="row g-3" @submit.prevent="save">
                 <div class="col-12">
                     <div class="form-check">
                         <input id="tax-inclusive-default" v-model="form.tax_inclusive_pricing" type="checkbox" class="form-check-input">
