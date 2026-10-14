@@ -156,7 +156,7 @@ class PilotDemoCompany
         app(DemoCompany::class)->remove($companyId);
 
         // the purge keeps the (now inactive) company row as a record; free the code so the demo can be built again
-        DB::table('companies')->where('id', $companyId)->update(['code' => self::CODE.'-REMOVED-'.$companyId]);
+        DB::table('companies')->where('id', $companyId)->update(['code' => $company->code.'-REMOVED-'.$companyId]);
     }
 
     private function signUp(string $password): void
