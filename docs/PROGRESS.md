@@ -43,3 +43,19 @@ report key there + `composables/report.ts` + menu row), `ReportBuilder` whitelis
 
 * Heredocs containing an apostrophe break the Bash tool: write PHP files with the Write tool and scripts without apostrophes.
 * A full Pest run takes about 21 minutes; Dusk needs `npm run build` first.
+
+## UI + polish round (12 items, 6 waves) - resume here
+
+Rules: no push, nothing on the live DB (new migrations are listed, not run), Dusk only with the inline sqlite env, `php -d memory_limit=-1 vendor/bin/pest`, Pint `--dirty`, `npm run build`, one commit per wave, payload budget green.
+
+### Wave 1 - built (commits 225ae9e, bf04798, aa3d3de + POS / keyboard commits)
+
+| # | Item | State |
+|---|---|---|
+| 1 | Invoice template CODE editor | Done: `App\Services\Documents\TemplateCode\*` (logic-less engine, HTML + CSS allowlist sanitizers, renderer, 5 ready-made templates, `docs/invoice-template-codes.md`), `document_templates.mode/code_html/code_css` + `document_template_versions` (last 10), endpoints `document-templates/code/validate`, `{id}/versions`, preview/print in a sandbox CSP; editor in Document Center with placeholders list, live preview, validate, "Use a ready-made template". Tests: `tests/Unit/TemplateCodeTest.php`, `tests/Feature/TemplateCodeTest.php` |
+| 2 | POS barcode scanner | Done: scanner settings (min length, prefix, Enter/Tab suffix, key speed, beep) kept per device in localStorage, camera fallback with `BarcodeDetector` (no dependency), rescan = qty+1, unknown-code message + low tone. Partial: batch / serial pick on scan is not asked (the scan adds the product line; serial entry stays on the line) |
+| 3 | Keyboard | Done: focus ring everywhere, rows of `theTable` (Up/Down/Home/End/Enter/Space), sidebar arrows, POS F2/F3/F4 payment/F8 hold/F9 new sale/F10 cash, +/-/Delete/Esc; global `/`, `?`, `g`+letter, `n`, Ctrl+S, Ctrl+K already existed. Partial: no Dusk test completes a sale + purchase + journal entry with no mouse at all |
+| 6 | HRM group | Done: migration `2026_11_26_100100` renames the group HRM (Employees, Attendance, Leave Requests, Payroll, Loans and Advances, Shifts, Employee Documents, 4 HR reports, HR Settings), new addresses `/hrm/leave|loans|shifts|documents` open the hub tab and scroll to the section, "Operations" group (Manufacturing, Service Jobs, Rental, Projects, Expense Claims, Online Shop), HR Manager preset, fixtures |
+| 7 | Header tools | Done: `HeaderToolsController` (`/api/header/*`), `HeaderTools.vue`: date, Today Profit, POS, Calculator, Calendar (follow-ups, leaves, due invoices, to-dos), To-Do (new `user_todos`), Application Tour. Partial: no holiday table exists, so the calendar has no holiday dots |
+
+New migrations to run live, in order: `2026_11_26_100000_add_code_mode_to_document_templates`, `2026_11_26_100100_hrm_group_and_operations_group_menus`, `2026_11_26_100200_create_user_todos_table`.
