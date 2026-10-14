@@ -2,12 +2,15 @@
 
 namespace Tests;
 
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\BaselineMenus;
 use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Laravel\Dusk\Browser;
 use Laravel\Dusk\TestCase as BaseTestCase;
@@ -224,8 +227,24 @@ abstract class DuskTestCase extends BaseTestCase
 
         $role = Role::query()->create(['name' => 'Dusk Admin', 'company_id' => $scope['company_id'], 'branch_id' => $scope['branch_id'], 'is_active' => true]);
 
+        // The menus a real install has (the migrations' plus the baseline rows), then one permission per page path on the menu row
+        // that exists for it. Making a new root menu for every path, as the feature tests' helper does, would put a thousand visible
+        // sidebar entries into every page and make the responses far bigger than a real company's.
+        BaselineMenus::ensure();
+        $menuIds = DB::table('menus')->pluck('id', 'route_path');
+
         foreach (static::pagePaths() as $path) {
+            if (isset($menuIds[$path])) {
+                Permission::query()->firstOrCreate(['role_id' => $role->id, 'menu_id' => $menuIds[$path]], ['status' => 1]);
+
+                continue;
+            }
+
             grantMenuPermission((int) $role->id, $path);
+        }
+
+        foreach (['user_permission_paths', 'user_menu_permissions', 'user_menu_permissions_tree'] as $key) {
+            Cache::forget("{$key}:{$role->id}");
         }
 
         $user = createStaffUserForRole($role, ['company_id' => $scope['company_id'], 'branch_id' => $scope['branch_id'], 'first_name' => 'Dusk', 'last_name' => 'Admin']);
