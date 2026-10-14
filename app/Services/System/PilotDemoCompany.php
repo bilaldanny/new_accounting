@@ -362,7 +362,7 @@ class PilotDemoCompany
                 $supplier = $this->suppliers[$i % count($this->suppliers)];
                 $day = mt_rand(1, max(1, min(12, $lastDay)));
                 $id = $this->purchase($supplier, $date($day), $items);
-                $monthPurchases[] = $id;
+                $monthPurchases[] = [$id, (string) array_key_first($items), (int) reset($items)];
                 $purchases++;
 
                 foreach ($items as $key => $quantity) {
@@ -415,7 +415,14 @@ class PilotDemoCompany
             }
 
             if ($monthPurchases !== []) {
-                $this->purchaseReturn($monthPurchases[0], $this->suppliers[0], $date($lastDay));
+                // the return takes up to 3 of the first item back to the supplier: only when that much is still on the shelf
+                [$purchaseId, $key, $quantity] = $monthPurchases[0];
+                $returned = min(3, $quantity);
+
+                if ($stock[$key] >= $returned) {
+                    $this->purchaseReturn($purchaseId, $this->suppliers[0], $date($lastDay));
+                    $stock[$key] -= $returned;
+                }
             }
         }
 
