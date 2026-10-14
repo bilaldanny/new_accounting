@@ -15,6 +15,8 @@ import {
     Users,
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import DashboardCharts from '@/components/dashboard/DashboardCharts.vue';
+import DashboardGlance from '@/components/dashboard/DashboardGlance.vue';
 import useCommons from '@/composables/common';
 
 /*
@@ -372,6 +374,51 @@ const statCards = computed(() => [
     { key: 'products', label: 'Active products', permission: '/product', href: '/product', icon: Package, tone: 'success' },
 ].filter((card) => can(card.permission)));
 
+/* What needs attention, the graphs' data and which graphs are drawn */
+const attention = computed(() => {
+    const items: Array<{ key: string; label: string; count: number; href: string; tone: 'danger' | 'warning' | 'info'; hint: string }> = [];
+
+    items.push({ key: 'approvals', label: 'Documents waiting for approval', count: showApprovals.value ? approvalsTotal.value : 0, href: can('/approvalcenter') ? '/approvalcenter' : (visibleApprovals.value.find((row) => Number(widgets.approvals.data[row.key] ?? 0) > 0)?.href ?? '/dashboard'), tone: 'warning', hint: 'Approve or reject them so they reach the books' });
+    items.push({ key: 'credit', label: 'Customers over their credit limit', count: Number(creditWatch.value?.exceeded ?? 0), href: '/customer', tone: 'danger', hint: 'Review before selling more on credit' });
+    items.push({ key: 'lowstock', label: 'Products at or under their alert quantity', count: Number(lowStock.value?.count ?? 0), href: '/lowstock', tone: 'warning', hint: 'Reorder before you run out' });
+    items.push({ key: 'given', label: 'Cheques given falling due', count: showChequesGiven.value ? Number(chequesGiven.value?.count ?? 0) : 0, href: '/purchase/payment', tone: 'info', hint: 'Keep the bank balance ready' });
+    items.push({ key: 'received', label: 'Cheques received falling due', count: showChequesReceived.value ? Number(chequesReceived.value?.count ?? 0) : 0, href: '/sell/payment', tone: 'info', hint: 'Deposit them on their date' });
+    items.push({ key: 'expiry', label: 'Batches expired or expiring soon', count: Number(movement.value?.expiry_counts?.expired ?? 0) + Number(movement.value?.expiry_counts?.expiring ?? 0), href: '/report/batch-expiry', tone: 'danger', hint: 'Sell, return or write them off' });
+
+    return items;
+});
+const attentionLoading = computed(() => ['approvals', 'receivables', 'inventory', 'cheques', 'movement'].some((name) => widgets[name as WidgetName].status === 'loading'));
+
+const chartParams = computed(() => {
+    const params: Record<string, string | number> = {};
+
+    if (isSuperadmin.value && companyId.value !== '') {
+        params.company_id = companyId.value;
+    }
+
+    if (branchId.value !== '' && canPickBranch.value) {
+        params.branch_id = branchId.value;
+    }
+
+    return params;
+});
+const chartsShow = computed(() => ({
+    trends: showTrends.value,
+    aging: showAging.value,
+    movement: showMovement.value,
+    financial: showFinancial.value,
+    insights: can('/sell') || can('/report/expense'),
+}));
+const chartsLoading = computed(() => ({
+    trends: widgets.trends.status === 'loading',
+    aging: widgets.aging.status === 'loading',
+    movement: widgets.movement.status === 'loading',
+    financial: widgets.financial.status === 'loading',
+}));
+const needsCompanyChoice = computed(() => isSuperadmin.value && companyId.value === '');
+const cashAccountRows = computed(() => (cashBank.value?.accounts ?? []).map((account) => ({ name: String(account.name), balance: Number(account.balance) })));
+const topSellingRows = computed(() => (movement.value?.top_selling ?? []).map((row) => ({ name: String(row.name), quantity: Number(row.quantity) })));
+
 const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approved', draft: 'Draft', quotation: 'Quotation' };
 </script>
 
@@ -492,6 +539,22 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
         <!-- Light content area -->
         <div class="dash-content">
             <p v-if="! showAnything" class="text-secondary mb-0">Nothing to show yet: your role has no dashboard figures assigned.</p>
+
+            <DashboardGlance v-if="showAnything" :attention="attention" :can="can" :loading="attentionLoading" />
+
+            <DashboardCharts
+                v-if="showAnything && (chartsShow.trends || chartsShow.aging || chartsShow.movement || chartsShow.financial || chartsShow.insights)"
+                :trends="trends"
+                :profit-trend="profitTrend"
+                :receivable="receivableAging"
+                :payable="payableAging"
+                :top-selling="topSellingRows"
+                :cash-accounts="cashAccountRows"
+                :loading="chartsLoading"
+                :show="chartsShow"
+                :params="chartParams"
+                :needs-company="needsCompanyChoice"
+            />
 
             <!-- Row 1: financial snapshot and pending approvals -->
             <div v-if="showFinancial || showApprovals" class="dash-grid-2">
