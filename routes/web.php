@@ -1539,6 +1539,10 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('systemcenter', fn () => Inertia::render('systemcenter/index'))->name('systemcenter');
     Route::get('franchise', fn () => Inertia::render('franchise/index'))->name('franchise');
     Route::get('hrm', fn () => Inertia::render('hrm/index'))->name('hrm');
+    // the sidebar opens the HR hub on one of its tabs; the page reads the tab from the address
+    Route::get('hrm/attendance', fn () => Inertia::render('hrm/index'))->name('hrm.attendance');
+    Route::get('hrm/payroll', fn () => Inertia::render('hrm/index'))->name('hrm.payroll');
+    Route::get('hrm/manage', fn () => Inertia::render('hrm/index'))->name('hrm.manage');
     Route::get('manufacturing', fn () => Inertia::render('manufacturing/index'))->name('manufacturing');
     Route::get('service', fn () => Inertia::render('service/index'))->name('service');
     Route::get('service/work', fn () => Inertia::render('service/work'))->name('service.work');

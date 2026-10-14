@@ -1,7 +1,7 @@
 <script setup lang="ts">
-    import { Head } from '@inertiajs/vue3';
+    import { Head, router, usePage } from '@inertiajs/vue3';
     import CompanyPicker from '@/components/CompanyPicker.vue';
-    import { computed, onMounted, reactive, ref } from 'vue';
+    import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCloseout from '@/composables/closeout';
 
     defineOptions({
@@ -17,7 +17,26 @@
     type Line = { id: number; employee_no: string; name: string; gross: number; attendance_deduction: number; statutory_employee: number; tax: number; loan_deduction: number; net: number };
 
     const { can, companyId, isSuperadmin, scope, money, run } = useCloseout();
-    const tab = ref<'employees' | 'attendance' | 'payroll' | 'setup'>('employees');
+    type Tab = 'employees' | 'attendance' | 'payroll' | 'setup';
+    const TAB_PATHS: Record<Tab, string> = { employees: '/hrm', attendance: '/hrm/attendance', payroll: '/hrm/payroll', setup: '/hrm/manage' };
+    const page = usePage();
+
+    /** The tab is part of the address (the sidebar links to each), so a tab can be bookmarked and the sidebar highlights it. */
+    const tabFromUrl = (url: string): Tab => {
+        const path = url.split('?')[0].replace(/\/+$/, '');
+
+        return (Object.keys(TAB_PATHS) as Tab[]).find((key) => TAB_PATHS[key] === path) ?? 'employees';
+    };
+    const tab = ref<Tab>(tabFromUrl(page.url));
+
+    watch(() => page.url, (url) => {
+        tab.value = tabFromUrl(url);
+    });
+
+    function openTab(next: Tab) {
+        tab.value = next;
+        router.visit(TAB_PATHS[next], { preserveState: true, preserveScroll: true, only: [] });
+    }
     const meta = ref<Record<string, any> | null>(null);
     const employees = ref<Employee[]>([]);
     const tree = ref<any[]>([]);
@@ -170,7 +189,7 @@
 
         <ul class="nav nav-tabs mb-3">
             <li v-for="item in [['employees', 'Employees'], ['attendance', 'Attendance and leave'], ['payroll', 'Payroll'], ['setup', 'Rates and setup']]" :key="item[0]" class="nav-item">
-                <button type="button" class="nav-link" :class="{ active: tab === item[0] }" @click="tab = item[0] as typeof tab">{{ item[1] }}</button>
+                <button type="button" class="nav-link" :class="{ active: tab === item[0] }" @click="openTab(item[0] as Tab)">{{ item[1] }}</button>
             </li>
         </ul>
 
