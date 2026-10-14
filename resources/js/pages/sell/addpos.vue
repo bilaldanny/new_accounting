@@ -473,20 +473,177 @@
         showCategoryPanel.value = false;
     }
 
+    /* Barcode scanner and keyboard */
+    const searchInput = ref<HTMLInputElement | null>(null);
+    const customerSelect = ref<HTMLSelectElement | null>(null);
+    const lastScan = ref<{ code: string; ok: boolean; text: string } | null>(null);
+    const showShortcuts = ref(false);
+    let audioContext: AudioContext | null = null;
+    let scanBuffer = '';
+    let lastKeyAt = 0;
+
+    /** A short high tone for a scan that was added, a low one for a scan that was not (no sound where audio is not allowed). */
+    function beep(ok: boolean) {
+        try {
+            audioContext ??= new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.frequency.value = ok ? 1100 : 220;
+            gain.gain.value = 0.08;
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + (ok ? 0.08 : 0.25));
+        } catch {
+            // no audio available: the on-screen message is enough
+        }
+    }
+
+    function focusSearch(select = false) {
+        nextTick(() => {
+            searchInput.value?.focus();
+
+            if (select) {
+                searchInput.value?.select();
+            }
+        });
+    }
+
+    /**
+     * What a barcode scanner (it types the code and presses Enter, like a keyboard) or the search box hands in: the product whose SKU or
+     * barcode is exactly the code, found on the server so a product outside the loaded grid, or one of its extra barcodes, is found too.
+     * A product already in the cart gets one more instead of a refusal, which is what scanning the same item twice means.
+     */
+    async function scanCode(raw: string) {
+        const code = raw.trim();
+
+        if (code === '' || ! scopeReady.value) {
+            return;
+        }
+
+        const same = (value: unknown) => String(value ?? '').trim().toLowerCase() === code.toLowerCase();
+        let match = products.value.find((product) => same(product.sku));
+
+        if (! match) {
+            try {
+                const response = await window.axios.get(API_ENDPOINTS.sellSearchProducts, { params: { company_id: formData.value.company_id, branch_id: formData.value.branch_id, search: code } });
+                const rows = (Array.isArray(response.data) ? response.data : (response.data?.data ?? [])) as ProductCard[];
+                match = rows.find((product) => same(product.sku)) ?? (rows.length === 1 ? rows[0] : undefined);
+            } catch {
+                match = undefined;
+            }
+        }
+
+        if (! match) {
+            lastScan.value = { code, ok: false, text: `No product has the code ${code}` };
+            beep(false);
+            Notify(`No product has the code ${code}`, 'alert');
+
+            return;
+        }
+
+        if (! canAdd(match)) {
+            lastScan.value = { code, ok: false, text: `${match.product_name ?? match.name} is out of stock` };
+            beep(false);
+            Notify(`${match.product_name ?? match.name} is out of stock`, 'alert');
+
+            return;
+        }
+
+        const unitId = match.units?.[0]?.id ?? match.unit_id;
+        const existing = lines.value.findIndex((line) => String(line.product_id) === String(match.product_id) && String(line.variation_id) === String(match.id) && String(line.unit_id) === String(unitId));
+
+        if (existing >= 0) {
+            stepQuantity(existing, 1);
+        } else {
+            addProduct(match);
+        }
+
+        lastScan.value = { code, ok: true, text: `${match.product_name ?? match.name} added` };
+        beep(true);
+    }
+
     function onSearchEnter() {
-        const term = productSearch.value.trim().toLowerCase();
+        const term = productSearch.value.trim();
 
         if (! term) {
             return;
         }
 
-        const exact = products.value.find((product) => (
-            String(product.sku ?? '').toLowerCase() === term
-        ));
-
-        if (exact && canAdd(exact)) {
-            addProduct(exact);
+        void scanCode(term).then(() => {
             productSearch.value = '';
+            focusSearch();
+        });
+    }
+
+    function isTypingField(target: EventTarget | null): boolean {
+        const element = target as HTMLElement | null;
+
+        return !! element && !! element.tagName && (['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName) || element.isContentEditable);
+    }
+
+    /**
+     * Function keys run the till without the mouse, and a scanner that is not aimed at a field still works: keys that arrive faster than a
+     * person types, ending in Enter, outside any field, are a scanned code. A quantity or a note being typed is never taken for a scan.
+     */
+    function onWindowKeydown(event: KeyboardEvent) {
+        const keyed: Record<string, () => void> = {
+            F1: () => {
+                showShortcuts.value = ! showShortcuts.value;
+            },
+            F2: () => focusSearch(true),
+            F4: () => customerSelect.value?.focus(),
+            F8: () => {
+                if (! saving.value) {
+                    void checkoutCash();
+                }
+            },
+            F9: () => {
+                if (! saving.value) {
+                    void openPaymentModal('split');
+                }
+            },
+            F10: () => {
+                if (! saving.value) {
+                    suspendSale();
+                }
+            },
+        };
+
+        if (keyed[event.key] && ! document.querySelector('.modal.show')) {
+            event.preventDefault();
+            keyed[event.key]();
+
+            return;
+        }
+
+        if (event.ctrlKey || event.altKey || event.metaKey || (isTypingField(event.target) && event.target !== searchInput.value) || event.target === searchInput.value) {
+            return;
+        }
+
+        const now = Date.now();
+
+        if (now - lastKeyAt > 100) {
+            scanBuffer = '';
+        }
+
+        lastKeyAt = now;
+
+        if (event.key === 'Enter') {
+            if (scanBuffer.length >= 3) {
+                event.preventDefault();
+                const code = scanBuffer;
+                scanBuffer = '';
+                void scanCode(code);
+            }
+
+            scanBuffer = '';
+
+            return;
+        }
+
+        if (event.key.length === 1) {
+            scanBuffer += event.key;
         }
     }
 
@@ -1076,6 +1233,7 @@
             nowLabel.value = new Date().toLocaleString();
         }, 30000);
         document.addEventListener('fullscreenchange', onFullscreenChange);
+        window.addEventListener('keydown', onWindowKeydown);
 
         if (typeof BroadcastChannel !== 'undefined') {
             displayChannel = new BroadcastChannel('pos-customer-display');
@@ -1118,6 +1276,7 @@
         }
 
         pageReady.value = true;
+        focusSearch();
     });
 
     onBeforeUnmount(() => {
@@ -1126,6 +1285,7 @@
         }
 
         document.removeEventListener('fullscreenchange', onFullscreenChange);
+        window.removeEventListener('keydown', onWindowKeydown);
         displayChannel?.close();
     });
 
@@ -1211,7 +1371,7 @@
                     </div>
 
                     <div class="pos-cart-panel__customer">
-                        <select class="pos-select" title="Select the customer for this sale" v-model="formData.contact_id" :disabled="!scopeReady">
+                        <select ref="customerSelect" class="pos-select" title="Select the customer for this sale (F4)" v-model="formData.contact_id" :disabled="!scopeReady">
                             <option value="">Walk-In Customer</option>
                             <option v-for="customer in customersdata" :key="customer.id" :value="customer.id">
                                 {{ customer.text ?? customer.business_name }}
@@ -1231,11 +1391,22 @@
                             type="search"
                             class="pos-cart-panel__search-input"
                             placeholder="Enter Product name / SKU / Scan bar code"
-                            title="Search products, or scan a barcode and press Enter to add it instantly"
+                            title="Search products, or scan a barcode and press Enter to add it instantly (F2)"
+                            ref="searchInput"
+                            data-test="pos-search"
                             v-model="productSearch"
                             :disabled="!scopeReady"
                             @keyup.enter="onSearchEnter"
                         >
+                    </div>
+
+                    <div class="pos-scan-status" data-test="pos-scan-status" role="status" aria-live="polite">
+                        <span :class="lastScan ? (lastScan.ok ? 'text-success' : 'text-danger') : 'text-muted'">{{ lastScan ? lastScan.text : 'Scanner ready: scan a barcode at any time' }}</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-2" @click="showShortcuts = ! showShortcuts">Keys (F1)</button>
+                    </div>
+                    <div v-if="showShortcuts" class="pos-shortcuts small border rounded p-2 mb-2" data-test="pos-shortcuts">
+                        <div><kbd>F2</kbd> search / scan &nbsp; <kbd>F4</kbd> customer &nbsp; <kbd>F8</kbd> cash sale &nbsp; <kbd>F9</kbd> payment &nbsp; <kbd>F10</kbd> park cart &nbsp; <kbd>F1</kbd> this help</div>
+                        <div class="text-muted">A barcode scanner works anywhere on this page: it types the code and presses Enter. Same item twice adds one more.</div>
                     </div>
 
                     <div class="pos-cart-panel__list">
