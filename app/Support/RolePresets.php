@@ -78,6 +78,12 @@ final class RolePresets
             'exclude' => [],
             'approvals' => false,
         ],
+        'HR Manager' => [
+            'manage' => ['/hrm', '/expenseclaim/add'],
+            'view' => ['/report/payroll-register', '/report/attendance-summary', '/report/statutory-liability', '/report/loan-balances', '/expenseclaim', '/help'],
+            'exclude' => [],
+            'approvals' => false,
+        ],
     ];
 
     /**

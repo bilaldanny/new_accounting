@@ -73,3 +73,38 @@ it('can be run again and rolled back', function () {
         ->and((int) Menu::query()->find($m['hub'])->parent_id)->toBe($m['users'])
         ->and((bool) Menu::query()->find($m['payroll'])->is_hidden)->toBeTrue();
 });
+
+it('turns the group into HRM with every HR page and gives the other modules a group of their own', function () {
+    $m = hrmMenus();
+    $now = now();
+    $row = fn (array $attrs) => DB::table('menus')->insertGetId($attrs + ['icon' => 'Grid', 'route_name' => uniqid('r'), 'menu_color' => '#000', 'sort_order' => 1, 'is_active' => 1, 'is_permission' => 1, 'type' => 1, 'is_hidden' => 0, 'created_at' => $now, 'updated_at' => $now]);
+    $reports = $row(['parent_id' => null, 'name' => 'Reports', 'route_path' => '', 'type' => 2]);
+    $register = $row(['parent_id' => $reports, 'name' => 'Payroll Register', 'route_path' => '/report/payroll-register']);
+    $factory = $row(['parent_id' => $m['users'], 'name' => 'Manufacturing', 'route_path' => '/manufacturing']);
+    (require database_path('migrations/2026_11_24_100000_group_hr_payroll_menus.php'))->up();
+
+    // a role that holds Attendance already uses the Leave tab: it holds the new Leave address after the migration too
+    $role = Role::query()->create(['name' => 'hr'.uniqid(), 'company_id' => null, 'is_active' => true]);
+    DB::table('permissions')->insert(['role_id' => $role->id, 'menu_id' => $m['attendance'], 'status' => 1, 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('permissions')->insert(['role_id' => $role->id, 'menu_id' => $register, 'status' => 1, 'created_at' => now(), 'updated_at' => now()]);
+
+    $migration = require database_path('migrations/2026_11_26_100100_hrm_group_and_operations_group_menus.php');
+    $migration->up();
+    $migration->up();
+
+    $group = Menu::query()->where('type', 2)->where('name', 'HRM')->firstOrFail();
+    $ops = Menu::query()->where('type', 2)->where('name', 'Operations')->firstOrFail();
+    $leave = Menu::query()->where('route_path', '/hrm/leave')->firstOrFail();
+
+    expect((int) $leave->parent_id)->toBe((int) $group->id)->and((int) Menu::query()->find($register)->parent_id)->toBe((int) $group->id)
+        ->and((int) Menu::query()->find($factory)->parent_id)->toBe((int) $ops->id)
+        ->and(Menu::query()->where('type', 2)->where('name', 'Operations')->count())->toBe(1)
+        ->and(DB::table('permissions')->where('role_id', $role->id)->where('menu_id', $leave->id)->exists())->toBeTrue()
+        ->and(DB::table('permissions')->where('role_id', $role->id)->where('menu_id', Menu::query()->where('route_path', '/hrm/loans')->value('id'))->exists())->toBeFalse();
+
+    $migration->down();
+
+    expect(Menu::query()->where('route_path', '/hrm/leave')->exists())->toBeFalse()
+        ->and((int) Menu::query()->find($register)->parent_id)->toBe((int) DB::table('menus')->whereNull('parent_id')->where('name', 'Reports')->value('id'))
+        ->and((int) Menu::query()->find($factory)->parent_id)->toBe((int) DB::table('menus')->whereNull('parent_id')->where('name', 'User Management')->value('id'));
+});

@@ -11,7 +11,7 @@ use Laravel\Sanctum\Sanctum;
 uses(RefreshDatabase::class);
 
 /**
- * What each starter role (Accountant, Cashier, Sales Representative, Manager, Warehouse Keeper) can see and open, checked
+ * What each starter role (Accountant, Cashier, Sales Representative, Manager, Warehouse Keeper, HR Manager) can see and open, checked
  * against a copy of the live menu tree (tests/Fixtures/live-menus.json) because a fresh test database has only part of it.
  *
  * tests/Fixtures/role-preset-menus.json is the exact list of menu paths each preset grants. If a preset or a menu migration
@@ -117,6 +117,14 @@ function rpaExpectations(): array
             'pagesDenied' => array_merge($commonDeniedPages, ['fixedasset', 'costcenter', 'budget', 'journalentry', 'journalentry/approval', 'stocktransfer/approval', 'leads', 'posshift']),
             'apiOpen' => ['warehouses', 'stocktransfers', 'stock-takes', 'stock-tracking/serials', 'reports/warehouse-stock', 'products'],
             'apiDenied' => array_merge($commonDeniedApi, ['fixed-assets', 'cost-centers', 'journal-entries', 'stock-transfer-approvals', 'leads', 'pos-shifts', 'taxes']),
+        ],
+        'HR Manager' => [
+            'see' => ['/hrm', '/hrm/leave', '/hrm/loans', '/hrm/shifts', '/hrm/documents', '/report/payroll-register'],
+            'hidden' => array_merge($approvals, $everyoneNot, $books, ['/sell/pos', '/posshift', '/leads', '/purchase']),
+            'pagesOpen' => ['hrm', 'hrm/leave', 'hrm/loans', 'hrm/shifts', 'hrm/documents'],
+            'pagesDenied' => array_merge($commonDeniedPages, ['fixedasset', 'costcenter', 'journalentry', 'journalentry/approval', 'posshift', 'leads', 'purchase']),
+            'apiOpen' => ['hrm/employees', 'hrm/shifts', 'hrm/leave-types'],
+            'apiDenied' => array_merge($commonDeniedApi, ['fixed-assets', 'journal-entries', 'pos-shifts', 'leads', 'purchases', 'taxes']),
         ],
     ];
 }

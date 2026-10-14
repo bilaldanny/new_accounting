@@ -1543,6 +1543,10 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
     Route::get('hrm/attendance', fn () => Inertia::render('hrm/index'))->name('hrm.attendance');
     Route::get('hrm/payroll', fn () => Inertia::render('hrm/index'))->name('hrm.payroll');
     Route::get('hrm/manage', fn () => Inertia::render('hrm/index'))->name('hrm.manage');
+    Route::get('hrm/leave', fn () => Inertia::render('hrm/index'))->name('hrm.leave');
+    Route::get('hrm/loans', fn () => Inertia::render('hrm/index'))->name('hrm.loans');
+    Route::get('hrm/shifts', fn () => Inertia::render('hrm/index'))->name('hrm.shifts');
+    Route::get('hrm/documents', fn () => Inertia::render('hrm/index'))->name('hrm.documents');
     Route::get('manufacturing', fn () => Inertia::render('manufacturing/index'))->name('manufacturing');
     Route::get('service', fn () => Inertia::render('service/index'))->name('service');
     Route::get('service/work', fn () => Inertia::render('service/work'))->name('service.work');

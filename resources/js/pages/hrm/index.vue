@@ -26,12 +26,29 @@
     const tabFromUrl = (url: string): Tab => {
         const path = url.split('?')[0].replace(/\/+$/, '');
 
-        return (Object.keys(TAB_PATHS) as Tab[]).find((key) => TAB_PATHS[key] === path) ?? 'employees';
+        return ANCHORS[path]?.[0] ?? (Object.keys(TAB_PATHS) as Tab[]).find((key) => TAB_PATHS[key] === path) ?? 'employees';
     };
+
+    /** Sidebar entries that open one section of a tab: the tab and the id of the section scrolled into view. */
+    const ANCHORS: Record<string, [Tab, string]> = {
+        '/hrm/leave': ['attendance', 'hrm-leave'],
+        '/hrm/loans': ['payroll', 'hrm-loans'],
+        '/hrm/shifts': ['setup', 'hrm-shifts'],
+        '/hrm/documents': ['employees', 'hrm-documents'],
+    };
+
+    function scrollToAnchor(url: string) {
+        const id = ANCHORS[url.split('?')[0].replace(/\/+$/, '')]?.[1];
+
+        if (id) {
+            window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+        }
+    }
     const tab = ref<Tab>(tabFromUrl(page.url));
 
     watch(() => page.url, (url) => {
         tab.value = tabFromUrl(url);
+        scrollToAnchor(url);
     });
 
     function openTab(next: Tab) {
@@ -174,7 +191,10 @@
     const payslip = (lineId: number) => window.open(`/api/hrm/payslips/${lineId}`, '_blank', 'noopener');
     const bankFile = (format: string) => current.value && window.open(`/api/hrm/payroll/${current.value.id}/bank-file?format=${format}`, '_blank', 'noopener');
 
-    onMounted(load);
+    onMounted(async () => {
+        await load();
+        scrollToAnchor(page.url);
+    });
 </script>
 
 <template>
@@ -223,7 +243,7 @@
 <template #cell-c6="{ row: __m }"><template v-for="{ e } in [__m.__s]" :key="0"><button v-if="canManage" type="button" class="btn btn-outline-dark btn-sm" @click="edit(e)">Edit</button></template></template>
 </ClientTable>
 
-            <h6 class="mt-4">Organisation</h6>
+            <h6 id="hrm-documents" class="mt-4">Organisation and documents</h6>
             <ul class="small">
                 <li v-for="dep in tree" :key="String(dep.id)">
                     <strong>{{ dep.name }}</strong>
@@ -274,7 +294,7 @@
                 </div>
             </div>
 
-            <h6>Leave requests</h6>
+            <h6 id="hrm-leave">Leave requests</h6>
             <ClientTable empty-text="No leave requests."  :columns="[{ key: 'c0', label: 'Employee' }, { key: 'c1', label: 'Type' }, { key: 'c2', label: 'From' }, { key: 'c3', label: 'To' }, { key: 'c4', label: 'Days' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: '' }]" :rows="(leaves).map((l) => ({ __s: { l }, c0: `${l.employee_no} ${l.first_name}`, c1: (l.leave_type), c2: (String(l.from_date).slice(0, 10)), c3: (String(l.to_date).slice(0, 10)), c4: (l.days), c5: (l.status), c6: '' }))" export-name="employee">
 <template #cell-c6="{ row: __m }"><template v-for="{ l } in [__m.__s]" :key="0">
                             <template v-if="l.status === 'pending' && canLeaveApprove">
@@ -338,7 +358,7 @@
 </ClientTable>
             </div>
 
-            <h6 class="mt-4">Loans and advances</h6>
+            <h6 id="hrm-loans" class="mt-4">Loans and advances</h6>
             <ClientTable  :columns="[{ key: 'c0', label: 'Employee' }, { key: 'c1', label: 'Kind' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Instalment' }, { key: 'c4', label: 'Balance' }, { key: 'c5', label: 'Status' }]" :rows="(loans).map((l) => ({ __s: { l }, c0: `${l.employee_no} ${l.first_name}`, c1: (l.kind), c2: (money(l.amount)), c3: (money(l.installment)), c4: (money(l.balance)), c5: (l.status) }))" export-name="employee">
 </ClientTable>
         </section>
@@ -384,7 +404,7 @@
                     </div>
                 </div>
                 <div class="col-lg-6 border rounded p-3">
-                    <h6>Shift</h6>
+                    <h6 id="hrm-shifts">Shift</h6>
                     <div class="row g-2">
                         <div class="col-3"><input v-model="shift.name" class="form-control form-control-sm" placeholder="Name" aria-label="Shift name" /></div>
                         <div class="col-2"><input v-model="shift.start_time" class="form-control form-control-sm" aria-label="Start" /></div>
