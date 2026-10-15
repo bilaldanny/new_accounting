@@ -6688,3 +6688,30 @@ textarea:focus-visible,
 .sidebar a:focus-visible {
     outline-offset: -2px;
 }
+
+/* Dashboard cards in the dark theme: a dark surface so the light text is readable */
+html.dark-theme .dash-card,
+html.dark-theme .admin-list-card {
+    background: #1b2433;
+    border-color: #2b3648;
+    color: #e5e7eb;
+}
+
+html.dark-theme .dash-card__title,
+html.dark-theme .dash-card strong {
+    color: #f3f4f6;
+}
+
+html.dark-theme .dc__card,
+html.dark-theme .dg__card,
+html.dark-theme .dg__action {
+    background: #1b2433;
+    border-color: #2b3648;
+    color: #e5e7eb;
+}
+
+html.dark-theme .dc__card :is(h3, h4, strong, span, td),
+html.dark-theme .dg__card :is(h3, h4, strong, span),
+html.dark-theme .dg__action :is(strong, span) {
+    color: #e5e7eb;
+}

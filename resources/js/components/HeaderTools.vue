@@ -527,16 +527,19 @@
 </template>
 
 <style scoped>
+.header-tools {
+    color: #e5e7eb;
+}
 .header-tools__btn {
     border: 1px solid rgba(255, 255, 255, 0.28);
-    color: inherit;
+    color: #e5e7eb;
     background: transparent;
     white-space: nowrap;
 }
 .header-tools__btn:hover,
 .header-tools__btn:focus-visible {
     background: rgba(255, 255, 255, 0.12);
-    color: inherit;
+    color: #fff;
 }
 .header-tools__date {
     opacity: 0.85;

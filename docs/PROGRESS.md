@@ -59,3 +59,12 @@ Rules: no push, nothing on the live DB (new migrations are listed, not run), Dus
 | 7 | Header tools | Done: `HeaderToolsController` (`/api/header/*`), `HeaderTools.vue`: date, Today Profit, POS, Calculator, Calendar (follow-ups, leaves, due invoices, to-dos), To-Do (new `user_todos`), Application Tour. Partial: no holiday table exists, so the calendar has no holiday dots |
 
 New migrations to run live, in order: `2026_11_26_100000_add_code_mode_to_document_templates`, `2026_11_26_100100_hrm_group_and_operations_group_menus`, `2026_11_26_100200_create_user_todos_table`.
+
+### Wave 2 - built
+
+| # | Item | State |
+|---|---|---|
+| 5 | Dashboard cards | Done: `GET /api/dashboard-extras` (`DashboardExtrasController`: today vs yesterday, receipts by payment method, branch comparison, HR headcount / attendance / leave waiting; permission gated per part, company + branch scoped, 5 minute cache) and `DashboardExtras.vue` (skeleton, empty states, responsive grid); dark theme rules for every dashboard card. The 12-month sales vs purchases, profit trend, aging, cash/bank, best sellers, top customers, expenses and approvals cards already existed |
+| 4 | Demo history | Done: `php artisan demo:history [--fresh|--remove] [--force]` builds company `DEMO-HISTORY` through the real API: 12 months with Ramzan / Eid / wedding / summer seasons, monthly rent + utilities (approved), payroll, attendance (CSV import), leave requests, leads; refuses production without `--force`; `--remove` takes only that company. Screenshots: `docs/dashboard-screens/dashboard-light.png`, `dashboard-dark.png` (captured by `tests/Browser/DashboardScreenshotsTest.php`, run with `CAPTURE_DASHBOARD_SCREENSHOTS=1`) |
+
+No new migration in wave 2.

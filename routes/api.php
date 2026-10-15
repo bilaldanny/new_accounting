@@ -59,6 +59,7 @@ use App\Http\Controllers\CustomerSubscriptionController;
 use App\Http\Controllers\CustomerSubscriptionInvoiceController;
 use App\Http\Controllers\CustomerSubscriptionPlanController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardExtrasController;
 use App\Http\Controllers\DashboardInsightsController;
 use App\Http\Controllers\DashboardToolsController;
 use App\Http\Controllers\DataCenterController;
@@ -1425,6 +1426,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('my-notifications/read-all', [MyNotificationsController::class, 'readAll']);
     Route::post('my-notifications/{id}/read', [MyNotificationsController::class, 'read'])->whereNumber('id');
     Route::get('dashboard-insights', [DashboardInsightsController::class, 'show']);
+    Route::get('dashboard-extras', [DashboardExtrasController::class, 'show']);
     Route::get('search', UniversalSearchController::class);
     Route::get('voucher-options', VoucherOptionsController::class);
     Route::get('dashboard-tools/layout', [DashboardToolsController::class, 'layout']);

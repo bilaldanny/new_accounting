@@ -100,6 +100,10 @@ class PilotDemoCompany
             $this->profile === null ? $this->tradeForAMonth() : $this->tradeGenerated();
             $this->runPayroll();
 
+            if (($this->profile['history'] ?? false) === true) {
+                $this->historyExtras();
+            }
+
             if (isset($this->products['combo'])) {
                 $this->produce();
             }
@@ -169,6 +173,11 @@ class PilotDemoCompany
 
         $this->companyId = (int) $user->company_id;
         DB::table('companies')->where('id', $this->companyId)->update(['code' => $this->code, 'updated_at' => now()]);
+
+        // a year of history is posted today, so it all counts as this month's invoices: the demo is not held to the trial plan's limit
+        if (($this->profile['history'] ?? false) === true) {
+            DB::table('companies')->where('id', $this->companyId)->update(['max_invoices_per_month' => 100000, 'max_products' => 10000]);
+        }
         $this->branchId = (int) ($user->branch_id ?: Branch::query()->where('company_id', $this->companyId)->value('id'));
         $this->admin = $user;
     }
@@ -345,8 +354,12 @@ class PilotDemoCompany
             $date = fn (int $day): string => $start->addDays(min($day, $lastDay) - 1)->toDateString();
             $monthPurchases = [];
             $monthSales = [];
+            // a history company has seasons: Ramzan and the two Eids sell more, the summer months less
+            $season = (float) ($this->profile['seasonality'][(int) $start->format('n')] ?? 1.0);
+            $purchasesThisMonth = max(1, (int) round($purchasesPerMonth * $season));
+            $salesThisMonth = max(1, (int) round($salesPerMonth * $season));
 
-            for ($i = 0; $i < $purchasesPerMonth; $i++) {
+            for ($i = 0; $i < $purchasesThisMonth; $i++) {
                 $items = [];
 
                 // a shop buys what it expects to sell: about 30 percent more than the sales of a month (about 12 pieces a sale), and
@@ -374,7 +387,7 @@ class PilotDemoCompany
                 $this->pay('/api/purchase-payments', $id, $supplier, round($this->documentTotal($id) * $share, 2), $date($day + 1), $roll % 2 === 0 ? 'cash' : 'bank_transfer');
             }
 
-            for ($i = 0; $i < $salesPerMonth; $i++) {
+            for ($i = 0; $i < $salesThisMonth; $i++) {
                 $items = [];
 
                 for ($line = mt_rand(1, 4); $line > 0; $line--) {
@@ -577,6 +590,126 @@ class PilotDemoCompany
 
         $this->summary['employees'] = count($staff);
         $this->summary['payroll_runs'] = count($periods);
+    }
+
+    /**
+     * What a year of trading leaves besides sales and purchases: rent and utilities every month, attendance of the staff, a few leaves
+     * (two approved, one waiting) and leads of the year. Everything goes through the API like the screens do; the leads are dated across
+     * the year afterwards because the API stamps today.
+     */
+    private function historyExtras(): void
+    {
+        $months = max(1, (int) $this->profile['months']);
+        $expenses = 0;
+
+        for ($back = $months - 1; $back >= 0; $back--) {
+            $start = $this->today->startOfMonth()->subMonthsNoOverflow($back);
+            $summer = in_array((int) $start->format('n'), [5, 6, 7, 8], true);
+            $bills = [['rent', 85000.0, 1, 'Shop rent'], ['utilities', $summer ? 62000.0 : 31000.0, 8, 'Electricity and utilities']];
+
+            foreach ($bills as [$account, $amount, $day, $label]) {
+                $date = $start->addDays(min($day, $start->daysInMonth) - 1);
+
+                if ($date->greaterThan($this->today)) {
+                    continue;
+                }
+
+                $this->call('POST', '/api/expenses', [
+                    'voucher_type' => 'EXP', 'voucher_date' => $date->toDateString(), 'comments' => $label.' '.$start->format('M Y'),
+                    'taccountdetails' => [
+                        ['account_id' => $this->accounts[$account], 'description' => $label, 'debit' => $amount, 'credit' => 0],
+                        ['account_id' => $this->accounts['cash'], 'description' => $label, 'debit' => 0, 'credit' => $amount],
+                    ],
+                ]);
+                $voucher = (int) DB::table('t_accounts')->where('company_id', $this->companyId)->where('voucher_no', 'like', 'EXP-%')->max('id');
+
+                if ($voucher > 0 && DB::table('t_accounts')->where('id', $voucher)->value('status') !== 'approved') {
+                    $this->call('POST', "/api/expense-approvals/{$voucher}/approve");
+                }
+
+                $expenses++;
+            }
+        }
+
+        $this->summary['expense_vouchers'] = $expenses;
+
+        $employees = DB::table('employees')->where('company_id', $this->companyId)->orderBy('id')->pluck('employee_no')->all();
+        $rows = 0;
+
+        for ($back = $months - 1; $back >= 0; $back--) {
+            $start = $this->today->startOfMonth()->subMonthsNoOverflow($back);
+            $last = $back === 0 ? $this->today : $start->endOfMonth();
+            $csv = "employee_no,date,check_in,check_out\n";
+
+            for ($day = $start; $day->lessThanOrEqualTo($last); $day = $day->addDay()) {
+                if ($day->dayOfWeek === 0) {
+                    continue;
+                }
+
+                foreach ($employees as $index => $number) {
+                    // about one working day in twenty is missed, and some arrivals are late
+                    if ((crc32($number.$day->toDateString()) % 20) === 0) {
+                        continue;
+                    }
+
+                    $late = (crc32($day->toDateString().$number) % 7) === 0 ? 25 + $index * 5 : (crc32($number.$day->day) % 9);
+                    $csv .= sprintf("%s,%s,%02d:%02d,18:%02d\n", $number, $day->toDateString(), 9 + intdiv($late, 60), $late % 60, ($index * 3) % 20);
+                    $rows++;
+                }
+            }
+
+            $this->call('POST', '/api/hrm/attendance/import', ['csv' => $csv]);
+        }
+
+        $this->summary['attendance_days'] = $rows;
+
+        $typeId = (int) (DB::table('leave_types')->where('company_id', $this->companyId)->orderBy('id')->value('id')
+            ?: ($this->call('POST', '/api/hrm/leave-types', ['name' => 'Annual Leave', 'days_per_year' => 14, 'is_paid' => true])['data']['id'] ?? 0));
+        $ids = DB::table('employees')->where('company_id', $this->companyId)->orderBy('id')->pluck('id')->all();
+
+        if ($typeId > 0 && $ids !== []) {
+            $plan = [[0, 70, 3, true], [1, 120, 2, true], [2, 20, 1, false]];
+
+            foreach ($plan as [$who, $daysAgo, $length, $approve]) {
+                $from = $this->today->subDays($daysAgo);
+
+                while ($from->dayOfWeek === 0) {
+                    $from = $from->addDay();
+                }
+
+                $leave = (int) ($this->call('POST', '/api/hrm/leave-requests', [
+                    'employee_id' => $ids[$who % count($ids)], 'leave_type_id' => $typeId, 'from_date' => $from->toDateString(),
+                    'to_date' => $from->addDays($length - 1)->toDateString(), 'reason' => 'Family function',
+                ])['data']['id'] ?? 0);
+
+                if ($approve && $leave > 0) {
+                    $this->call('POST', "/api/leave-requests/{$leave}/approve");
+                }
+            }
+
+            $this->summary['leave_requests'] = count($plan);
+        }
+
+        $sources = ['Facebook', 'Walk-in', 'Referral', 'Website', 'WhatsApp'];
+        $statuses = ['new', 'contacted', 'qualified', 'converted', 'unqualified'];
+        $names = ['Hafiz Traders', 'Madni Wholesale', 'Gulzar Catering', 'City Hotel Supplies', 'Noor Bakery', 'Alvi Mart', 'Sadiq Restaurant', 'Pak Mess', 'Wasi Brothers', 'Taj Marriage Hall', 'Rehman Tuck Shop', 'Baig Foods'];
+
+        foreach ($names as $index => $name) {
+            $this->call('POST', '/api/leads', [
+                'name' => $name, 'phone' => '0300-'.str_pad((string) (1000000 + $index * 7919), 7, '0', STR_PAD_LEFT), 'source' => $sources[$index % count($sources)],
+                'status' => $statuses[$index % count($statuses)], 'notes' => 'Asked for monthly supply rates.',
+            ]);
+        }
+
+        // spread the leads over the year: the API stamps today
+        $leadIds = DB::table('leads')->where('company_id', $this->companyId)->orderBy('id')->pluck('id')->all();
+
+        foreach ($leadIds as $index => $leadId) {
+            $when = $this->today->subDays((int) round($index * ($months * 28) / max(1, count($leadIds))))->setTime(11, 0);
+            DB::table('leads')->where('id', $leadId)->update(['created_at' => $when, 'updated_at' => $when]);
+        }
+
+        $this->summary['leads'] = count($leadIds);
     }
 
     private function produce(): void

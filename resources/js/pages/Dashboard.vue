@@ -16,6 +16,7 @@ import {
 } from '@lucide/vue';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import DashboardCharts from '@/components/dashboard/DashboardCharts.vue';
+import DashboardExtras from '@/components/dashboard/DashboardExtras.vue';
 import DashboardGlance from '@/components/dashboard/DashboardGlance.vue';
 import useCommons from '@/composables/common';
 
@@ -555,6 +556,8 @@ const statusLabels: Record<string, string> = { final: 'Final', approved: 'Approv
                 :params="chartParams"
                 :needs-company="needsCompanyChoice"
             />
+
+            <DashboardExtras v-if="showAnything" :params="chartParams" :needs-company="needsCompanyChoice" />
 
             <!-- Row 1: financial snapshot and pending approvals -->
             <div v-if="showFinancial || showApprovals" class="dash-grid-2">
