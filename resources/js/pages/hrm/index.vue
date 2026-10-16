@@ -34,6 +34,7 @@
         '/hrm/leave': ['attendance', 'hrm-leave'],
         '/hrm/loans': ['payroll', 'hrm-loans'],
         '/hrm/shifts': ['setup', 'hrm-shifts'],
+        '/hrm/holidays': ['setup', 'hrm-holidays'],
         '/hrm/documents': ['employees', 'hrm-documents'],
     };
 
@@ -96,7 +97,46 @@
 
     const get = async (url: string, params: Record<string, unknown> = {}) => (await run(() => window.axios.get(url, { params: { ...scope(), ...params } })))?.data;
 
+    /** Holidays: the company's list, one at a time or the public holidays of Pakistan for a year in one click. */
+    const holidays = ref<{ id: number; holiday_date: string; name: string; kind: string }[]>([]);
+    const holiday = reactive({ id: 0, holiday_date: '', name: '' });
+    const holidayYear = ref(new Date().getFullYear());
+    const canHolidays = computed(() => can('/hrm/holidays'));
+
+    async function loadHolidays() {
+        if (canHolidays.value) {
+            holidays.value = (await get('/api/hrm/holidays'))?.data ?? [];
+        }
+    }
+
+    async function saveHoliday() {
+        const body = { ...scope(), holiday_date: holiday.holiday_date, name: holiday.name };
+        const done = holiday.id
+            ? await run(() => window.axios.put(`/api/hrm/holidays/${holiday.id}`, body), 'Holiday saved')
+            : await run(() => window.axios.post('/api/hrm/holidays', body), 'Holiday saved');
+
+        if (done) {
+            Object.assign(holiday, { id: 0, holiday_date: '', name: '' });
+            await loadHolidays();
+        }
+    }
+
+    async function removeHoliday(id: number) {
+        if (await run(() => window.axios.delete(`/api/hrm/holidays/${id}`, { params: scope() }), 'Holiday deleted')) {
+            await loadHolidays();
+        }
+    }
+
+    async function importHolidays() {
+        const done = await run(() => window.axios.post('/api/hrm/holidays/import-pakistan', { ...scope(), year: holidayYear.value }));
+
+        if (done) {
+            await loadHolidays();
+        }
+    }
+
     async function load() {
+        void loadHolidays();
         meta.value = (await get('/api/hrm/meta'))?.data ?? null;
         Object.assign(settings, meta.value?.settings ?? {});
         employees.value = (await get('/api/hrm/employees'))?.data ?? [];
@@ -441,6 +481,26 @@
             <ClientTable empty-text="No tax slab entered: no income tax is deducted."  :columns="[{ key: 'c0', label: 'From (annual)' }, { key: 'c1', label: 'To' }, { key: 'c2', label: 'Fixed' }, { key: 'c3', label: '%' }, { key: 'c4', label: 'Effective' }]" :rows="(slabs).map((s) => ({ __s: { s }, c0: (s.annual_from), c1: (s.annual_to ?? 'no limit'), c2: (s.fixed_amount), c3: (s.rate_percent), c4: (String(s.effective_from).slice(0, 10)) }))" export-name="from-annual">
 </ClientTable>
             <div class="small text-muted">{{ components.length }} salary component(s), {{ shifts.length }} shift(s).</div>
+
+            <h6 id="hrm-holidays" class="mt-4">Holidays</h6>
+            <div v-if="canManage" class="row g-2 align-items-end mb-2" data-test="holiday-form">
+                <div class="col-md-2"><label class="form-label small" for="hol-date">Date</label><input id="hol-date" v-model="holiday.holiday_date" type="date" class="form-control form-control-sm" /></div>
+                <div class="col-md-4"><label class="form-label small" for="hol-name">Name</label><input id="hol-name" v-model="holiday.name" type="text" maxlength="120" class="form-control form-control-sm" /></div>
+                <div class="col-md-2"><button type="button" class="btn btn-dark btn-sm" :disabled="! holiday.holiday_date || holiday.name.trim().length < 2" data-test="holiday-save" @click="saveHoliday">{{ holiday.id ? 'Save holiday' : 'Add holiday' }}</button></div>
+                <div class="col-md-4 d-flex gap-2 align-items-end">
+                    <div><label class="form-label small" for="hol-year">Year</label><input id="hol-year" v-model.number="holidayYear" type="number" min="2000" max="2100" class="form-control form-control-sm" style="width: 6rem" /></div>
+                    <button type="button" class="btn btn-outline-dark btn-sm" data-test="holiday-import" @click="importHolidays">Import Pakistan public holidays</button>
+                </div>
+            </div>
+            <p v-if="canManage" class="small text-muted mb-2">The national days are fixed; Eid, Ashura and Eid Milad un Nabi follow the moon sighting, so check the imported dates each year (each row can be edited or deleted).</p>
+            <ClientTable empty-text="No holidays yet." :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Holiday' }, { key: 'c2', label: 'Kind' }, { key: 'c3', label: '' }]" :rows="(holidays).map((h) => ({ __s: { h }, c0: String(h.holiday_date).slice(0, 10), c1: h.name, c2: h.kind, c3: '' }))" export-name="holidays">
+                <template #cell-c3="{ row: __m }"><template v-for="{ h } in [__m.__s]" :key="0">
+                    <template v-if="canManage">
+                        <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="Object.assign(holiday, { id: h.id, holiday_date: String(h.holiday_date).slice(0, 10), name: h.name })">Edit</button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" @click="removeHoliday(h.id)">Delete</button>
+                    </template>
+                </template></template>
+            </ClientTable>
         </section>
     </div></div></div>
 </template>

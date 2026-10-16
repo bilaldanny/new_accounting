@@ -198,8 +198,8 @@
     });
     const kindsOn = (date: string) => Array.from(new Set(events.value.filter((event) => event.date === date).map((event) => event.kind)));
     const dayEvents = computed(() => events.value.filter((event) => event.date === selectedDay.value));
-    const kindColour: Record<string, string> = { followup: '#2563eb', leave: '#d97706', due: '#dc2626', todo: '#0f766e' };
-    const kindLabel: Record<string, string> = { followup: 'Follow-up', leave: 'Leave', due: 'Invoice due', todo: 'To-do' };
+    const kindColour: Record<string, string> = { followup: '#2563eb', leave: '#d97706', due: '#dc2626', todo: '#0f766e', holiday: '#7c3aed' };
+    const kindLabel: Record<string, string> = { followup: 'Follow-up', leave: 'Leave', due: 'Invoice due', todo: 'To-do', holiday: 'Holiday' };
 
     watch(month, loadCalendar);
 

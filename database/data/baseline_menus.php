@@ -281,6 +281,7 @@ return [
     '/hrm' => ['name' => 'Hrm', 'hidden' => false],
     '/hrm/attendance' => ['name' => 'Hrm Attendance', 'hidden' => true],
     '/hrm/documents' => ['name' => 'Employee Documents', 'hidden' => false],
+    '/hrm/holidays' => ['name' => 'Holidays', 'hidden' => false],
     '/hrm/leave' => ['name' => 'Leave Requests', 'hidden' => false],
     '/hrm/leave/approve' => ['name' => 'Approve Leave', 'hidden' => true],
     '/hrm/loans' => ['name' => 'Loans and Advances', 'hidden' => false],

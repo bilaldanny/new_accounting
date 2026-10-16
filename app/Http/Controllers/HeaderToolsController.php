@@ -142,6 +142,13 @@ class HeaderToolsController extends Controller
                 });
         }
 
+        if (Schema::hasTable('company_holidays')) {
+            DB::table('company_holidays')->where('company_id', $companyId)->whereBetween('holiday_date', [$start->toDateString(), $end->toDateString()])->orderBy('holiday_date')->limit(60)->get(['holiday_date', 'name'])
+                ->each(function (object $row) use (&$events): void {
+                    $events[] = ['date' => substr((string) $row->holiday_date, 0, 10), 'kind' => 'holiday', 'title' => (string) $row->name];
+                });
+        }
+
         $this->mine($user)->whereNull('done_at')->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
             ->limit(100)->get(['title', 'due_date'])->each(function (object $row) use (&$events): void {
                 $events[] = ['date' => (string) $row->due_date, 'kind' => 'todo', 'title' => (string) $row->title];
