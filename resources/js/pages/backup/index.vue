@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { Download, Trash2 } from '@lucide/vue';
     import { onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
@@ -112,22 +113,8 @@
                 <Loader v-if="loading" message="Loading backups…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>File</th>
-                                <th>Created</th>
-                                <th class="text-end">Size</th>
-                                <th>Status</th>
-                                <th class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="backup in backups" :key="backup.id">
-                                <td>{{ backup.file_name }}</td>
-                                <td>{{ backup.created_at || '—' }}</td>
-                                <td class="text-end">{{ formatSize(backup.size_bytes) }}</td>
-                                <td>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'File' }, { key: 'c1', label: 'Created' }, { key: 'c2', label: 'Size' }, { key: 'c3', label: 'Status' }, { key: 'c4', label: 'Action' }]" :rows="(backups).map((backup) => ({ __s: { backup }, c0: (backup.file_name), c1: (backup.created_at || '—'), c2: (formatSize(backup.size_bytes)), c3: '', c4: '' }))" export-name="file">
+<template #cell-c3="{ row: __m }"><template v-for="{ backup } in [__m.__s]" :key="0">
                                     <span
                                         class="badge"
                                         :class="{
@@ -140,8 +127,8 @@
                                         {{ backup.status }}
                                     </span>
                                     <span v-if="backup.status === 'completed' && ! backup.file_exists" class="text-danger small ms-1">file missing</span>
-                                </td>
-                                <td class="text-end">
+                                </template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ backup } in [__m.__s]" :key="0">
                                     <a
                                         v-if="backup.file_exists"
                                         :href="`${API_ENDPOINTS.backups}/${backup.id}/download`"
@@ -153,13 +140,8 @@
                                     <button type="button" class="btn btn-outline-danger btn-sm" title="Delete" @click="removeBackup(backup)">
                                         <Trash2 class="h-4 w-4" />
                                     </button>
-                                </td>
-                            </tr>
-                            <tr v-if="! backups.length">
-                                <td colspan="5" class="text-center text-muted">No backups yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
             </div>
         </div>

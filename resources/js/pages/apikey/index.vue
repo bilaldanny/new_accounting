@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { Copy, KeyRound, Trash2 } from '@lucide/vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
@@ -169,38 +170,18 @@
                 <Loader v-if="loading" message="Loading API keys…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th v-if="showOwner">Owner</th>
-                                <th>Created</th>
-                                <th>Last used</th>
-                                <th>Expires</th>
-                                <th v-if="canRevoke" class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="key in keys" :key="key.id">
-                                <td>{{ key.name }}</td>
-                                <td v-if="showOwner">{{ key.owner_name || '—' }} <small class="text-muted">{{ key.owner_email }}</small></td>
-                                <td>{{ key.created_at || '—' }}</td>
-                                <td>{{ key.last_used_at || 'Never' }}</td>
-                                <td>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Owner' }, { key: 'c2', label: 'Created' }, { key: 'c3', label: 'Last used' }, { key: 'c4', label: 'Expires' }, { key: 'c5', label: 'Action' }]" :rows="(keys).map((key) => ({ __s: { key }, c0: (key.name), c1: '', c2: (key.created_at || '—'), c3: (key.last_used_at || 'Never'), c4: '', c5: '' }))" export-name="name">
+<template #cell-c1="{ row: __m }"><template v-for="{ key } in [__m.__s]" :key="0">{{ key.owner_name || '—' }} <small class="text-muted">{{ key.owner_email }}</small></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ key } in [__m.__s]" :key="0">
                                     <span v-if="key.is_expired" class="badge bg-danger-subtle text-danger">Expired {{ key.expires_at }}</span>
                                     <span v-else>{{ key.expires_at || 'Never' }}</span>
-                                </td>
-                                <td v-if="canRevoke" class="text-end">
+                                </template></template>
+<template #cell-c5="{ row: __m }"><template v-for="{ key } in [__m.__s]" :key="0">
                                     <button type="button" class="btn btn-outline-danger btn-sm" title="Revoke" @click="revoke(key)">
                                         <Trash2 class="h-4 w-4" />
                                     </button>
-                                </td>
-                            </tr>
-                            <tr v-if="! keys.length">
-                                <td :colspan="4 + (showOwner ? 1 : 0) + (canRevoke ? 1 : 0)" class="text-center text-muted">No API keys yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
             </div>
         </div>

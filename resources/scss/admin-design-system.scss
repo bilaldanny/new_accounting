@@ -6715,3 +6715,26 @@ html.dark-theme .dg__card :is(h3, h4, strong, span),
 html.dark-theme .dg__action :is(strong, span) {
     color: #e5e7eb;
 }
+
+/* theTable: the header stays in view while a long list scrolls, and a footer slot carries totals */
+.modern-table-container {
+    max-height: 75vh;
+    overflow: auto;
+}
+
+.modern-table-container .admin-data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bs-body-bg, #fff);
+}
+
+.admin-data-footer th,
+.admin-data-footer td {
+    font-weight: 600;
+    border-top: 2px solid #cbd5e1;
+}
+
+html.dark-theme .modern-table-container .admin-data-table thead th {
+    background: #1b2433;
+}

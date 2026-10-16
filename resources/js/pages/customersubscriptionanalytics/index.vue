@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -129,19 +130,8 @@
 
                     <h3 class="h6">Renewal due (next 7 days)</h3>
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead><tr><th>Customer</th><th>Plan</th><th>Renews on</th></tr></thead>
-                            <tbody>
-                                <tr v-for="row in renewalDue" :key="row.id">
-                                    <td>{{ row.customer_name }}</td>
-                                    <td>{{ row.plan_name }}</td>
-                                    <td>{{ row.renews_on }}</td>
-                                </tr>
-                                <tr v-if="! renewalDue.length">
-                                    <td colspan="3" class="text-center text-muted">Nothing renewing in the next 7 days.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <ClientTable  :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Plan' }, { key: 'c2', label: 'Renews on' }]" :rows="(renewalDue).map((row) => ({ __s: { row }, c0: (row.customer_name), c1: (row.plan_name), c2: (row.renews_on) }))" export-name="customer">
+</ClientTable>
                     </div>
                 </template>
             </div>

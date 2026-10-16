@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { Copy, KeyRound, RotateCcw, Trash2 } from '@lucide/vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
@@ -172,21 +173,13 @@
                 <Loader v-if="loading" message="Loading portal users…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Customer / supplier</th><th>Email</th><th>Created</th><th class="text-end">Action</th></tr></thead>
-                        <tbody>
-                            <tr v-for="portalUser in users" :key="portalUser.id">
-                                <td>{{ portalUser.contact_name || '—' }} <small class="text-muted">{{ portalUser.contact_code }}</small></td>
-                                <td>{{ portalUser.email }}</td>
-                                <td>{{ portalUser.created_at || '—' }}</td>
-                                <td class="text-end">
+                    <ClientTable empty-text="No portal users yet."  :columns="[{ key: 'c0', label: 'Customer / supplier' }, { key: 'c1', label: 'Email' }, { key: 'c2', label: 'Created' }, { key: 'c3', label: 'Action' }]" :rows="(users).map((portalUser) => ({ __s: { portalUser }, c0: '', c1: (portalUser.email), c2: (portalUser.created_at || '—'), c3: '' }))" export-name="customer-supplier">
+<template #cell-c0="{ row: __m }"><template v-for="{ portalUser } in [__m.__s]" :key="0">{{ portalUser.contact_name || '—' }} <small class="text-muted">{{ portalUser.contact_code }}</small></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ portalUser } in [__m.__s]" :key="0">
                                     <button v-if="canAdd" type="button" class="btn btn-outline-secondary btn-sm me-1" title="New password" @click="reset(portalUser)"><RotateCcw class="h-4 w-4" /></button>
                                     <button v-if="canRemove" type="button" class="btn btn-outline-danger btn-sm" title="Remove" @click="remove(portalUser)"><Trash2 class="h-4 w-4" /></button>
-                                </td>
-                            </tr>
-                            <tr v-if="! users.length"><td colspan="4" class="text-center text-muted">No portal users yet.</td></tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
             </div>
         </div>

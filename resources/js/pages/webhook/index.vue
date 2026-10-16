@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { Copy, History, KeyRound, Trash2 } from '@lucide/vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
@@ -208,71 +209,38 @@
                 <Loader v-if="loading" message="Loading webhooks…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>URL</th>
-                                <th>Events</th>
-                                <th>Status</th>
-                                <th>Last triggered</th>
-                                <th class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="webhook in webhooks" :key="webhook.id">
-                                <td class="font-monospace small">{{ webhook.url }}</td>
-                                <td>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'URL' }, { key: 'c1', label: 'Events' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: 'Last triggered' }, { key: 'c4', label: 'Action' }]" :rows="(webhooks).map((webhook) => ({ __s: { webhook }, c0: (webhook.url), c1: '', c2: '', c3: '', c4: '' }))" export-name="url">
+<template #cell-c1="{ row: __m }"><template v-for="{ webhook } in [__m.__s]" :key="0">
                                     <span v-for="event in webhook.events" :key="event" class="badge bg-secondary-subtle text-secondary me-1">{{ event }}</span>
-                                </td>
-                                <td>
+                                </template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ webhook } in [__m.__s]" :key="0">
                                     <button type="button" class="btn btn-sm" :class="webhook.is_active ? 'btn-outline-success' : 'btn-outline-secondary'" @click="toggleActive(webhook)">
                                         {{ webhook.is_active ? 'Active' : 'Inactive' }}
                                     </button>
                                     <span v-if="webhook.failure_count > 0" class="badge bg-danger-subtle text-danger ms-1">{{ webhook.failure_count }} failed</span>
-                                </td>
-                                <td>{{ webhook.last_triggered_at || 'Never' }} <span v-if="webhook.last_response_code" class="text-muted">({{ webhook.last_response_code }})</span></td>
-                                <td class="text-end">
+                                </template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ webhook } in [__m.__s]" :key="0">{{ webhook.last_triggered_at || 'Never' }} <span v-if="webhook.last_response_code" class="text-muted">({{ webhook.last_response_code }})</span></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ webhook } in [__m.__s]" :key="0">
                                     <button type="button" class="btn btn-outline-secondary btn-sm me-1" title="Deliveries" @click="viewDeliveries(webhook)">
                                         <History class="h-4 w-4" />
                                     </button>
                                     <button v-if="canDelete" type="button" class="btn btn-outline-danger btn-sm" title="Delete" @click="remove(webhook)">
                                         <Trash2 class="h-4 w-4" />
                                     </button>
-                                </td>
-                            </tr>
-                            <tr v-if="! webhooks.length">
-                                <td colspan="5" class="text-center text-muted">No webhooks yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
 
                 <div v-if="deliveries !== null" class="mt-4">
                     <h3 class="h6">Recent deliveries — {{ deliveriesForUrl }}</h3>
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Event</th>
-                                    <th>Response</th>
-                                    <th>Attempted</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="delivery in deliveries" :key="delivery.id">
-                                    <td>{{ delivery.event }}</td>
-                                    <td>
+                        <ClientTable  :columns="[{ key: 'c0', label: 'Event' }, { key: 'c1', label: 'Response' }, { key: 'c2', label: 'Attempted' }]" :rows="(deliveries).map((delivery) => ({ __s: { delivery }, c0: (delivery.event), c1: '', c2: (delivery.attempted_at) }))" export-name="event">
+<template #cell-c1="{ row: __m }"><template v-for="{ delivery } in [__m.__s]" :key="0">
                                         <span :class="delivery.success ? 'badge bg-success-subtle text-success' : 'badge bg-danger-subtle text-danger'">
                                             {{ delivery.response_code ?? 'No response' }}
                                         </span>
-                                    </td>
-                                    <td>{{ delivery.attempted_at }}</td>
-                                </tr>
-                                <tr v-if="! deliveries.length">
-                                    <td colspan="3" class="text-center text-muted">No deliveries yet.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </template></template>
+</ClientTable>
                     </div>
                 </div>
             </div>

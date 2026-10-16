@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, router } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { LogOut } from '@lucide/vue';
     import { onMounted, ref } from 'vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -254,36 +255,14 @@
 
                 <h6>Recent {{ section.kind === 'customer' ? 'invoices' : 'purchases' }}</h6>
                 <div class="table-responsive mb-3">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Number</th><th>Date</th><th class="text-end">Amount</th><th class="text-end">Paid</th><th class="text-end">Still due</th></tr></thead>
-                        <tbody>
-                            <tr v-for="document in section.documents" :key="document.id">
-                                <td>{{ document.invoice_no || `#${document.id}` }}</td>
-                                <td>{{ document.date || '—' }}</td>
-                                <td class="text-end">{{ money(document.amount) }}</td>
-                                <td class="text-end">{{ money(document.paid) }}</td>
-                                <td class="text-end">{{ money(document.due) }}</td>
-                            </tr>
-                            <tr v-if="! section.documents.length"><td colspan="5" class="text-center text-muted">Nothing yet.</td></tr>
-                        </tbody>
-                    </table>
+                    <ClientTable empty-text="Nothing yet."  :columns="[{ key: 'c0', label: 'Number' }, { key: 'c1', label: 'Date' }, { key: 'c2', label: 'Amount' }, { key: 'c3', label: 'Paid' }, { key: 'c4', label: 'Still due' }]" :rows="(section.documents).map((document) => ({ __s: { document }, c0: (document.invoice_no || `#${document.id}`), c1: (document.date || '—'), c2: (money(document.amount)), c3: (money(document.paid)), c4: (money(document.due)) }))" export-name="number">
+</ClientTable>
                 </div>
 
                 <h6>Recent payments</h6>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Date</th><th>Reference</th><th>For</th><th>Method</th><th class="text-end">Amount</th></tr></thead>
-                        <tbody>
-                            <tr v-for="payment in section.payments" :key="payment.id">
-                                <td>{{ payment.date || '—' }}</td>
-                                <td>{{ payment.reference || '—' }}</td>
-                                <td>{{ payment.invoice_no || '—' }}</td>
-                                <td>{{ payment.method }}</td>
-                                <td class="text-end">{{ money(payment.amount) }}</td>
-                            </tr>
-                            <tr v-if="! section.payments.length"><td colspan="5" class="text-center text-muted">Nothing yet.</td></tr>
-                        </tbody>
-                    </table>
+                    <ClientTable empty-text="Nothing yet."  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Reference' }, { key: 'c2', label: 'For' }, { key: 'c3', label: 'Method' }, { key: 'c4', label: 'Amount' }]" :rows="(section.payments).map((payment) => ({ __s: { payment }, c0: (payment.date || '—'), c1: (payment.reference || '—'), c2: (payment.invoice_no || '—'), c3: (payment.method), c4: (money(payment.amount)) }))" export-name="date">
+</ClientTable>
                 </div>
 
                 <div class="mt-4">

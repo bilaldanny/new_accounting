@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { BarChart3, Target, TrendingUp, Trophy, Users } from '@lucide/vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
@@ -206,28 +207,8 @@
                     </div>
 
                     <div v-else class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr class="text-muted small">
-                                    <th>Salesperson</th>
-                                    <th class="text-end">Leads</th>
-                                    <th class="text-end">Open Deals</th>
-                                    <th class="text-end">Won</th>
-                                    <th class="text-end">Won Value</th>
-                                    <th class="text-end">Activities</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="row in performance" :key="row.user_id">
-                                    <td>{{ row.name }}</td>
-                                    <td class="text-end">{{ row.leads_assigned }}</td>
-                                    <td class="text-end">{{ row.open_opportunities }}</td>
-                                    <td class="text-end">{{ row.won_opportunities }}</td>
-                                    <td class="text-end">{{ row.won_value }}</td>
-                                    <td class="text-end">{{ row.activities_logged }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <ClientTable  :columns="[{ key: 'c0', label: 'Salesperson' }, { key: 'c1', label: 'Leads' }, { key: 'c2', label: 'Open Deals' }, { key: 'c3', label: 'Won' }, { key: 'c4', label: 'Won Value' }, { key: 'c5', label: 'Activities' }]" :rows="(performance).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.leads_assigned), c2: (row.open_opportunities), c3: (row.won_opportunities), c4: (row.won_value), c5: (row.activities_logged) }))" export-name="salesperson">
+</ClientTable>
                     </div>
                 </div>
             </div>

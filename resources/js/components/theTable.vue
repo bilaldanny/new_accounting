@@ -2134,6 +2134,9 @@ return
                                 </tr>
                             </template>
                         </tbody>
+                    <tfoot v-if="$slots.footer" class="admin-data-footer">
+                        <slot name="footer" />
+                    </tfoot>
                     </table>
                 </div>
 

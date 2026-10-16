@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -183,27 +184,9 @@
                 <Loader v-if="loading" message="Loading subscription invoices…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Customer</th>
-                                <th>Period</th>
-                                <th>Due</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="invoice in invoices" :key="invoice.id">
-                                <td>{{ invoice.invoice_no }}</td>
-                                <td>{{ invoice.customer_name }}</td>
-                                <td>{{ invoice.period_start }} → {{ invoice.period_end }}</td>
-                                <td>{{ invoice.due_date }}</td>
-                                <td>{{ invoice.total_amount }}</td>
-                                <td><span :class="statusBadge(invoice.status)">{{ invoice.status }}</span></td>
-                                <td class="text-end">
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Invoice #' }, { key: 'c1', label: 'Customer' }, { key: 'c2', label: 'Period' }, { key: 'c3', label: 'Due' }, { key: 'c4', label: 'Total' }, { key: 'c5', label: 'Status' }, { key: 'c6', label: 'Action' }]" :rows="(invoices).map((invoice) => ({ __s: { invoice }, c0: (invoice.invoice_no), c1: (invoice.customer_name), c2: `${invoice.period_start} → ${invoice.period_end}`, c3: (invoice.due_date), c4: (invoice.total_amount), c5: '', c6: '' }))" export-name="invoice">
+<template #cell-c5="{ row: __m }"><template v-for="{ invoice } in [__m.__s]" :key="0"><span :class="statusBadge(invoice.status)">{{ invoice.status }}</span></template></template>
+<template #cell-c6="{ row: __m }"><template v-for="{ invoice } in [__m.__s]" :key="0">
                                     <button
                                         v-if="invoice.status === 'unpaid' || invoice.status === 'overdue'"
                                         type="button" class="btn btn-outline-success btn-sm me-1"
@@ -219,13 +202,8 @@
                                         type="button" class="btn btn-outline-danger btn-sm"
                                         @click="cancelInvoice(invoice)"
                                     >Cancel</button>
-                                </td>
-                            </tr>
-                            <tr v-if="! invoices.length">
-                                <td colspan="7" class="text-center text-muted">No subscription invoices yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
 
                 <div v-if="payingInvoice" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.4)">

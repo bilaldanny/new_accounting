@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -156,29 +157,9 @@
                 <Loader v-if="loading" message="Loading subscription invoices…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th v-if="isSuperadmin">Company</th>
-                                <th>Plan</th>
-                                <th>Period</th>
-                                <th>Due</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th v-if="isSuperadmin" class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="invoice in invoices" :key="invoice.id">
-                                <td>{{ invoice.invoice_no }}</td>
-                                <td v-if="isSuperadmin">{{ invoice.company_name }}</td>
-                                <td>{{ invoice.plan_name }}</td>
-                                <td>{{ invoice.period_start }} → {{ invoice.period_end }}</td>
-                                <td>{{ invoice.due_date }}</td>
-                                <td>{{ invoice.total_amount }}</td>
-                                <td><span :class="statusBadge(invoice.status)">{{ invoice.status }}</span></td>
-                                <td v-if="isSuperadmin" class="text-end">
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Invoice #' }, { key: 'c1', label: 'Company' }, { key: 'c2', label: 'Plan' }, { key: 'c3', label: 'Period' }, { key: 'c4', label: 'Due' }, { key: 'c5', label: 'Total' }, { key: 'c6', label: 'Status' }, { key: 'c7', label: 'Action' }]" :rows="(invoices).map((invoice) => ({ __s: { invoice }, c0: (invoice.invoice_no), c1: (invoice.company_name), c2: (invoice.plan_name), c3: `${invoice.period_start} → ${invoice.period_end}`, c4: (invoice.due_date), c5: (invoice.total_amount), c6: '', c7: '' }))" export-name="invoice">
+<template #cell-c6="{ row: __m }"><template v-for="{ invoice } in [__m.__s]" :key="0"><span :class="statusBadge(invoice.status)">{{ invoice.status }}</span></template></template>
+<template #cell-c7="{ row: __m }"><template v-for="{ invoice } in [__m.__s]" :key="0">
                                     <button
                                         v-if="invoice.status === 'unpaid' || invoice.status === 'overdue'"
                                         type="button"
@@ -195,13 +176,8 @@
                                     >
                                         Cancel
                                     </button>
-                                </td>
-                            </tr>
-                            <tr v-if="! invoices.length">
-                                <td :colspan="isSuperadmin ? 8 : 6" class="text-center text-muted">No subscription invoices yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
 
                 <div v-if="payingInvoice" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.4)">

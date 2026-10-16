@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -117,20 +118,8 @@
                     <Loader v-if="loading" message="Loading tenants…" />
 
                     <div v-else class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Company</th>
-                                    <th>Plan</th>
-                                    <th>Status</th>
-                                    <th>Users</th>
-                                    <th>Branches</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="tenant in tenants" :key="tenant.id">
-                                    <td>{{ tenant.name }}</td>
-                                    <td>
+                        <ClientTable  :columns="[{ key: 'c0', label: 'Company' }, { key: 'c1', label: 'Plan' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: 'Users' }, { key: 'c4', label: 'Branches' }]" :rows="(tenants).map((tenant) => ({ __s: { tenant }, c0: (tenant.name), c1: '', c2: '', c3: `${tenant.users_count} / ${tenant.max_users}`, c4: `${tenant.branches_count} / ${tenant.max_branches}` }))" export-name="company">
+<template #cell-c1="{ row: __m }"><template v-for="{ tenant } in [__m.__s]" :key="0">
                                         <select
                                             class="form-select form-select-sm"
                                             :value="tenant.subscription_plan_id ?? ''"
@@ -139,8 +128,8 @@
                                             <option value="" disabled>No plan</option>
                                             <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.text ?? plan.name }}</option>
                                         </select>
-                                    </td>
-                                    <td>
+                                    </template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ tenant } in [__m.__s]" :key="0">
                                         <select
                                             class="form-select form-select-sm"
                                             :value="tenant.tenant_status"
@@ -148,15 +137,8 @@
                                         >
                                             <option v-for="status in STATUSES" :key="status" :value="status">{{ status }}</option>
                                         </select>
-                                    </td>
-                                    <td>{{ tenant.users_count }} / {{ tenant.max_users }}</td>
-                                    <td>{{ tenant.branches_count }} / {{ tenant.max_branches }}</td>
-                                </tr>
-                                <tr v-if="! tenants.length">
-                                    <td colspan="5" class="text-center text-muted">No tenants yet.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </template></template>
+</ClientTable>
                     </div>
                 </template>
             </div>

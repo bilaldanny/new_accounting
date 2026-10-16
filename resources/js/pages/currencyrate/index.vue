@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head, usePage } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, ref, watch } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -143,19 +144,9 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Currency</th>
-                                    <th>Symbol</th>
-                                    <th class="text-end" style="width: 14rem">1 {{ base?.code ?? 'base' }} =</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="row in visibleRows" :key="row.id">
-                                    <td>{{ row.code }} <small class="text-muted">{{ row.name }}</small></td>
-                                    <td>{{ row.symbol || '—' }}</td>
-                                    <td class="text-end">
+                        <ClientTable  :columns="[{ key: 'c0', label: 'Currency' }, { key: 'c1', label: 'Symbol' }, { key: 'c2', label: `1 ${base?.code ?? 'base'} =` }]" :rows="(visibleRows).map((row) => ({ __s: { row }, c0: '', c1: (row.symbol || '—'), c2: '' }))" export-name="currency">
+<template #cell-c0="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">{{ row.code }} <small class="text-muted">{{ row.name }}</small></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ row } in [__m.__s]" :key="0">
                                         <input
                                             v-model="rates[row.id]"
                                             type="number"
@@ -166,10 +157,8 @@
                                             :aria-label="`Rate for ${row.code}`"
                                             placeholder="No rate"
                                         >
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </template></template>
+</ClientTable>
                     </div>
                 </template>
 

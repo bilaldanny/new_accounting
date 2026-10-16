@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import Loader from '@/components/Loader.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
@@ -194,20 +195,8 @@
                 <Loader v-if="loading" message="Loading customer subscriptions…" />
 
                 <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>Customer</th>
-                                <th>Plan</th>
-                                <th>Status</th>
-                                <th>Renews</th>
-                                <th class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="subscription in subscriptions" :key="subscription.id">
-                                <td>{{ subscription.customer_name }}</td>
-                                <td>
+                    <ClientTable  :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Plan' }, { key: 'c2', label: 'Status' }, { key: 'c3', label: 'Renews' }, { key: 'c4', label: 'Action' }]" :rows="(subscriptions).map((subscription) => ({ __s: { subscription }, c0: (subscription.customer_name), c1: '', c2: '', c3: (subscription.current_period_ends_at), c4: '' }))" export-name="customer">
+<template #cell-c1="{ row: __m }"><template v-for="{ subscription } in [__m.__s]" :key="0">
                                     <select
                                         class="form-select form-select-sm"
                                         :value="subscription.customer_subscription_plan_id"
@@ -215,21 +204,15 @@
                                     >
                                         <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
                                     </select>
-                                </td>
-                                <td><span class="badge bg-secondary-subtle text-secondary text-capitalize">{{ subscription.status }}</span></td>
-                                <td>{{ subscription.current_period_ends_at }}</td>
-                                <td class="text-end">
+                                </template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ subscription } in [__m.__s]" :key="0"><span class="badge bg-secondary-subtle text-secondary text-capitalize">{{ subscription.status }}</span></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ subscription } in [__m.__s]" :key="0">
                                     <button v-if="subscription.status === 'active' || subscription.status === 'trial'" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="lifecycle(subscription, 'pause')">Pause</button>
                                     <button v-if="subscription.status === 'paused'" type="button" class="btn btn-outline-success btn-sm me-1" @click="lifecycle(subscription, 'resume')">Resume</button>
                                     <button v-if="subscription.status !== 'cancelled'" type="button" class="btn btn-outline-danger btn-sm me-1" @click="lifecycle(subscription, 'cancel')">Cancel</button>
                                     <button v-if="planIsMetered(subscription.customer_subscription_plan_id)" type="button" class="btn btn-outline-primary btn-sm" @click="openUsage(subscription)">Record usage</button>
-                                </td>
-                            </tr>
-                            <tr v-if="! subscriptions.length">
-                                <td colspan="5" class="text-center text-muted">No customer subscriptions yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </template></template>
+</ClientTable>
                 </div>
 
                 <div v-if="usageFor" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.4)">
