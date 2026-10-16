@@ -46,6 +46,13 @@
     const query = ref('');
     const open = ref(false);
 
+    /** The list stays long enough for a click on a result to land before it closes. */
+    function closeResultsSoon() {
+        window.setTimeout(() => {
+            open.value = false;
+        }, 180);
+    }
+
     const hasLines = computed(() => props.lines.length > 0);
 
     /** "10:95, 50:90" -> [{ min_qty: 10, sell_price: 95 }, { min_qty: 50, sell_price: 90 }]; what cannot be read is dropped. */
@@ -96,7 +103,7 @@
                 autocomplete="off"
                 @input="onSearch"
                 @focus="open = true"
-                @blur="setTimeout(() => open = false, 180)"
+                @blur="closeResultsSoon"
             >
             <span v-if="searching" class="purchase-lines__search-hint">Searching…</span>
         </div>

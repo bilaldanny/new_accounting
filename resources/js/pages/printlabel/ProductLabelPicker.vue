@@ -40,6 +40,13 @@
 
     const query = ref('');
     const open = ref(false);
+
+    /** The list stays long enough for a click on a result to land before it closes. */
+    function closeResultsSoon() {
+        window.setTimeout(() => {
+            open.value = false;
+        }, 180);
+    }
     const hasProducts = computed(() => props.products.length > 0);
     const totalLabels = computed(() => props.products.reduce((sum, item) => sum + Number(item.label || 0), 0));
 
@@ -73,7 +80,7 @@
                 autocomplete="off"
                 @input="onSearch"
                 @focus="open = true"
-                @blur="setTimeout(() => open = false, 180)"
+                @blur="closeResultsSoon"
             >
             <span v-if="searching" class="purchase-lines__search-hint">Searching…</span>
         </div>

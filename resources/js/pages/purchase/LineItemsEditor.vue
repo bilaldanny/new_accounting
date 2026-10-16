@@ -87,6 +87,8 @@
 
     const query = ref('');
     const open = ref(false);
+    /** The result the arrow keys are on (-1: none), so a keyboard user can pick a product without the mouse. */
+    const activeResult = ref(-1);
     const selectedCategoryId = ref('');
     const selectedSubcategoryId = ref('');
     const selectedItemTypeId = ref('');
@@ -164,6 +166,43 @@
         open.value = true;
         emit('search', query.value);
     }
+
+    /** The list stays long enough for a click on a result to land before it closes. */
+    function closeResultsSoon() {
+        window.setTimeout(() => {
+            open.value = false;
+        }, 180);
+    }
+
+    function onSearchKey(event: KeyboardEvent) {
+        const count = props.suggestions.length;
+
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            if (count === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            open.value = true;
+            activeResult.value = (activeResult.value + (event.key === 'ArrowDown' ? 1 : -1) + count) % count;
+            document.querySelector('.purchase-lines__result.is-active')?.scrollIntoView({ block: 'nearest' });
+        } else if (event.key === 'Enter') {
+            const target = props.suggestions[activeResult.value] ?? (count === 1 ? props.suggestions[0] : undefined);
+
+            if (target) {
+                event.preventDefault();
+                choose(target);
+                activeResult.value = -1;
+            }
+        } else if (event.key === 'Escape') {
+            open.value = false;
+            activeResult.value = -1;
+        }
+    }
+
+    watch(() => props.suggestions, () => {
+        activeResult.value = -1;
+    });
 
     function choose(product: ProductSuggestion) {
         emit('add', product);
@@ -272,8 +311,9 @@
                 :disabled="disabled"
                 autocomplete="off"
                 @input="onSearch"
+                @keydown="onSearchKey"
                 @focus="open = true"
-                @blur="setTimeout(() => open = false, 180)"
+                @blur="closeResultsSoon"
             >
             <span v-if="searching" class="purchase-lines__search-hint">Searching…</span>
         </div>
@@ -357,10 +397,13 @@
 
         <div v-if="isSearchBox && open && !disabled && (suggestions.length > 0 || query)" class="purchase-lines__results">
             <button
-                v-for="product in suggestions"
+                v-for="(product, resultIndex) in suggestions"
                 :key="`${product.product_id}-${product.id}`"
                 type="button"
                 class="purchase-lines__result"
+                :class="{ 'is-active': resultIndex === activeResult }"
+                role="option"
+                :aria-selected="resultIndex === activeResult"
                 @mousedown.prevent="choose(product)"
             >
                 <span class="purchase-lines__result-copy">
@@ -658,6 +701,7 @@
     border-bottom: 0;
 }
 
+.purchase-lines__result.is-active,
 .purchase-lines__result:hover {
     background: var(--app-primary-soft, #f0fdfa);
 }
