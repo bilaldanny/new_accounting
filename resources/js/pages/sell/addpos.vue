@@ -31,6 +31,7 @@
         XSquare,
     } from '@lucide/vue';
     import { computed, inject, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+    import TrackingInput from '@/components/TrackingInput.vue';
     import { API_ENDPOINTS } from '@/composables/apiEndpoints';
     import useCommons from '@/composables/common';
     import useSells from '@/composables/sell';
@@ -54,6 +55,7 @@
         unit_id: number | string;
         default_sell_price: number | string;
         product_image_url?: string | null;
+        tracking_type?: 'none' | 'serial' | 'batch';
         current_stock?: number | string;
         units: SellLineRow['units'];
         discount_rules?: SellLineRow['discount_rules'];
@@ -266,7 +268,45 @@
             units: product.units ?? [],
             current_stock: unit?.unit_qty ?? product.current_stock ?? 0,
             unit_name: unit?.short_name ?? unit?.text,
+            tracking_type: product.tracking_type ?? 'none',
+            serials: [],
+            batches: [],
         });
+    }
+
+    /**
+     * A serial or batch tracked product cannot be sold blind: the till asks which serial numbers (typed or scanned, one per piece) or
+     * which batch leaves. A batch product may be left empty, the earliest expiry then goes first; a serial product needs one serial for
+     * every piece. The prompt opens again when the quantity of such a line goes up.
+     */
+    const trackPrompt = reactive<{ open: boolean; index: number }>({ open: false, index: 0 });
+    const trackedLine = computed(() => (trackPrompt.open ? lines.value[trackPrompt.index] ?? null : null));
+    const trackNeeded = computed(() => (trackedLine.value ? Math.max(1, toNumber(trackedLine.value.quantity, 1)) * Math.max(toNumber(trackedLine.value.packing_qty, 1), 1) : 0));
+    const trackMissing = computed(() => (trackedLine.value && trackedLine.value.tracking_type === 'serial' ? Math.max(0, trackNeeded.value - (trackedLine.value.serials?.length ?? 0)) : 0));
+
+    function askTracking(index: number) {
+        const line = lines.value[index];
+
+        if (line && (line.tracking_type === 'serial' || line.tracking_type === 'batch')) {
+            trackPrompt.index = index;
+            trackPrompt.open = true;
+            nextTick(() => document.querySelector<HTMLTextAreaElement>('[data-test="pos-tracking"] textarea')?.focus());
+        }
+    }
+
+    function closeTrackPrompt() {
+        trackPrompt.open = false;
+        focusSearch();
+    }
+
+    function finishTracking() {
+        if (trackMissing.value > 0) {
+            Notify(`Enter ${trackMissing.value} more serial number${trackMissing.value === 1 ? '' : 's'}`, 'alert');
+
+            return;
+        }
+
+        closeTrackPrompt();
     }
 
     function isAlreadyAdded(product: ProductCard, unitId: number | string): boolean {
@@ -285,6 +325,7 @@
         }
 
         persistLines([buildLine(product, unit), ...lines.value]);
+        askTracking(0);
     }
 
     function addProduct(product: ProductCard) {
@@ -349,6 +390,10 @@
         }
 
         updateLine(index, { quantity: next });
+
+        if (delta > 0 && lines.value[index]?.tracking_type === 'serial') {
+            askTracking(index);
+        }
     }
 
     function removeLine(index: number) {
@@ -902,6 +947,15 @@
     async function createSellRecord(status: 'final' | 'draft' | 'quotation'): Promise<{ id: number; invoice_no: string; final_amount: number; remaining_amount: number } | null> {
         if (! formData.value.company_id || ! formData.value.branch_id) {
             Notify('Select a company and branch', 'alert');
+
+            return null;
+        }
+
+        // a final sale of a serial tracked product needs its serial numbers: ask again instead of letting the server refuse it
+        const untracked = status === 'final' ? lines.value.findIndex((line) => line.tracking_type === 'serial' && (line.serials?.length ?? 0) < Math.max(1, toNumber(line.quantity, 1)) * Math.max(toNumber(line.packing_qty, 1), 1)) : -1;
+
+        if (untracked >= 0) {
+            askTracking(untracked);
 
             return null;
         }
@@ -1816,6 +1870,25 @@
         </template>
 
         <!-- Unit picker -->
+        <div v-if="trackedLine" class="pos-overlay" data-test="pos-tracking" @click.self="closeTrackPrompt">
+            <div class="pos-overlay__panel">
+                <h3>{{ trackedLine.tracking_type === 'serial' ? 'Serial numbers' : 'Batch' }}</h3>
+                <p>{{ trackedLine.product_name }}: {{ trackedLine.tracking_type === 'serial' ? `${trackNeeded} serial number${trackNeeded === 1 ? '' : 's'} needed (type or scan one per line, or pick from the stock list)` : 'choose the batch, or leave it empty and the earliest expiry goes first' }}</p>
+                <TrackingInput
+                    :line="trackedLine"
+                    direction="out"
+                    :company-id="formData.company_id"
+                    :branch-id="formData.branch_id"
+                    @update="(patch) => updateLine(trackPrompt.index, patch)"
+                />
+                <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-dark btn-sm" data-test="pos-tracking-done" @click="finishTracking">Done</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @click="closeTrackPrompt">Later</button>
+                    <span v-if="trackMissing > 0" class="small text-danger align-self-center" role="status">{{ trackMissing }} more needed</span>
+                </div>
+            </div>
+        </div>
+
         <div v-if="unitPrompt.open" class="pos-overlay" @click.self="closeUnitPrompt">
             <div class="pos-overlay__panel pos-overlay__panel--sm">
                 <h3>Select unit</h3>
