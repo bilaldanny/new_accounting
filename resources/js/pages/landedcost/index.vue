@@ -103,19 +103,14 @@
                 <button type="button" class="btn-close" aria-label="Close" @click="detail = null" />
             </div>
 
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Type</th><th>Description</th><th>Spread by</th><th class="text-end">Amount</th><th /></tr></thead>
-                <tbody>
-                    <tr v-for="(cost, index) in costs" :key="index">
-                        <td><select v-model="cost.type" class="form-select form-select-sm" :disabled="! canEdit"><option v-for="type in types" :key="type" :value="type">{{ type.replace('_', ' ') }}</option></select></td>
-                        <td><input v-model="cost.description" class="form-control form-control-sm" maxlength="255" :disabled="! canEdit"></td>
-                        <td><select v-model="cost.allocation_basis" class="form-select form-select-sm" :disabled="! canEdit"><option value="value">Value</option><option value="quantity">Quantity</option></select></td>
-                        <td><input v-model="cost.amount" type="number" min="0.01" step="0.01" class="form-control form-control-sm text-end" :disabled="! canEdit"></td>
-                        <td><button v-if="canEdit" type="button" class="btn btn-link btn-sm text-danger" @click="costs.splice(index, 1)">Remove</button></td>
-                    </tr>
-                </tbody>
-                <tfoot><tr><th colspan="3">Total landed costs</th><th class="text-end">{{ money(total) }}</th><th /></tr></tfoot>
-            </table>
+            <ClientTable  :columns="[{ key: 'c0', label: 'Type' }, { key: 'c1', label: 'Description' }, { key: 'c2', label: 'Spread by' }, { key: 'c3', label: 'Amount' }, { key: 'c4', label: '' }]" :rows="(costs).map((cost, index) => ({ __s: { cost, index }, c0: '', c1: '', c2: '', c3: '', c4: '' }))" export-name="type">
+<template #cell-c0="{ row: __m }"><template v-for="{ cost, index } in [__m.__s]" :key="0"><select v-model="cost.type" class="form-select form-select-sm" :disabled="! canEdit"><option v-for="type in types" :key="type" :value="type">{{ type.replace('_', ' ') }}</option></select></template></template>
+<template #cell-c1="{ row: __m }"><template v-for="{ cost, index } in [__m.__s]" :key="0"><input v-model="cost.description" class="form-control form-control-sm" maxlength="255" :disabled="! canEdit"></template></template>
+<template #cell-c2="{ row: __m }"><template v-for="{ cost, index } in [__m.__s]" :key="0"><select v-model="cost.allocation_basis" class="form-select form-select-sm" :disabled="! canEdit"><option value="value">Value</option><option value="quantity">Quantity</option></select></template></template>
+<template #cell-c3="{ row: __m }"><template v-for="{ cost, index } in [__m.__s]" :key="0"><input v-model="cost.amount" type="number" min="0.01" step="0.01" class="form-control form-control-sm text-end" :disabled="! canEdit"></template></template>
+<template #cell-c4="{ row: __m }"><template v-for="{ cost, index } in [__m.__s]" :key="0"><button v-if="canEdit" type="button" class="btn btn-link btn-sm text-danger" @click="costs.splice(index, 1)">Remove</button></template></template>
+<template #footer><tr><th colspan="3">Total landed costs</th><th class="text-end">{{ money(total) }}</th><th /></tr></template>
+</ClientTable>
 
             <div v-if="canEdit" class="d-flex gap-2 mb-3">
                 <button type="button" class="btn btn-outline-primary btn-sm" @click="addCost">Add cost</button>

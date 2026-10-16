@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, reactive, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -179,26 +180,35 @@
         <div v-if="data" class="row g-3 mb-4">
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Top customers</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.top_customers" :key="row.name"><td>{{ row.name }}</td><td class="text-muted">{{ row.documents }} sales</td><td class="text-end">{{ money(row.amount) }}</td></tr>
-                        <tr v-if="! data.top_customers.length"><td class="text-muted">No sales in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No sales in this period."
+                        :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Sales' }, { key: 'c2', label: 'Amount' }]"
+                        :rows="(data.top_customers).map((row) => ({ __s: { row }, c0: row.name, c1: `${row.documents} sales`, c2: money(row.amount) }))"
+                        :page-size="10"
+                        export-name="top-customers"
+                    />
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Top products</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.top_products" :key="row.name"><td>{{ row.name }}</td><td class="text-muted">{{ row.quantity }} sold</td><td class="text-end">{{ money(row.amount) }}</td></tr>
-                        <tr v-if="! data.top_products.length"><td class="text-muted">No sales in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No sales in this period."
+                        :columns="[{ key: 'c0', label: 'Product' }, { key: 'c1', label: 'Sold' }, { key: 'c2', label: 'Amount' }]"
+                        :rows="(data.top_products).map((row) => ({ __s: { row }, c0: row.name, c1: `${row.quantity} sold`, c2: money(row.amount) }))"
+                        :page-size="10"
+                        export-name="top-products"
+                    />
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Expenses</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.expenses" :key="row.code"><td>{{ row.code }}</td><td>{{ row.name }}</td><td class="text-end">{{ money(row.amount) }}</td></tr>
-                        <tr v-if="! data.expenses.length"><td class="text-muted">No expenses in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No expenses in this period."
+                        :columns="[{ key: 'c0', label: 'Code' }, { key: 'c1', label: 'Account' }, { key: 'c2', label: 'Amount' }]"
+                        :rows="(data.expenses).map((row) => ({ __s: { row }, c0: row.code, c1: row.name, c2: money(row.amount) }))"
+                        :page-size="10"
+                        export-name="expenses"
+                    />
                 </div>
             </div>
             <div class="col-md-6">

@@ -64,6 +64,37 @@
 
     const money = (value: unknown): string => Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+    /** The lines of an X / Z report as table rows: item and amount, in the order a cashier reads them. */
+    function reportRows(report: any, full: boolean, shift?: any): Array<Record<string, string>> {
+        const rows: Array<[string, string]> = [];
+
+        if (full && shift) {
+            rows.push(['Opened', String(shift.opened_at)]);
+
+            if (shift.closed_at) {
+                rows.push(['Closed', String(shift.closed_at)]);
+            }
+
+            rows.push(['Opening float', money(report.opening_float)]);
+        }
+
+        rows.push(['Sales', `${report.sales_count} · ${money(report.sales_total)}`]);
+
+        Object.entries(report.payments ?? {}).forEach(([method, amount]) => {
+            rows.push([`${method} payments`, money(amount as number)]);
+        });
+
+        rows.push(['Cash in / out', `${money(report.pay_in)} / ${money(report.pay_out)}`]);
+        rows.push([full ? 'Expected cash' : 'Expected cash in drawer', money(report.expected_cash)]);
+
+        if (full && shift?.status === 'closed') {
+            rows.push(['Counted cash', money(shift.counted_cash)]);
+            rows.push(['Variance', money(shift.variance)]);
+        }
+
+        return rows.map(([item, amount], index) => ({ id: String(index), c0: item.charAt(0).toUpperCase() + item.slice(1), c1: amount }));
+    }
+
     function errorText(error: unknown): string {
         if (window.axios.isAxiosError(error)) {
             const errors = error.response?.data?.errors;
@@ -167,14 +198,13 @@
                     <span class="badge bg-success-subtle text-success ms-2">X report (live)</span>
                 </p>
 
-                <table v-if="current.report" class="table table-sm w-auto">
-                    <tbody>
-                        <tr><td>Sales</td><td class="text-end">{{ current.report.sales_count }} · {{ money(current.report.sales_total) }}</td></tr>
-                        <tr v-for="(amount, method) in current.report.payments" :key="method"><td class="text-capitalize">{{ method }} payments</td><td class="text-end">{{ money(amount) }}</td></tr>
-                        <tr><td>Cash in / out</td><td class="text-end">{{ money(current.report.pay_in) }} / {{ money(current.report.pay_out) }}</td></tr>
-                        <tr class="fw-bold"><td>Expected cash in drawer</td><td class="text-end">{{ money(current.report.expected_cash) }}</td></tr>
-                    </tbody>
-                </table>
+                <ClientTable
+                    v-if="current.report"
+                    :columns="[{ key: 'c0', label: 'X report', sorting: 'disabled' }, { key: 'c1', label: 'Amount', sorting: 'disabled' }]"
+                    :rows="reportRows(current.report, false)"
+                    :page-size="50"
+                    export-name="x-report"
+                />
 
                 <form v-if="can('/posshift/movement')" class="row g-2 align-items-end mb-3" @submit.prevent="addMovement">
                     <div class="col-md-2">
@@ -206,21 +236,13 @@
                 <h6>{{ viewing.report_type }} report · shift #{{ viewing.id }} · {{ viewing.cashier }}</h6>
                 <button type="button" class="btn-close" aria-label="Close" @click="viewing = null" />
             </div>
-            <table v-if="viewing.report" class="table table-sm w-auto">
-                <tbody>
-                    <tr><td>Opened</td><td class="text-end">{{ viewing.opened_at }}</td></tr>
-                    <tr v-if="viewing.closed_at"><td>Closed</td><td class="text-end">{{ viewing.closed_at }}</td></tr>
-                    <tr><td>Opening float</td><td class="text-end">{{ money(viewing.report.opening_float) }}</td></tr>
-                    <tr><td>Sales</td><td class="text-end">{{ viewing.report.sales_count }} · {{ money(viewing.report.sales_total) }}</td></tr>
-                    <tr v-for="(amount, method) in viewing.report.payments" :key="method"><td class="text-capitalize">{{ method }} payments</td><td class="text-end">{{ money(amount) }}</td></tr>
-                    <tr><td>Cash in / out</td><td class="text-end">{{ money(viewing.report.pay_in) }} / {{ money(viewing.report.pay_out) }}</td></tr>
-                    <tr><td>Expected cash</td><td class="text-end">{{ money(viewing.report.expected_cash) }}</td></tr>
-                    <template v-if="viewing.status === 'closed'">
-                        <tr><td>Counted cash</td><td class="text-end">{{ money(viewing.counted_cash) }}</td></tr>
-                        <tr class="fw-bold"><td>Variance</td><td class="text-end" :class="Number(viewing.variance) === 0 ? '' : Number(viewing.variance) < 0 ? 'text-danger' : 'text-warning'">{{ money(viewing.variance) }}</td></tr>
-                    </template>
-                </tbody>
-            </table>
+            <ClientTable
+                v-if="viewing.report"
+                :columns="[{ key: 'c0', label: 'Item', sorting: 'disabled' }, { key: 'c1', label: 'Amount', sorting: 'disabled' }]"
+                :rows="reportRows(viewing.report, true, viewing)"
+                :page-size="50"
+                export-name="shift-report"
+            />
         </div>
     </div>
 

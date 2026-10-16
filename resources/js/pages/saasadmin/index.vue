@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
 
@@ -108,10 +109,16 @@
                         <div class="col-3"><input v-model="statement.to" type="date" class="form-control form-control-sm" aria-label="To" /></div>
                         <div class="col-3"><button type="button" class="btn btn-outline-dark btn-sm" @click="getStatement">Statement</button></div>
                     </div>
-                    <table v-if="statementRows.length" class="table table-sm mt-2 mb-0"><tbody>
-                        <tr v-for="row in statementRows" :key="row.invoice_no"><td>{{ row.invoice_no }}</td><td>{{ row.company }}</td><td class="text-end">{{ money(row.paid_amount) }}</td><td class="text-end">{{ money(row.commission) }}</td></tr>
-                        <tr class="fw-semibold"><td colspan="3">Commission</td><td class="text-end">{{ money(statementTotal) }}</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        v-if="statementRows.length"
+                        class="mt-2"
+                        :columns="[{ key: 'c0', label: 'Invoice' }, { key: 'c1', label: 'Company' }, { key: 'c2', label: 'Paid' }, { key: 'c3', label: 'Commission' }]"
+                        :rows="(statementRows).map((row) => ({ __s: { row }, c0: row.invoice_no, c1: row.company, c2: money(row.paid_amount), c3: money(row.commission) }))"
+                        :page-size="25"
+                        export-name="commission-statement"
+                    >
+                        <template #footer><tr class="fw-semibold"><td colspan="3">Commission</td><td class="text-end">{{ money(statementTotal) }}</td></tr></template>
+                    </ClientTable>
                 </div>
             </div>
             <div class="col-md-6">

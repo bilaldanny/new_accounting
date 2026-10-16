@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { onMounted, reactive, ref } from 'vue';
     import useCommons from '@/composables/common';
 
@@ -34,7 +35,6 @@
     const loading = ref(false);
     const page = ref(1);
     const lastPage = ref(1);
-    const expanded = ref<number | null>(null);
     const filters = reactive({ model: '', event: '', auditable_id: '', from: '', to: '' });
 
     const events = ['created', 'updated', 'deleted', 'restored', 'force_deleted'];
@@ -112,55 +112,23 @@
             <div v-else-if="rows.length === 0" class="text-center py-4 text-muted">No activity recorded.</div>
 
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>When</th>
-                            <th>User</th>
-                            <th>Event</th>
-                            <th>Record</th>
-                            <th>IP</th>
-                            <th />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template v-for="row in rows" :key="row.id">
-                            <tr>
-                                <td>{{ row.created_at }}</td>
-                                <td>{{ row.user_name || 'System' }}</td>
-                                <td>{{ row.event }}</td>
-                                <td>{{ row.model }} #{{ row.auditable_id }}</td>
-                                <td>{{ row.ip_address || '-' }}</td>
-                                <td>
-                                    <button
-                                        v-if="row.changes.length"
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm"
-                                        @click="expanded = expanded === row.id ? null : row.id"
-                                    >
-                                        {{ expanded === row.id ? 'Hide' : 'Changes' }} ({{ row.changes.length }})
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr v-if="expanded === row.id">
-                                <td colspan="6">
-                                    <table class="table table-sm mb-0">
-                                        <thead>
-                                            <tr><th>Field</th><th>Before</th><th>After</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-for="change in row.changes" :key="change.field">
-                                                <td>{{ change.field }}</td>
-                                                <td class="text-danger">{{ show(change.old) }}</td>
-                                                <td class="text-success">{{ show(change.new) }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
+                <ClientTable
+                    :columns="[{ key: 'c0', label: 'When' }, { key: 'c1', label: 'User' }, { key: 'c2', label: 'Event' }, { key: 'c3', label: 'Record' }, { key: 'c4', label: 'IP' }, { key: 'c5', label: 'Changes', sorting: 'disabled' }]"
+                    :rows="rows.map((row) => ({ __s: { row }, c0: row.created_at, c1: row.user_name || 'System', c2: row.event, c3: `${row.model} #${row.auditable_id}`, c4: row.ip_address || '-', c5: '' }))"
+                    :page-size="Math.max(rows.length, 10)"
+                    export-name="activity-log"
+                >
+                    <template #cell-c5="{ row: __m }">
+                        <template v-for="{ row } in [__m.__s]" :key="row.id">
+                            <details v-if="row.changes.length" class="audit-changes">
+                                <summary class="btn btn-outline-secondary btn-sm">Changes ({{ row.changes.length }})</summary>
+                                <ul class="list-unstyled small mb-0 mt-1">
+                                    <li v-for="change in row.changes" :key="change.field"><strong>{{ change.field }}</strong>: <span class="text-danger">{{ show(change.old) }}</span> &rarr; <span class="text-success">{{ show(change.new) }}</span></li>
+                                </ul>
+                            </details>
                         </template>
-                    </tbody>
-                </table>
+                    </template>
+                </ClientTable>
 
                 <div v-if="lastPage > 1" class="d-flex gap-2 align-items-center">
                     <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="page <= 1" @click="goTo(page - 1)">Prev</button>

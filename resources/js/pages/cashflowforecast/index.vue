@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -43,20 +44,16 @@
             <p>Bank and cash today ({{ data.as_of }}): <strong>{{ money(data.opening_balance) }}</strong> &middot; lowest point: <strong :class="data.lowest_closing < 0 ? 'text-danger' : ''">{{ money(data.lowest_closing) }}</strong></p>
 
             <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Period</th><th class="text-end">Receivables due</th><th class="text-end">Payables due</th><th class="text-end">Loan instalments</th><th class="text-end">Net</th><th class="text-end">Cash after</th></tr></thead>
-                    <tbody>
-                        <tr v-for="bucket in data.buckets" :key="bucket.label">
-                            <td>{{ bucket.label }} <small v-if="bucket.from" class="text-muted">{{ bucket.from }}</small></td>
-                            <td class="text-end">{{ money(bucket.receivables) }}</td><td class="text-end">{{ money(bucket.payables) }}</td><td class="text-end">{{ money(bucket.loan_instalments) }}</td>
-                            <td class="text-end" :class="bucket.net < 0 ? 'text-danger' : ''">{{ money(bucket.net) }}</td>
-                            <td class="text-end" :class="bucket.closing < 0 ? 'text-danger' : ''">{{ money(bucket.closing) }}</td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
+                <ClientTable
+                    :columns="[{ key: 'c0', label: 'Period' }, { key: 'c1', label: 'Receivables due' }, { key: 'c2', label: 'Payables due' }, { key: 'c3', label: 'Loan instalments' }, { key: 'c4', label: 'Net' }, { key: 'c5', label: 'Cash after' }]"
+                    :rows="(data.buckets).map((bucket) => ({ __s: { bucket }, c0: bucket.label + (bucket.from ? ' ' + bucket.from : ''), c1: money(bucket.receivables), c2: money(bucket.payables), c3: money(bucket.loan_instalments), c4: money(bucket.net), c5: money(bucket.closing) }))"
+                    :page-size="Math.max(data.buckets.length, 10)"
+                    export-name="cash-flow-forecast"
+                >
+                    <template #footer>
                         <tr><td>Later than {{ data.weeks }} weeks</td><td class="text-end">{{ money(data.beyond.receivables) }}</td><td class="text-end">{{ money(data.beyond.payables) }}</td><td class="text-end">{{ money(data.beyond.loan_instalments) }}</td><td colspan="2"></td></tr>
-                    </tfoot>
-                </table>
+                    </template>
+                </ClientTable>
             </div>
 
             <ul class="small text-muted">

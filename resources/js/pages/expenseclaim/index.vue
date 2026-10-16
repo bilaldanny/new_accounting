@@ -100,11 +100,9 @@
 
             <div v-if="detail" class="col-lg-6 border rounded p-3">
                 <h6>{{ detail.claim_no }} - {{ detail.title }} <span class="badge text-bg-secondary text-capitalize">{{ detail.status }}</span></h6>
-                <table class="table table-sm">
-                    <thead><tr><th>Date</th><th>Account</th><th>Description</th><th class="text-end">Amount</th></tr></thead>
-                    <tbody><tr v-for="l in detail.lines" :key="l.id"><td>{{ String(l.expense_date).slice(0, 10) }}</td><td>{{ l.account }}</td><td>{{ l.description }}</td><td class="text-end">{{ money(l.amount) }}</td></tr></tbody>
-                    <tfoot><tr><th colspan="3">Total</th><th class="text-end">{{ money(detail.total) }}</th></tr></tfoot>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Date' }, { key: 'c1', label: 'Account' }, { key: 'c2', label: 'Description' }, { key: 'c3', label: 'Amount' }]" :rows="(detail.lines).map((l) => ({ __s: { l }, c0: (String(l.expense_date).slice(0, 10)), c1: (l.account), c2: (l.description), c3: (money(l.amount)) }))" export-name="date">
+<template #footer><tr><th colspan="3">Total</th><th class="text-end">{{ money(detail.total) }}</th></tr></template>
+</ClientTable>
                 <div class="small mb-2">Receipts: <span v-for="r in detail.receipts" :key="r.id" class="me-2"><a :href="`/api/expense-claims/${detail.id}/receipts/${r.id}`" target="_blank" rel="noopener">{{ r.file_name }}</a></span><span v-if="! detail.receipts.length" class="text-muted">none</span></div>
                 <div v-if="['draft', 'submitted'].includes(detail.status) && canAdd" class="mb-3"><input type="file" accept="application/pdf,image/*" class="form-control form-control-sm" aria-label="Receipt file" @change="receipt" /></div>
                 <div class="d-flex flex-wrap gap-2">

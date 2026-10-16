@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -582,10 +583,13 @@ return 'number';
                 </div>
                 <div class="border rounded p-3">
                     <h6>Recent reminders</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="entry in log" :key="entry.id"><td>{{ entry.sent_on }}</td><td>{{ entry.invoice_no }}</td><td>{{ entry.channel }}</td><td>{{ entry.recipient }}</td><td>{{ entry.status }}</td></tr>
-                        <tr v-if="!log.length"><td class="text-muted">Nothing sent yet.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="Nothing sent yet."
+                        :columns="[{ key: 'c0', label: 'Sent on' }, { key: 'c1', label: 'Invoice' }, { key: 'c2', label: 'Channel' }, { key: 'c3', label: 'Recipient' }, { key: 'c4', label: 'Status' }]"
+                        :rows="log.map((entry) => ({ __s: { entry }, c0: entry.sent_on, c1: entry.invoice_no, c2: entry.channel, c3: entry.recipient, c4: entry.status }))"
+                        :page-size="10"
+                        export-name="reminder-log"
+                    />
                 </div>
             </div>
         </div>

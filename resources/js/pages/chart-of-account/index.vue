@@ -7,14 +7,18 @@
     import { dashboard } from '@/routes';
     import AddModal from './add.vue';
     import EditModal from './edit.vue';
-    import ChildrenTree from './ChildrenTree.vue';
+    import ClientTable from '@/components/ClientTable.vue';
+    import { formatNumber } from '@/utils/numberFormat';
     import FieldHint from '@/pages/journalentry/FieldHint.vue';
     import type { ChartOfAccountNode } from '@/composables/chartOfAccount';
     import {
+        ChevronDown,
         ChevronLeft,
+        ChevronRight,
         Filter,
         FolderTree,
         Home,
+        Pencil,
         Plus,
         RotateCw,
         Search,
@@ -344,6 +348,28 @@
         return filterTree(scoped, searchQuery.value.trim().toLowerCase());
     });
 
+    /** The tree as the rows of the table: parents first, a collapsed branch's children left out, each row knowing its depth. */
+    const treeRows = computed(() => {
+        const out: Array<{ node: ChartOfAccountNode; level: number }> = [];
+        const walk = (nodes: ChartOfAccountNode[], level: number) => {
+            nodes.forEach((node) => {
+                out.push({ node, level });
+
+                if (node.children?.length && ! collapsedIds.value.includes(node.id)) {
+                    walk(node.children, level + 1);
+                }
+            });
+        };
+
+        walk(visibleRecords.value, 1);
+
+        return out;
+    });
+
+    function isRootAccount(node: ChartOfAccountNode): boolean {
+        return node.parent_id === null || node.parent_id === undefined || node.parent_id === '';
+    }
+
     function collectExpandableIds(nodes: ChartOfAccountNode[], ids: number[] = []): number[] {
         nodes.forEach((node) => {
             if (node.children?.length) {
@@ -602,39 +628,71 @@
                         <p class="font-semibold text-slate-600">Loading accounts</p>
                     </div>
                     <div v-else class="overflow-x-auto">
-                        <table class="w-full min-w-[720px] border-collapse text-left">
-                            <thead>
-                                <tr class="select-none border-b border-slate-200 bg-slate-50/90 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
-                                    <th class="w-44 px-4 py-3">Code</th>
-                                    <th class="min-w-[340px] px-4 py-3">Name</th>
-                                    <th class="w-44 px-4 py-3 text-right">Balance</th>
-                                    <th class="w-48 px-4 py-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 text-xs">
-                                <tr v-if="visibleRecords.length === 0">
-                                    <td colspan="4" class="px-4 py-12 text-center text-slate-400">
-                                        <FolderTree class="mx-auto mb-2 h-8 w-8 text-slate-300" />
-                                        <p class="font-semibold text-slate-600">No accounts match the selected category or search</p>
+                        <ClientTable
+                            :columns="[{ key: 'c0', label: 'Code', sorting: 'disabled' }, { key: 'c1', label: 'Name', sorting: 'disabled' }, { key: 'c2', label: 'Balance', sorting: 'disabled' }, { key: 'c3', label: 'Actions', sorting: 'disabled' }]"
+                            :rows="treeRows.map((entry) => ({ __s: { entry }, c0: entry.node.code || '', c1: entry.node.name, c2: formatNumber(entry.node.opening_balance), c3: '' }))"
+                            :page-size="Math.max(treeRows.length, 10)"
+                            export-name="chart-of-accounts"
+                            empty-text="No accounts match the selected category or search"
+                        >
+                            <template #cell-c0="{ row: __m }">
+                                <template v-for="{ entry } in [__m.__s]" :key="entry.node.id">
+                                    <span class="inline-block rounded px-2 py-0.5 font-mono text-xs font-bold" :class="entry.level === 1 ? 'bg-slate-200/80 text-slate-900' : 'bg-slate-100 text-teal-800'">{{ entry.node.code || '—' }}</span>
+                                </template>
+                            </template>
+                            <template #cell-c1="{ row: __m }">
+                                <template v-for="{ entry } in [__m.__s]" :key="entry.node.id">
+                                    <div class="flex items-center gap-2" :class="{ 'opacity-70': entry.node.active === false }" :style="{ paddingLeft: `${(entry.level - 1) * 1.5}rem` }">
                                         <button
+                                            v-if="entry.node.children?.length"
                                             type="button"
-                                            class="mt-2 cursor-pointer text-xs font-semibold text-teal-700 hover:underline"
-                                            @click="activeCategory = 'All accounts'; searchQuery = ''"
+                                            class="-ml-1 cursor-pointer rounded p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+                                            :title="collapsedIds.includes(entry.node.id) ? 'Expand branch' : 'Collapse branch'"
+                                            :aria-expanded="! collapsedIds.includes(entry.node.id)"
+                                            @click="toggleCollapse(entry.node.id)"
                                         >
-                                            Show All Accounts
+                                            <ChevronRight v-if="collapsedIds.includes(entry.node.id)" class="h-3.5 w-3.5" />
+                                            <ChevronDown v-else class="h-3.5 w-3.5" />
                                         </button>
-                                    </td>
-                                </tr>
-                                <ChildrenTree
-                                    v-else
-                                    :nodes="visibleRecords"
-                                    :collapsed-ids="collapsedIds"
-                                    @add="queueAddModal"
-                                    @edit="openEditModal"
-                                    @toggle="toggleCollapse"
-                                />
-                            </tbody>
-                        </table>
+                                        <span v-else class="w-5"></span>
+                                        <span :class="entry.level === 1 ? 'text-sm font-bold text-slate-900' : 'text-xs font-semibold text-slate-800'">{{ entry.node.name }}</span>
+                                        <span class="rounded px-1.5 py-0.5 text-[9px] font-extrabold tracking-wide uppercase" :class="entry.node.acc_type === 'c' ? 'border border-indigo-200/80 bg-indigo-50 text-indigo-700' : 'border border-emerald-200/80 bg-emerald-50 text-emerald-700'">{{ entry.node.acc_type === 'c' ? 'Control' : 'Transactional' }}</span>
+                                        <span v-if="entry.node.active === false" class="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[9px] font-extrabold tracking-wide text-slate-500 uppercase">Inactive</span>
+                                    </div>
+                                </template>
+                            </template>
+                            <template #cell-c3="{ row: __m }">
+                                <template v-for="{ entry } in [__m.__s]" :key="entry.node.id">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <button
+                                            v-if="entry.node.acc_type === 'c'"
+                                            type="button"
+                                            class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-teal-200/80 bg-teal-50/70 px-2.5 py-1 text-[11px] font-semibold text-teal-700 hover:bg-teal-100/80"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#AddModal"
+                                            :data-parent-id="entry.node.id"
+                                            title="Add child account"
+                                            @click.capture="queueAddModal(entry.node.id)"
+                                        >
+                                            <Plus class="h-3 w-3 text-teal-600" />
+                                            <span>Add account</span>
+                                        </button>
+                                        <button
+                                            v-if="! isRootAccount(entry.node)"
+                                            type="button"
+                                            class="cursor-pointer rounded-md border border-amber-200/80 bg-amber-50/80 p-1.5 text-amber-700 hover:bg-amber-100/80"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#EditModal"
+                                            title="Edit account details"
+                                            aria-label="Edit account"
+                                            @click="openEditModal(entry.node.id)"
+                                        >
+                                            <Pencil class="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                </template>
+                            </template>
+                        </ClientTable>
                     </div>
                 </div>
 

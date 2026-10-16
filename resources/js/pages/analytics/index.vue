@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import CompanyPicker from '@/components/CompanyPicker.vue';
     import { computed, onMounted, ref } from 'vue';
     import useCloseout from '@/composables/closeout';
@@ -85,37 +86,49 @@
 
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Sales by salesperson</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.by_salesperson" :key="row.name"><td>{{ row.name }}</td><td class="text-muted">{{ row.sales_count }} sales</td><td class="text-end">{{ money(row.net) }}</td></tr>
-                        <tr v-if="! data.by_salesperson.length"><td class="text-muted">No sales in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No sales in this period."
+                        :columns="[{ key: 'c0', label: 'Salesperson' }, { key: 'c1', label: 'Sales' }, { key: 'c2', label: 'Net' }]"
+                        :rows="(data.by_salesperson).map((row) => ({ __s: { row }, c0: row.name, c1: `${row.sales_count} sales`, c2: money(row.net) }))"
+                        :page-size="10"
+                        export-name="by-salesperson"
+                    />
                 </div>
             </div>
 
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Received by payment method</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.by_payment_method" :key="row.name"><td>{{ row.name }}</td><td class="text-muted">{{ row.share }}%</td><td class="text-end">{{ money(row.net) }}</td></tr>
-                        <tr v-if="! data.by_payment_method.length"><td class="text-muted">No payments in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No payments in this period."
+                        :columns="[{ key: 'c0', label: 'Method' }, { key: 'c1', label: 'Share' }, { key: 'c2', label: 'Received' }]"
+                        :rows="(data.by_payment_method).map((row) => ({ __s: { row }, c0: row.name, c1: `${row.share}%`, c2: money(row.net) }))"
+                        :page-size="10"
+                        export-name="by-payment-method"
+                    />
                 </div>
             </div>
 
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Profit by branch</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.profit_by_branch" :key="row.name"><td>{{ row.name }}</td><td class="text-muted">{{ row.margin === null ? '-' : `${row.margin}%` }}</td><td class="text-end">{{ money(row.profit) }}</td></tr>
-                        <tr v-if="! data.profit_by_branch.length"><td class="text-muted">No sold lines in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No sold lines in this period."
+                        :columns="[{ key: 'c0', label: 'Branch' }, { key: 'c1', label: 'Margin' }, { key: 'c2', label: 'Profit' }]"
+                        :rows="(data.profit_by_branch).map((row) => ({ __s: { row }, c0: row.name, c1: `${row.margin === null ? '-' : `${row.margin}%`}`, c2: money(row.profit) }))"
+                        :page-size="10"
+                        export-name="profit-by-branch"
+                    />
                 </div>
             </div>
 
             <div class="col-md-6">
                 <div class="border rounded p-3 h-100"><h6>Profit by customer</h6>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="row in data.profit_by_customer" :key="row.name"><td>{{ row.name }}</td><td class="text-muted">{{ row.margin === null ? '-' : `${row.margin}%` }}</td><td class="text-end">{{ money(row.profit) }}</td></tr>
-                        <tr v-if="! data.profit_by_customer.length"><td class="text-muted">No sold lines in this period.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No sold lines in this period."
+                        :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Margin' }, { key: 'c2', label: 'Profit' }]"
+                        :rows="(data.profit_by_customer).map((row) => ({ __s: { row }, c0: row.name, c1: `${row.margin === null ? '-' : `${row.margin}%`}`, c2: money(row.profit) }))"
+                        :page-size="10"
+                        export-name="profit-by-customer"
+                    />
                 </div>
             </div>
         </div>

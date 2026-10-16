@@ -78,18 +78,9 @@
         </div>
 
         <div class="table-responsive mb-4">
-            <table class="table table-sm align-middle">
-                <thead><tr><th>Name</th><th class="text-end">Sales</th><th class="text-end">Gross</th><th class="text-end">Returned</th><th class="text-end">Net</th><th class="text-end">Target</th><th class="text-end">Achieved %</th><th class="text-end">Rate %</th><th class="text-end">Commission</th></tr></thead>
-                <tbody>
-                    <tr v-for="row in rows" :key="row.subject_id">
-                        <td>{{ row.name }}</td><td class="text-end">{{ row.sales }}</td><td class="text-end">{{ money(row.gross) }}</td><td class="text-end">{{ money(row.returned) }}</td><td class="text-end">{{ money(row.net) }}</td>
-                        <td class="text-end">{{ row.target === null ? '-' : money(row.target) }}</td><td class="text-end">{{ row.achievement_percent ?? '-' }}</td>
-                        <td class="text-end">{{ row.rate_percent ?? '-' }}</td><td class="text-end">{{ row.commission === null ? '-' : money(row.commission) }}</td>
-                    </tr>
-                    <tr v-if="! rows.length"><td colspan="9" class="text-center text-muted">No sales in this period.</td></tr>
-                </tbody>
-                <tfoot v-if="rows.length"><tr><th colspan="4">Total</th><th class="text-end">{{ money(totals.net) }}</th><th colspan="3"></th><th class="text-end">{{ money(totals.commission) }}</th></tr></tfoot>
-            </table>
+            <ClientTable empty-text="No sales in this period." :columns="[{ key: 'c0', label: 'Name' }, { key: 'c1', label: 'Sales' }, { key: 'c2', label: 'Gross' }, { key: 'c3', label: 'Returned' }, { key: 'c4', label: 'Net' }, { key: 'c5', label: 'Target' }, { key: 'c6', label: 'Achieved %' }, { key: 'c7', label: 'Rate %' }, { key: 'c8', label: 'Commission' }]" :rows="(rows).map((row) => ({ __s: { row }, c0: (row.name), c1: (row.sales), c2: (money(row.gross)), c3: (money(row.returned)), c4: (money(row.net)), c5: (row.target === null ? '-' : money(row.target)), c6: (row.achievement_percent ?? '-'), c7: (row.rate_percent ?? '-'), c8: (row.commission === null ? '-' : money(row.commission)) }))" export-name="name">
+<template #footer><tr v-if="rows.length"><th colspan="4">Total</th><th class="text-end">{{ money(totals.net) }}</th><th colspan="3"></th><th class="text-end">{{ money(totals.commission) }}</th></tr></template>
+</ClientTable>
         </div>
 
         <div class="row g-3">

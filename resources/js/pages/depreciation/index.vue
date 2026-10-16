@@ -138,16 +138,9 @@
             <h6>Due up to {{ filters.period }}</h6>
             <p v-if="! preview.rows.length" class="text-muted mb-0">Nothing is due.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm">
-                    <thead><tr><th>Month</th><th>Asset</th><th class="text-end">Opening book value</th><th class="text-end">Depreciation</th><th class="text-end">Closing book value</th></tr></thead>
-                    <tbody>
-                        <tr v-for="row in preview.rows" :key="row.asset_id + row.period">
-                            <td>{{ row.period }}</td><td>{{ row.code }} {{ row.name }}</td>
-                            <td class="text-end">{{ money(row.opening_book_value) }}</td><td class="text-end fw-bold">{{ money(row.amount) }}</td><td class="text-end">{{ money(row.closing_book_value) }}</td>
-                        </tr>
-                    </tbody>
-                    <tfoot><tr><th colspan="3">Total</th><th class="text-end">{{ money(preview.total) }}</th><th /></tr></tfoot>
-                </table>
+                <ClientTable  :columns="[{ key: 'c0', label: 'Month' }, { key: 'c1', label: 'Asset' }, { key: 'c2', label: 'Opening book value' }, { key: 'c3', label: 'Depreciation' }, { key: 'c4', label: 'Closing book value' }]" :rows="(preview.rows).map((row) => ({ __s: { row }, c0: (row.period), c1: `${row.code} ${row.name}`, c2: (money(row.opening_book_value)), c3: (money(row.amount)), c4: (money(row.closing_book_value)) }))" export-name="month">
+<template #footer><tr><th colspan="3">Total</th><th class="text-end">{{ money(preview.total) }}</th><th /></tr></template>
+</ClientTable>
             </div>
         </div>
     </div>

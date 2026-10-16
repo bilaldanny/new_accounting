@@ -118,21 +118,21 @@
                 </div>
                 <div v-for="route in sheet" :key="route.id" class="border rounded p-2 mb-2">
                     <strong>{{ route.name }}</strong>
-                    <table class="table table-sm align-middle mb-0">
-                        <tbody>
-                            <tr v-for="stop in route.stops" :key="stop.contact_id">
-                                <td>{{ stop.customer ?? '#' + stop.contact_id }}</td>
-                                <td class="text-capitalize">{{ stop.status }}</td>
-                                <td class="text-end text-nowrap">
-                                    <template v-if="can('/salesroute/visit')">
-                                        <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="visit(route, stop.contact_id, 'visited')">Visited</button>
-                                        <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="visit(route, stop.contact_id, 'sold')">Sold</button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" @click="visit(route, stop.contact_id, 'skipped')">Skip</button>
-                                    </template>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <ClientTable
+                        empty-text="No stops on this route."
+                        :columns="[{ key: 'c0', label: 'Customer' }, { key: 'c1', label: 'Status' }, { key: 'c2', label: '', sorting: 'disabled' }]"
+                        :rows="(route.stops).map((stop) => ({ __s: { stop }, c0: stop.customer ?? '#' + stop.contact_id, c1: stop.status, c2: '' }))"
+                        :page-size="25"
+                        :export-name="`route-${route.name}`"
+                    >
+                        <template #cell-c2="{ row: __m }"><template v-for="{ stop } in [__m.__s]" :key="stop.contact_id">
+                            <template v-if="can('/salesroute/visit')">
+                                <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="visit(route, stop.contact_id, 'visited')">Visited</button>
+                                <button type="button" class="btn btn-outline-dark btn-sm me-1" @click="visit(route, stop.contact_id, 'sold')">Sold</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @click="visit(route, stop.contact_id, 'skipped')">Skip</button>
+                            </template>
+                        </template></template>
+                    </ClientTable>
                 </div>
                 <p v-if="! sheet.length" class="text-muted small">No route is planned for this day.</p>
             </div>

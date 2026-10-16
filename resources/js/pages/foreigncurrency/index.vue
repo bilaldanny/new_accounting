@@ -106,9 +106,14 @@
                         <div class="col-4"><input v-model.number="rate.rate" type="number" step="0.000001" class="form-control form-control-sm" placeholder="Foreign per base" aria-label="Rate" /></div>
                         <div class="col-12"><button type="button" class="btn btn-outline-dark btn-sm" @click="addRate">Save rate</button></div>
                     </div>
-                    <table class="table table-sm mt-3 mb-0">
-                        <tbody><tr v-for="item in rates" :key="item.id"><td>{{ item.effective_on }}</td><td>{{ item.code }}</td><td class="text-end">{{ item.rate }}</td></tr></tbody>
-                    </table>
+                    <ClientTable
+                        class="mt-3"
+                        empty-text="No rates saved yet."
+                        :columns="[{ key: 'c0', label: 'Effective on' }, { key: 'c1', label: 'Currency' }, { key: 'c2', label: 'Rate' }]"
+                        :rows="(rates).map((item) => ({ __s: { item }, c0: item.effective_on, c1: item.code, c2: item.rate }))"
+                        :page-size="10"
+                        export-name="exchange-rates"
+                    />
                 </div>
             </div>
             <div class="col-md-7">

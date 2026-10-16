@@ -389,13 +389,8 @@
             </form>
             <p v-if="! assets.length" class="text-muted mb-0">No assets found.</p>
             <div v-else class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Branch</th><th>Status</th><th class="text-end">Cost</th><th class="text-end">Accumulated</th><th class="text-end">Book value</th><th /></tr></thead>
-                    <tbody>
-                        <tr v-for="asset in assets" :key="asset.id">
-                            <td>{{ asset.code }}</td><td>{{ asset.name }}</td><td>{{ asset.category_name }}</td><td>{{ asset.branch_name }}</td><td>{{ asset.status }}</td>
-                            <td class="text-end">{{ money(asset.cost) }}</td><td class="text-end">{{ money(asset.accumulated_depreciation) }}</td><td class="text-end fw-bold">{{ money(asset.book_value) }}</td>
-                            <td class="text-nowrap">
+                <ClientTable  :columns="[{ key: 'c0', label: 'Code' }, { key: 'c1', label: 'Name' }, { key: 'c2', label: 'Category' }, { key: 'c3', label: 'Branch' }, { key: 'c4', label: 'Status' }, { key: 'c5', label: 'Cost' }, { key: 'c6', label: 'Accumulated' }, { key: 'c7', label: 'Book value' }, { key: 'c8', label: '' }]" :rows="(assets).map((asset) => ({ __s: { asset }, c0: (asset.code), c1: (asset.name), c2: (asset.category_name), c3: (asset.branch_name), c4: (asset.status), c5: (money(asset.cost)), c6: (money(asset.accumulated_depreciation)), c7: (money(asset.book_value)), c8: '' }))" export-name="code">
+<template #cell-c8="{ row: __m }"><template v-for="{ asset } in [__m.__s]" :key="0">
                                 <button type="button" class="btn btn-outline-secondary btn-sm me-1" @click="showHistory(asset)">History</button>
                                 <button v-if="asset.status === 'cwip' && can('/fixedasset/cwip')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="startAction('cost', asset)">Add cost</button>
                                 <button v-if="asset.status === 'cwip' && can('/fixedasset/capitalise')" type="button" class="btn btn-outline-primary btn-sm me-1" @click="startAction('capitalise', asset)">Capitalise</button>
@@ -407,11 +402,9 @@
                                 </template>
                                 <button v-if="can('/fixedasset/:id/edit')" type="button" class="btn btn-outline-secondary btn-sm me-1" @click="edit(asset)">Edit</button>
                                 <button v-if="can('/fixedasset/delete') && asset.deletable" type="button" class="btn btn-outline-danger btn-sm" @click="remove(asset)">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                    <tfoot><tr><th colspan="5">Total</th><th class="text-end">{{ money(totals.cost) }}</th><th class="text-end">{{ money(totals.accumulated) }}</th><th class="text-end">{{ money(totals.book) }}</th><th /></tr></tfoot>
-                </table>
+                            </template></template>
+<template #footer><tr><th colspan="5">Total</th><th class="text-end">{{ money(totals.cost) }}</th><th class="text-end">{{ money(totals.accumulated) }}</th><th class="text-end">{{ money(totals.book) }}</th><th /></tr></template>
+</ClientTable>
             </div>
         </div>
     </div>

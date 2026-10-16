@@ -121,10 +121,15 @@
                         <div class="col-5"><input v-model="newRule.address" class="form-control form-control-sm" placeholder="203.0.113.0/24" aria-label="Address" /></div>
                         <div class="col-4"><button type="button" class="btn btn-outline-dark btn-sm" @click="addRule">Add</button></div>
                     </div>
-                    <table class="table table-sm mb-0"><tbody>
-                        <tr v-for="rule in rules" :key="rule.id"><td class="text-capitalize">{{ rule.type }}</td><td>{{ rule.address }}</td><td class="text-end"><button v-if="can('/security/manage')" type="button" class="btn btn-link btn-sm text-danger" @click="deleteRule(rule)">remove</button></td></tr>
-                        <tr v-if="! rules.length"><td class="text-muted">No rules: every address may sign in.</td></tr>
-                    </tbody></table>
+                    <ClientTable
+                        empty-text="No rules: every address may sign in."
+                        :columns="[{ key: 'c0', label: 'Rule' }, { key: 'c1', label: 'Address' }, { key: 'c2', label: '', sorting: 'disabled' }]"
+                        :rows="(rules).map((rule) => ({ __s: { rule }, c0: rule.type, c1: rule.address, c2: '' }))"
+                        :page-size="10"
+                        export-name="ip-rules"
+                    >
+                        <template #cell-c2="{ row: __m }"><template v-for="{ rule } in [__m.__s]" :key="rule.id"><button v-if="can('/security/manage')" type="button" class="btn btn-link btn-sm text-danger" @click="deleteRule(rule)">remove</button></template></template>
+                    </ClientTable>
                 </div>
             </div>
             <div class="col-md-7">
@@ -156,7 +161,13 @@
                 <div class="col-auto"><button type="button" class="btn btn-outline-danger btn-sm" @click="anonymize">Anonymise</button></div>
             </div>
             <pre v-if="exported" class="small border rounded p-2" style="max-height: 16rem; overflow: auto">{{ exported }}</pre>
-            <table class="table table-sm mb-0"><tbody><tr v-for="item in requests" :key="item.id"><td>{{ item.created_at }}</td><td class="text-capitalize">{{ item.kind }}</td><td>{{ item.subject_type }} #{{ item.subject_id }}</td></tr></tbody></table>
+            <ClientTable
+                empty-text="No requests yet."
+                :columns="[{ key: 'c0', label: 'When' }, { key: 'c1', label: 'Request' }, { key: 'c2', label: 'Subject' }]"
+                :rows="(requests).map((item) => ({ __s: { item }, c0: item.created_at, c1: item.kind, c2: `${item.subject_type} #${item.subject_id}` }))"
+                :page-size="10"
+                export-name="privacy-requests"
+            />
         </div>
     </div></div></div>
 </template>
