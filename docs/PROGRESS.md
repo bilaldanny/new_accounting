@@ -68,3 +68,17 @@ New migrations to run live, in order: `2026_11_26_100000_add_code_mode_to_docume
 | 4 | Demo history | Done: `php artisan demo:history [--fresh|--remove] [--force]` builds company `DEMO-HISTORY` through the real API: 12 months with Ramzan / Eid / wedding / summer seasons, monthly rent + utilities (approved), payroll, attendance (CSV import), leave requests, leads; refuses production without `--force`; `--remove` takes only that company. Screenshots: `docs/dashboard-screens/dashboard-light.png`, `dashboard-dark.png` (captured by `tests/Browser/DashboardScreenshotsTest.php`, run with `CAPTURE_DASHBOARD_SCREENSHOTS=1`) |
 
 No new migration in wave 2.
+
+### Round 2 (BAQI KAAM) - built
+
+| # | Item | State |
+|---|---|---|
+| 1 | Crawler | `tests/Browser/MenuCrawlerTest.php` (`CRAWL=1`), table in `docs/page-crawl.md` (see its last section for the result) |
+| 2 | Raw tables | 26 more list pages on theTable / ClientTable (footer slot added to theTable); 3 left in the allow-list of `NoRawTableInListPagesTest` with reasons (opening-balance grid of inputs, POS offline queue, public landing page) |
+| 3 | Keyboard-only | `tests/Browser/KeyboardOnlyFlowsTest.php`: a sale at the till, a purchase and a journal entry with no mouse; the product search on 4 forms now takes the arrow keys and Enter; the result list now closes on blur (it used a template `setTimeout` that never worked) |
+| 4 | POS serial / batch | the line asks for serials (typed / scanned / picked) or a batch when added and when the quantity goes up; a final sale of a serial line without enough serials reopens the prompt; `tests/Browser/PosTrackingTest.php` |
+| 5 | Holidays | table `company_holidays`, HR Settings > Holidays, one-click Pakistan import (Islamic dates approximate, 2026 and 2027), dots in the header calendar; `tests/Feature/HolidaysTest.php` |
+| 6 | CRUD matrix | `docs/crud-matrix.md`; the matrix found one real bug: a save on another company's voucher (and 56 other controllers) answered 500 instead of 404 - fixed |
+| 8 | Known limitations | updated |
+
+New migration to run live after the three of wave 1: `2026_11_27_100000_create_company_holidays_table` (also adds the Holidays menu row, granted to the company admin).

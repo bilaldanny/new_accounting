@@ -36,7 +36,7 @@ policy, sessions); multi-branch and multi-company.
 | Import undo | Customer, supplier and product imports can be undone while unused. Other imports cannot. |
 | Backup | Database backups are made and downloaded from the Backup page. Copying to cloud storage and restoring need your administrator. |
 | Forms | You can add extra fields; there is no screen to rearrange whole forms. |
-| Invoice layout | You reorder blocks by dragging; you cannot place items at any position on the page. |
+| Invoice layout | You reorder blocks by dragging, or write your own layout as HTML and CSS with placeholders (Document Center > Code editor). Script, forms, external files and external images are removed on purpose; the page prints inside a sandbox. |
 | Machine and shift planning | Manufacturing plans quantities and dates, not machines or shifts. |
 
 ## A new company's starting set-up
@@ -51,12 +51,27 @@ policy, sessions); multi-branch and multi-company.
   Mapping > Inventory; the balance sheet then shows that account and no stock line of its own.
 * Journal entries wait for approval by default; switch this off in company settings if one person does the books.
 
+## Calendar, holidays and the scanner
+
+* The header calendar shows follow-ups, approved leaves, invoices falling due, your to-dos and the company holidays. The holidays
+  are the list on the HR page (HR Settings > Holidays). One click imports the public holidays of Pakistan for a year: the national
+  days are fixed, but Eid, Ashura and Eid Milad un Nabi follow the moon sighting, so the imported dates are marked "approximate"
+  (listed for 2026 and 2027 only) and must be confirmed by you each year.
+* A holiday does not change attendance or payroll by itself; it is for planning and for the calendar.
+* At the till, a product tracked by serial number or batch asks for its serial numbers (typed or scanned) or batch when it is added;
+  a batch left empty takes the earliest expiry. The camera scan uses the browser's own barcode detection and works only where the
+  browser offers it (recent Chrome and Edge on a phone or laptop with a camera); a scanner that types the code is the reliable way.
+  The scanner settings (shortest code, prefix, ending key, speed, beep) are kept in the browser of that till.
+* The dark theme covers the dashboard and the main lists; some older settings pages still show light panels in it.
+
 ## Keyboard use and printed designs
 
 * The keyboard works across the application for moving around and for the till: `/` or Ctrl+K searches, `g` then a letter opens a
   page, `n` opens the add form, Ctrl+S saves, `?` lists the keys, and the point of sale has function keys and a barcode scanner. Forms
-  are filled with Tab and Shift+Tab. Some older screens (date pickers, a few drop-down lists from a component library) still need a
-  few clicks; tell us which ones you use most and we will cover them.
+  are filled with Tab and Shift+Tab; tables move row to row with the arrow keys, Enter opens the row and Space ticks it; the product
+  search on sale, purchase, transfer and adjustment forms takes the arrow keys and Enter. A sale at the till, a purchase and a journal
+  entry are proved end to end with the keyboard alone in an automated browser test. Some older screens (date pickers, a few
+  drop-down lists from a component library) still need a few clicks; tell us which ones you use most and we will cover them.
 * A barcode scanner must behave as a keyboard (almost all do: they type the code and press Enter). A scanner that needs its own driver
   is not covered.
 * In a printed design, type codes such as `{invoice}`, `{customer}` and `{total}` into a Text block, the title, the terms or the footer
