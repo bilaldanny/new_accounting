@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\SubscriptionPlan;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -69,7 +71,7 @@ class SubscriptionPlanController extends Controller
 
         try {
             SubscriptionPlan::createPlan($request);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);
@@ -96,7 +98,7 @@ class SubscriptionPlanController extends Controller
 
         try {
             SubscriptionPlan::updatePlan($request, $id);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);

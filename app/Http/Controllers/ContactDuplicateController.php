@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class ContactDuplicateController extends Controller
@@ -31,7 +33,7 @@ class ContactDuplicateController extends Controller
         try {
             $contact = Contact::mergeInto((int) $request->keep_id, (int) $request->duplicate_id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

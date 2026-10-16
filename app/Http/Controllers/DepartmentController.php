@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Department;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ use Illuminate\Support\Fluent;
 use Illuminate\Validation\ConditionalRules;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class DepartmentController extends Controller
@@ -111,7 +113,7 @@ class DepartmentController extends Controller
         try {
             Department::createDepartment($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -156,7 +158,7 @@ class DepartmentController extends Controller
         try {
             Department::updateDepartment($request, $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

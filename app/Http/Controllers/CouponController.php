@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Coupon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class CouponController extends Controller
@@ -57,7 +59,7 @@ class CouponController extends Controller
 
         try {
             Coupon::createCoupon($request);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);
@@ -84,7 +86,7 @@ class CouponController extends Controller
 
         try {
             Coupon::updateCoupon($request, $id);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);

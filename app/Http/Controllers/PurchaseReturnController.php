@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
 use App\Support\ListSort;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class PurchaseReturnController extends Controller
@@ -97,7 +99,7 @@ class PurchaseReturnController extends Controller
         try {
             Transaction::createPurchaseReturn($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -133,7 +135,7 @@ class PurchaseReturnController extends Controller
         try {
             Transaction::updatePurchaseReturn($request, $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -201,7 +203,7 @@ class PurchaseReturnController extends Controller
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
-            } catch (ValidationException $e) {
+            } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
                 DB::rollBack();
                 throw $e;
             } catch (Throwable $e) {

@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Category;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class CategoryController extends Controller
@@ -94,7 +96,7 @@ class CategoryController extends Controller
         try {
             Category::createCategory($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -139,7 +141,7 @@ class CategoryController extends Controller
         try {
             Category::updateCategory($request, (int) $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

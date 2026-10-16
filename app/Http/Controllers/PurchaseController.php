@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Transaction;
 use App\Services\PurchaseJournal;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class PurchaseController extends Controller
@@ -144,7 +146,7 @@ class PurchaseController extends Controller
         try {
             Transaction::createPurchase($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -193,7 +195,7 @@ class PurchaseController extends Controller
         try {
             Transaction::updatePurchase($request, (int) $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

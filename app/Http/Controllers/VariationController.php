@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesBulkImport;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Variation;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class VariationController extends Controller
@@ -141,7 +143,7 @@ class VariationController extends Controller
         try {
             Variation::createVariation($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -204,7 +206,7 @@ class VariationController extends Controller
         try {
             Variation::updateVariation($request, (int) $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

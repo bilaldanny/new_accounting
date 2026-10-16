@@ -7,12 +7,14 @@ use App\Models\StockTake;
 use App\Models\StockTakeLine;
 use App\Services\StockTaking;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class StockTakeController extends Controller
@@ -86,7 +88,7 @@ class StockTakeController extends Controller
                 $request->only(['category_id', 'subcategory_id', 'itemtype_id', 'brand_id', 'only_in_stock']),
                 Auth::id(),
             );
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);

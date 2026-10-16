@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\BlogPost;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -65,7 +67,7 @@ class BlogPostController extends Controller
 
         try {
             BlogPost::createPost($request, $request->user()?->id);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);
@@ -93,7 +95,7 @@ class BlogPostController extends Controller
 
         try {
             BlogPost::updatePost($request, $id);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);

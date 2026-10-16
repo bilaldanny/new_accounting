@@ -7,12 +7,14 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\State;
 use App\Services\CountryStateCityApiSync;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class CityController extends Controller
@@ -192,7 +194,7 @@ class CityController extends Controller
         try {
             City::storeFromRequest($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -226,7 +228,7 @@ class CityController extends Controller
             $city = City::query()->findOrFail($id);
             $city->updateFromRequest($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

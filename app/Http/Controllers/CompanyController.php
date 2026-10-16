@@ -13,10 +13,12 @@ use App\Models\User;
 use App\Services\Company\CompanyBootstrap;
 use App\Services\SelfSignup;
 use App\Support\RolePresets;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class CompanyController extends Controller
@@ -153,7 +155,7 @@ class CompanyController extends Controller
             RolePresets::sync((int) $company->id, (int) $branch->id);
             app(CompanyBootstrap::class)->run($company, $branch, $role);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

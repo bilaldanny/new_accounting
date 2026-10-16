@@ -219,3 +219,16 @@ test('assigning a job tells the technician once and reassigning the same technic
 
     expect(DB::table('app_notifications')->where('user_id', $tech->id)->where('kind', 'service_job')->count())->toBe(1);
 });
+
+test('crud matrix: a service job is added, validated, viewed, edited and cancelled', function () {
+    $scope = w8sWorld();
+    Sanctum::actingAs(w8sManager($scope));
+
+    $this->postJson('/api/service/jobs', ['title' => ''])->assertUnprocessable();
+    $id = w8sJob($scope);
+    $this->getJson("/api/service/jobs/{$id}")->assertOk();
+    $this->putJson("/api/service/jobs/{$id}", ['title' => 'Edited job', 'contact_id' => $scope['contact_id'], 'type' => 'repair'])->assertSuccessful();
+    expect(DB::table('service_jobs')->where('id', $id)->value('title'))->toBe('Edited job');
+    $this->postJson("/api/service/jobs/{$id}/status", ['status' => 'cancelled'])->assertOk();
+    expect(DB::table('service_jobs')->where('id', $id)->value('status'))->toBe('cancelled');
+});

@@ -593,3 +593,30 @@ test('sales commission of the linked agent is added to the month and the gratuit
     $line = $this->getJson('/api/hrm/payroll/preview?period=2026-09')->json('data.lines.0');
     expect($line['accrual'])->toEqual(1250)->and($line['gross'])->toEqual(30100);
 });
+
+test('crud matrix: an employee is added, validated, viewed, edited and deleted, a loan is added and closed, a leave is requested and cancelled', function () {
+    $scope = fcoScope();
+    Sanctum::actingAs(w7Hr($scope));
+
+    $this->postJson('/api/hrm/employees', ['employee_no' => '', 'first_name' => ''])->assertUnprocessable();
+    $id = (int) $this->postJson('/api/hrm/employees', ['employee_no' => 'M-1', 'first_name' => 'Matrix', 'join_date' => '2026-01-01'])->assertCreated()->json('data.id');
+    $this->postJson('/api/hrm/employees', ['employee_no' => 'M-1', 'first_name' => 'Dup'])->assertUnprocessable();
+    $this->getJson("/api/hrm/employees/{$id}")->assertOk();
+    $this->putJson("/api/hrm/employees/{$id}", ['employee_no' => 'M-1', 'first_name' => 'Edited', 'designation' => 'Clerk'])->assertSuccessful();
+    expect(DB::table('employees')->where('id', $id)->value('first_name'))->toBe('Edited');
+
+    // a loan: validation, add, close
+    $this->postJson('/api/hrm/loans', ['employee_id' => $id, 'kind' => 'loan', 'amount' => 0, 'installment' => 10, 'start_period' => '2026-09'])->assertUnprocessable();
+    $loan = (int) $this->postJson('/api/hrm/loans', ['employee_id' => $id, 'kind' => 'loan', 'amount' => 1000, 'installment' => 100, 'start_period' => '2026-09'])->assertSuccessful()->json('data.id');
+    $this->postJson("/api/hrm/loans/{$loan}/close")->assertSuccessful();
+
+    // a leave: validation, request, cancel
+    $type = (int) $this->postJson('/api/hrm/leave-types', ['name' => 'Casual', 'days_per_year' => 10, 'is_paid' => true])->assertCreated()->json('data.id');
+    $this->postJson('/api/hrm/leave-requests', ['employee_id' => $id, 'leave_type_id' => $type, 'from_date' => '2026-09-10', 'to_date' => '2026-09-09'])->assertUnprocessable();
+    $request = (int) $this->postJson('/api/hrm/leave-requests', ['employee_id' => $id, 'leave_type_id' => $type, 'from_date' => '2026-09-10', 'to_date' => '2026-09-11'])->assertCreated()->json('data.id');
+    $this->postJson("/api/hrm/leave-requests/{$request}/cancel")->assertSuccessful();
+    expect(DB::table('leave_requests')->where('id', $request)->value('status'))->toBe('cancelled');
+
+    $this->deleteJson("/api/hrm/employees/{$id}")->assertSuccessful();
+    expect(DB::table('employees')->where('id', $id)->whereNull('deleted_at')->exists())->toBeFalse();
+});

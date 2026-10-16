@@ -204,3 +204,19 @@ test('items, bookings and customers of another company are not reachable and eve
     $this->putJson('/api/rental/settings', ['accounts' => ['rental_income' => 99999]])->assertUnprocessable();
     expect($this->getJson('/api/rental/settings')->json('data.posting_enabled'))->toBeFalse();
 });
+
+test('crud matrix: a rental item and a booking are added, validated, viewed, edited and cancelled', function () {
+    $scope = w8rWorld();
+    Sanctum::actingAs(w8rStaff($scope));
+
+    $this->postJson('/api/rental/items', ['product_id' => $scope['tent']['product_id'], 'units' => 0, 'daily_rate' => 100])->assertUnprocessable();
+    $item = w8rItem($scope);
+    $this->putJson("/api/rental/items/{$item}", ['product_id' => $scope['tent']['product_id'], 'units' => 4, 'daily_rate' => 120])->assertSuccessful();
+    expect((int) DB::table('rental_items')->where('id', $item)->value('units'))->toBe(4);
+
+    w8rBook($scope, $item, '2026-10-12', '2026-10-10')->assertUnprocessable();
+    $id = (int) w8rBook($scope, $item, '2026-10-10', '2026-10-12')->assertCreated()->json('data.id');
+    $this->getJson("/api/rental/bookings/{$id}")->assertOk();
+    $this->postJson("/api/rental/bookings/{$id}/cancel")->assertSuccessful();
+    expect(DB::table('rental_bookings')->where('id', $id)->value('status'))->toBe('cancelled');
+});

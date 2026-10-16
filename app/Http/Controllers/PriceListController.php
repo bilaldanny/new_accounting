@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\PriceList;
 use App\Models\Transaction;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class PriceListController extends Controller
@@ -115,7 +117,7 @@ class PriceListController extends Controller
         try {
             PriceList::createPriceList($request, (array) $request->input('pricelistdetails', []));
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -182,7 +184,7 @@ class PriceListController extends Controller
         try {
             PriceList::updatePriceList($request, (int) $id, (array) $request->input('pricelistdetails', []));
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

@@ -6,11 +6,13 @@ use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Company;
 use App\Models\Payment;
 use App\Models\SubscriptionInvoice;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -110,7 +112,7 @@ class SubscriptionInvoiceController extends Controller
                 $document,
                 Auth::id(),
             );
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);

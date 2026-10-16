@@ -17,10 +17,12 @@ use App\Services\Documents\DocumentDelivery;
 use App\Services\LoyaltyPoints;
 use App\Services\SaleIncentives;
 use App\Services\SellJournal;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class SellController extends Controller
@@ -181,7 +183,7 @@ class SellController extends Controller
         try {
             $sell = Transaction::createSell($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -306,7 +308,7 @@ class SellController extends Controller
         try {
             $sell = Transaction::updateSell($request, (int) $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -415,7 +417,7 @@ class SellController extends Controller
                 DB::commit();
 
                 return response()->json(['message' => 'Successfully Restored']);
-            } catch (ValidationException $e) {
+            } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
                 DB::rollBack();
                 throw $e;
             } catch (Throwable $e) {
@@ -453,7 +455,7 @@ class SellController extends Controller
                 }
             }
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

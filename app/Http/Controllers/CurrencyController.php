@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesIndexAndBulkDelete;
 use App\Models\Currency;
 use App\Services\CountryStateCityApiSync;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class CurrencyController extends Controller
@@ -114,7 +116,7 @@ class CurrencyController extends Controller
         try {
             Currency::storeFromRequest($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -148,7 +150,7 @@ class CurrencyController extends Controller
             $currency = Currency::query()->findOrFail($id);
             $currency->updateFromRequest($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

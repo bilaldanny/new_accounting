@@ -92,3 +92,17 @@ test('tagging into a locked period is refused, a project with tags cannot be del
     $this->putJson("/api/projects/{$project}", pjProject())->assertNotFound();
     $this->postJson('/api/projects/tag', ['project_id' => $project, 'transaction_ids' => [$open->id]])->assertUnprocessable();
 });
+
+test('crud matrix: a project is added, validated, edited and deleted', function () {
+    $scope = fcoScope();
+    Sanctum::actingAs(fcoStaff($scope, PJ_PERMS));
+
+    $this->postJson('/api/projects', pjProject(['name' => '']))->assertUnprocessable();
+    $id = (int) $this->postJson('/api/projects', pjProject(['code' => 'M-1']))->assertCreated()->json('data.id');
+    $this->postJson('/api/projects', pjProject(['code' => 'M-1']))->assertUnprocessable();
+    $this->getJson('/api/projects')->assertOk();
+    $this->putJson("/api/projects/{$id}", pjProject(['code' => 'M-1', 'name' => 'Edited project']))->assertSuccessful();
+    expect(DB::table('projects')->where('id', $id)->value('name'))->toBe('Edited project');
+    $this->deleteJson("/api/projects/{$id}")->assertSuccessful();
+    expect(DB::table('projects')->where('id', $id)->whereNull('deleted_at')->exists())->toBeFalse();
+});

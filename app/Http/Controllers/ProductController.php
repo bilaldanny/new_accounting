@@ -8,10 +8,12 @@ use App\Models\Product;
 use App\Models\ProductBarcode;
 use App\Services\ProductCatalog;
 use App\Support\VariantCombiner;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class ProductController extends Controller
@@ -188,7 +190,7 @@ class ProductController extends Controller
         try {
             Product::createProduct($request);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {
@@ -251,7 +253,7 @@ class ProductController extends Controller
         try {
             Product::updateProduct($request, (int) $id);
             DB::commit();
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             DB::rollBack();
             throw $e;
         } catch (Throwable $e) {

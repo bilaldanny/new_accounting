@@ -7,9 +7,11 @@ use App\Models\Contact;
 use App\Models\CustomerSubscription;
 use App\Models\CustomerSubscriptionPlan;
 use App\Models\CustomerSubscriptionUsage;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -159,7 +161,7 @@ class CustomerSubscriptionController extends Controller
 
         try {
             $action($subscription);
-        } catch (ValidationException $e) {
+        } catch (ValidationException|ModelNotFoundException|HttpExceptionInterface $e) {
             throw $e;
         } catch (Throwable $e) {
             return response()->json(['errormessage' => $e->getMessage()], 500);

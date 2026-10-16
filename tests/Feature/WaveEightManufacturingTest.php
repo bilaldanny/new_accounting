@@ -530,3 +530,24 @@ test('the production reports are company scoped and add up from the work orders'
     expect($this->getJson('/api/reports/production-summary?start_date=2026-09-01&end_date=2026-09-30')->json('summary.orders'))->toBe(0)
         ->and($this->getJson('/api/reports/wip-report')->json('summary.orders'))->toBe(0);
 });
+
+test('crud matrix: a bill of materials and a work order are added, validated, viewed and removed or cancelled', function () {
+    $scope = w8World();
+    Sanctum::actingAs(w8Staff($scope, W8_PATHS));
+    $chair = $scope['p']['chair']['product_id'];
+    $wood = $scope['p']['wood']['product_id'];
+
+    $this->postJson('/api/manufacturing/boms', ['product_id' => $chair, 'items' => []])->assertUnprocessable();
+    $bom = (int) $this->postJson('/api/manufacturing/boms', ['product_id' => $chair, 'items' => [['component_product_id' => $wood, 'quantity' => 2]]])->assertCreated()->json('data.id');
+    $this->getJson("/api/manufacturing/boms/{$bom}")->assertOk();
+    $this->putJson("/api/manufacturing/boms/{$bom}", ['product_id' => $chair, 'name' => 'Edited', 'items' => [['component_product_id' => $wood, 'quantity' => 3]]])->assertSuccessful();
+    $this->deleteJson("/api/manufacturing/boms/{$bom}")->assertSuccessful();
+
+    $kept = (int) $this->postJson('/api/manufacturing/boms', ['product_id' => $chair, 'items' => [['component_product_id' => $wood, 'quantity' => 2]]])->assertCreated()->json('data.id');
+    $this->postJson("/api/boms/{$kept}/approve")->assertOk();
+    $this->postJson('/api/manufacturing/work-orders', ['product_id' => $chair, 'planned_qty' => 0])->assertUnprocessable();
+    $order = (int) $this->postJson('/api/manufacturing/work-orders', ['product_id' => $chair, 'planned_qty' => 3])->assertCreated()->json('data.id');
+    $this->getJson("/api/manufacturing/work-orders/{$order}")->assertOk();
+    $this->postJson("/api/manufacturing/work-orders/{$order}/cancel")->assertSuccessful();
+    expect(DB::table('work_orders')->where('id', $order)->value('status'))->toBe('cancelled');
+});
