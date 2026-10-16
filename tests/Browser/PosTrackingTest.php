@@ -25,6 +25,11 @@ test('scanning a serial tracked product asks for its serial numbers', function (
     StockTracking::forgetSchemaMemo();
     app(StockTracking::class)->registerSerials((int) $world['company_id'], (int) $world['product_id'], null, (int) $world['branch_id'], ['SN-A1', 'SN-A2', 'SN-A3'], 'dusk');
 
+    // the world is shared by the browser tests: the product goes back to untracked when this test ends, pass or fail
+    $this->beforeApplicationDestroyed(function () use ($world) {
+        DB::table('products')->where('id', $world['product_id'])->update(['tracking_type' => 'none']);
+    });
+
     $this->browse(function (Browser $browser) use ($code) {
         $this->signIn($browser, $this->adminUser())->visit('/sell/pos/add')->waitFor('[data-test="pos-search"]', 40);
         $browser->type('[data-test="pos-search"]', $code)->keys('[data-test="pos-search"]', '{enter}');
