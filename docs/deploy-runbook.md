@@ -105,6 +105,38 @@ rows; **menus** = menu / permission rows only; otherwise it creates new empty ta
 | `2026_11_20_300000_create_project_work_claims_storefront_tables`, `_300100` | project work, expense claims, storefront | new tables |
 | `2026_11_21_100000_create_dashboard_tools_tables`, `_100100` | daily summary, role layouts, KPI widgets | new tables |
 
+### E. 2026_11_22 .. 2026_11_29 (the last two rounds: balance sheet stock line, sell return fix, sidebar groups, to-dos, holidays, sound, offline mode, analytics snapshot)
+
+| # | Migration | Makes | Risk |
+|---|---|---|---|
+| 1 | `2026_11_22_100000_add_inventory_account_mapping` | one empty `inventory` mapping row per company branch (balance sheet inventory mapping); an empty key changes no figure | **data** (inserts mapping rows, never touches a filled one) |
+| 2 | `2026_11_22_100100_allow_sellreturn_transaction_type` | MySQL only: adds `'sellreturn'` to the `transactions.type` enum (without it MySQL strict mode refuses every sell return); no row is rewritten | **lock** (`modify` on `transactions`: a table copy on MySQL 5.7 / in-place metadata change on 8; time it on staging); **do this one before anyone saves a sell return** |
+| 3 | `2026_11_24_100000_group_hr_payroll_menus` | the HR menu becomes a group | menus (position and names only) |
+| 4 | `2026_11_26_100000_add_code_mode_to_document_templates` | `mode`, `code_html`, `code_css` on `document_templates`; table `document_template_versions` | small alter, new table |
+| 5 | `2026_11_26_100100_hrm_group_and_operations_group_menus` | HRM group, Operations group, new HR addresses (granted to `companyadmin` only) | menus |
+| 6 | `2026_11_26_100200_create_user_todos_table` | header to-do list | new table |
+| 7 | `2026_11_27_100000_create_company_holidays_table` | holidays (also the HR Settings menu row, granted to `companyadmin`) | new table, menus |
+| 8 | `2026_11_28_100000_add_notification_sound_to_users` | `users.notification_sound` boolean, default on | small alter (`users`) |
+| 9 | `2026_11_28_100100_create_offline_sync_entries_table` | the offline sync log | new table |
+| 10 | `2026_11_28_100200_add_offline_menus` | `/offline` (visible) and `/offline/resolve` (hidden) rows; the role presets grant them on `roles:sync-presets`, `companyadmin` does not get them automatically | menus |
+| 11 | `2026_11_29_100000_add_subscription_analytics_snapshots_and_indexes` | table `customer_subscription_analytics_snapshots`; four composite indexes on `customer_subscriptions` and `customer_subscription_invoices` (query plans in `docs/release-notes.md`) | new table; indexes on two small-to-medium tables, built online on MySQL 8 |
+
+### Totals
+
+| Group | Files | Probably live already? |
+|---|---|---|
+| A. `2026_10_01` .. `2026_10_08` | 51 | yes (go-live of `2026_10_08`) |
+| B. `2026_10_09` .. `2026_11_02` | 44 | no, treat as pending |
+| C. `2026_11_03` .. `2026_11_11` | 35 | no (documented as never run live) |
+| D. `2026_11_12` .. `2026_11_21` | 24 | no |
+| E. `2026_11_22` .. `2026_11_29` | 11 | no |
+| **Pending if A is live** | **114** | in the order B, C, D, E (= file name order) |
+| All since `2026_10_01` | 165 | |
+
+The count is of files in `database/migrations/`; `php artisan migrate:status --pending` on the live server is the authority and
+overrides this list. The release builds no migration that rewrites business rows; the three `data` entries above (`2026_10_23`,
+`2026_10_27_100200`, `2026_11_22_100000`) only insert missing mapping rows.
+
 ## 1. Practical order of risk
 
 1. Take the backup (section 3) and restore it on a staging server first. Run `migrate` there and time it: only the **lock** rows
@@ -126,6 +158,9 @@ rows; **menus** = menu / permission rows only; otherwise it creates new empty ta
 | every `create_*_tables` migration | `dropIfExists` of its tables | all rows of the feature are deleted |
 | `2026_10_29_100000_replace_legacy_placeholder_logo` | nothing useful | cannot restore a replaced logo |
 | menu migrations | remove the menu rows by path | permissions granted to roles on those rows go with them |
+| `2026_11_28_100100_create_offline_sync_entries_table` | `dropIfExists` | every offline entry, including conflicts nobody has decided yet, is deleted |
+| `2026_11_28_100000_add_notification_sound_to_users` | drops the column | every user's sound choice is lost (harmless) |
+| `2026_11_22_100100_allow_sellreturn_transaction_type` | nothing | deliberately not reversed |
 
 If a deploy goes wrong after migrating: maintenance mode stays on, restore the dump taken in section 3 into the live schema (or a new
 schema and repoint `.env`), deploy the previous code release, bring the site up. Everything done between the dump and the restore
@@ -190,6 +225,11 @@ Most new features keep their credentials in the database (encrypted columns), no
 | `PASSKEYS_USER_HANDLE_SECRET` | passkeys | `APP_KEY` | optional |
 | `LOG_LEVEL`, `APP_DEBUG` | logging | `debug`, `false` | `APP_DEBUG=false`, `LOG_LEVEL=warning` or higher on live |
 
+**New `.env` keys in the last two rounds: none.** The offline sync, the notification sound switch and the Subscription Analytics
+snapshot need no setting. The service worker `public/pos-sw.js` is served from the site root and needs https (or localhost) to
+register; behind https nothing else is required. Offline mode needs `/api/ping` reachable without a session (it is) and the
+`throttle` limits on `/api/offline/*` (30 / 60 per minute) are in `routes/api.php`.
+
 Keys that are **not** in `.env` on purpose (set in the application, stored encrypted):
 - Web push VAPID keys: System Center > Push (superadmin), `Generate keys` once.
 - Stripe, PostEx, Leopards, bank feed: Integrations page (per company).
@@ -207,6 +247,7 @@ timezone.
 | `invoices:generate-recurring` | daily 03:00 | standing invoices due |
 | `journals:run-schedules` | daily 03:30 | recurring / reversing journals, accruals |
 | `customersubscriptions:run` | daily 04:00 | renewals, reminders, dunning of customer subscriptions |
+| `customersubscriptions:refresh-analytics` | daily 04:30 | rebuilds the Subscription Analytics snapshots (new; also runnable by hand, `--company=<id>`) |
 | `tenants:run-billing` | daily 05:00 | usage snapshot, cancel at period end, overdue reminders, suspension, due deletions |
 | `reports:send-scheduled` | daily 06:00 | emailed reports |
 | `currency:sync-rates` | daily 07:00 | rate feeds of the companies that set one |

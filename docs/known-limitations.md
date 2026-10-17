@@ -62,8 +62,30 @@ policy, sessions); multi-branch and multi-company.
   a batch left empty takes the earliest expiry. The camera scan uses the browser's own barcode detection and works only where the
   browser offers it (recent Chrome and Edge on a phone or laptop with a camera); a scanner that types the code is the reliable way.
   The scanner settings (shortest code, prefix, ending key, speed, beep) are kept in the browser of that till.
-* The platform-wide subscription analytics page of the superadmin runs five queries over every company and can take more than 15 seconds on a large database; company users see only their own company and are not affected.
+* The Subscription Analytics page reads a snapshot made once a day (and made again the moment a subscription, invoice or plan changes), so it opens quickly; the snapshot is rebuilt at 04:30 by `customersubscriptions:refresh-analytics`, which needs the server's cron. The "renewal due" list is always worked out live.
 * The dark theme covers the dashboard and the main lists; some older settings pages still show light panels in it.
+
+## Working without internet (offline mode)
+
+* **What works offline:** the Offline POS terminal, and on the Offline entries page: a sales invoice (cash or credit), a purchase, a
+  payment or receipt against an existing invoice, an expense, a new customer or supplier, and a stock adjustment (always sent as
+  *pending*; posting it stays the approver's decision). Each gets a provisional number `OFF-<device>-<n>`, marked "provisional".
+  The real invoice number is given by the server when the entry is sent, so provisional numbers are never on a legal document.
+* **What does not:** every other page needs the internet and says so ("This page needs the internet") with a link to what still
+  works and how many entries are waiting. Ordinary pages are not kept on the device on purpose (they hold company data).
+* **Nothing is checked on the device beyond the form.** Stock, credit limit, period lock, price, tax and permissions are checked when
+  the entry reaches the server, as the user who made it. An entry the server refuses is not lost: it waits on the Offline entries
+  page with the reason (not enough stock, period locked, credit limit, product or customer deleted, customer blocked, no permission)
+  until the user edits and retries it, or discards it (a reason and a confirmation are asked, and the audit log keeps it).
+* **The device:** entries are kept in the browser's own storage (IndexedDB) for that user and company only; another user of the same
+  computer cannot see or send them. At most 500 unsent entries; when the browser's storage is full the entry is refused with a
+  message instead of being lost. Clearing the browser's site data deletes unsent entries, so send them first. Signing out with
+  entries waiting asks first; they stay on the device and are sent the next time that user signs in there.
+* **Detecting the network** uses a small call to the server every 15 seconds, not the browser's own online flag; sending starts on its
+  own when it answers, and waits a little longer after each failure. Background Sync is used where the browser has it.
+* **Reference data** (products, prices, customers with their balance as of the last refresh, accounts, units) is copied to the device
+  while online and is labelled with its age. A customer's balance and a price shown offline can be old.
+* The offline pages need https (or localhost) for the service worker.
 
 ## Keyboard use and printed designs
 

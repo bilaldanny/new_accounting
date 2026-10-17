@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Services\Reports\CustomerSubscriptionAnalyticsSnapshot as Snapshot;
 use App\Services\Reports\CustomerSubscriptionReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,28 +21,36 @@ class CustomerSubscriptionReportController extends Controller
     {
         $this->authorizeMenuPermission('/customersubscriptionanalytics');
 
-        return response()->json(CustomerSubscriptionReport::summary($this->scopedCompanyId($request)));
+        return $this->snapshot($request, 'summary', fn (?int $company) => CustomerSubscriptionReport::summary($company));
     }
 
     public function churn(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/customersubscriptionanalytics');
 
-        return response()->json(CustomerSubscriptionReport::churn($this->scopedCompanyId($request), (int) $request->integer('days', 30)));
+        $days = (int) $request->integer('days', 30);
+
+        return $days === 30
+            ? $this->snapshot($request, 'churn', fn (?int $company) => CustomerSubscriptionReport::churn($company, 30))
+            : response()->json(CustomerSubscriptionReport::churn($this->scopedCompanyId($request), $days));
     }
 
     public function ltv(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/customersubscriptionanalytics');
 
-        return response()->json(CustomerSubscriptionReport::ltv($this->scopedCompanyId($request)));
+        return $this->snapshot($request, 'ltv', fn (?int $company) => CustomerSubscriptionReport::ltv($company));
     }
 
     public function revenue(Request $request): JsonResponse
     {
         $this->authorizeMenuPermission('/customersubscriptionanalytics');
 
-        return response()->json(['data' => CustomerSubscriptionReport::revenueByMonth($this->scopedCompanyId($request), (int) $request->integer('months', 6))]);
+        $months = (int) $request->integer('months', 6);
+
+        return $months === 6
+            ? $this->snapshot($request, 'revenue', fn (?int $company) => ['data' => CustomerSubscriptionReport::revenueByMonth($company, 6)])
+            : response()->json(['data' => CustomerSubscriptionReport::revenueByMonth($this->scopedCompanyId($request), $months)]);
     }
 
     public function renewalDue(Request $request): JsonResponse
@@ -49,6 +58,19 @@ class CustomerSubscriptionReportController extends Controller
         $this->authorizeMenuPermission('/customersubscriptionanalytics');
 
         return response()->json(['data' => CustomerSubscriptionReport::renewalDue($this->scopedCompanyId($request), (int) $request->integer('days', 7))]);
+    }
+
+    /**
+     * The default figures come from the day's snapshot (made here the first time, or by the daily command); the header says when.
+     *
+     * @param  \Closure(?int): mixed  $compute
+     */
+    private function snapshot(Request $request, string $kind, \Closure $compute): JsonResponse
+    {
+        $company = $this->scopedCompanyId($request);
+        [$payload, $at] = Snapshot::remember($company, $kind, fn () => $compute($company));
+
+        return response()->json($payload)->header('X-Snapshot-At', (string) $at);
     }
 
     private function scopedCompanyId(Request $request): ?int

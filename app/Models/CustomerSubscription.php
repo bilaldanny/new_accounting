@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Reports\CustomerSubscriptionAnalyticsSnapshot;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,13 @@ class CustomerSubscription extends Model
         'cancelled_at',
         'cancellation_reason',
     ];
+
+    protected static function booted(): void
+    {
+        $forget = static fn (self $model) => CustomerSubscriptionAnalyticsSnapshot::forget($model->company_id !== null ? (int) $model->company_id : null);
+        static::saved($forget);
+        static::deleted($forget);
+    }
 
     protected function casts(): array
     {

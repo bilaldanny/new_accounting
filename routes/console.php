@@ -20,6 +20,7 @@ Schedule::command('journals:run-schedules')->dailyAt('03:30');
 // CRM follow-up reminders, hourly; customer subscription renewals, reminders and dunning, daily.
 Schedule::command('crm:send-reminders')->hourly();
 Schedule::command('customersubscriptions:run')->dailyAt('04:00');
+Schedule::command('customersubscriptions:refresh-analytics')->dailyAt('04:30');
 
 // Approval Center: open requests for waiting documents and notify the approvers of their level, hourly.
 Schedule::command('approvals:notify-pending')->hourly();

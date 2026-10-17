@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Reports\CustomerSubscriptionAnalyticsSnapshot;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -47,6 +48,13 @@ class CustomerSubscriptionInvoice extends Model
         'marked_paid_by',
         'note',
     ];
+
+    protected static function booted(): void
+    {
+        $forget = static fn (self $model) => CustomerSubscriptionAnalyticsSnapshot::forget($model->company_id !== null ? (int) $model->company_id : null);
+        static::saved($forget);
+        static::deleted($forget);
+    }
 
     protected function casts(): array
     {

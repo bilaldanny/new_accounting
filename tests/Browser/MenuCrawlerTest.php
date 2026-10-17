@@ -140,7 +140,8 @@ test('crawl every menu page for three roles', function () {
                         $shot = "tests/Browser/screenshots/{$name}.png";
                     }
 
-                    $results[] = [$roleName, $path, $denied ? 'denied' : ($failed ? 'FAIL' : 'ok'), $status, count($console), $probe['overflow'] ? 'yes' : '', $probe['blank'] ? 'yes' : '', $stillSpinning ? 'yes' : '', $shot, $console[0] ?? ($spinnerHtml !== '' ? 'spinner: '.$spinnerHtml : '')];
+                    $overflowBy = ($probe['overflow'] ?? false) ? (string) $browser->driver->executeScript('var w = document.documentElement.clientWidth; var hit = Array.from(document.body.querySelectorAll("*")).find(function (e) { var r = e.getBoundingClientRect(); return r.width > 0 && r.right > w + 2 && getComputedStyle(e).position !== "fixed"; }); return hit ? hit.tagName.toLowerCase() + "." + String(hit.className).slice(0, 80) + " right=" + Math.round(hit.getBoundingClientRect().right) + " of " + w : "";') : '';
+                    $results[] = [$roleName, $path, $denied ? 'denied' : ($failed ? 'FAIL' : 'ok'), $status, count($console), $probe['overflow'] ? 'yes' : '', $probe['blank'] ? 'yes' : '', $stillSpinning ? 'yes' : '', $shot, $console[0] ?? ($spinnerHtml !== '' ? 'spinner: '.$spinnerHtml : ($overflowBy !== '' ? 'overflow: '.$overflowBy : ''))];
                 } catch (Throwable $e) {
                     // a driver error on one page (a dialog, a download, a crashed tab) is that page's failure, not the end of the crawl
                     $results[] = [$roleName, $path, 'FAIL', 0, 0, '', '', '', '', 'driver at '.($step ?? '?').': '.mb_substr((string) preg_replace('/\s+/', ' ', get_class($e).' line '.$e->getTrace()[1]['line'].' '.($e->getTrace()[2]['function'] ?? '').': '.$e->getMessage()), 0, 300)];
@@ -163,7 +164,13 @@ test('crawl every menu page for three roles', function () {
     }
 
     $failures = collect($results)->where(2, 'FAIL')->count();
-    file_put_contents(base_path('docs/page-crawl.md'), implode("\n", $lines)."\n\n".count($results)." page visits, {$failures} failures.\n");
+    $summary = ['', count($results).' page visits, '.$failures.' failures. Every visit is a row of the table above (role, page, status, console errors); nothing is left out.', '', '| Role | Visits | ok | denied | FAIL |', '|---|---|---|---|---|'];
+
+    foreach (collect($results)->groupBy(0) as $role => $rows) {
+        $summary[] = "| {$role} | {$rows->count()} | {$rows->where(2, 'ok')->count()} | {$rows->where(2, 'denied')->count()} | {$rows->where(2, 'FAIL')->count()} |";
+    }
+
+    file_put_contents(base_path('docs/page-crawl.md'), implode("\n", $lines).implode("\n", $summary)."\n");
 
     expect($failures)->toBe(0, "the crawl found {$failures} failing pages: see docs/page-crawl.md");
 });
