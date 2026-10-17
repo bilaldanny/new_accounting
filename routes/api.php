@@ -110,6 +110,7 @@ use App\Http\Controllers\ManufacturingController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MessagingSettingController;
 use App\Http\Controllers\MyNotificationsController;
+use App\Http\Controllers\OfflineSyncController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\PaymentController;
@@ -246,6 +247,7 @@ Route::post('leadcapture', [PublicLeadCaptureController::class, 'store'])->middl
 Route::get('branding', [TenantSelfServiceController::class, 'branding'])->middleware('throttle:60,1');
 Route::post('gateway/stripe/webhook/{company}', [IntegrationsController::class, 'stripeWebhook'])->whereNumber('company')->middleware('throttle:60,1');
 Route::post('hrm/device/punch', [HrmAttendanceController::class, 'devicePunch'])->middleware('throttle:120,1');
+Route::get('ping', [OfflineSyncController::class, 'ping'])->middleware('throttle:240,1');
 Route::get('storefront/{code}', [PublicStorefrontController::class, 'catalog'])->where('code', '[a-z0-9-]+')->middleware('throttle:120,1');
 Route::post('storefront/{code}/orders', [PublicStorefrontController::class, 'order'])->where('code', '[a-z0-9-]+')->middleware('throttle:20,1');
 /* Public Lead Capture Form */
@@ -1417,6 +1419,11 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('approval-center/discount-codes/{id}/{decision}', [ApprovalCenterController::class, 'decideDiscount'])->whereNumber('id');
 
     /* Wave 1 */
+    Route::get('offline/reference', [OfflineSyncController::class, 'reference'])->middleware('throttle:30,1');
+    Route::post('offline/sync', [OfflineSyncController::class, 'sync'])->middleware('throttle:60,1');
+    Route::get('offline/entries', [OfflineSyncController::class, 'entries']);
+    Route::post('offline/entries/{id}/retry', [OfflineSyncController::class, 'retry'])->whereNumber('id')->middleware('throttle:60,1');
+    Route::post('offline/entries/{id}/discard', [OfflineSyncController::class, 'discard'])->whereNumber('id');
     Route::get('me/preferences', [UserPreferencesController::class, 'show']);
     Route::put('me/preferences', [UserPreferencesController::class, 'update']);
     Route::get('header/clock', [HeaderToolsController::class, 'clock']);

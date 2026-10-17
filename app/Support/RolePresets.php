@@ -30,7 +30,7 @@ final class RolePresets
                 '/taxexemption', '/tax', '/financialyear', '/landedcost', '/period-lock', '/supplierpayment',
                 '/pettycash', '/chequeprint', '/bankinstrument', '/loan', '/taxpayment', '/paymentterm', '/allocation', '/journalschedule', '/baddebt', '/dunning', '/project', '/foreigncurrency', '/interbranch', '/hrm', '/expenseclaim', '/report/production-summary', '/report/wip-report', '/report/material-variance', '/report/scrap-report',
             ],
-            'view' => [
+            'view' => ['/offline',
                 '/customer', '/supplier', '/bank', '/report/account-ledger', '/report/ledger', '/report/trial-balance', '/report/balance-sheet',
                 '/report/profit-loss', '/report/cash-flow', '/report/tax', '/report/budget-vs-actual', '/report/cost-center-analysis',
                 '/report/financial-ratios', '/report/vouchers', '/report/expense', '/report/payment-account', '/report/customer-outstanding',
@@ -43,19 +43,19 @@ final class RolePresets
         ],
         'Cashier' => [
             'manage' => ['/sell/pos', '/sell/payment/add', '/posshift', '/cashcollection', '/giftcard/redeem', '/loyalty/redeem', '/expenseclaim/add'],
-            'view' => ['/product', '/customer', '/report/register', '/posoffline', '/help', '/expenseclaim'],
+            'view' => ['/offline', '/product', '/customer', '/report/register', '/posoffline', '/help', '/expenseclaim'],
             'exclude' => ['/cashcollection/reverse', '/cashcollection/cancel', '/cashcollection/refund'],
             'approvals' => false,
         ],
         'Sales Representative' => [
             'manage' => ['/leads', '/opportunities', '/activities', '/pipeline', '/customer', '/sell', '/warrantyclaim', '/expenseclaim/add'],
-            'view' => ['/leadsources', '/pipelinestages', '/crmanalytics', '/product', '/report/sell', '/report/product-sell', '/help', '/expenseclaim', '/storefront'],
+            'view' => ['/offline', '/leadsources', '/pipelinestages', '/crmanalytics', '/product', '/report/sell', '/report/product-sell', '/help', '/expenseclaim', '/storefront'],
             'exclude' => ['/sell/pos', '/sell/price-override'],
             'approvals' => false,
         ],
         'Manager' => [
             'manage' => ['/posoffline'],
-            'view' => [
+            'view' => ['/offline', '/offline/resolve',
                 '/purchase', '/sell', '/stocktransfer', '/stockadjustment', '/purchase/return', '/sell/return', '/cashcollection', '/pricelist', '/fixedasset',
                 '/journalentry', '/acpayment', '/expense', '/deposit', '/fundtransfer', '/creditdebitnote', '/purchaserequisition', '/portalrequests', '/reordersuggestion', '/rma',
                 '/cashflowforecast', '/loan', '/bankinstrument', '/approvalcenter', '/support', '/documentcenter', '/hrm', '/manufacturing', '/service', '/rental', '/expenseclaim', '/storefront', '/project',
@@ -71,7 +71,7 @@ final class RolePresets
                 '/warehouse', '/warehouselocation', '/stocktracking', '/stocktake', '/stockadjustment', '/stocktransfer', '/receivingnote',
                 '/issuenote', '/openingstock', '/lowstock', '/printlabel', '/productbom', '/stockreservation', '/warehousetask', '/stockwriteoff', '/qualityinspection', '/inboundshipment', '/manufacturing',
             ],
-            'view' => [
+            'view' => ['/offline',
                 '/product', '/report/warehouse-stock', '/report/warehouse-usage', '/report/stock-movement-history', '/report/serial-traceability',
                 '/report/batch-expiry', '/report/abc-analysis', '/report/stock-ageing', '/report/stock', '/report/stock-adjustment', '/report/stock-transfer', '/report/backorder', '/report/fsn', '/report/stock-take', '/help',
             ],
@@ -80,7 +80,7 @@ final class RolePresets
         ],
         'HR Manager' => [
             'manage' => ['/hrm', '/expenseclaim/add'],
-            'view' => ['/report/payroll-register', '/report/attendance-summary', '/report/statutory-liability', '/report/loan-balances', '/expenseclaim', '/help'],
+            'view' => ['/offline', '/report/payroll-register', '/report/attendance-summary', '/report/statutory-liability', '/report/loan-balances', '/expenseclaim', '/help'],
             'exclude' => [],
             'approvals' => false,
         ],

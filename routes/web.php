@@ -1227,6 +1227,7 @@ Route::middleware(['auth', 'verified', EnforcePageMenuPermission::class])->group
 
     Route::get('sell/pos/offline', fn () => Inertia::render('sell/posoffline'))->name('sell.pos.offline');
     Route::get('posoffline', fn () => Inertia::render('posoffline/index'))->name('posoffline');
+    Route::get('offline', fn () => Inertia::render('offline/index'))->name('offline');
 
     Route::get('sell/pos/display', function () {
         return Inertia::render('sell/posdisplay');

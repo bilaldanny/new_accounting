@@ -364,6 +364,8 @@ return [
     '/messagingsetting' => ['name' => 'Messagingsetting', 'hidden' => false],
     '/messagingsetting/edit' => ['name' => 'Edit Messagingsetting', 'hidden' => true],
     '/opening-balance/add' => ['name' => 'Add Opening Balance', 'hidden' => true],
+    '/offline' => ['name' => 'Offline Entries', 'hidden' => false],
+    '/offline/resolve' => ['name' => 'Resolve Offline Entries', 'hidden' => true],
     '/openingstock' => ['name' => 'Openingstock', 'hidden' => false],
     '/openingstock/add' => ['name' => 'Add Openingstock', 'hidden' => true],
     '/opportunities' => ['name' => 'Opportunities', 'hidden' => false],
