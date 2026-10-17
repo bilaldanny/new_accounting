@@ -10,6 +10,8 @@ use Laravel\Dusk\Browser;
  */
 test('scanning a serial tracked product asks for its serial numbers', function () {
     $world = $this->world();
+    $snapshot = kbSnapshot();
+    $this->beforeApplicationDestroyed(fn () => kbRestore($snapshot));
     $code = '8965000'.random_int(100000, 999999);
     DB::table('products')->where('id', $world['product_id'])->update(['active' => 1, 'tracking_type' => 'serial']);
     DB::table('product_barcodes')->insert(['company_id' => $world['company_id'], 'product_id' => $world['product_id'], 'variation_id' => null, 'barcode' => $code, 'label' => 'Unit', 'created_at' => now(), 'updated_at' => now()]);

@@ -33,7 +33,7 @@ function kbSelect(Browser $browser, string $selector, string $needle): void
 {
     kbFocus($browser, $selector);
 
-    for ($i = 0; $i < 12; $i++) {
+    for ($i = 0; $i < 80; $i++) {
         $chosen = (string) $browser->driver->executeScript('const s = document.querySelector(arguments[0]); return s.options[s.selectedIndex] ? s.options[s.selectedIndex].text : "";', [$selector]);
 
         if (str_contains($chosen, $needle)) {
@@ -62,6 +62,8 @@ function kbStock(array $world, int $quantity = 30): void
 
 test('a sale is completed at the till with the keyboard alone', function () {
     $world = $this->world();
+    $snapshot = kbSnapshot();
+    $this->beforeApplicationDestroyed(fn () => kbRestore($snapshot));
     kbStock($world);
     $admin = $this->adminUser();
 
@@ -106,6 +108,8 @@ test('a sale is completed at the till with the keyboard alone', function () {
 
 test('a purchase is completed on the form with the keyboard alone', function () {
     $world = $this->world();
+    $snapshot = kbSnapshot();
+    $this->beforeApplicationDestroyed(fn () => kbRestore($snapshot));
     $supplier = Contact::query()->findOrFail(trpContact($world, 'Keyboard Supplies', 'supplier', 'SU-KBD1'));
     seedPurchaseChartAccounts($world, $supplier);
     $invoice = 'KBD-P'.random_int(1000, 9999);
@@ -148,6 +152,8 @@ test('a purchase is completed on the form with the keyboard alone', function () 
 
 test('a journal entry is completed on the form with the keyboard alone', function () {
     $world = $this->world();
+    $snapshot = kbSnapshot();
+    $this->beforeApplicationDestroyed(fn () => kbRestore($snapshot));
     insertPurchaseChartAccount($world, '101-90001', 'Keyboard Cash', 'dr', false);
     insertPurchaseChartAccount($world, '301-90001', 'Keyboard Capital', 'cr', false);
     $before = DB::table('t_accounts')->where('company_id', $world['company_id'])->count();

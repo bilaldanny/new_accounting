@@ -5,6 +5,8 @@ use Facebook\WebDriver\Exception\WebDriverException;
 use Facebook\WebDriver\Remote\RemoteWebElement;
 use Facebook\WebDriver\WebDriverBy;
 use Facebook\WebDriver\WebDriverSelect;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Dusk\Browser;
 
 /**
@@ -136,4 +138,40 @@ function duskRequest(Browser $browser, string $method, string $url, array $paylo
     $decoded = json_decode((string) $result, true);
 
     return ['status' => (int) $decoded['status'], 'body' => (array) json_decode((string) $decoded['body'], true)];
+}
+
+/**
+ * The browser tests share one database: what a flow adds (documents, stock, accounts, a supplier) is taken away again when it ends,
+ * pass or fail, so the stock and the books the other tests count on are as they were.
+ *
+ * @return array<string, int>
+ */
+function kbSnapshot(): array
+{
+    return [
+        'transactions' => (int) DB::table('transactions')->max('id'), 't_accounts' => (int) DB::table('t_accounts')->max('id'), 'chart' => (int) DB::table('chart_of_accounts')->max('id'),
+        'mappings' => (int) DB::table('chart_of_account_mappings')->max('id'), 'contacts' => (int) DB::table('contacts')->max('id'),
+    ];
+}
+
+function kbRestore(array $snapshot): void
+{
+    $transactions = DB::table('transactions')->where('id', '>', $snapshot['transactions'])->pluck('id');
+    DB::table('payments')->whereIn('transaction_id', $transactions)->delete();
+    DB::table('sell_lines')->whereIn('transaction_id', $transactions)->delete();
+    DB::table('purchase_lines')->whereIn('transaction_id', $transactions)->delete();
+    DB::table('transactions')->whereIn('id', $transactions)->delete();
+
+    $vouchers = DB::table('t_accounts')->where('id', '>', $snapshot['t_accounts'])->pluck('id');
+    DB::table('t_account_details')->whereIn('t_account_id', $vouchers)->delete();
+    DB::table('t_accounts')->whereIn('id', $vouchers)->delete();
+    DB::table('chart_of_account_mappings')->where('id', '>', $snapshot['mappings'])->delete();
+    DB::table('chart_of_accounts')->where('id', '>', $snapshot['chart'])->delete();
+    DB::table('contacts')->where('id', '>', $snapshot['contacts'])->delete();
+
+    if (Schema::hasTable('stock_serials')) {
+        $serials = DB::table('stock_serials')->where('serial_no', 'like', 'SN-A%')->pluck('id');
+        DB::table('stock_serial_movements')->whereIn('serial_id', $serials)->delete();
+        DB::table('stock_serials')->whereIn('id', $serials)->delete();
+    }
 }

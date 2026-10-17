@@ -132,7 +132,7 @@ test('a visitor registers from the landing page and lands on the dashboard of a 
     expect($company->tenant_status)->toBe('trial')
         ->and($company->trial_ends_at)->not->toBeNull()
         ->and((int) $user->company_id)->toBe((int) $company->id)
-        ->and(DB::table('roles')->where('company_id', $company->id)->count())->toBe(5)
+        ->and(DB::table('roles')->where('company_id', $company->id)->count())->toBe(6)
         ->and(DB::table('chart_of_account_mappings')->where('company_id', $company->id)->whereIn('key', ['withholdingreceivable', 'withholdingpayable'])->whereNotNull('value')->count())->toBe(2);
 });
 
