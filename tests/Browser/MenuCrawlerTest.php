@@ -47,8 +47,28 @@ test('crawl every menu page for three roles', function () {
 
     $world = $this->world();
     $pages = crawlPages();
+
+    if (getenv('CRAWL_ONLY')) {
+        $pages = array_values(array_intersect($pages, explode(',', (string) getenv('CRAWL_ONLY'))));
+    }
     $limit = (int) (getenv('CRAWL_LIMIT') ?: 0);
     $wanted = array_filter(explode(',', (string) (getenv('CRAWL_ROLES') ?: 'superadmin,companyadmin,limited')));
+
+    // the company admin of this run holds every company-level menu (the platform's own pages stay out), like a live company admin
+    $adminRole = (int) $this->adminUser()->role_id;
+    $platform = '#^/(subscriptionplans|tenants|subscriptioninvoices|subscriptionbilling|saasadmin|software/setting|company/add|company/delete|company/restore|menu|blogposts|coupons|webhooks|backup)#';
+
+    foreach (DB::table('menus')->where('is_active', 1)->get(['id', 'route_path']) as $menu) {
+        if (preg_match($platform, (string) $menu->route_path) === 1 || DB::table('permissions')->where('role_id', $adminRole)->where('menu_id', $menu->id)->exists()) {
+            continue;
+        }
+
+        DB::table('permissions')->insert(['company_id' => null, 'branch_id' => null, 'department_id' => null, 'role_id' => $adminRole, 'menu_id' => $menu->id, 'status' => 1, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    foreach (['user_menu_permissions_tree', 'user_permission_paths', 'user_menu_permissions'] as $key) {
+        Illuminate\Support\Facades\Cache::forget("{$key}:{$adminRole}");
+    }
 
     // a limited role: the dashboard and the customer list only
     $limited = Role::query()->firstOrCreate(['name' => 'crawl-limited', 'company_id' => $world['company_id']], ['is_active' => true]);
@@ -67,7 +87,7 @@ test('crawl every menu page for three roles', function () {
             continue;
         }
 
-        $this->browse(function (Browser $browser) use ($roleName, $user, $pages, $limit, &$results) {
+        $this->browse(function (Browser $browser) use ($roleName, $user, $pages, $limit, $platform, &$results) {
             $this->signIn($browser, $user)->resize(1440, 900);
             $count = 0;
 
@@ -76,29 +96,40 @@ test('crawl every menu page for three roles', function () {
                     break;
                 }
 
-                $browser->driver->manage()->getLog('browser');
-                $browser->visit($path);
-                usleep(1800000);
+                try {
+                    $step = 'log';
+                    $browser->driver->manage()->getLog('browser');
+                    $step = 'visit';
+                    $browser->visit($path);
+                    $step = 'probe';
+                    usleep(1800000);
 
-                $probe = (array) $browser->driver->executeScript(<<<'JS'
-                    const nav = performance.getEntriesByType('navigation')[0];
-                    const text = (document.body.innerText || '').trim();
-                    return {
-                        status: nav ? nav.responseStatus : 0,
-                        blank: text.length < 20,
-                        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
-                        spinner: !!document.querySelector('.spinner-border:not(.d-none), [aria-busy="true"]'),
-                        error: /(^|\s)(403|404|419|500|503)\s*(\||-|:)?\s*(forbidden|not found|server error|page expired|service unavailable)/i.test(text.slice(0, 400)),
-                    };
-JS);
-                usleep(2500000);
-                $stillSpinning = (bool) $browser->driver->executeScript('return !!document.querySelector(\'.spinner-border:not(.d-none), [aria-busy="true"]\');');
+                $js = fn (string $script): mixed => $browser->driver->executeScript($script);
+                $probe = [
+                    'status' => (int) $js('var n = performance.getEntriesByType("navigation")[0]; return n ? (n.responseStatus || 0) : 0;'),
+                    'blank' => (bool) $js('return (document.body.innerText || "").trim().length < 20;'),
+                    'overflow' => (bool) $js('return document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;'),
+                    'error' => (bool) preg_match('/(403|404|419|500|503)/', (string) $js('return (document.body.innerText || "").trim().slice(0, 200);')),
+                ];                // a list may still be loading on the single threaded test server: wait for the spinner to go, up to 15 s; one that stays is stuck
+                $spinnerJs = 'return Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).some(function (e) { var r = e.getBoundingClientRect(); return e.offsetParent !== null && r.width > 0 && r.height > 0 && !e.closest("button, .modal:not(.show), [hidden]"); });';
+                $step = 'spin';
+                usleep(1500000);
+                $stillSpinning = (bool) $browser->driver->executeScript($spinnerJs);
+
+                for ($wait = 0; $stillSpinning && $wait < 15; $wait++) {
+                    sleep(1);
+                    $stillSpinning = (bool) $browser->driver->executeScript($spinnerJs);
+                }
+
+                $step = 'console';
+                $spinnerHtml = $stillSpinning ? (string) $browser->driver->executeScript('var e = Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).find(function (x) { var r = x.getBoundingClientRect(); return x.offsetParent !== null && r.width > 0 && r.height > 0 && !x.closest("button, .modal:not(.show), [hidden]"); }); return e ? e.outerHTML.slice(0, 140) + " IN " + (e.parentElement ? e.parentElement.className : "") : "";') : '';
                 $console = collect($browser->driver->manage()->getLog('browser'))
                     ->filter(fn (array $entry): bool => in_array($entry['level'], ['SEVERE', 'WARNING'], true) && ! str_contains($entry['message'], 'favicon') && ! str_contains($entry['message'], '/api/notifications') && ! str_contains($entry['message'], 'Failed to load resource'))
                     ->map(fn (array $entry): string => mb_substr($entry['message'], 0, 160))->values()->all();
 
                 $status = (int) ($probe['status'] ?? 0);
-                $denied = $roleName === 'limited' && ($status === 403 || ($probe['error'] ?? false));
+                // the platform operator's own pages are refused to a company admin on purpose, and everything but the dashboard and customers to the limited role
+                $denied = ($roleName === 'limited' && ($status === 403 || ($probe['error'] ?? false))) || ($roleName !== 'superadmin' && $status === 403 && preg_match($platform, $path) === 1);
                 $failed = ! $denied && ($status >= 400 || ($probe['error'] ?? false) || $console !== [] || ($probe['blank'] ?? false) || ($probe['overflow'] ?? false) || $stillSpinning);
                 $shot = '';
 
@@ -108,7 +139,17 @@ JS);
                     $shot = "tests/Browser/screenshots/{$name}.png";
                 }
 
-                $results[] = [$roleName, $path, $denied ? 'denied' : ($failed ? 'FAIL' : 'ok'), $status, count($console), $probe['overflow'] ? 'yes' : '', $probe['blank'] ? 'yes' : '', $stillSpinning ? 'yes' : '', $shot, $console[0] ?? ''];
+                    $results[] = [$roleName, $path, $denied ? 'denied' : ($failed ? 'FAIL' : 'ok'), $status, count($console), $probe['overflow'] ? 'yes' : '', $probe['blank'] ? 'yes' : '', $stillSpinning ? 'yes' : '', $shot, $console[0] ?? ($spinnerHtml !== '' ? 'spinner: '.$spinnerHtml : '')];
+                } catch (Throwable $e) {
+                    // a driver error on one page (a dialog, a download, a crashed tab) is that page's failure, not the end of the crawl
+                    $results[] = [$roleName, $path, 'FAIL', 0, 0, '', '', '', '', 'driver at '.($step ?? '?').': '.mb_substr((string) preg_replace('/\s+/', ' ', get_class($e).' line '.$e->getTrace()[1]['line'].' '.($e->getTrace()[2]['function'] ?? '').': '.$e->getMessage()), 0, 300)];
+
+                    try {
+                        $browser->driver->switchTo()->alert()->dismiss();
+                    } catch (Throwable) {
+                        // no dialog
+                    }
+                }
             }
         });
     }

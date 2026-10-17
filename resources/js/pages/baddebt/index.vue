@@ -106,7 +106,7 @@
                 <div class="col-auto"><input v-model="asOf" type="date" class="form-control form-control-sm" aria-label="As of" @change="showPreview" /></div>
                 <div v-if="can('/baddebt/provision')" class="col-auto"><button type="button" class="btn btn-dark btn-sm" :disabled="! preview?.ready" @click="provision">Set allowance</button></div>
             </div>
-            <ClientTable v-if="preview" :columns="[{ key: 'c0', label: 'Bucket' }, { key: 'c1', label: 'Owed' }, { key: 'c2', label: 'Rate %' }, { key: 'c3', label: 'Allowance' }]" :rows="(preview.buckets).map((bucket, key) => ({ __s: { bucket, key }, c0: (key), c1: (money(bucket.amount)), c2: (bucket.rate), c3: (money(bucket.required)) }))" export-name="bucket">
+            <ClientTable v-if="preview" :columns="[{ key: 'c0', label: 'Bucket' }, { key: 'c1', label: 'Owed' }, { key: 'c2', label: 'Rate %' }, { key: 'c3', label: 'Allowance' }]" :rows="Object.entries(preview.buckets).map(([key, bucket]) => ({ __s: { bucket, key }, c0: (key), c1: (money(bucket.amount)), c2: (bucket.rate), c3: (money(bucket.required)) }))" export-name="bucket">
 </ClientTable>
         </div>
 

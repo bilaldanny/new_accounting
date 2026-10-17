@@ -62,6 +62,7 @@ policy, sessions); multi-branch and multi-company.
   a batch left empty takes the earliest expiry. The camera scan uses the browser's own barcode detection and works only where the
   browser offers it (recent Chrome and Edge on a phone or laptop with a camera); a scanner that types the code is the reliable way.
   The scanner settings (shortest code, prefix, ending key, speed, beep) are kept in the browser of that till.
+* The platform-wide subscription analytics page of the superadmin runs five queries over every company and can take more than 15 seconds on a large database; company users see only their own company and are not affected.
 * The dark theme covers the dashboard and the main lists; some older settings pages still show light panels in it.
 
 ## Keyboard use and printed designs

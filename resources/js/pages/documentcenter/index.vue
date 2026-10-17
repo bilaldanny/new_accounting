@@ -49,6 +49,10 @@
     async function load() {
         const m = await run(() => window.axios.get('/api/document-center/meta'));
         meta.value = m?.data?.data ?? null;
+        // the colour fields need a real colour before the first template is started or opened
+        if (meta.value && Object.keys(form.branding).length === 0) {
+            form.branding = { ...meta.value.default_branding };
+        }
         const [t, msg, rem, del, fl] = await Promise.all([
             run(() => window.axios.get('/api/document-templates', { params: scope() })),
             run(() => window.axios.get('/api/message-templates', { params: scope() })),
