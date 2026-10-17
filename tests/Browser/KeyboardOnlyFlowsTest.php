@@ -46,6 +46,23 @@ function kbSelect(Browser $browser, string $selector, string $needle): void
     throw new RuntimeException("The option {$needle} was not reached with the arrow keys.");
 }
 
+/**
+ * Tab until the focus is on the field the script recognises (a form may carry optional fields, such as a cost center, between two
+ * fields), at most twelve presses.
+ */
+function kbTabTo(Browser $browser, string $isTarget): void
+{
+    for ($i = 0; $i < 12; $i++) {
+        if ((bool) $browser->driver->executeScript('const e = document.activeElement; return !!e && ('.$isTarget.');')) {
+            return;
+        }
+
+        kbType($browser, WebDriverKeys::TAB);
+    }
+
+    throw new RuntimeException('The field ('.$isTarget.') was not reached with Tab.');
+}
+
 function kbStock(array $world, int $quantity = 30): void
 {
     DB::table('products')->where('id', $world['product_id'])->update(['active' => 1]);
@@ -165,14 +182,18 @@ test('a journal entry is completed on the form with the keyboard alone', functio
 
         // line one: the account picked by typing its code, a narration, the debit
         kbSelect($browser, 'select.form-select', 'Keyboard Cash');
-        kbType($browser, WebDriverKeys::TAB, 'Cash in', WebDriverKeys::TAB, '250');
+        kbType($browser, WebDriverKeys::TAB, 'Cash in');
+        kbTabTo($browser, 'e.classList.contains("journal-lines__debit-input")');
+        kbType($browser, '250');
         kbFocus($browser, '.journal-lines__add');
         kbType($browser, WebDriverKeys::ENTER);
 
         // line two: the same entry row, another account, the credit
         $browser->waitUsing(30, 1, fn (): bool => str_contains((string) $browser->driver->executeScript('return document.body.innerText;'), '1 line'));
         kbSelect($browser, 'select.form-select', 'Keyboard Capital');
-        kbType($browser, WebDriverKeys::TAB, 'Capital in', WebDriverKeys::TAB, WebDriverKeys::TAB, '250');
+        kbType($browser, WebDriverKeys::TAB, 'Capital in');
+        kbTabTo($browser, 'e.classList.contains("journal-lines__debit-input")');
+        kbType($browser, WebDriverKeys::TAB, '250');
         kbFocus($browser, '.journal-lines__add');
         kbType($browser, WebDriverKeys::ENTER);
         $browser->waitUsing(30, 1, fn (): bool => str_contains((string) $browser->driver->executeScript('return document.body.innerText;'), '2 lines'));
