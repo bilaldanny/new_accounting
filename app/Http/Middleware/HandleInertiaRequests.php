@@ -91,6 +91,7 @@ class HandleInertiaRequests extends Middleware
                     'profile_image' => $user->profile_photo_url ?? $user->profile_photo_path,
                     'permissions' => Menu::slimSidebarTree($permissions),
                     'permission_paths' => $user->getPermissionPaths(),
+                    'notification_sound' => (bool) ($user->notification_sound ?? true),
                 ] : null,
             ],
             'setting' => $setting,

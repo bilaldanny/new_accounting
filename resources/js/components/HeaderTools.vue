@@ -1,6 +1,7 @@
 <script setup lang="ts">
     import { usePage } from '@inertiajs/vue3';
     import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+    import { notificationSoundOn, setNotificationSound, syncNotificationSound } from '@/composables/notificationSound';
 
     /**
      * The tools in the top bar, left to right: today's date (company time zone), Today Profit, the POS shortcut, the calculator and a
@@ -11,6 +12,15 @@
     const user = computed(() => (page.props as any)?.auth?.user as { id?: number; rolename?: string; permission_paths?: string[] } | null);
     const isSuperadmin = computed(() => String(user.value?.rolename ?? '').toLowerCase().replace(/\s+/g, '') === 'superadmin');
     const can = (path: string): boolean => isSuperadmin.value || (user.value?.permission_paths ?? []).includes(path);
+
+    /** The speaker switch: sounds of notifications (alerts, approvals, reminders, to-dos). The scanner beep at the till is separate. */
+    const soundLabel = computed(() => (notificationSoundOn.value
+        ? 'Notification sound is on. Press to turn it off (the POS scan beep has its own setting)'
+        : 'Notification sound is off. Press to turn it on (the POS scan beep has its own setting)'));
+
+    function toggleSound() {
+        void setNotificationSound(! notificationSoundOn.value);
+    }
 
     const dateLabel = ref('');
     const open = ref<'' | 'profit' | 'calc' | 'calendar' | 'todo'>('');
@@ -382,6 +392,7 @@
     });
 
     onMounted(() => {
+        syncNotificationSound((user.value as { notification_sound?: boolean } | null)?.notification_sound);
         dateLabel.value = new Date().toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
         window.setTimeout(() => void loadSummary(), 1500);
         document.addEventListener('keydown', onKeydown);
@@ -421,6 +432,11 @@
                 <li><button type="button" class="dropdown-item" data-test="start-tour" @click="startTour">Application Tour</button></li>
             </ul>
         </div>
+
+        <button type="button" class="btn btn-sm header-tools__btn header-tools__sound" data-test="sound-toggle" :aria-pressed="notificationSoundOn" :aria-label="soundLabel" :title="soundLabel" @click="toggleSound">
+            <svg v-if="notificationSoundOn" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>
+        </button>
 
         <Teleport to="body">
             <!-- first sign-in offer -->

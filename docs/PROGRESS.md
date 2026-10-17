@@ -89,3 +89,9 @@ New migration to run live after the three of wave 1: `2026_11_27_100000_create_c
 * Dusk (sqlite, port 8099): two consecutive full runs, 190 tests, 187 passed, 3 skipped (the capture tests that only run on request), 0 failed.
 * The flaky waits were a slow test server (opcache was off, about a second a request): `tests/DuskTestCase.php` now turns opcache on for the server process only; no retries were added.
 * Crawler: `docs/page-crawl.md`.
+
+## Final round (sound, offline mode, release prep, smoke test)
+
+### Wave 1 - notification sound switch (built)
+
+Speaker button in the top bar (`HeaderTools.vue`, `data-test="sound-toggle"`, aria-pressed, tooltip says the POS scan beep is separate). Stored on the account (`users.notification_sound`, migration `2026_11_28_100000_add_notification_sound_to_users`, default on), shared with the page as `auth.user.notification_sound`, saved through `PUT /api/me/preferences`, with a browser copy (`localStorage notification-sound`) as the fallback. `playNotificationSound` in `composables/common.ts` (the success / error / warning sounds of every message and alert) honours it; the POS scanner beep keeps its own setting. Tests: `tests/Feature/NotificationSoundPreferenceTest.php`, `tests/Browser/NotificationSoundTest.php`.

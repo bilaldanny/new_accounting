@@ -3,6 +3,7 @@ import { toast } from 'vue-sonner';
 import { formatNumber } from '@/utils/numberFormat';
 import { resolvePublicAppBaseUrl } from '@/utils/publicAppUrl';
 import { useNotificationStore } from '@/utils/vueNotification'
+import { notificationSoundOn } from '@/composables/notificationSound';
 
 /** Shared across all `useCommons()` callers — coalesces concurrent identical fetches. */
 const sharedFetchPromises = new Map<string, Promise<void>>();
@@ -94,6 +95,11 @@ export default function useCommons(){
     const { setNotification } = useNotificationStore()
 
     const playNotificationSound = (audioId: string) => {
+        // the user's own switch in the top bar; the scanner beep at the till has its own setting
+        if (! notificationSoundOn.value) {
+            return;
+        }
+
         const audio = document.getElementById(audioId) as HTMLAudioElement | null;
 
         if (!audio) {

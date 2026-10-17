@@ -209,6 +209,7 @@ use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UniversalSearchController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserPreferencesController;
 use App\Http\Controllers\ValuationController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VoucherApprovalController;
@@ -1416,6 +1417,8 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
     Route::post('approval-center/discount-codes/{id}/{decision}', [ApprovalCenterController::class, 'decideDiscount'])->whereNumber('id');
 
     /* Wave 1 */
+    Route::get('me/preferences', [UserPreferencesController::class, 'show']);
+    Route::put('me/preferences', [UserPreferencesController::class, 'update']);
     Route::get('header/clock', [HeaderToolsController::class, 'clock']);
     Route::get('header/summary', [HeaderToolsController::class, 'summary']);
     Route::get('header/today-profit', [HeaderToolsController::class, 'today']);
