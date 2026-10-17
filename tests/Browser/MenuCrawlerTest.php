@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Role;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Laravel\Dusk\Browser;
@@ -67,7 +68,7 @@ test('crawl every menu page for three roles', function () {
     }
 
     foreach (['user_menu_permissions_tree', 'user_permission_paths', 'user_menu_permissions'] as $key) {
-        Illuminate\Support\Facades\Cache::forget("{$key}:{$adminRole}");
+        Cache::forget("{$key}:{$adminRole}");
     }
 
     // a limited role: the dashboard and the customer list only
@@ -104,40 +105,40 @@ test('crawl every menu page for three roles', function () {
                     $step = 'probe';
                     usleep(1800000);
 
-                $js = fn (string $script): mixed => $browser->driver->executeScript($script);
-                $probe = [
-                    'status' => (int) $js('var n = performance.getEntriesByType("navigation")[0]; return n ? (n.responseStatus || 0) : 0;'),
-                    'blank' => (bool) $js('return (document.body.innerText || "").trim().length < 20;'),
-                    'overflow' => (bool) $js('return document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;'),
-                    'error' => (bool) preg_match('/(403|404|419|500|503)/', (string) $js('return (document.body.innerText || "").trim().slice(0, 200);')),
-                ];                // a list may still be loading on the single threaded test server: wait for the spinner to go, up to 15 s; one that stays is stuck
-                $spinnerJs = 'return Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).some(function (e) { var r = e.getBoundingClientRect(); return e.offsetParent !== null && r.width > 0 && r.height > 0 && !e.closest("button, .modal:not(.show), [hidden]"); });';
-                $step = 'spin';
-                usleep(1500000);
-                $stillSpinning = (bool) $browser->driver->executeScript($spinnerJs);
-
-                for ($wait = 0; $stillSpinning && $wait < 15; $wait++) {
-                    sleep(1);
+                    $js = fn (string $script): mixed => $browser->driver->executeScript($script);
+                    $probe = [
+                        'status' => (int) $js('var n = performance.getEntriesByType("navigation")[0]; return n ? (n.responseStatus || 0) : 0;'),
+                        'blank' => (bool) $js('return (document.body.innerText || "").trim().length < 20;'),
+                        'overflow' => (bool) $js('return document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;'),
+                        'error' => (bool) preg_match('/(403|404|419|500|503)/', (string) $js('return (document.body.innerText || "").trim().slice(0, 200);')),
+                    ];                // a list may still be loading on the single threaded test server: wait for the spinner to go, up to 15 s; one that stays is stuck
+                    $spinnerJs = 'return Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).some(function (e) { var r = e.getBoundingClientRect(); return e.offsetParent !== null && r.width > 0 && r.height > 0 && !e.closest("button, .modal:not(.show), [hidden]"); });';
+                    $step = 'spin';
+                    usleep(1500000);
                     $stillSpinning = (bool) $browser->driver->executeScript($spinnerJs);
-                }
 
-                $step = 'console';
-                $spinnerHtml = $stillSpinning ? (string) $browser->driver->executeScript('var e = Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).find(function (x) { var r = x.getBoundingClientRect(); return x.offsetParent !== null && r.width > 0 && r.height > 0 && !x.closest("button, .modal:not(.show), [hidden]"); }); return e ? e.outerHTML.slice(0, 140) + " IN " + (e.parentElement ? e.parentElement.className : "") : "";') : '';
-                $console = collect($browser->driver->manage()->getLog('browser'))
-                    ->filter(fn (array $entry): bool => in_array($entry['level'], ['SEVERE', 'WARNING'], true) && ! str_contains($entry['message'], 'favicon') && ! str_contains($entry['message'], '/api/notifications') && ! str_contains($entry['message'], 'Failed to load resource'))
-                    ->map(fn (array $entry): string => mb_substr($entry['message'], 0, 160))->values()->all();
+                    for ($wait = 0; $stillSpinning && $wait < 15; $wait++) {
+                        sleep(1);
+                        $stillSpinning = (bool) $browser->driver->executeScript($spinnerJs);
+                    }
 
-                $status = (int) ($probe['status'] ?? 0);
-                // the platform operator's own pages are refused to a company admin on purpose, and everything but the dashboard and customers to the limited role
-                $denied = ($roleName === 'limited' && ($status === 403 || ($probe['error'] ?? false))) || ($roleName !== 'superadmin' && $status === 403 && preg_match($platform, $path) === 1);
-                $failed = ! $denied && ($status >= 400 || ($probe['error'] ?? false) || $console !== [] || ($probe['blank'] ?? false) || ($probe['overflow'] ?? false) || $stillSpinning);
-                $shot = '';
+                    $step = 'console';
+                    $spinnerHtml = $stillSpinning ? (string) $browser->driver->executeScript('var e = Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).find(function (x) { var r = x.getBoundingClientRect(); return x.offsetParent !== null && r.width > 0 && r.height > 0 && !x.closest("button, .modal:not(.show), [hidden]"); }); return e ? e.outerHTML.slice(0, 140) + " IN " + (e.parentElement ? e.parentElement.className : "") : "";') : '';
+                    $console = collect($browser->driver->manage()->getLog('browser'))
+                        ->filter(fn (array $entry): bool => in_array($entry['level'], ['SEVERE', 'WARNING'], true) && ! str_contains($entry['message'], 'favicon') && ! str_contains($entry['message'], '/api/notifications') && ! str_contains($entry['message'], 'Failed to load resource'))
+                        ->map(fn (array $entry): string => mb_substr($entry['message'], 0, 160))->values()->all();
 
-                if ($failed) {
-                    $name = 'crawl-'.$roleName.'-'.preg_replace('/[^a-z0-9]+/i', '-', trim($path, '/'));
-                    $browser->screenshot($name);
-                    $shot = "tests/Browser/screenshots/{$name}.png";
-                }
+                    $status = (int) ($probe['status'] ?? 0);
+                    // the platform operator's own pages are refused to a company admin on purpose, and everything but the dashboard and customers to the limited role
+                    $denied = ($roleName === 'limited' && ($status === 403 || ($probe['error'] ?? false))) || ($roleName !== 'superadmin' && $status === 403 && preg_match($platform, $path) === 1);
+                    $failed = ! $denied && ($status >= 400 || ($probe['error'] ?? false) || $console !== [] || ($probe['blank'] ?? false) || ($probe['overflow'] ?? false) || $stillSpinning);
+                    $shot = '';
+
+                    if ($failed) {
+                        $name = 'crawl-'.$roleName.'-'.preg_replace('/[^a-z0-9]+/i', '-', trim($path, '/'));
+                        $browser->screenshot($name);
+                        $shot = "tests/Browser/screenshots/{$name}.png";
+                    }
 
                     $results[] = [$roleName, $path, $denied ? 'denied' : ($failed ? 'FAIL' : 'ok'), $status, count($console), $probe['overflow'] ? 'yes' : '', $probe['blank'] ? 'yes' : '', $stillSpinning ? 'yes' : '', $shot, $console[0] ?? ($spinnerHtml !== '' ? 'spinner: '.$spinnerHtml : '')];
                 } catch (Throwable $e) {
