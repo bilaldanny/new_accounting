@@ -82,3 +82,10 @@ No new migration in wave 2.
 | 8 | Known limitations | updated |
 
 New migration to run live after the three of wave 1: `2026_11_27_100000_create_company_holidays_table` (also adds the Holidays menu row, granted to the company admin).
+
+### Round 2 - final verification
+
+* Pest: 4031 tests, all passed (17 min), includes the payload budget; Pint passes; `npm run build` passes.
+* Dusk (sqlite, port 8099): two consecutive full runs, 190 tests, 187 passed, 3 skipped (the capture tests that only run on request), 0 failed.
+* The flaky waits were a slow test server (opcache was off, about a second a request): `tests/DuskTestCase.php` now turns opcache on for the server process only; no retries were added.
+* Crawler: `docs/page-crawl.md`.
