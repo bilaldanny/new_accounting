@@ -32,6 +32,9 @@ export type QueuedSale = {
     conflict_code?: string | null;
     oversold?: unknown[];
     created_at: string;
+    /** The user who rang the sale up: nobody else's session lists or sends it. Sales recorded before this existed have none. */
+    user_id?: number | null;
+    company_id?: number | null;
 };
 
 const DB_NAME = 'pos-offline';

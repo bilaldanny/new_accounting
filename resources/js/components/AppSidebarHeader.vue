@@ -3,7 +3,9 @@
     import { Link, router, usePage } from '@inertiajs/vue3';
     import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
     import HeaderTools from '@/components/HeaderTools.vue';
+    import OfflineStatus from '@/components/OfflineStatus.vue';
     import useSidebarToggle from '@/composables/useSidebarToggle';
+    import { clearShell, offline, stopEngine } from '@/lib/offline/engine';
     import { dashboard, logout } from '@/routes';
 
     const { openSidebar } = useSidebarToggle();
@@ -172,7 +174,19 @@
 
     onBeforeUnmount(() => document.removeEventListener('click', closeSearch));
 
-    const handleLogout = () => {
+    /** Signing out with entries still waiting on this device asks first: they stay here, under this login, until it syncs them. */
+    const handleLogout = (event?: Event) => {
+        const unsent = offline.pending + offline.posPending;
+
+        if (unsent > 0 && ! window.confirm(`${unsent} offline ${unsent === 1 ? 'entry has' : 'entries have'} not been sent to the server yet. They stay on this device and are sent the next time you sign in on it. Sign out anyway?`)) {
+            event?.preventDefault();
+            event?.stopImmediatePropagation();
+
+            return;
+        }
+
+        stopEngine();
+        void clearShell();
         router.flushAll();
     };
 
@@ -240,6 +254,8 @@
                         <span class="erp-synced-badge__dot"></span>
                         ERP Synced
                     </span>
+
+                    <OfflineStatus />
 
                     <HeaderTools />
 
@@ -323,7 +339,7 @@
                                     :href="logout()"
                                     as="button"
                                     data-test="logout-button"
-                                    @click="handleLogout"
+                                    @click.capture="handleLogout"
                                 >
                                     <Power size="sm" class="topbar-dropdown-icon" /><span>Logout</span>
                                 </Link>

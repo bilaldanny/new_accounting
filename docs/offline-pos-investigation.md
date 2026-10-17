@@ -73,3 +73,7 @@ gift card already spent, a serial already sold).
 3. Only then, a cached catalogue and a service worker for a true offline terminal, with the supervisor review queue.
 
 No code for any of this exists in the repository.
+
+## Update (final round)
+
+The suggested shape above was built as a general offline engine (see `docs/offline-mode-design.md` and `docs/PROGRESS.md`, final round, wave 2): idempotent sync endpoint, a queue for six kinds of documents, reference data cache, conflicts screen and the Offline POS terminal on the same sync runner.

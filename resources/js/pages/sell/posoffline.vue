@@ -1,7 +1,8 @@
 <script setup lang="ts">
-    import { Head } from '@inertiajs/vue3';
+    import { Head, usePage } from '@inertiajs/vue3';
     import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
     import type { Catalog, CatalogProduct, QueuedSale } from '@/lib/posOfflineStore';
+    import { belongsTo, syncPosQueue } from '@/lib/offline/posAdapter';
     import { deviceId, newUuid, nextReceiptNumber, posOfflineStore } from '@/lib/posOfflineStore';
 
     defineOptions({
@@ -14,6 +15,8 @@
 
     type CartLine = { product: CatalogProduct; quantity: number };
 
+    const page = usePage();
+    const me = computed(() => (page.props.auth as { user?: { id?: number; company_id?: number } } | undefined)?.user ?? {});
     const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
     const catalog = ref<Catalog | null>(null);
     const catalogNote = ref('');
@@ -47,7 +50,7 @@
     }
 
     async function refreshQueue() {
-        queue.value = await posOfflineStore.allSales();
+        queue.value = (await posOfflineStore.allSales()).filter((sale) => belongsTo(sale, Number(me.value.id ?? 0)));
     }
 
     async function loadCatalog() {
@@ -139,6 +142,8 @@
                 quantity: line.quantity, unit_price: line.product.price, name: line.product.name,
             })),
             payments: [{ method: method.value, payment_account: Number(accountId.value), amount: total.value }],
+            user_id: Number(me.value.id ?? 0) || null,
+            company_id: Number(me.value.company_id ?? 0) || null,
             status: 'pending',
             created_at: new Date().toISOString(),
         };
@@ -163,31 +168,9 @@
         syncing.value = true;
 
         try {
-            for (const sale of (await posOfflineStore.allSales()).filter((row) => row.status === 'pending')) {
-                try {
-                    const response = await window.axios.post('/api/pos/offline/sync', {
-                        client_uuid: sale.client_uuid, device_id: sale.device_id, offline_receipt_no: sale.offline_receipt_no, sold_at: sale.sold_at,
-                        catalog_version: sale.catalog_version, contact_id: sale.contact_id, total: sale.total,
-                        lines: sale.lines.map(({ name, ...line }) => line), payments: sale.payments,
-                    });
-                    const body = response.data as { status: QueuedSale['status']; invoice_no?: string; conflict_code?: string; oversold?: unknown[] };
-                    await posOfflineStore.putSale({ ...sale, status: body.status, invoice_no: body.invoice_no ?? null, conflict_code: body.conflict_code ?? null, oversold: body.oversold ?? [], message: null });
-                } catch (error: unknown) {
-                    const failure = error as { response?: { status?: number; data?: { message?: string } } };
-                    const status = failure.response?.status;
-
-                    if (status === 422) {
-                        await posOfflineStore.putSale({ ...sale, status: 'failed', message: failure.response?.data?.message ?? 'The server refused this sale.' });
-
-                        continue;
-                    }
-
-                    // no network, signed out, or a server error: keep it queued, in order, and stop here
-                    message.value = status === 401 || status === 419 ? 'Sign in again to send the waiting sales; they are kept on this device.' : '';
-
-                    break;
-                }
-            }
+            // the same runner the header's offline engine uses (lib/offline/posAdapter.ts)
+            const outcome = await syncPosQueue(Number(me.value.id ?? 0));
+            message.value = outcome === 'login' ? 'Sign in again to send the waiting sales; they are kept on this device.' : '';
         } finally {
             syncing.value = false;
             await refreshQueue();

@@ -5,6 +5,7 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import BackToTop from '@/components/BackToTop.vue';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts.vue';
+import OfflineBlocked from '@/components/OfflineBlocked.vue';
 import TheBreadcurm from '@/components/theBreadcurm.vue';
 import { Toaster } from '@/components/ui/sonner';
 import type { BreadcrumbItem } from '@/types';
@@ -35,6 +36,7 @@ withDefaults(defineProps<Props>(), {
                 </div>
             </div>
             <BackToTop />
+            <OfflineBlocked />
             <AppFooter />
         </AppShell>
         <Toaster />

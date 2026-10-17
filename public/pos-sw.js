@@ -8,7 +8,7 @@
 const VERSION = 'v1';
 const SHELL = 'pos-shell-' + VERSION;
 const ASSETS = 'pos-assets-' + VERSION;
-const TERMINAL_PATH = '/sell/pos/offline';
+const TERMINAL_PATHS = ['/sell/pos/offline', '/offline'];
 
 self.addEventListener('install', () => {
     self.skipWaiting();
@@ -30,7 +30,46 @@ self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'precache') {
         event.waitUntil(precache(event.data.urls || []));
     }
+
+    if (event.data && event.data.type === 'warm') {
+        event.waitUntil(warm(event.data.urls || []));
+    }
 });
+
+// Background Sync (where the browser has it): wake any open page so it sends the waiting offline entries
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'offline-sync') {
+        event.waitUntil(self.clients.matchAll({ type: 'window' }).then((clients) => clients.forEach((client) => client.postMessage({ type: 'offline-sync' }))));
+    }
+});
+
+// Only the two offline screens are ever kept (never any other page): the page asks for them to be stored while online
+async function warm(urls) {
+    const cache = await caches.open(SHELL);
+
+    await Promise.all(urls.filter((url) => TERMINAL_PATHS.includes(url)).map(async (url) => {
+        try {
+            const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'text/html' } });
+
+            if (response.ok && response.redirected === false) {
+                await cache.put(new URL(url, self.location.origin).href, response);
+            }
+        } catch (error) {
+            // offline while warming
+        }
+    }));
+}
+
+function friendlyOfflinePage() {
+    return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>This page needs the internet</title>'
+        + '<body style="font-family:sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1 style="font-size:1.3rem">This page needs the internet</h1>'
+        + '<p>You are offline, so this page cannot open. Nothing you did has been lost.</p><p>These still work without internet:</p>'
+        + '<ul><li><a href="/sell/pos/offline">Offline POS terminal</a></li><li><a href="/offline">Offline entries</a> (sales invoice, purchase, payment, expense, new customer or supplier, stock adjustment)</li></ul>'
+        + '<p>Entries waiting on this device are sent on their own when the internet is back.</p></body>', {
+        status: 503,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+}
 
 async function precache(urls) {
     const cache = await caches.open(ASSETS);
@@ -103,8 +142,15 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (request.mode === 'navigate' && url.pathname === TERMINAL_PATH) {
+    if (request.mode === 'navigate' && TERMINAL_PATHS.includes(url.pathname)) {
         event.respondWith(networkFirst(request, SHELL));
+
+        return;
+    }
+
+    // any other page: the network, and when there is none a friendly screen instead of the browser's error (nothing is stored)
+    if (request.mode === 'navigate') {
+        event.respondWith(fetch(request).catch(() => friendlyOfflinePage()));
 
         return;
     }
