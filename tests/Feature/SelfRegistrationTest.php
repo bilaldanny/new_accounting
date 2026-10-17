@@ -80,7 +80,7 @@ test('signing up creates the company, first branch, admin, trial tenant, starter
         ->and($company->strn_no)->toBe('17-00-0000-001-37')
         ->and($user->is_active)->toBeTrue()
         ->and(Role::query()->where('company_id', $company->id)->where('branch_id', $branch->id)->orderBy('name')->pluck('name')->all())
-        ->toBe(['Accountant', 'Cashier', 'Manager', 'Sales Representative', 'Warehouse Keeper'])
+        ->toBe(['Accountant', 'Cashier', 'HR Manager', 'Manager', 'Sales Representative', 'Warehouse Keeper'])
         ->and(DB::table('chart_of_account_mappings')->where('branch_id', $branch->id)->whereIn('key', ['withholdingreceivable', 'withholdingpayable'])->whereNotNull('value')->count())->toBe(2);
 });
 
