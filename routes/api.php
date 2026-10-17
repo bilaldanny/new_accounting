@@ -1417,6 +1417,7 @@ Route::middleware(['auth:sanctum', ValidateBulkActionBody::class])->group(functi
 
     /* Wave 1 */
     Route::get('header/clock', [HeaderToolsController::class, 'clock']);
+    Route::get('header/summary', [HeaderToolsController::class, 'summary']);
     Route::get('header/today-profit', [HeaderToolsController::class, 'today']);
     Route::get('header/calendar', [HeaderToolsController::class, 'calendar']);
     Route::get('header/todos', [HeaderToolsController::class, 'todos']);

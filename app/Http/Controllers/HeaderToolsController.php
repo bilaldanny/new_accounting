@@ -74,6 +74,21 @@ class HeaderToolsController extends Controller
         return response()->json(['data' => ['date' => $now->toDateString(), 'label' => $now->format('D, d M Y'), 'timezone' => $now->getTimezone()->getName()]]);
     }
 
+    /**
+     * What the top bar needs to draw itself, in one request: the date in the company's time zone and the number of pending to-dos.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        abort_if($user === null, 401);
+        $now = $this->now((int) $user->company_id);
+
+        return response()->json(['data' => [
+            'date' => $now->toDateString(), 'label' => $now->format('D, d M Y'), 'timezone' => $now->getTimezone()->getName(),
+            'pending_todos' => $this->mine($user)->whereNull('done_at')->count(),
+        ]]);
+    }
+
     private function now(int $companyId): Carbon
     {
         $name = null;

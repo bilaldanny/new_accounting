@@ -134,9 +134,35 @@ abstract class DuskTestCase extends BaseTestCase
     /**
      * @return array<string, string>
      */
+    /**
+     * The test server and the migration run in a PHP of their own. Without opcache every request recompiles the framework and the
+     * application (about a second a request here), so a page that makes ten calls is slow and the waits of the tests become a guess:
+     * when the extension is there but switched off, a throw-away ini file in storage turns it on for those processes only.
+     *
+     * @return array<string, string>
+     */
+    protected static function opcacheEnvironment(): array
+    {
+        $extension = rtrim((string) ini_get('extension_dir'), '/'.chr(92)).DIRECTORY_SEPARATOR.(PHP_OS_FAMILY === 'Windows' ? 'php_opcache.dll' : 'opcache.so');
+
+        if (extension_loaded('Zend OPcache') || ! is_file($extension)) {
+            return [];
+        }
+
+        $directory = static::projectPath('storage/framework/dusk-ini');
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($directory.'/opcache.ini', implode(PHP_EOL, ['zend_extension=opcache', 'opcache.enable=1', 'opcache.enable_cli=1', 'opcache.memory_consumption=256', 'opcache.max_accelerated_files=20000', 'opcache.validate_timestamps=1', 'opcache.revalidate_freq=0', '']));
+
+        return ['PHP_INI_SCAN_DIR' => $directory];
+    }
+
     protected static function serverEnvironment(): array
     {
-        return [
+        return static::opcacheEnvironment() + [
             'APP_ENV' => 'local',
             'APP_DEBUG' => 'true',
             'APP_URL' => 'http://127.0.0.1:'.self::PORT,

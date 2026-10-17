@@ -18,10 +18,12 @@
 
     const money = (value: number | string | null | undefined): string => Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    async function loadClock() {
+    /** The date and the pending to-do count come in one request, a moment after the page's own, so the top bar never delays a screen. */
+    async function loadSummary() {
         try {
-            const response = await window.axios.get('/api/header/clock');
+            const response = await window.axios.get('/api/header/summary');
             dateLabel.value = response.data?.data?.label ?? '';
+            pending.value = Number(response.data?.data?.pending_todos ?? 0);
         } catch {
             dateLabel.value = new Date().toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
         }
@@ -380,8 +382,8 @@
     });
 
     onMounted(() => {
-        void loadClock();
-        void loadTodos();
+        dateLabel.value = new Date().toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+        window.setTimeout(() => void loadSummary(), 1500);
         document.addEventListener('keydown', onKeydown);
         document.addEventListener('click', onDocumentClick);
 

@@ -79,3 +79,16 @@ test('the calendar shows to-dos and only the kinds of dates the user may open', 
     DB::table('activities')->update(['assigned_to' => null]);
     expect(collect($this->getJson('/api/header/calendar')->json('data.events'))->pluck('kind')->all())->not->toContain('followup');
 });
+
+test('the summary gives the date in the company time zone and the pending to-do count in one request', function () {
+    $scope = fcoScope();
+    $zone = DB::table('timezones')->insertGetId(['name' => 'Pacific/Kiritimati', 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('company_settings')->updateOrInsert(['company_id' => $scope['company_id']], ['timezone_id' => $zone, 'created_at' => now(), 'updated_at' => now()]);
+
+    Sanctum::actingAs(htStaff($scope, ['/dashboard']));
+    $this->postJson('/api/header/todos', ['title' => 'One'])->assertCreated();
+    $this->postJson('/api/header/todos', ['title' => 'Two'])->assertCreated();
+
+    $this->getJson('/api/header/summary')->assertOk()->assertJsonPath('data.timezone', 'Pacific/Kiritimati')->assertJsonPath('data.pending_todos', 2)
+        ->assertJsonPath('data.date', now('Pacific/Kiritimati')->toDateString());
+});
