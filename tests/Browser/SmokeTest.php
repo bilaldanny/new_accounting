@@ -3,6 +3,7 @@
 use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Company\CompanyBootstrap;
 use App\Services\StockMovements;
 use Facebook\WebDriver\WebDriverKeys;
 use Illuminate\Support\Facades\Artisan;
@@ -51,14 +52,12 @@ function smokeShot(Browser $browser, int $number, string $slug): string
     return 'smoke-test/'.$file;
 }
 
-/** @return array<string, int> id of each posting key's account, by mapping key */
+/** @return array<string, int> id of each starting account of the company, by key (cash, bank, rent, ...) */
 function smokeAccounts(int $companyId): array
 {
-    $rows = DB::table('chart_of_account_mappings as m')->join('chart_of_accounts as c', function ($join): void {
-        $join->on('c.code', '=', 'm.value')->on('c.company_id', '=', 'm.company_id');
-    })->where('m.company_id', $companyId)->pluck('c.id', 'm.key');
+    $branch = (int) DB::table('branches')->where('company_id', $companyId)->value('id');
 
-    return $rows->map(fn ($id): int => (int) $id)->all();
+    return app(CompanyBootstrap::class)->accountIds($companyId, $branch);
 }
 
 function smokeEmployeeCsv(array $numbers, string $date): string
@@ -139,7 +138,7 @@ test('a new company is signed up and driven through the whole product', function
 
         // 3. the setup wizard
         $step('Setup wizard', 'browser: page', function () use ($browser) {
-            $browser->visit('/setup')->waitForText('Setup Wizard', 40)->waitFor('.progress, [role=progressbar], .list-group, ul', 20);
+            $browser->visit('/setup')->waitForText('Setup Wizard', 40)->waitForText('steps done', 30)->assertSee('Add your first product');
 
             return 'wizard opened';
         });
@@ -253,10 +252,10 @@ test('a new company is signed up and driven through the whole product', function
         });
 
         // 8. an expense
-        $step('Record an expense voucher', 'endpoint call, then the expense list in the browser', function () use ($browser, $cid) {
+        $step('Record an expense voucher', 'endpoint call, then the expense list in the browser', function () use ($browser, $cid, $branch) {
             $accounts = smokeAccounts($cid());
-            $rent = (int) (DB::table('chart_of_accounts')->where('company_id', $cid())->where('acc_type', 't')->where('acc_nature', 'dr')->where('bs', 0)->where('active', 1)->orderBy('code')->value('id'));
-            smokeCall($browser, 'POST', '/api/expenses', ['voucher_type' => 'EXP', 'voucher_date' => now()->toDateString(), 'comments' => 'Smoke shop rent',
+            $rent = (int) ($accounts['rent'] ?? 0);
+            smokeCall($browser, 'POST', '/api/expenses', ['company_id' => $cid(), 'branch_id' => $branch(), 'voucher_type' => 'EXP', 'voucher_date' => now()->toDateString(), 'comments' => 'Smoke shop rent',
                 'taccountdetails' => [['account_id' => $rent, 'description' => 'Rent', 'debit' => 5000, 'credit' => 0], ['account_id' => $accounts['cash'], 'description' => 'Rent', 'debit' => 0, 'credit' => 5000]]]);
             $voucher = (int) DB::table('t_accounts')->where('company_id', $cid())->where('voucher_no', 'like', 'EXP-%')->max('id');
 
@@ -293,7 +292,7 @@ test('a new company is signed up and driven through the whole product', function
         $step('Bank statement reconciled', 'endpoint calls, then the page in the browser', function () use ($browser, $cid) {
             $accounts = smokeAccounts($cid());
             $bank = (string) DB::table('chart_of_accounts')->where('id', $accounts['bank'])->value('code');
-            $rent = (int) DB::table('chart_of_accounts')->where('company_id', $cid())->where('acc_type', 't')->where('acc_nature', 'dr')->where('bs', 0)->where('active', 1)->orderBy('code')->value('id');
+            $rent = (int) ($accounts['rent'] ?? 0);
             // a payment out of the bank and a deposit into it, then the statement that shows the same two lines
             smokeCall($browser, 'POST', '/api/journal-entries', ['company_id' => (int) DB::table('chart_of_accounts')->where('id', $accounts['bank'])->value('company_id'), 'branch_id' => (int) DB::table('branches')->where('company_id', $cid())->value('id'), 'voucher_type' => 'JV', 'voucher_date' => now()->toDateString(),
                 'comments' => 'Smoke bank deposit', 'taccountdetails' => [['account_id' => $accounts['bank'], 'account_nature' => 'dr', 'description' => 'Deposit', 'debit' => 3000, 'credit' => 0], ['account_id' => $accounts['cash'], 'account_nature' => 'cr', 'description' => 'Deposit', 'debit' => 0, 'credit' => 3000]]]);
@@ -308,7 +307,8 @@ test('a new company is signed up and driven through the whole product', function
             $statement = (int) ($created['id'] ?? DB::table('bank_statements')->where('company_id', $cid())->max('id'));
             smokeCall($browser, 'POST', "/api/bank-reconciliations/{$statement}/auto-match");
             smokeCall($browser, 'POST', "/api/bank-reconciliations/{$statement}/reconcile");
-            $browser->visit('/bankreconciliation')->waitForText('Smoke statement', 40);
+            expect(DB::table('bank_statements')->where('id', $statement)->value('status'))->toBe('reconciled');
+            $browser->visit('/bankreconciliation')->waitForText('Statements', 40)->waitForText('reconciled', 30);
 
             return 'statement '.$statement.' reconciled';
         });
@@ -368,13 +368,13 @@ test('a new company is signed up and driven through the whole product', function
         });
 
         // 14. manufacturing
-        $step('Manufacturing order', 'endpoint calls, then the page in the browser', function () use ($browser, $branch, &$products) {
+        $step('Manufacturing order', 'endpoint calls, then the page in the browser', function () use ($browser, $cid, $branch, &$products) {
             $combo = $products['Smoke Combo'];
-            $bom = (int) (smokeCall($browser, 'POST', '/api/manufacturing/boms', ['product_id' => $combo['product_id'], 'name' => 'Smoke Combo', 'output_qty' => 1, 'items' => [
+            $bom = (int) (smokeCall($browser, 'POST', '/api/manufacturing/boms', ['company_id' => $cid(), 'branch_id' => $branch(), 'product_id' => $combo['product_id'], 'name' => 'Smoke Combo', 'output_qty' => 1, 'items' => [
                 ['component_product_id' => $products['Smoke Rice']['product_id'], 'quantity' => 1], ['component_product_id' => $products['Smoke Sugar']['product_id'], 'quantity' => 2],
             ], 'operations' => [['name' => 'Packing', 'minutes' => 10, 'labor_rate_per_hour' => 300, 'overhead_rate_per_hour' => 60]]])['data']['id'] ?? 0);
             smokeCall($browser, 'POST', "/api/boms/{$bom}/approve");
-            $order = (int) (smokeCall($browser, 'POST', '/api/manufacturing/work-orders', ['product_id' => $combo['product_id'], 'planned_qty' => 5, 'planned_start' => now()->toDateString()])['data']['id'] ?? 0);
+            $order = (int) (smokeCall($browser, 'POST', '/api/manufacturing/work-orders', ['company_id' => $cid(), 'branch_id' => $branch(), 'product_id' => $combo['product_id'], 'planned_qty' => 5, 'planned_start' => now()->toDateString()])['data']['id'] ?? 0);
             smokeCall($browser, 'POST', "/api/work-orders/{$order}/approve");
             $materials = DB::table('work_order_materials')->where('work_order_id', $order)->get();
             smokeCall($browser, 'POST', "/api/manufacturing/work-orders/{$order}/issue", ['date' => now()->toDateString(), 'lines' => $materials->map(fn ($m): array => ['product_id' => (int) $m->product_id, 'variation_id' => (int) $m->variation_id, 'quantity' => (float) $m->required_qty])->all()]);
@@ -390,9 +390,11 @@ test('a new company is signed up and driven through the whole product', function
         $step('Custom invoice from template code, printed', 'endpoint calls, then the printed page in the browser', function () use ($browser, $cid, &$ids) {
             smokeCall($browser, 'POST', '/api/document-templates', ['company_id' => $cid(), 'name' => 'Smoke coded invoice', 'doc_type' => 'invoice', 'language' => 'en', 'paper' => 'a4', 'mode' => 'code', 'is_default' => true,
                 'code_html' => '<h1>{{company.name}}</h1><p>Smoke invoice {{invoice.number}} for {{customer.name}}</p>{{#lines}}<i>{{name}} x {{qty}}</i><br>{{/lines}}<b>Total {{totals.grand}}</b>', 'code_css' => 'h1{color:#0f766e}']);
-            $browser->visit('/api/documents/'.$ids['sale'].'/render');
-            $browser->waitForText('Smoke invoice', 30)->assertSee('Smoke Customer')->assertSee('Smoke Rice');
             $browser->visit('/documentcenter')->waitForText('Smoke coded invoice', 40);
+            $html = (string) $browser->driver->executeAsyncScript('const done = arguments[arguments.length - 1]; fetch(arguments[0], {credentials: "same-origin", headers: {"Accept": "text/html", "X-Requested-With": "XMLHttpRequest"}}).then((r) => r.text()).then(done);', ['/api/documents/'.$ids['sale'].'/render']);
+            expect($html)->toContain('Smoke invoice')->toContain('Smoke Customer')->toContain('Smoke Rice')->not->toContain('<script');
+            $browser->driver->executeScript('document.open(); document.write(arguments[0]); document.close();', [$html]);
+            $browser->waitForText('Smoke invoice', 20)->assertSee('Smoke Customer');
         });
 
         // 16. the till: a sale with the keyboard alone, and a scanned code
@@ -418,8 +420,17 @@ test('a new company is signed up and driven through the whole product', function
 
         // 17. the dashboard graphs
         $step('Dashboard graphs', 'browser: dashboard', function () use ($browser) {
+            $trends = duskRequest($browser, 'GET', '/api/dashboard/trends?refresh=1');
+            $diagnosis = 'trends answered '.$trends['status'].': '.mb_substr(json_encode($trends['body']), 0, 300);
             $browser->visit('/dashboard')->waitFor('[data-test="dashboard-glance"]', 40)->waitFor('[data-test="dashboard-charts"]', 30);
-            $browser->waitUsing(30, 1, fn (): bool => (int) $browser->driver->executeScript('return document.querySelectorAll("[data-test=dashboard-charts] svg rect").length;') > 0);
+            // the graphs of a company are kept for a few minutes (this one was opened before its first sale): Refresh draws the new figures
+            $browser->press('Refresh')->pause(1500);
+            try {
+                $browser->waitUsing(30, 1, fn (): bool => (int) $browser->driver->executeScript('return document.querySelectorAll("[data-test=dashboard-charts] svg rect").length;') > 0);
+            } catch (Throwable $e) {
+                throw new RuntimeException('no bars were drawn; '.$diagnosis, 0, $e);
+            }
+
             $browser->script('document.querySelector("[data-test=dashboard-charts]").scrollIntoView({block: "start"});');
             $browser->pause(400);
         });
@@ -443,6 +454,8 @@ test('a new company is signed up and driven through the whole product', function
             $accounts = smokeAccounts($cid());
             $sales = DB::table('transactions')->where('company_id', $cid())->where('type', 'sell')->count();
             $browser->visit('/offline')->waitFor('[data-test="offline-form"]', 40);
+            $reference = duskRequest($browser, 'GET', '/api/offline/reference');
+            $referenceNote = 'reference answered '.$reference['status'].' with '.count($reference['body']['data']['contacts'] ?? []).' contacts, '.count($reference['body']['data']['payment_accounts'] ?? []).' payment accounts, '.count($reference['body']['data']['products'] ?? []).' products';
             $browser->waitUsing(40, 1, fn (): bool => ! str_contains((string) $browser->text('[data-test="offline-reference-age"]'), 'not loaded'));
             $browser->driver->executeAsyncScript('const done = arguments[arguments.length - 1]; navigator.serviceWorker.ready.then(() => done(true));');
             $browser->waitUsing(40, 1, fn (): bool => (bool) $browser->driver->executeAsyncScript('const done = arguments[arguments.length - 1]; caches.keys().then(async (keys) => { let shell = false; let assets = 0; for (const k of keys) { for (const r of await (await caches.open(k)).keys()) { if (new URL(r.url).pathname === "/offline") { shell = true; } else { assets++; } } } done(shell && assets > 3); });'));
@@ -450,11 +463,18 @@ test('a new company is signed up and driven through the whole product', function
 
             try {
                 $browser->refresh()->waitFor('[data-test="offline-form"]', 40);
+                $options = (string) $browser->driver->executeScript('return JSON.stringify({contact: Array.from((document.querySelector("#offline-contact") || {options: []}).options).map((o) => o.value + ":" + o.text), account: Array.from((document.querySelector("#offline-account") || {options: []}).options).map((o) => o.value + ":" + o.text)});');
                 $browser->select('#offline-kind', 'sale')->select('#offline-contact', (string) DB::table('contacts')->where('company_id', $cid())->where('business_name', 'Smoke Customer')->value('id'))
                     ->select('select[aria-label="Product 1"]', (string) $products['Smoke Sugar']['variation_id'])->check('#offline-paynow')->select('#offline-account', (string) $accounts['cash']);
                 $browser->click('[data-test="offline-save"]');
-                $browser->waitUsing(15, 1, fn (): bool => str_starts_with(trim((string) $browser->text('[data-test="offline-pending-count"]')), '1 waiting'));
-                $rent = (int) DB::table('chart_of_accounts')->where('company_id', $cid())->where('acc_type', 't')->where('acc_nature', 'dr')->where('bs', 0)->where('active', 1)->orderBy('code')->value('id');
+
+                try {
+                    $browser->waitUsing(15, 1, fn (): bool => str_starts_with(trim((string) $browser->text('[data-test="offline-pending-count"]')), '1 waiting'));
+                } catch (Throwable $e) {
+                    throw new RuntimeException('the sale was not queued; form said: '.trim((string) $browser->text('[data-test="offline-failure"]')).'; lists: '.mb_substr($options, 0, 300).'; '.$referenceNote, 0, $e);
+                }
+
+                $rent = (int) ($accounts['rent'] ?? 0);
                 $browser->select('#offline-kind', 'expense')->select('#offline-expense-account', (string) $rent)->type('#offline-expense-amount', '250')->type('#offline-description', 'Smoke offline tea')->select('#offline-account', (string) $accounts['cash']);
                 $browser->click('[data-test="offline-save"]');
                 $browser->waitUsing(15, 1, fn (): bool => str_starts_with(trim((string) $browser->text('[data-test="offline-pending-count"]')), '2 waiting'));
@@ -493,7 +513,8 @@ test('a new company is signed up and driven through the whole product', function
             $user = User::query()->where('email', $login)->firstOrFail();
             $browser->logout()->visit('/login')->waitFor('input[type=password]', 40)->pause(3500);
             $browser->driver->executeScript('document.querySelector("input[placeholder=\"name@company.com\"]").value = arguments[0]; document.querySelector("input[type=password]").value = arguments[1]; document.querySelector("button[type=submit]").click();', [$login, $password]);
-            $browser->waitUntilMissing('input[type=password]', 40);
+            $browser->pause(4000);
+            $browser->assertAuthenticatedAs($user);
             $browser->visit('/sell/pos/add')->waitFor('[data-test="pos-search"]', 40);
             $allowed = true;
             $browser->visit('/role')->pause(1500);
@@ -516,6 +537,11 @@ test('a new company is signed up and driven through the whole product', function
 
     foreach ($steps as $s) {
         $lines[] = "| {$s['n']} | {$s['name']} | {$s['how']} | {$s['result']} | ".($s['shot'] !== '' ? "[{$s['shot']}]({$s['shot']})" : '-').' | '.str_replace('|', '/', $s['note']).' |';
+    }
+
+    $lines[] = '';
+    foreach (['## What the smoke test found and what was done about it', '', 'Bugs of the product (fixed, with tests):', '', '* **Offline mode gave a company-level user (no branch of their own) an empty reference list** (no customers, no payment accounts) and would have refused their entries as "must belong to a branch": the `User` model answers an empty string for "no branch", which the sync code took for branch 0. Now a user without a branch sees the whole company and posts into the company\'s first branch (`tests/Feature/OfflineSyncTest.php`, last test).', '* **The offline entries page showed a copy of the reference data up to 30 minutes old** (a customer or product added a minute ago was missing from the lists). Opening the page while online now always takes a fresh copy; the background copy is refreshed after 10 minutes.', '', 'Not bugs, but worth knowing (what the test had to allow for):', '', '* The dashboard graphs of a company are kept for five minutes (the *Refresh* button recalculates); a company that opens the dashboard before its first sale sees empty graphs until then. The step calls the same recalculation the button does.', '* A new company starts with journal approval on, so the journal entry of step 9 needed its approval.', '* The bank reconciliation list shows the account, period, closing balance, matched count and status, not the note typed on the statement.'] as $found) {
+        $lines[] = $found;
     }
 
     $lines[] = '';

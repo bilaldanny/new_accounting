@@ -25,15 +25,22 @@ A new tenant model that has neither fails the test until someone reviews it.
 
 ## Old-schema (staging) proof: needs you
 
-I did not connect to any existing database. To prove the 63 pending migrations (from `2026_10_31_100000`) on an old-schema copy:
+I did not connect to any existing database, and the smoke test (`docs/smoke-test-report.md`) ran on a fresh sqlite database only. To prove the pending migrations (114 files from `2026_10_09_100000` if the go-live of `2026_10_08` is live; the exact list is in `docs/deploy-runbook.md`, section 0) on an old-schema copy, **you** run this (nothing here was run):
 
 1. Restore a copy of the live backup into a **new, separate** database, for example `new_accounting_staging`.
 2. Give me that database name (and confirm it is a copy, not live), or run this yourself with `DB_DATABASE` pointing at the copy:
 
 ```bash
-php artisan migrate:status
-php artisan migrate --force
-php artisan migrate:status | grep -i pending
+# 0. on the machine that holds the COPY only: .env must point at the copy (DB_DATABASE=new_accounting_staging), never at live
+php artisan config:clear
+php artisan migrate:status --pending              # the list and the count that will run
+php artisan migrate --pretend --force > migrate-pretend.sql   # read it; look for ALTER on transactions, t_account_details, sell_lines, purchase_lines
+time php artisan migrate --force                  # note the time of the lock rows (runbook section 0 legend)
+php artisan migrate:status --pending              # must print nothing
+php artisan install:baseline-menus --dry-run      # adds nothing the dump already has
+php artisan roles:sync-presets <company_id> <branch_id>   # grants the new pages to the preset roles of one company
+php artisan customersubscriptions:refresh-analytics
+php -d memory_limit=-1 vendor/bin/pest tests/Feature/FreshDatabaseTest.php   # (uses its own sqlite, safe)
 ```
 
 3. Check that no migration errors, then open the smoke URLs listed in `docs/deploy-runbook.md`.

@@ -205,7 +205,8 @@
     });
     onMounted(async () => {
         await load();
-        await refreshReference();
+        // opening the page while online always takes a fresh copy: a customer or product added a minute ago must be in the lists
+        await refreshReference(true);
         await load();
     });
 </script>

@@ -46,6 +46,24 @@ class OfflineSync
     }
 
     /**
+     * The user's own branch, or null for a company-level user (the User model answers an empty string for no branch, which is not null).
+     */
+    private function ownBranch(User $user): ?int
+    {
+        $id = (int) $user->branch_id;
+
+        return $id > 0 ? $id : null;
+    }
+
+    /** A company-level user (no branch of their own) makes entries in the company's first branch. */
+    private function defaultBranch(int $companyId): ?int
+    {
+        $id = (int) Branch::query()->where('company_id', $companyId)->orderBy('id')->value('id');
+
+        return $id > 0 ? $id : null;
+    }
+
+    /**
      * @param  array<string, mixed>  $data  validated: client_uuid, kind, payload, device_id, provisional_ref, created_at
      * @return array{http: int, body: array<string, mixed>}
      */
@@ -65,11 +83,13 @@ class OfflineSync
             return $this->respond($existing, true);
         }
 
-        $branchId = $user->branch_id !== null ? (int) $user->branch_id : null;
+        $branchId = $this->ownBranch($user);
 
         if ($branchId === null && isset($data['payload']['branch_id'])) {
             $branchId = Branch::query()->where('company_id', $companyId)->whereKey((int) $data['payload']['branch_id'])->value('id');
         }
+
+        $branchId ??= $this->defaultBranch($companyId);
 
         try {
             $entry = OfflineSyncEntry::query()->create([
@@ -463,7 +483,7 @@ class OfflineSync
     public function reference(User $user): array
     {
         $companyId = (int) $user->company_id;
-        $branchId = $user->branch_id !== null ? (int) $user->branch_id : null;
+        $branchId = $this->ownBranch($user);
 
         $products = DB::table('product_details as d')
             ->join('products as p', 'p.id', '=', 'd.product_id')
@@ -493,7 +513,7 @@ class OfflineSync
 
         return [
             'generated_at' => now()->toIso8601String(),
-            'user_id' => (int) $user->id, 'company_id' => $companyId, 'branch_id' => $branchId,
+            'user_id' => (int) $user->id, 'company_id' => $companyId, 'branch_id' => $branchId ?? $this->defaultBranch($companyId),
             'truncated' => $products->count() > 5000,
             'products' => $products->take(5000)->map(fn (object $row): array => [
                 'variation_id' => (int) $row->variation_id, 'product_id' => (int) $row->product_id, 'unit_id' => (int) $row->unit_id, 'unit' => $row->unit,

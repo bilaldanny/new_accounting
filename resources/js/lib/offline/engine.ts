@@ -316,7 +316,7 @@ export async function refreshReference(force = false): Promise<Reference | null>
     const cached = (await offlineStore.loadReference(key)) ?? null;
     offline.referenceAt = cached?.generated_at ?? null;
 
-    const fresh = cached !== null && Date.now() - new Date(cached.generated_at).getTime() < 30 * 60 * 1000;
+    const fresh = cached !== null && Date.now() - new Date(cached.generated_at).getTime() < 10 * 60 * 1000;
 
     if (! offline.online || (fresh && ! force)) {
         return cached;

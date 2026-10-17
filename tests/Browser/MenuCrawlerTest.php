@@ -122,6 +122,17 @@ test('crawl every menu page for three roles', function () {
                         $stillSpinning = (bool) $browser->driver->executeScript($spinnerJs);
                     }
 
+                    // sideways overflow is measured once the page has settled: while a vertical scroll bar appears the document is briefly as wide
+                    // as it was without it (seen on /business/settings: scrollWidth 1582 against a client width of 1567 for one frame), so a hit is
+                    // measured again half a second later and only a width that stays is a finding
+                    $overflows = fn (): bool => (bool) $browser->driver->executeScript('return document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;');
+                    $probe['overflow'] = $overflows();
+
+                    if ($probe['overflow']) {
+                        usleep(500000);
+                        $probe['overflow'] = $overflows();
+                    }
+
                     $step = 'console';
                     $spinnerHtml = $stillSpinning ? (string) $browser->driver->executeScript('var e = Array.from(document.querySelectorAll(".spinner-border, [aria-busy=true]")).find(function (x) { var r = x.getBoundingClientRect(); return x.offsetParent !== null && r.width > 0 && r.height > 0 && !x.closest("button, .modal:not(.show), [hidden]"); }); return e ? e.outerHTML.slice(0, 140) + " IN " + (e.parentElement ? e.parentElement.className : "") : "";') : '';
                     $console = collect($browser->driver->manage()->getLog('browser'))

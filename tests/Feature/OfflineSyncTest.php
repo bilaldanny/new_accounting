@@ -117,3 +117,19 @@ test('a purchase, a receipt, a payment, an expense, a contact and a pending stoc
         ->assertOk()->assertJsonPath('status', 'synced');
     expect(Transaction::query()->findOrFail($adjustment->json('result_id'))->status)->toBe('pending');
 });
+
+test('a company-level user with no branch of their own gets the company data and posts into the first branch', function () {
+    $scope = offlineWorld();
+    $user = $scope['user'];
+    DB::table('users')->where('id', $user->id)->update(['branch_id' => null]);
+    Sanctum::actingAs($user->fresh());
+
+    $reference = $this->getJson('/api/offline/reference')->assertOk()->json('data');
+    expect($reference['contacts'])->not->toBeEmpty()->and($reference['payment_accounts'])->not->toBeEmpty()->and($reference['branch_id'])->toBe((int) $scope['branch_id']);
+
+    $entry = offlineSale($scope, ['payload' => ['payment' => ['method' => 'cash', 'payment_account' => $scope['cash_id'], 'amount' => 240]]]);
+    $result = $this->postJson('/api/offline/sync', $entry)->assertOk()->assertJsonPath('status', 'synced');
+    $sale = Transaction::query()->findOrFail($result->json('result_id'));
+
+    expect((int) $sale->branch_id)->toBe((int) $scope['branch_id'])->and((int) DB::table('offline_sync_entries')->value('branch_id'))->toBe((int) $scope['branch_id']);
+});
