@@ -355,7 +355,7 @@ async function registerBackgroundSync(): Promise<void> {
 }
 
 /** The two offline screens and the build files are kept by the service worker (never any other page); this primes them. */
-export async function registerShell(): Promise<void> {
+export async function registerShell(force = false): Promise<void> {
     if (! ('serviceWorker' in navigator)) {
         return;
     }
@@ -364,7 +364,24 @@ export async function registerShell(): Promise<void> {
         const registration = await navigator.serviceWorker.register('/pos-sw.js');
         const ready = await navigator.serviceWorker.ready;
 
-        if (offline.online) {
+        // keeping the screens is work for the server (the page and every build file are fetched), so it is done when the Offline entries
+        // page is opened and at most twice a day from any other page, not on every page load
+        const stamp = 'offline-shell-at';
+        let last = 0;
+
+        try {
+            last = Number(window.localStorage.getItem(stamp) ?? 0);
+        } catch {
+            last = 0;
+        }
+
+        if (offline.online && (force || Date.now() - last > 12 * 3600 * 1000)) {
+            try {
+                window.localStorage.setItem(stamp, String(Date.now()));
+            } catch {
+                // the next page load tries again
+            }
+
             const manifest = tryJson<Record<string, { file: string; css?: string[]; imports?: string[]; assets?: string[] }>>(await (await fetch('/build/manifest.json')).text()) ?? {};
             const urls = new Set<string>();
             const seen = new Set<string>();

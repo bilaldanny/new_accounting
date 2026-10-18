@@ -1,7 +1,8 @@
 <script setup lang="ts">
     import { Head } from '@inertiajs/vue3';
+    import ClientTable from '@/components/ClientTable.vue';
     import { computed, onMounted, reactive, ref, watch } from 'vue';
-    import { CONFLICT_TEXT, KIND_LABEL, discardEntry, enqueue, isStale, listEntries, loadReference, offline, refreshReference, retryEntry, syncAll } from '@/lib/offline/engine';
+    import { CONFLICT_TEXT, KIND_LABEL, discardEntry, enqueue, isStale, listEntries, loadReference, offline, refreshReference, registerShell, retryEntry, syncAll } from '@/lib/offline/engine';
     import type { OfflineEntry, OfflineKind, Reference } from '@/lib/offline/store';
 
     defineOptions({
@@ -208,6 +209,7 @@
         // opening the page while online always takes a fresh copy: a customer or product added a minute ago must be in the lists
         await refreshReference(true);
         await load();
+        void registerShell(true);
     });
 </script>
 
@@ -371,33 +373,32 @@
         </form>
 
         <h2 class="h6">Entries on this device</h2>
-        <div class="table-responsive">
-            <table class="table table-sm" data-test="offline-entries">
-                <thead><tr><th>Provisional no.</th><th>Kind</th><th>Made</th><th>What</th><th class="text-end">Total</th><th>Status</th><th>Real no.</th><th></th></tr></thead>
-                <tbody>
-                    <tr v-for="entry in entries" :key="entry.uuid" :data-status="entry.status">
-                        <td>{{ entry.provisional_ref }} <span class="badge text-bg-secondary">provisional</span></td>
-                        <td>{{ KIND_LABEL[entry.kind] }}</td>
-                        <td>{{ entry.created_at.slice(0, 16).replace('T', ' ') }}</td>
-                        <td>{{ entry.summary }}</td>
-                        <td class="text-end">{{ money(entry.total) }}</td>
-                        <td>
-                            <span v-if="entry.status === 'conflict'" class="text-danger" data-test="offline-conflict">Needs a decision: {{ CONFLICT_TEXT[entry.conflict_code ?? 'rejected'] ?? entry.conflict_code }}<span v-if="entry.message" class="d-block small text-muted">{{ entry.message }}</span></span>
-                            <span v-else-if="entry.status === 'synced'" class="text-success">Sent</span>
-                            <span v-else>Waiting</span>
-                        </td>
-                        <td>{{ entry.real_ref ?? '-' }}</td>
-                        <td class="text-end">
-                            <template v-if="entry.status === 'conflict'">
-                                <button type="button" class="btn btn-dark btn-sm me-1" data-test="offline-edit" @click="fill(entry)">Edit and retry</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" data-test="offline-discard" @click="discard(entry)">Discard</button>
-                            </template>
-                            <button v-else-if="entry.status === 'pending'" type="button" class="btn btn-outline-danger btn-sm" @click="discard(entry)">Remove</button>
-                        </td>
-                    </tr>
-                    <tr v-if="! entries.length"><td colspan="8" class="text-center text-muted">Nothing is waiting on this device.</td></tr>
-                </tbody>
-            </table>
+        <div data-test="offline-entries">
+            <ClientTable
+                empty-text="Nothing is waiting on this device."
+                export-name="offline-entries"
+                :columns="[{ key: 'ref', label: 'Provisional no.' }, { key: 'kind', label: 'Kind' }, { key: 'made', label: 'Made' }, { key: 'what', label: 'What' }, { key: 'total', label: 'Total', format: 'number', decimals: 2 }, { key: 'status', label: 'Status' }, { key: 'real', label: 'Real no.' }, { key: 'act', label: '', sorting: 'disabled' }]"
+                :rows="entries.map((entry) => ({ __s: { entry }, id: entry.uuid, ref: entry.provisional_ref, kind: KIND_LABEL[entry.kind], made: entry.created_at.slice(0, 16).replace('T', ' '), what: entry.summary, total: entry.total, status: entry.status, real: entry.real_ref ?? '-', act: '' }))"
+            >
+                <template #cell-ref="{ row: __m }"><template v-for="{ entry } in [__m.__s]" :key="entry.uuid"><span data-test="offline-ref">{{ entry.provisional_ref }}</span> <span class="badge text-bg-secondary">provisional</span></template></template>
+                <template #cell-total="{ row: __m }"><template v-for="{ entry } in [__m.__s]" :key="entry.uuid">{{ money(entry.total) }}</template></template>
+                <template #cell-status="{ row: __m }">
+                    <template v-for="{ entry } in [__m.__s]" :key="entry.uuid">
+                        <span v-if="entry.status === 'conflict'" class="text-danger" data-test="offline-conflict" data-status="conflict">Needs a decision: {{ CONFLICT_TEXT[entry.conflict_code ?? 'rejected'] ?? entry.conflict_code }}<span v-if="entry.message" class="d-block small text-muted">{{ entry.message }}</span></span>
+                        <span v-else-if="entry.status === 'synced'" class="text-success" data-test="offline-status" data-status="synced">Sent</span>
+                        <span v-else data-test="offline-status" data-status="pending">Waiting</span>
+                    </template>
+                </template>
+                <template #cell-act="{ row: __m }">
+                    <template v-for="{ entry } in [__m.__s]" :key="entry.uuid">
+                        <template v-if="entry.status === 'conflict'">
+                            <button type="button" class="btn btn-dark btn-sm me-1" data-test="offline-edit" @click="fill(entry)">Edit and retry</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-test="offline-discard" @click="discard(entry)">Discard</button>
+                        </template>
+                        <button v-else-if="entry.status === 'pending'" type="button" class="btn btn-outline-danger btn-sm" @click="discard(entry)">Remove</button>
+                    </template>
+                </template>
+            </ClientTable>
         </div>
     </div></div></div>
 </template>

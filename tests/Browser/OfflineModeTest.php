@@ -77,6 +77,12 @@ function offlineModeDialog(Browser $browser, ?string $typed = null, bool $accept
     throw new RuntimeException('The page opened no dialog.');
 }
 
+/** Waits until the entries table shows the text (read in one script call: the table redraws as entries change, so a held element goes stale). */
+function offlineModeSees(Browser $browser, string $text): void
+{
+    $browser->waitUsing(20, 1, fn (): bool => str_contains((string) $browser->driver->executeScript('var t = document.querySelector("[data-test=offline-entries]"); return t ? t.innerText : "";'), $text), 'The entries table never showed: '.$text);
+}
+
 function offlineModePending(Browser $browser): string
 {
     return trim((string) $browser->text('[data-test="offline-pending-count"]'));
@@ -131,8 +137,8 @@ test('every kind of entry made with the network off is kept on the device and se
             offlineModeSave($browser, 6);
 
             // kept on the device with provisional numbers; nothing reached the server
-            $browser->assertSeeIn('[data-test="offline-entries"]', 'provisional');
-            $refs = $browser->driver->executeScript('return Array.from(document.querySelectorAll("[data-test=offline-entries] tbody tr td:first-child")).map((td) => td.textContent.trim().split(" ")[0]);');
+            offlineModeSees($browser, 'provisional');
+            $refs = $browser->driver->executeScript('return Array.from(document.querySelectorAll("[data-test=offline-entries] [data-test=offline-ref]")).map((span) => span.textContent.trim());');
             expect($refs)->toHaveCount(6)->and(array_unique($refs))->toHaveCount(6);
             foreach ($refs as $ref) {
                 expect($ref)->toStartWith('OFF-');
@@ -144,7 +150,7 @@ test('every kind of entry made with the network off is kept on the device and se
             // the network is back: the engine sends them on its own
             offlineModeNetwork($browser, false);
             $browser->waitUsing(90, 1, fn (): bool => str_starts_with(offlineModePending($browser), '0 waiting') && DB::table('offline_sync_entries')->where('status', 'synced')->count() === 6);
-            $browser->waitFor('[data-test="offline-entries"] tr[data-status="synced"]', 20);
+            $browser->waitFor('[data-test="offline-entries"] [data-test="offline-status"][data-status="synced"]', 20);
 
             expect(Transaction::query()->where('type', 'sell')->count())->toBe($sells + 1)
                 ->and(Transaction::query()->where('type', 'purchaseorder')->count())->toBe($purchases + 1)
@@ -172,18 +178,21 @@ test('a refused entry waits for a decision: edit and retry posts it, discard is 
     $snapshot = kbSnapshot();
     DB::table('offline_sync_entries')->delete();
     $sells = Transaction::query()->where('type', 'sell')->count();
-    DB::table('contacts')->where('id', $world['customer_id'])->update(['credit_limit' => 1000]);
+    // a customer of its own with a small limit and no other invoices (the shared customer carries the invoices of other tests)
+    $limited = Contact::query()->create(['company_id' => $world['company_id'], 'branch_id' => $world['branch_id'], 'business_name' => 'Dusk Limited Customer', 'first_name' => 'Lim', 'address' => 'Nowhere', 'ntn_number' => '2222222', 'mobile' => '0300111', 'user_type' => 'customer', 'type' => 'local', 'code' => 'CU-DUSKLIM', 'credit_limit' => 1000, 'active' => true]);
+    insertPurchaseChartAccount($world, '101-00099', 'Dusk Limited Customer', 'dr', false);
+    $limited->forceFill(['customer_gl_id' => '101-00099', 'gl_id' => '101-00099', 'link_account' => true])->save();
     $gone = Contact::query()->create(['company_id' => $world['company_id'], 'branch_id' => $world['branch_id'], 'business_name' => 'Dusk Gone Customer', 'first_name' => 'Gone', 'address' => 'Nowhere', 'ntn_number' => '1111111', 'mobile' => '0300000', 'user_type' => 'customer', 'type' => 'local', 'code' => 'CU-DUSKGONE', 'active' => true]);
 
     try {
-        $this->browse(function (Browser $browser) use ($world, $sells, $gone) {
+        $this->browse(function (Browser $browser) use ($world, $sells, $gone, $limited) {
             $this->signIn($browser, $this->adminUser());
             offlineModePrime($browser);
             offlineModeNetwork($browser, true);
             $browser->refresh()->waitFor('[data-test="offline-form"]', 40);
 
             // too big for the customer's credit limit
-            $browser->select('#offline-kind', 'sale')->select('#offline-contact', (string) $world['customer_id'])->select('select[aria-label="Product 1"]', (string) $world['variation_id']);
+            $browser->select('#offline-kind', 'sale')->select('#offline-contact', (string) $limited->id)->select('select[aria-label="Product 1"]', (string) $world['variation_id']);
             $browser->type('input[aria-label="Quantity 1"]', '50');
             offlineModeSave($browser, 1);
 
@@ -197,7 +206,7 @@ test('a refused entry waits for a decision: edit and retry posts it, discard is 
             $browser->waitFor('[data-test="offline-conflict"]', 30);
             expect(DB::table('offline_sync_entries')->pluck('conflict_code')->sort()->values()->all())->toBe(['credit_limit', 'product_missing'])
                 ->and(Transaction::query()->where('type', 'sell')->count())->toBe($sells);
-            $browser->assertSeeIn('[data-test="offline-entries"]', 'credit limit');
+            offlineModeSees($browser, 'credit limit');
 
             // discard the deleted-product one (reason and confirmation asked, audit log written)
             $row = DB::table('offline_sync_entries')->where('conflict_code', 'product_missing')->first();
@@ -205,16 +214,24 @@ test('a refused entry waits for a decision: edit and retry posts it, discard is 
             expect(offlineModeDialog($browser, 'Dusk: the customer is gone'))->toContain('discarded');
             expect(offlineModeDialog($browser))->toBe('Discard '.$row->provisional_ref.'? It will never be posted.');
             $browser->waitUsing(20, 1, fn (): bool => DB::table('offline_sync_entries')->where('id', $row->id)->value('status') === 'discarded');
+            $browser->waitUsing(10, 1, fn (): bool => DB::table('audit_logs')->where('event', 'offline_discarded')->count() === 1);
             expect(DB::table('audit_logs')->where('event', 'offline_discarded')->count())->toBe(1);
 
             // edit the credit-limit one down to a size that fits, and send it again
-            $browser->click('[data-test="offline-edit"]')->waitFor('input[aria-label="Quantity 1"]', 10)->type('input[aria-label="Quantity 1"]', '2');
-            $browser->click('[data-test="offline-save"]');
-            $browser->waitUsing(30, 1, fn (): bool => DB::table('offline_sync_entries')->where('conflict_code', null)->where('status', 'synced')->count() === 1);
+            // the table and the form redraw as the entry changes: act through one script call each so no element is held across a redraw
+            $browser->waitFor('[data-test="offline-edit"]', 20);
+            $browser->driver->executeScript('document.querySelector("[data-test=offline-edit]").click();');
+            $browser->waitUsing(10, 1, fn (): bool => (string) $browser->driver->executeScript('var i = document.querySelector("input[aria-label=\\"Quantity 1\\"]"); return i ? i.value : "";') === '50');
+            $browser->driver->executeScript('var i = document.querySelector("input[aria-label=\\"Quantity 1\\"]"); i.value = "2"; i.dispatchEvent(new Event("input", { bubbles: true }));');
+            $browser->driver->executeScript('document.querySelector("[data-test=offline-save]").click();');
+            try {
+                $browser->waitUsing(30, 1, fn (): bool => DB::table('offline_sync_entries')->where('conflict_code', null)->where('status', 'synced')->count() === 1);
+            } catch (Throwable $e) {
+                throw new RuntimeException('the edited entry was not sent: '.json_encode(DB::table('offline_sync_entries')->get(['status', 'conflict_code', 'error'])->all()), 0, $e);
+            }
             expect(Transaction::query()->where('type', 'sell')->count())->toBe($sells + 1);
         });
     } finally {
-        DB::table('contacts')->where('id', $world['customer_id'])->update(['credit_limit' => 25000]);
         kbRestore($snapshot);
         DB::table('offline_sync_entries')->delete();
     }
@@ -256,7 +273,7 @@ test('signing out asks while entries wait, a forced sign-out keeps them for that
             // another user of the same device and company does not see it
             $this->signIn($browser, $other);
             $browser->visit('/offline')->waitFor('[data-test="offline-form"]', 40)->pause(1500);
-            $browser->assertSeeIn('[data-test="offline-entries"]', 'Nothing is waiting on this device.');
+            offlineModeSees($browser, 'Nothing is waiting on this device.');
             expect(DB::table('offline_sync_entries')->count())->toBe(0);
 
             // the owner signs in again: the entry is sent, once

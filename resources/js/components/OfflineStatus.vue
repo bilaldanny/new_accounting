@@ -70,6 +70,8 @@
 .offline-chip {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: 5.5rem;
     gap: 6px;
     padding: 4px 10px;
     border-radius: 999px;

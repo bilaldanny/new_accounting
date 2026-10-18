@@ -76,6 +76,11 @@ async function precache(urls) {
 
     await Promise.all(urls.map(async (url) => {
         try {
+            // a build file has a hashed name: one already kept never needs fetching again
+            if (await cache.match(url)) {
+                return;
+            }
+
             const response = await fetch(url, { credentials: 'same-origin' });
 
             if (response.ok) {

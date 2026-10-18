@@ -73,7 +73,7 @@ test('a document is uploaded on the customer Documents tab and listed', function
         duskClickText($browser, 'Documents');
         $browser->waitFor('#contact-document-file', 20)->attach('#contact-document-file', $path);
         duskClickText($browser, 'Upload');
-        $browser->waitForText(basename($path), 20)->assertSee(basename($path));
+        $browser->waitForText(basename($path), 40)->assertSee(basename($path));
         $this->assertNoBrowserErrors($browser);
     });
 

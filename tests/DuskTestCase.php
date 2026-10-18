@@ -83,6 +83,12 @@ abstract class DuskTestCase extends BaseTestCase
         );
 
         static::assertDuskAppUrl((string) config('app.url'));
+
+        // The server keeps permissions (and the dashboard figures) in the file cache (see serverEnvironment()). A test that grants a menu
+        // and then calls Cache::forget must reach that same store, not the `database` store of .env, or the server keeps its old copy
+        // and the outcome depends on which earlier test happened to open a page first.
+        config(['cache.default' => 'file']);
+        Cache::clearResolvedInstances();
     }
 
     /**

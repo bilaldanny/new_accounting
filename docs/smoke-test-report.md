@@ -1,6 +1,6 @@
 # Smoke test report
 
-Made by `tests/Browser/SmokeTest.php` on 2026-10-17 21:21:35 (sqlite, `php artisan dusk --filter=SmokeTest`). A brand new company is signed up through the public form and driven through the product; screenshots are in `docs/smoke-test/`.
+Made by `tests/Browser/SmokeTest.php` on 2026-10-18 12:06:56 (sqlite, `php artisan dusk --filter=SmokeTest`). A brand new company is signed up through the public form and driven through the product; screenshots are in `docs/smoke-test/`.
 
 **Result: 21 of 21 steps passed, 0 failed.**
 
@@ -8,7 +8,7 @@ How to read "driven by": *browser* = typed or clicked in the browser; *endpoint 
 
 | # | Step | Driven by | Result | Screenshot | Notes |
 |---|---|---|---|---|---|
-| 1 | Sign up a new company | browser: public form | pass | [smoke-test/01-sign-up-a-new-company.png](smoke-test/01-sign-up-a-new-company.png) | company #2, 6 roles, 42 accounts |
+| 1 | Sign up a new company | browser: public form | pass | [smoke-test/01-sign-up-a-new-company.png](smoke-test/01-sign-up-a-new-company.png) | company #4, 6 roles, 42 accounts |
 | 2 | Sign out and sign in again | browser: login form | pass | [smoke-test/02-sign-out-and-sign-in-again.png](smoke-test/02-sign-out-and-sign-in-again.png) |  |
 | 3 | Setup wizard | browser: page | pass | [smoke-test/03-setup-wizard.png](smoke-test/03-setup-wizard.png) | wizard opened |
 | 4 | Create a supplier, a customer and products | endpoint calls, then the list pages in the browser | pass | [smoke-test/04-create-a-supplier-a-customer-and-products.png](smoke-test/04-create-a-supplier-a-customer-and-products.png) | 3 products, 1 supplier, 1 customer |
@@ -28,7 +28,7 @@ How to read "driven by": *browser* = typed or clicked in the browser; *endpoint 
 | 18 | Notification sound switch | browser: header | pass | [smoke-test/18-notification-sound-switch.png](smoke-test/18-notification-sound-switch.png) | was true, saved on and still so after a reload |
 | 19 | Offline: sale and expense entered with no network, sent once | browser: Offline entries page, network switched off | pass | [smoke-test/19-offline-sale-and-expense-entered-with-no-network-sent-once.png](smoke-test/19-offline-sale-and-expense-entered-with-no-network-sent-once.png) | 2 entries queued offline, both posted exactly once |
 | 20 | Demo companies build (pilot and history) | commands | pass | [smoke-test/20-demo-companies-build-pilot-and-history-.png](smoke-test/20-demo-companies-build-pilot-and-history-.png) | pilot company built with 30 documents; demo:history exit 0 |
-| 21 | Create a role and a user; the limited user is kept to their pages | endpoint calls, then the browser as the new user | pass | [smoke-test/21-create-a-role-and-a-user-the-limited-user-is-kept-to-their-pages.png](smoke-test/21-create-a-role-and-a-user-the-limited-user-is-kept-to-their-pages.png) | cashier #6 reaches the till and is refused the role page |
+| 21 | Create a role and a user; the limited user is kept to their pages | endpoint calls, then the browser as the new user | pass | [smoke-test/21-create-a-role-and-a-user-the-limited-user-is-kept-to-their-pages.png](smoke-test/21-create-a-role-and-a-user-the-limited-user-is-kept-to-their-pages.png) | cashier #14 reaches the till and is refused the role page |
 
 ## What the smoke test found and what was done about it
 

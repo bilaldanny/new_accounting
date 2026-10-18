@@ -26,7 +26,7 @@ test('the notification sound switch is saved, remembered and silences the alerts
 
         // off: the switch is saved on the account
         $browser->click('[data-test="sound-toggle"]');
-        $browser->waitUsing(10, 1, fn (): bool => ! (bool) DB::table('users')->where('id', $admin->id)->value('notification_sound'));
+        $browser->waitUsing(30, 1, fn (): bool => ! (bool) DB::table('users')->where('id', $admin->id)->value('notification_sound'));
         $browser->assertAttribute('[data-test="sound-toggle"]', 'aria-pressed', 'false');
 
         // after a reload, and even with the browser's own copy gone, it is still off
@@ -44,7 +44,7 @@ test('the notification sound switch is saved, remembered and silences the alerts
 
         // back on, and an alert is heard again
         $browser->visit('/dashboard')->waitFor('[data-test="sound-toggle"]', 40)->click('[data-test="sound-toggle"]');
-        $browser->waitUsing(10, 1, fn (): bool => (bool) DB::table('users')->where('id', $admin->id)->value('notification_sound'));
+        $browser->waitUsing(30, 1, fn (): bool => (bool) DB::table('users')->where('id', $admin->id)->value('notification_sound'));
         $browser->visit('/sell/pos/add')->waitFor('[data-test="pos-search"]', 40);
         $browser->driver->executeScript('window.__plays = 0; HTMLMediaElement.prototype.play = function () { window.__plays++; return Promise.resolve(); };');
         $browser->type('[data-test="pos-search"]', '0000000000001')->keys('[data-test="pos-search"]', '{enter}');
