@@ -48,10 +48,9 @@ and a dark navy / teal theme in `resources/css/landing.css`.
 ## Screenshots on the landing page
 
 - The pictures in the screenshot gallery and the hero are in `public/assets/landing/` (`dashboard.jpg`, `sales.jpg`, `products.jpg`,
-  `sellreport.jpg`). They were taken on a sample company with fictional customers and products, and the page says so.
+  `sellreport.jpg`). They are taken on the DEMO-HISTORY demo company (twelve months of fictional trade), so the figures agree, and the page says so.
 - To retake them after the interface changes, run `tests/Browser/LandingScreenshotsTest.php` on purpose with `CAPTURE_LANDING_SCREENSHOTS=1`
-  (inline sqlite Dusk environment, like every Dusk run), then convert the `tests/Browser/screenshots/landing-*.png` files to 1280 px wide JPEGs
-  in `public/assets/landing/`. It never runs in the normal suite.
+  (inline sqlite Dusk environment, like every Dusk run), then run `powershell -File tests/Browser/landing-shots.ps1` to make the JPEGs in `public/assets/landing/`. It never runs in the normal suite.
 
 ## Default subscription packages
 

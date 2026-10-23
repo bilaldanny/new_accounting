@@ -299,7 +299,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                 <div class="lp-wrap lp-hero-visual">
                     <div class="lp-frame lp-frame-hero">
                         <div class="lp-frame-bar"><i /><i /><i /><span>Sample data</span></div>
-                        <img src="/assets/landing/dashboard.jpg" width="1280" height="673" alt="The dashboard of the application, showing sales, purchases, receivables and pending approvals" fetchpriority="high" />
+                        <img src="/assets/landing/dashboard.jpg" width="1280" height="687" alt="The dashboard of the application, showing sales, purchases, receivables and pending approvals" fetchpriority="high" />
                     </div>
                     <div class="lp-voucher lp-float" role="img" aria-label="Sample journal voucher with balanced debit and credit lines">
                         <div class="lp-voucher-bar"><i /><i /><i /><span>Sample data</span></div>
@@ -369,7 +369,7 @@ const contactHref = computed(() => (props.contact.email ? `mailto:${props.contac
                         >
                             <div class="lp-frame">
                                 <div class="lp-frame-bar"><i /><i /><i /><span>Sample data</span></div>
-                                <img :src="screen.src" width="1280" height="673" :alt="screen.alt" loading="lazy" />
+                                <img :src="screen.src" width="1280" height="687" :alt="screen.alt" loading="lazy" />
                             </div>
                             <p class="lp-caption">{{ screen.caption }}</p>
                         </div>
