@@ -1,0 +1,22 @@
+# Part 7: decisions needed from the owner
+
+Each decision has 2-3 options and a recommendation. The brief (`DESIGN-BRIEF.md`) is written with the **recommended** option in every case; if you choose differently, change the line named in the last column before pasting the brief into AI Studio.
+
+| # | Decision | Options | Recommendation | Brief line to change |
+|---|---|---|---|---|
+| 1 | **Themes** | (a) light only; (b) light + dark, same tokens; (c) keep the five template looks (light, dark, semi-dark, minimal, 8 header colours) | **(b)**. The app has no working dark mode today (two competing switches, not saved) and the website is dark only; one token set with two values fixes both. Drop semi-dark, minimal and the 8 header colours | Chunk 1, "Themes" |
+| 2 | **Primary colour** | (a) keep teal; (b) move to blue / indigo; (c) teal for brand, neutral slate for most buttons | **(a) one teal**: `#0d9488` primary, `#0f766e` pressed, `#ccfbf1` soft, `#14b8a6` accent on dark. It is already the brand colour (the three teal values account for 327 of the 2,675 hex uses and all of `--app-primary`) and matches the website mint; the three teals collapse to one | Chunk 1, "Colour" |
+| 3 | **Density** | (a) compact (32 px rows, 13 px text); (b) comfortable (40 px rows, 14 px); (c) user switch | **(c) with compact as default**: accountants read long tables; `theTable` already has a density option (`modern-table--compact`) | Chunk 1, "Density" |
+| 4 | **Urdu / RTL** | (a) design and build now; (b) design RTL-ready (logical properties, no left / right in tokens, a font slot) and translate later; (c) not planned | **(b)**. Today only the switch and a word list exist; menu and pages are English. Keep Urdu for printed documents first (document language already has `ur`) | Chunk 1, "Language" |
+| 5 | **Website tone** | (a) formal enterprise; (b) plain, accountant-friendly, Pakistan-aware; (c) bold start-up | **(b)**; the current copy ("A voucher only counts when it balances") already reads this way | Chunk 5, "Tone" |
+| 6 | **Typeface** | (a) Inter; (b) Roboto (what the body renders today); (c) Poppins (declared in SCSS) | **(a) Inter** with tabular figures for numbers; add Noto Nastaliq Urdu only when Urdu UI starts | Chunk 1, "Type" |
+| 7 | **Icon set** | (a) lucide; (b) boxicons; (c) keep both | **(a) lucide** (147 files, matches the kit); migrate the 42 boxicons files over time | Chunk 1, "Icons" |
+| 8 | **Navigation** | (a) keep the 4-level tree sidebar; (b) add sidebar search, pinned favourites and "recent"; (c) top mega-menu | **(b)**: the tree has no search inside it; 278 visible links need one | Chunk 2 |
+| 9 | **Add / edit as page or modal** | (a) all pages; (b) all modals; (c) rule: master data with 6 fields or fewer = modal, everything else = page | **(c)**. Today 50 add / edit screens are modals and 62 are pages with no stated rule | Chunk 4, Form template |
+| 10 | **Financial statement style** | (a) simple account / amount list; (b) formal statement with notes column and comparatives; (c) both with a toggle | **(c)**; default simple, formal for print | Chunk 4, Statement template |
+| 11 | **Date format** | (a) `dd-MMM-yyyy`; (b) `dd/mm/yyyy`; (c) `yyyy-mm-dd` | **(a)** by default, as a company setting (like the number format already is) | Chunk 1, "Dates" |
+| 12 | **Number grouping default** | (a) western `1,234,567`; (b) Indian `12,34,567` (lakh / crore); (c) per company | **(c)**; the setting exists. Default **western** for new companies, because exports and AI-made mockups read it without confusion; show the lakh / crore sample in Settings | Chunk 1, "Numbers" |
+| 13 | **Mobile approach** | (a) responsive web only; (b) responsive web + the existing offline field app (PWA); (c) native app later | **(b)**: lists become cards (done in this session), voucher forms get bottom action bars, POS stays tablet-first | Chunk 4 |
+| 14 | **Clean-up before the redesign** | (a) leave dead code; (b) delete `components/old/` (24 files), unused layouts, unused skeletons, the 26 duplicate FormChromes after replacing them | **(b)**, as a separate task. This audit did not delete anything | not in brief |
+| 15 | **Report engine** | (a) keep one generic report page for 79 reports; (b) keep it for lists, add dedicated components for statements, ledgers and aging | **(b)**: same routes, new components | Chunk 4, Ledgers |
+| 16 | **What to design first in AI Studio** | (a) all 506 screens; (b) the 12 templates and 26 shared components, then the 110 "high" screens in `screens.csv` | **(b)** | Chunk 5 |

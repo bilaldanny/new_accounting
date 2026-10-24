@@ -1,0 +1,32 @@
+# Part 5, item 11: build once, reuse by name
+
+UI pieces that repeat in **10 or more** places, what exists now, and the single spec each should have. "Where" counts are page files unless stated. The names here are the names the design brief uses.
+
+| # | Name | Repeats in | Today | One spec |
+|---|---|---|---|---|
+| 1 | **PageHeader** | 331 pages with layout options (+17 `setLayoutProps`) | `TheBreadcurm` draws title + crumbs; actions sit in the card; 39 pages add their own `<h1>`; form pages repeat a header in 27 chromes | Title (h1, 20 px / 700), optional subtitle (13 px muted), breadcrumb right on desktop and under the title on phones, **primary action slot at the right of the same row**, secondary actions in an overflow menu. Never an own `<h1>` in a page |
+| 2 | **FormChrome** | 27 copies + `SimpleFormChrome` (8) + 50 add / edit modal pages | 105-114 lines each, 3 strings differ | Sticky bar: crumb, title, optional reference chip, status chip, Cancel / Save & Add New / Save & Close; on phones the three buttons become a bottom bar. Props: `entity`, `mode`, `referenceNo`, `status`, `busy` |
+| 3 | **FilterBar** | `theFilter` 64 lists; own rows in `report/index.vue` and `report/ledger.vue` | collapsible card with fields per page | One row: search (always), date range, 2-3 pinned filters (party, branch, status), "More filters" popover, saved filters (exist in Profit & Loss: "Saved filters"), Clear, active-filter chips under the row |
+| 4 | **TableToolbar** | inside `theTable` (113) and `ClientTable` (97) | search, page size, column chooser, export | keep as is, but one place for bulk actions and "select all across pages" |
+| 5 | **DataTable** | 210 pages | `theTable` is 2,243 lines with 20 domain-action props | split: generic table (columns, sort, select, row actions slot, footer, empty, loading) and a row-action menu that receives a list of actions; no domain props such as `addSellPayment` |
+| 6 | **StatusBadge** | 65 table columns, 32 pages with `badge bg-*`, 21 pages with own pills | many looks | 6 tones: neutral, info, success, warning, danger, brand; sentence-case text, dot + label, 22 px high. Fixed vocabulary: Draft, Pending, Approved, Posted, Paid, Partial, Overdue, Rejected, Cancelled, Active, Inactive |
+| 7 | **AmountCell / Money** | every list and form with money (61 files format by hand) | `formatNumber` honoured by 10 files | Right aligned, tabular figures, company number format, negative in red per company setting, optional `Dr` / `Cr` suffix, currency symbol only in headers or when currencies mix; zero shows `0.00` or an en dash by column choice |
+| 8 | **DateCell / DateInput / DateRange** | 64 files with `<input type="date">`, 47 with `toISOString` | server decides display (`Y-m-d` vs `d M Y`) | display `dd-MMM-yyyy`; input is a text field with calendar popup accepting typed `dd/mm/yyyy`; range has fiscal-year, month, quarter, last-30-days presets and honours the period lock |
+| 9 | **MoneyInput** | 129 pages with `<input type="number">` | no separators, no currency | text input, right aligned, thousand separators while typing, decimals per company, paste-safe, currency prefix when foreign |
+| 10 | **PartyPicker** (customer / supplier / both) | 19 customer + 14 supplier dropdown users | rebuilt per form | search by name, code, phone; shows balance and credit limit under the field; "+ New" inline |
+| 11 | **ProductPicker** | 40 pages | per-grid search | search by name, SKU, barcode; shows stock and price; scanner-ready |
+| 12 | **BranchWarehouseSelect** | 79 pages (branch) | each form | one pair of selects that remembers the last choice |
+| 13 | **LineGrid** (voucher / document lines) | **10 editors**, 335-1,033 lines each | per module | columns configured by a list; keyboard map (Enter / Tab next cell, Ctrl+Enter save, Insert add line, Delete remove, Up / Down row, paste from sheet); row status (error, tracking needed); phone: card per line |
+| 14 | **TotalsPanel** | 10 editors, POS, 8 views | each page | right-aligned panel: sub-total, discount, tax, shipping, round-off, **Total** (large), paid, **Due**; for journals Debit total, Credit total, **Difference** |
+| 15 | **AttachmentBox** | 33 pages mention attachments (6 voucher forms) | per form | drop zone + list (name, size, who, when), image preview, max size hint |
+| 16 | **ApprovalTimeline + ApprovalActions** | 71 pages mention approval; `VoucherApprovalActions` 6, `ActivityTimeline` 4 | partial | status chip, vertical timeline (created, submitted, approved by, rejected with reason), Approve / Reject buttons with reason box |
+| 17 | **PrintHeader / PrintFooter** | 20 pages call `window.print()` | each its own | company name, logo, address, tax numbers, document title, number, date, page x of y; same for A4 and thermal receipt variants |
+| 18 | **ConfirmDialog** | 54 pages with `ModalComponent`, delete wording in 164 files | rebuilt | title, one sentence consequence, two buttons (destructive on the right), optional "type DELETE" for irreversible |
+| 19 | **EmptyState** | 68 files with empty text; built into `theTable` | ad hoc | icon, one line "No sales yet", one line why or what next, primary action button |
+| 20 | **Skeleton** | `Loader` 181 pages | spinner on most | table rows, card blocks and form fields as grey bars; no full-page spinner |
+| 21 | **KpiTile / StatCard** | 29 pages (`dash-kpi-cell`, report tiles, form cards) | three looks | label, value (large, tabular), delta chip, optional sparkline; accent variant for the key figure |
+| 22 | **Tabs** | 36 pages with hand-written `nav-tabs` | Bootstrap | underline tabs, count chip, scroll on phones; URL hash keeps the tab |
+| 23 | **SectionCard** | every form (`product-form-card`) and settings tab | per page | one card with a header (title + description), body, optional footer; no nested cards |
+| 24 | **Toast / Alert** | `handleSuccess` (101 pages), `sonner`, flash toast | three looks | one toast stack top-right (bottom on phones), success / error / info, 4 s, with an Undo when possible; inline `Alert` for page-level messages |
+| 25 | **ErrorPage** | none | not found | 403, 404, 419, 500 and "offline" pages in the app shell and in the public shell |
+| 26 | **StatementTable** (ledger / statement / matrix) | 3 ledgers, 4 statements, 4 aging reports | flat `theTable` or raw `<table>` | see Part 3: opening and closing rows, sticky totals, indentation, drill-down links |
