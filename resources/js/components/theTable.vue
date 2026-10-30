@@ -1520,6 +1520,7 @@ return
                                         v-for="(col, colIndex) in visibleColumns"
                                         :key="col.key ?? `cell-${colIndex}`"
                                         :data-colname="col.key"
+                                        :data-label="col.label"
                                         :class="{
                                             'admin-col-check': col.type === 'checkbox',
                                             'admin-col-sno': col.type === 'count',

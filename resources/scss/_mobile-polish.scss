@@ -1,0 +1,319 @@
+// Phone-size polish for the whole app (up to 767.98px): a compact top bar, tidy page headers, readable tables,
+// single-column forms, full-width action rows and a roomier tap size. Desktop and tablet-landscape layouts are untouched.
+@media (max-width: 767.98px) {
+    html,
+    body {
+        overflow-x: hidden;
+    }
+
+    // ---- top bar: search takes the free room, the rest shrinks to icons ----
+    .topbar {
+        padding: 0 0.65rem;
+    }
+
+    .topbar-nav {
+        gap: 0.5rem;
+    }
+
+    .topbar-nav__left {
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 0.5rem;
+    }
+
+    .topbar-search {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: none;
+    }
+
+    .topbar-search__input {
+        width: 100%;
+        min-width: 0;
+        text-overflow: ellipsis;
+    }
+
+    .topbar-nav__right {
+        flex: 0 0 auto;
+        gap: 0.4rem;
+    }
+
+    .header-tools {
+        gap: 0.25rem !important;
+    }
+
+    .header-tools__sound,
+    .header-tools__date,
+    .user-box .user-info {
+        display: none !important;
+    }
+
+    .offline-chip {
+        font-size: 0 !important;
+        gap: 0 !important;
+        padding: 0.45rem !important;
+        min-width: 0 !important;
+    }
+
+    // ---- page frame and page header ----
+    .page-content {
+        padding: 0.75rem 0.75rem 1.5rem;
+    }
+
+    .modern-page-header {
+        margin-bottom: 0.75rem !important;
+        gap: 0.25rem !important;
+    }
+
+    .modern-page-header__title {
+        font-size: 1.2rem;
+        line-height: 1.3;
+        margin: 0;
+    }
+
+    .modern-page-header__crumb {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        white-space: nowrap;
+        font-size: 0.75rem;
+        scrollbar-width: none;
+    }
+
+    .modern-page-header__crumb::-webkit-scrollbar {
+        display: none;
+    }
+
+    // ---- cards, toolbars and filters ----
+    .card {
+        border-radius: 0.9rem;
+    }
+
+    .card-header,
+    .card-body {
+        padding-left: 0.9rem;
+        padding-right: 0.9rem;
+    }
+
+    .top-buttons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .top-buttons .btn {
+        min-height: 2.35rem;
+    }
+
+    // ---- data tables: tighter cells, search and page size on their own lines, a hint that the table scrolls ----
+    .modern-table-toolbar {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.6rem;
+    }
+
+    .modern-table-toolbar__left,
+    .modern-table-toolbar__right {
+        width: 100%;
+    }
+
+    .modern-table-toolbar input[type='search'],
+    .modern-table-toolbar input[type='text'] {
+        width: 100%;
+    }
+
+    .modern-table {
+        position: relative;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modern-table table th,
+    .modern-table table td {
+        padding: 0.6rem 0.7rem !important;
+        font-size: 0.8rem;
+    }
+
+    .modern-table table th {
+        font-size: 0.7rem;
+        letter-spacing: 0.03em;
+    }
+
+    // ---- forms: one field per row (Vueform uses fixed fractions of the row at every width) ----
+    .vf-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .vf-row > [class*='vf-col-'] {
+        grid-column: 1 / -1 !important;
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    .vf-element-layout .vf-input-field,
+    .vf-element-layout select,
+    .vf-element-layout .multiselect {
+        width: 100%;
+    }
+
+    .vf-element-layout label,
+    .vf-element-layout .vf-label {
+        white-space: normal;
+    }
+
+    input,
+    select,
+    textarea,
+    .form-control,
+    .form-select {
+        font-size: 16px; // stops the phone browser zooming in on focus
+    }
+
+    // ---- form page header: title above, actions as a full-width row ----
+    .product-form-view__top {
+        top: 52px !important;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    .product-form-view__top > div > div:last-child {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .product-form-view__top > div > div:last-child > * {
+        flex: 1 1 auto;
+        justify-content: center;
+        min-height: 2.5rem;
+    }
+
+    .product-form-view__top > div > div:last-child > :last-child {
+        flex: 1 1 100%;
+    }
+
+    .product-form-view__inner {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    // ---- floating helpers should not cover content ----
+    .switcher-btn {
+        opacity: 0.55;
+        transform: scale(0.8);
+        transform-origin: right center;
+    }
+
+    .back-to-top {
+        transform: scale(0.85);
+        transform-origin: bottom right;
+    }
+
+    .footer,
+    .page-footer {
+        font-size: 0.7rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    // ---- dashboard filter strip: wraps instead of running off the screen ----
+    .dash-kpi-band__header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.75rem;
+    }
+
+    .dash-kpi-band__header > .d-flex {
+        flex-wrap: wrap;
+    }
+
+    .dash-kpi-band__title small {
+        display: block;
+        margin-left: 0 !important;
+    }
+
+    .dash-company-select,
+    .dash-date-input {
+        flex: 1 1 calc(50% - 0.5rem);
+        min-width: 0;
+        width: auto;
+    }
+}
+
+// ---- data tables become one card per record on a phone (labels come from the column headings) ----
+@media (max-width: 575.98px) {
+    .modern-table table.admin-data-table,
+    .modern-table table.admin-data-table tbody {
+        display: block;
+        width: 100% !important;
+    }
+
+    .modern-table table.admin-data-table thead {
+        display: none;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row {
+        display: block;
+        margin: 0 0 0.75rem;
+        padding: 0.3rem 0.9rem;
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.09);
+        border-radius: 0.9rem;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.55rem 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+        text-align: right;
+        white-space: normal;
+        font-size: 0.85rem;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td:last-child {
+        border-bottom: 0 !important;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td[data-label]::before {
+        content: attr(data-label);
+        flex: 0 0 40%;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-align: left;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td.admin-col-check,
+    .modern-table table.admin-data-table tr.admin-data-row > td.admin-col-sno {
+        display: none;
+    }
+
+    // the row menu becomes a slim strip at the top of the card
+    .modern-table table.admin-data-table tr.admin-data-row {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td.admin-col-action {
+        order: -1;
+        justify-content: flex-end;
+        padding: 0.1rem 0 0 !important;
+        min-height: 0;
+        border-bottom: 0 !important;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td.admin-col-action::before {
+        display: none;
+    }
+
+    .modern-table table.admin-data-table tr.admin-data-row > td.admin-col-action > * {
+        margin-left: auto;
+    }
+
+    .modern-table {
+        overflow: visible;
+    }
+}
